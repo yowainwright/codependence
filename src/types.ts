@@ -1,6 +1,9 @@
+export type CodeDependenciesItem = string | Record<string, string>;
+export type CodeDependencies = Array<CodeDependenciesItem>;
+
 export type Options = {
   isTestingCLI?: boolean;
-  codependencies?: Record<string, string>;
+  codependencies?: CodeDependencies;
   files?: Array<string>;
   rootDir?: string;
   ignore?: Array<string>;
@@ -12,7 +15,7 @@ export type Options = {
 };
 
 export type CheckFiles = {
-  codependencies?: Record<string, string>;
+  codependencies: CodeDependencies;
   files?: Array<string>;
   rootDir?: string;
   ignore?: Array<string>;
@@ -32,7 +35,7 @@ export type CheckDependenciesForVersionOptions = {
 };
 
 export type CheckMatches = {
-  codependencies?: Record<string, string>;
+  versionMap: Record<string, string>;
   rootDir: string;
   files: Array<string>;
   isUpdating?: boolean;

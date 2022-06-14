@@ -2,8 +2,11 @@
 
 import { program } from "commander";
 import { cosmiconfigSync } from "cosmiconfig";
-import { Options } from "./types";
+import gradient from "gradient-string";
+import ora from "ora";
 import script from "./scripts";
+import { DEBUG_NAME } from "./constants";
+import { Options } from "./types";
 
 const explorer = cosmiconfigSync("codependency");
 
@@ -11,20 +14,14 @@ export async function action(options: Options = {}): Promise<void> {
   try {
     const { config = {} } = explorer.search() || {};
     if (options?.isTestingCLI) console.info({ config, options });
-    const {
-      codependencies,
-      rootDir = "./",
-      files = "**/package.json",
-      ignore = ["node_modules/**/*", "**/node_modules/**/*"],
-      update = false,
-      debug = false,
-      silent = false,
-      addDeps = false,
-      install = false,
-    } = options;
-    script({ rootDir, files, ignore, update, debug });
+    const updatedOptions = { ...config, ...options };
+    if (!updatedOptions?.codeDependencies)
+      throw '"codeDependencies" is required';
+    const spinner = ora("Checking Codependencies").start();
+    await script(updatedOptions);
+    spinner.stop();
   } catch (err) {
-    console.error(err);
+    console.error(gradient.passion(`${DEBUG_NAME}:cli:err`));
   }
 }
 
