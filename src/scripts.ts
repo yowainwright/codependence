@@ -218,13 +218,11 @@ export const constructJson = <T extends PackageJSON>(
   const devDependencies = constructDeps(json, "devDependencies", devDepList);
   const peerDependencies = constructDeps(json, "peerDependencies", peerDepList);
   if (isDebugging) {
-    console.log(
-      gradient.passion(`${DEBUG_NAME}`, {
-        dependencies,
-        devDependencies,
-        peerDependencies,
-      })
-    );
+    console.log(gradient.passion(`${DEBUG_NAME}`), {
+      dependencies,
+      devDependencies,
+      peerDependencies,
+    });
   }
   return {
     ...json,

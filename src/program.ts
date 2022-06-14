@@ -3,7 +3,6 @@
 import { program } from "commander";
 import { cosmiconfigSync } from "cosmiconfig";
 import gradient from "gradient-string";
-import ora from "ora";
 import { script } from "./scripts";
 import { DEBUG_NAME } from "./constants";
 import { Options } from "./types";
@@ -17,9 +16,7 @@ export async function action(options: Options = {}): Promise<void> {
     const updatedOptions = { ...config, ...options };
     if (!updatedOptions?.codeDependencies)
       throw '"codeDependencies" is required';
-    const spinner = ora("Checking Codependencies").start();
     await script(updatedOptions);
-    spinner.stop();
   } catch (err) {
     console.error(gradient.passion(`${DEBUG_NAME}:cli:err`));
   }

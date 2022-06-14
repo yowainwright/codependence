@@ -38,6 +38,8 @@
     "husky": "^8.0.1",
     "is-ci": "^3.0.1",
     "lint-staged": "^13.0.1",
+    "stdouttojson": "^0.3.2",
+    "ts-node": "^10.8.1",
     "tslib": "^2.4.0",
     "tsup": "^6.1.0",
     "tsutils": "^3.21.0",
@@ -54,7 +56,5 @@
     "versions",
     "semver"
   ],
-  "lint-staged": {
-
-  }
+  "lint-staged": {}
 }
