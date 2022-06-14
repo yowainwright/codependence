@@ -53,43 +53,6 @@ export const constructVersionMap = async (
 };
 
 /**
- * checkFiles
- * @description checks a glob of json files for dependency discrepancies
- * @param {options.matchers} string
- * @param {options.cwd} string
- * @param {options.ignore} array
- * @param {options.updating} boolean
- */
-export const checkFiles = async ({
-  codependencies,
-  files: matchers = [],
-  rootDir = "./",
-  ignore = ["node_modules/**/*", "**/node_modules/**/*"],
-  update = false,
-  debug = false,
-  silent = false,
-  addDeps = false,
-  install = false,
-}: CheckFiles): Promise<void> => {
-  try {
-    const files = glob(matchers, { cwd: rootDir, ignore });
-    const versionMap = await constructVersionMap(codependencies, debug);
-    checkMatches({
-      versionMap,
-      rootDir,
-      files,
-      isSilent: silent,
-      isUpdating: update,
-      isDebugging: debug,
-      isAddingDeps: addDeps,
-      isInstallingDeps: install,
-    });
-  } catch (err) {
-    if (debug) console.log(gradient.passion(`${DEBUG_NAME}:checkFiles:${err}`));
-  }
-};
-
-/**
  * checkVersion
  * @description checks a glob of json files for dependency discrepancies
  * @param {options.files} array
@@ -137,6 +100,43 @@ export const checkMatches = async ({
     );
   } else {
     console.log(gradient.teen("codependence: no dependency issues found! 👌"));
+  }
+};
+
+/**
+ * checkFiles
+ * @description checks a glob of json files for dependency discrepancies
+ * @param {options.matchers} string
+ * @param {options.cwd} string
+ * @param {options.ignore} array
+ * @param {options.updating} boolean
+ */
+export const checkFiles = async ({
+  codependencies,
+  files: matchers = [],
+  rootDir = "./",
+  ignore = ["node_modules/**/*", "**/node_modules/**/*"],
+  update = false,
+  debug = false,
+  silent = false,
+  addDeps = false,
+  install = false,
+}: CheckFiles): Promise<void> => {
+  try {
+    const files = glob(matchers, { cwd: rootDir, ignore });
+    const versionMap = await constructVersionMap(codependencies, debug);
+    checkMatches({
+      versionMap,
+      rootDir,
+      files,
+      isSilent: silent,
+      isUpdating: update,
+      isDebugging: debug,
+      isAddingDeps: addDeps,
+      isInstallingDeps: install,
+    });
+  } catch (err) {
+    if (debug) console.log(gradient.passion(`${DEBUG_NAME}:checkFiles:${err}`));
   }
 };
 
@@ -272,4 +272,6 @@ export const checkDependenciesForVersion = async <T extends PackageJSON>(
   return true;
 };
 
-export default checkFiles;
+export const script = checkFiles;
+export const codependence = checkFiles;
+export default codependence;

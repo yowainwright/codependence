@@ -4,7 +4,7 @@ import { program } from "commander";
 import { cosmiconfigSync } from "cosmiconfig";
 import gradient from "gradient-string";
 import ora from "ora";
-import script from "./scripts";
+import { script } from "./scripts";
 import { DEBUG_NAME } from "./constants";
 import { Options } from "./types";
 

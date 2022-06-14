@@ -1,25 +1,58 @@
-# Codependence
+# Codependence 👯‍♂️
 
-**Codependence, for code dependency. Because when it is needed, IT IS NEEDED!**
+**Codependence, for code dependency. Because sometimes, even if it shouldn't be, code dependency is required.**
 
-Codependence is a JavaScript utility tool for checking dependencies in a project to ensure they're up-to-date or match specified version(s).
+Codependence is a JavaScript utility tool for checking dependencies in a project to ensure dependencies are up-to-date or match specified version(s).
+
+---
+
+**[Synopsis](#synopsis)** | **[Usage](#usage)** | **[CLI](#cli)** | **[Node](#node)** | **[Options](#options)** |
+
+---
 
 ## Synopsis
 
-Codependence is JavaScript utility that checks a `codependencies` array against `package.json` files to ensure `codependencies` are up-to-date.
-Optionally, `codependencies` items can be set to an object with a set version and Codependence will ensure the `package.json`'s dependencies match the codependencies.
+Codependence is a JavaScript utility that compares a `codependencies` array against `package.json` `dependencies`, `devDependencies`, and `peerDependencies` for \***"codependencies"** which are not up-to-date or a specific version. Codependence can return a pass/fail result or update specified \***"codependencies"**.
 
-This utility can be useful for ensuring very dependent dependencies are always up-to-date—or, at least, installed at a specified version.
+This utility is useful for ensuring very dependent dependencies are always up-to-date—or, at least, installed at a specified version.
 
+> \***codependencies** are project dependencies which **must be** up-to-date or set to a specific version
 
 ## Usage
 
+Quick setup
+
+```sh
+npm i codependence -D
+```
+
+Pass in codependence manually
+
+```sh
+codependence -c 'fs-extra' 'lodash'
+```
+
+Or with a `codependence` config in the root `package.json` file
+
+```sh
+codependence
+```
+
+Read below for all of the CLI options
 
 ### CLI
 
+```sh
+
+```
 
 ### Node
 
-## Setup
+```js
+
+```
 
 ## Options
+
+
+## Examples
