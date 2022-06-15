@@ -13,7 +13,7 @@ export async function action(options: Options = {}): Promise<void> {
   try {
     const { config = {} } = explorer.search() || {};
     if (options?.isTestingCLI) console.info({ config, options });
-    const updatedOptions = { ...config, ...options };
+    const updatedOptions = { ...config, ...options, isCLI: true };
     if (!updatedOptions?.codeDependencies)
       throw '"codeDependencies" is required';
     await script(updatedOptions);
@@ -29,15 +29,15 @@ program
   .option("-t, --isTestingCLI", "enables CLI testing, no scripts are run")
   .option("-f, --files", "file glob pattern")
   .option("-u, --update", "update dependencies based on check")
-  .option("-r, --root", "root directory to start search")
+  .option("-r, --rootDir", "root directory to start search")
   .option("-i, --ignore", "ignore glob pattern")
   .option("--debug", "enable debugging")
   .option("--silent", "enable mainly silent logging")
-  .option("--addDeps", "add codependents as dependencies")
-  .option("--install", "install codependents without saving")
   .option(
     "-c, --codependencies",
     "a path to a file with a codependenies object"
   )
   .action(action)
   .parse(process.argv);
+
+export default program;

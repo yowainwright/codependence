@@ -68,6 +68,7 @@ export const checkMatches = async ({
   isAddingDeps = false,
   isInstallingDeps = false,
   isSilent = true,
+  isCLI = false,
 }: CheckMatches): Promise<void> => {
   const packagesNeedingUpdate: Array<boolean> = files
     .map((file) => {
@@ -91,7 +92,7 @@ export const checkMatches = async ({
   const isOutOfDate = packagesNeedingUpdate.length > 0;
   if (isOutOfDate && !isUpdating) {
     console.log(gradient.teen("codependence: dependencies are not correct 😞"));
-    process.exit(1);
+    if (isCLI) process.exit(1);
   } else if (isOutOfDate) {
     console.log(
       gradient.teen(
@@ -113,7 +114,7 @@ export const checkMatches = async ({
  */
 export const checkFiles = async ({
   codependencies,
-  files: matchers = [],
+  files: matchers = ["package.json"],
   rootDir = "./",
   ignore = ["node_modules/**/*", "**/node_modules/**/*"],
   update = false,
@@ -198,12 +199,19 @@ export const constructDeps = <T extends PackageJSON>(
             | "dependencies"
             | "devDependencies"
             | "peerDependencies"],
-          { name, expected }: DepToUpdateItem
-        ) => ({
-          ...json[depName as keyof T],
-          ...newJson,
-          [name]: expected,
-        }),
+          { name, actual, expected }: DepToUpdateItem
+        ) => {
+          const firstCharacter = actual.split("")[0];
+          const specifier = ["^", "~"].includes(firstCharacter)
+            ? firstCharacter
+            : "";
+          const version = `${specifier}${expected}`;
+          return {
+            ...json[depName as keyof T],
+            ...newJson,
+            [name]: version,
+          };
+        },
         {}
       )
     : json[depName as keyof PackageJSON];

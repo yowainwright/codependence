@@ -43,6 +43,7 @@ export type CheckMatches = {
   isSilent?: boolean;
   isAddingDeps?: boolean;
   isInstallingDeps?: boolean;
+  isCLI?: boolean;
 };
 
 export type PackageJSON = {
