@@ -1,8 +1,9 @@
+import { promisify } from "util";
 import { exec } from "child_process";
 import gradient from "gradient-string";
 import { sync as glob } from "fast-glob";
 import { readFileSync, writeFileSync } from "fs-extra";
-import { DEBUG_NAME } from "./constants";
+import { DEBUG_NAME, LOG_NAME } from "./constants";
 import {
   CheckFiles,
   CodeDependencies,
@@ -13,20 +14,23 @@ import {
   DepsToUpdate,
 } from "./types";
 
+export const execPromise = promisify(exec);
+
 export const constructVersionMap = async (
   codependencies: CodeDependencies,
+  exec = execPromise,
   isDebugging = false
 ) => {
   const updatedCodeDependencies = await Promise.all(
     codependencies.map(async (item) => {
       try {
-        if (typeof item === "object" && Object.keys(item).length === 1)
+        if (typeof item === "object" && Object.keys(item).length === 1) {
           return item;
-        else if (typeof item === "string" && item.length > 1) {
-          const version = (await exec(`npm version ${item}`, (_, stdout) =>
-            stdout.toString()
-          )) as unknown as string;
-          console.log("test", { item, version });
+        } else if (typeof item === "string" && item.length > 1) {
+          const { stdout = "" } = (await exec(
+            `npm view ${item} version latest`
+          )) as unknown as Record<string, string>;
+          const version = stdout.toString().replace("\n", "");
           if (version) return { [item]: version };
           throw `${version}`;
         } else {
@@ -35,7 +39,9 @@ export const constructVersionMap = async (
       } catch (err) {
         if (isDebugging)
           console.error(
-            gradient.passion(`${DEBUG_NAME}:constructVersionMap:${err}`)
+            `${gradient.passion(
+              `${DEBUG_NAME}:constructVersionMap:`
+            )}\n   🤼‍♀️ => ${err}`
           );
         return {};
       }
@@ -52,92 +58,20 @@ export const constructVersionMap = async (
   return versionMap;
 };
 
-/**
- * checkVersion
- * @description checks a glob of json files for dependency discrepancies
- * @param {options.files} array
- * @param {options.cwd} string
- * @param {options.isUpdating} boolean
- */
-export const checkMatches = async ({
-  versionMap,
-  rootDir,
-  files,
-  isUpdating = false,
-  isDebugging = false,
-  isSilent = true,
-  isCLI = false,
-  isTesting = false,
-}: CheckMatches): Promise<void> => {
-  const packagesNeedingUpdate: Array<boolean> = files
-    .map((file) => {
-      const path = `${rootDir}${file}`;
-      const packageJson = readFileSync(path, "utf8");
-      const json = JSON.parse(packageJson);
-      return { ...json, path };
-    })
-    .filter((json) =>
-      checkDependenciesForVersion(versionMap, json, {
-        isUpdating,
-        isDebugging,
-        isSilent,
-        isTesting,
-      })
-    );
-
-  if (isDebugging) console.log(`${DEBUG_NAME}`, { packagesNeedingUpdate });
-
-  const isOutOfDate = packagesNeedingUpdate.length > 0;
-  if (isOutOfDate && !isUpdating) {
-    console.log(gradient.teen("codependence: dependencies are not correct 😞"));
-    if (isCLI) process.exit(1);
-  } else if (isOutOfDate) {
-    console.log(
-      gradient.teen(
-        "codependence: dependencies were not correct but should be updated! Check your git status. 😃"
-      )
-    );
-  } else {
-    console.log(gradient.teen("codependence: no dependency issues found! 👌"));
-  }
-};
-
-/**
- * checkFiles
- * @description checks a glob of json files for dependency discrepancies
- * @param {options.matchers} string
- * @param {options.cwd} string
- * @param {options.ignore} array
- * @param {options.updating} boolean
- */
-export const checkFiles = async ({
-  codependencies,
-  files: matchers = ["package.json"],
-  rootDir = "./",
-  ignore = ["node_modules/**/*", "**/node_modules/**/*"],
-  update = false,
-  debug = false,
-  silent = false,
-  isCLI = false,
-  isTesting = false,
-}: CheckFiles): Promise<void> => {
-  try {
-    const files = glob(matchers, { cwd: rootDir, ignore });
-    if (!codependencies) throw '"codependencies" are required';
-    const versionMap = await constructVersionMap(codependencies, debug);
-    checkMatches({
-      versionMap,
-      rootDir,
-      files,
-      isCLI,
-      isSilent: silent,
-      isUpdating: update,
-      isDebugging: debug,
-      isTesting,
-    });
-  } catch (err) {
-    if (debug) console.log(gradient.passion(`${DEBUG_NAME}:checkFiles:${err}`));
-  }
+export const constructVersionTypes = (
+  version: string
+): Record<string, string> => {
+  const versionCharacters = version.split("");
+  const [firstCharacter, ...rest] = versionCharacters;
+  const specifier = ["^", "~"].includes(firstCharacter) ? firstCharacter : "";
+  const hasSpecifier = specifier.length === 1;
+  const characters = rest.join("");
+  const exactVersion = hasSpecifier ? characters : version;
+  const bumpVersion = `${specifier}${characters}`;
+  return {
+    bumpVersion,
+    exactVersion,
+  };
 };
 
 /**
@@ -147,21 +81,25 @@ export const checkFiles = async ({
  * @param {versionMap} object
  * @returns {array} example [{ name: 'foo', action: '1.0.0', expected: '1.1.0' }]
  */
-const constructDepsToUpdateList = (
+export const constructDepsToUpdateList = (
   dep = {} as Record<string, string>,
   versionMap: Record<string, string>
 ): Array<DepToUpdateItem> => {
   if (!Object.keys(dep).length) return [];
   const versionList = Object.keys(versionMap);
   return Object.entries(dep)
-    .map(([name, version]) => ({ name, version }))
+    .map(([name, version]) => {
+      const { exactVersion, bumpVersion } = constructVersionTypes(version);
+      return { name, exactVersion, bumpVersion };
+    })
     .filter(
-      ({ name, version }) =>
-        versionList.includes(name) && versionMap[name] !== version
+      ({ name, exactVersion }) =>
+        versionList.includes(name) && versionMap[name] !== exactVersion
     )
-    .map(({ name, version }) => ({
+    .map(({ name, exactVersion, bumpVersion }) => ({
       name,
-      actual: version,
+      actual: bumpVersion,
+      exact: exactVersion,
       expected: versionMap[name],
     }));
 };
@@ -179,9 +117,9 @@ export const writeConsoleMsgs = (
   if (!depList.length) return;
   Array.from(depList, ({ name: depName, expected, actual }) =>
     console.log(
-      gradient.teen(
-        `${packageName}: ${depName} version is not correct. Found ${actual}} and should be ${expected}`
-      )
+      `${gradient.teen(
+        `${packageName}:`
+      )}\n   🤼‍♀️ => ${depName} version is not correct.\n   🤼‍♀️ => Found ${actual}} and should be ${expected}`
     )
   );
 };
@@ -198,13 +136,8 @@ export const constructDeps = <T extends PackageJSON>(
             | "dependencies"
             | "devDependencies"
             | "peerDependencies"],
-          { name, actual, expected }: DepToUpdateItem
+          { name, exact: version }: DepToUpdateItem
         ) => {
-          const firstCharacter = actual.split("")[0];
-          const specifier = ["^", "~"].includes(firstCharacter)
-            ? firstCharacter
-            : "";
-          const version = `${specifier}${expected}`;
           return {
             ...json[depName as keyof T],
             ...newJson,
@@ -258,9 +191,14 @@ export const checkDependenciesForVersion = async <T extends PackageJSON>(
   const devDepList = constructDepsToUpdateList(devDependencies, versionMap);
   const peerDepList = constructDepsToUpdateList(peerDependencies, versionMap);
   if (isDebugging)
-    console.log(`${DEBUG_NAME}`, { depList, devDepList, peerDepList });
-  if (!depList.length && !devDepList.length && !peerDepList.length)
+    console.log(`${DEBUG_NAME}checkDependenciesForVersion:`, {
+      depList,
+      devDepList,
+      peerDepList,
+    });
+  if (!depList.length && !devDepList.length && !peerDepList.length) {
     return false;
+  }
   if (!isSilent)
     Array.from([depList, devDepList, peerDepList], (list) =>
       writeConsoleMsgs(name, list)
@@ -274,9 +212,121 @@ export const checkDependenciesForVersion = async <T extends PackageJSON>(
     const { path, ...newJson } = updatedJson;
     if (!isTesting) {
       writeFileSync(path, JSON.stringify(newJson, null, 2).concat("\n"));
+    } else {
+      console.log(
+        `${gradient.teen(
+          `${LOG_NAME}checkDependenciesForVersion:test-writeFileSync:`
+        )}\n   👯‍♂️ => ${path}`
+      );
     }
   }
   return true;
+};
+
+/**
+ * checkMatches
+ * @description checks a glob of json files for dependency discrepancies
+ * @param {options.files} array
+ * @param {options.cwd} string
+ * @param {options.isUpdating} boolean
+ */
+export const checkMatches = async ({
+  versionMap,
+  rootDir,
+  files,
+  isUpdating = false,
+  isDebugging = false,
+  isSilent = true,
+  isCLI = false,
+  isTesting = false,
+}: CheckMatches): Promise<void> => {
+  const packagesNeedingUpdate: Array<boolean> = files
+    .map((file) => {
+      const path = `${rootDir}${file}`;
+      const packageJson = readFileSync(path, "utf8");
+      const json = JSON.parse(packageJson);
+      return { ...json, path };
+    })
+    .filter((json) =>
+      checkDependenciesForVersion(versionMap, json, {
+        isUpdating,
+        isDebugging,
+        isSilent,
+        isTesting,
+      })
+    );
+
+  if (isDebugging)
+    console.log(`${gradient.passion(`${DEBUG_NAME}:`)}\n   🤼‍♀️ => see updates`, {
+      packagesNeedingUpdate,
+    });
+
+  const isOutOfDate = packagesNeedingUpdate.length > 0;
+  if (isOutOfDate && !isUpdating) {
+    console.error(
+      `${gradient.passion(
+        `codependence:`
+      )}\n   🤼‍♀️ => dependencies are not correct 😞`
+    );
+    if (isCLI) process.exit(1);
+  } else if (isOutOfDate) {
+    console.log(
+      `${gradient.teen(
+        `codependence:`
+      )}\n   👯‍♂️ => dependencies were not correct but should be updated! Check your git status. 😃`
+    );
+  } else {
+    console.log(
+      `${gradient.teen(
+        `codependence:`
+      )}\n   👯‍♂️ => no dependency issues found! 👌`
+    );
+  }
+};
+
+/**
+ * checkFiles
+ * @description checks a glob of json files for dependency discrepancies
+ * @param {options.matchers} string
+ * @param {options.cwd} string
+ * @param {options.ignore} array
+ * @param {options.updating} boolean
+ */
+export const checkFiles = async ({
+  codependencies,
+  files: matchers = ["package.json"],
+  rootDir = "./",
+  ignore = ["node_modules/**/*", "**/node_modules/**/*"],
+  update = false,
+  debug = false,
+  silent = false,
+  isCLI = false,
+  isTesting = false,
+}: CheckFiles): Promise<void> => {
+  try {
+    const files = glob(matchers, { cwd: rootDir, ignore });
+    if (!codependencies) throw '"codependencies" are required';
+    const versionMap = await constructVersionMap(
+      codependencies,
+      execPromise,
+      debug
+    );
+    checkMatches({
+      versionMap,
+      rootDir,
+      files,
+      isCLI,
+      isSilent: silent,
+      isUpdating: update,
+      isDebugging: debug,
+      isTesting,
+    });
+  } catch (err) {
+    if (debug)
+      console.log(
+        `${gradient.passion(`${DEBUG_NAME}:checkFiles:`)}\n   🤼‍♀️ => ${err}`
+      );
+  }
 };
 
 export const script = checkFiles;

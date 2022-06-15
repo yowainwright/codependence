@@ -1,5 +1,5 @@
-import program from "./program";
-import script from "./scripts";
+import { program } from "./program";
+import { script } from "./scripts";
 
 program;
 

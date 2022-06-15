@@ -1,8 +1,11 @@
+import { CosmiconfigResult } from "cosmiconfig/dist/types";
+
 export type CodeDependenciesItem = string | Record<string, string>;
 export type CodeDependencies = Array<CodeDependenciesItem>;
 
 export type Options = {
   isTestingCLI?: boolean;
+  isTesting?: boolean;
   codependencies?: CodeDependencies;
   files?: Array<string>;
   config?: string;
@@ -12,6 +15,8 @@ export type Options = {
   debug?: boolean;
   silent?: boolean;
 };
+
+export type ConfigResult = { config: Options } & CosmiconfigResult;
 
 export type CheckFiles = {
   codependencies?: CodeDependencies;
@@ -56,6 +61,7 @@ export type DepToUpdateItem = {
   name: string;
   expected: string;
   actual: string;
+  exact: string;
 };
 
 export type DepsToUpdate = {

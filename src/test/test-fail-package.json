@@ -1,0 +1,11 @@
+{
+  "name": "test-fail-package",
+  "version": "1.0.0",
+  "dependencies": {
+    "lodash": "4.17.0",
+    "fs-extra": "10.0.0"
+  },
+  "codependence": {
+    "codependencies": ["lodash", "fs-extra"]
+  }
+}
