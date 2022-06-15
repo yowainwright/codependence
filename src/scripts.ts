@@ -65,10 +65,9 @@ export const checkMatches = async ({
   files,
   isUpdating = false,
   isDebugging = false,
-  isAddingDeps = false,
-  isInstallingDeps = false,
   isSilent = true,
   isCLI = false,
+  isTesting = false,
 }: CheckMatches): Promise<void> => {
   const packagesNeedingUpdate: Array<boolean> = files
     .map((file) => {
@@ -79,11 +78,10 @@ export const checkMatches = async ({
     })
     .filter((json) =>
       checkDependenciesForVersion(versionMap, json, {
-        isAddingDeps,
-        isInstallingDeps,
         isUpdating,
         isDebugging,
         isSilent,
+        isTesting,
       })
     );
 
@@ -120,21 +118,22 @@ export const checkFiles = async ({
   update = false,
   debug = false,
   silent = false,
-  addDeps = false,
-  install = false,
+  isCLI = false,
+  isTesting = false,
 }: CheckFiles): Promise<void> => {
   try {
     const files = glob(matchers, { cwd: rootDir, ignore });
+    if (!codependencies) throw '"codependencies" are required';
     const versionMap = await constructVersionMap(codependencies, debug);
     checkMatches({
       versionMap,
       rootDir,
       files,
+      isCLI,
       isSilent: silent,
       isUpdating: update,
       isDebugging: debug,
-      isAddingDeps: addDeps,
-      isInstallingDeps: install,
+      isTesting,
     });
   } catch (err) {
     if (debug) console.log(gradient.passion(`${DEBUG_NAME}:checkFiles:${err}`));
@@ -253,7 +252,7 @@ export const checkDependenciesForVersion = async <T extends PackageJSON>(
   options: CheckDependenciesForVersionOptions
 ): Promise<boolean> => {
   const { name, dependencies, devDependencies, peerDependencies } = json;
-  const { isUpdating, isDebugging, isSilent } = options;
+  const { isUpdating, isDebugging, isSilent, isTesting } = options;
   if (!dependencies && !devDependencies && !peerDependencies) return false;
   const depList = constructDepsToUpdateList(dependencies, versionMap);
   const devDepList = constructDepsToUpdateList(devDependencies, versionMap);
@@ -273,7 +272,9 @@ export const checkDependenciesForVersion = async <T extends PackageJSON>(
       isDebugging
     );
     const { path, ...newJson } = updatedJson;
-    writeFileSync(path, JSON.stringify(newJson, null, 2).concat("\n"));
+    if (!isTesting) {
+      writeFileSync(path, JSON.stringify(newJson, null, 2).concat("\n"));
+    }
   }
   return true;
 };
