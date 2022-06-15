@@ -1,0 +1,69 @@
+{
+  "name": "codependence",
+  "version": "0.0.1",
+  "description": "Codependency, for code dependency. Checks `coDependencies` in package.json files to ensure dependencies are up-to-date 👯‍♂️",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "bin": {
+    "codependence": "dist/index.cjs",
+    "codep": "dist/index.cjs"
+  },
+  "files": [
+    "bin"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Jeff Wainwright <yowainwright@gmail.com> (https://jeffry.in)",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^9.3.0",
+    "cosmiconfig": "^7.0.1",
+    "fast-glob": "^3.2.11",
+    "fs-extra": "^10.1.0",
+    "gradient-string": "^2.0.1",
+    "ora": "^6.1.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^17.0.2",
+    "@commitlint/config-conventional": "^17.0.2",
+    "@commitlint/prompt-cli": "^17.0.0",
+    "@types/fs-extra": "^9.0.13",
+    "@types/gradient-string": "^1.1.2",
+    "@types/node": "^17.0.41",
+    "@typescript-eslint/eslint-plugin": "^5.27.1",
+    "@typescript-eslint/parser": "^5.27.1",
+    "eslint": "^8.17.0",
+    "eslint-config-prettier": "^8.5.0",
+    "husky": "^8.0.1",
+    "is-ci": "^3.0.1",
+    "lint-staged": "^13.0.1",
+    "stdouttojson": "^0.3.2",
+    "ts-node": "^10.8.1",
+    "tslib": "^2.4.0",
+    "tsup": "^6.1.0",
+    "tsutils": "^3.21.0",
+    "typescript": "^4.7.3",
+    "vitest": "^0.14.1"
+  },
+  "keywords": [
+    "peerDependencies",
+    "optionalDependencies",
+    "optional-dependencies",
+    "dependencies",
+    "devDependencies",
+    "versioning",
+    "versions",
+    "semver"
+  ],
+  "lint-staged": {}
+}

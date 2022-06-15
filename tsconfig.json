@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "target": "esnext",
+    "module": "commonjs",
+    "rootDir": "src",
+    "declaration": true,
+    "outDir": "./bin",
+    "strict": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "lib": ["esnext", "dom", "es6", "dom.iterable"],
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"],
+    "noEmit": false,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "preserveConstEnums": true,
+    "removeComments": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": false
+  },
+  "include": ["src"],
+  "exclude": ["src/test/*.ts", "bin"]
+}
