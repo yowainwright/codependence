@@ -21,7 +21,11 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint": "eslint src/**/*.ts",
+    "test": "echo \"Error: no test specified\"",
+    "prepublishOnly": "pnpm build",
+    "release": "release-it",
+    "typecheck": "tsc --noEmit"
   },
   "author": "Jeff Wainwright <yowainwright@gmail.com> (https://jeffry.in)",
   "license": "MIT",
