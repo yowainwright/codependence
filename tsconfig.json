@@ -5,7 +5,7 @@
     "module": "commonjs",
     "rootDir": "src",
     "declaration": true,
-    "outDir": "./bin",
+    "outDir": "./dist",
     "strict": true,
     "moduleResolution": "node",
     "esModuleInterop": true,
@@ -23,5 +23,13 @@
     "sourceMap": false
   },
   "include": ["src"],
-  "exclude": ["src/test/*.ts", "bin"]
+  "exclude": ["src/test/*.ts", "dist"],
+  "ts-node": {
+    "transpileOnly": true,
+    "esm": true,
+    "moduleTypes": {
+      "package.json": "cjs",
+      "src/*": "cjs"
+    }
+  }
 }
