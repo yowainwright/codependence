@@ -5,33 +5,31 @@ export type Options = {
   isTestingCLI?: boolean;
   codependencies?: CodeDependencies;
   files?: Array<string>;
+  config?: string;
   rootDir?: string;
   ignore?: Array<string>;
   update?: boolean;
   debug?: boolean;
   silent?: boolean;
-  addDeps?: boolean;
-  install?: boolean;
 };
 
 export type CheckFiles = {
-  codependencies: CodeDependencies;
+  codependencies?: CodeDependencies;
   files?: Array<string>;
   rootDir?: string;
   ignore?: Array<string>;
   update?: boolean;
   debug?: boolean;
   silent?: boolean;
-  addDeps?: boolean;
-  install?: boolean;
+  isCLI?: boolean;
+  isTesting?: boolean;
 };
 
 export type CheckDependenciesForVersionOptions = {
   isUpdating?: boolean;
   isDebugging?: boolean;
   isSilent?: boolean;
-  isAddingDeps?: boolean;
-  isInstallingDeps?: boolean;
+  isTesting?: boolean;
 };
 
 export type CheckMatches = {
@@ -41,9 +39,8 @@ export type CheckMatches = {
   isUpdating?: boolean;
   isDebugging?: boolean;
   isSilent?: boolean;
-  isAddingDeps?: boolean;
-  isInstallingDeps?: boolean;
   isCLI?: boolean;
+  isTesting?: boolean;
 };
 
 export type PackageJSON = {

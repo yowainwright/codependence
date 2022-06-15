@@ -7,15 +7,17 @@ import { script } from "./scripts";
 import { DEBUG_NAME } from "./constants";
 import { Options } from "./types";
 
-const explorer = cosmiconfigSync("codependency");
+const explorer = cosmiconfigSync("codependence");
 
 export async function action(options: Options = {}): Promise<void> {
   try {
-    const { config = {} } = explorer.search() || {};
+    const config = options?.config
+      ? explorer.load(options.config)
+      : explorer.search() || {};
     if (options?.isTestingCLI) console.info({ config, options });
-    const updatedOptions = { ...config, ...options, isCLI: true };
-    if (!updatedOptions?.codeDependencies)
-      throw '"codeDependencies" is required';
+    const updatedConfig = { ...config, ...options, isCLI: true };
+    if (!updatedConfig.codependencies) throw '"codependencies" is required';
+    const { config: usedConfig, ...updatedOptions } = updatedConfig;
     await script(updatedOptions);
   } catch (err) {
     console.error(gradient.passion(`${DEBUG_NAME}:cli:err`));
