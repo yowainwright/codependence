@@ -67,7 +67,7 @@ export const constructVersionTypes = (
   const hasSpecifier = specifier.length === 1;
   const characters = rest.join("");
   const exactVersion = hasSpecifier ? characters : version;
-  const bumpVersion = `${specifier}${characters}`;
+  const bumpVersion = version;
   return {
     bumpVersion,
     exactVersion,
@@ -119,7 +119,7 @@ export const writeConsoleMsgs = (
     console.log(
       `${gradient.teen(
         `${packageName}:`
-      )}\n   🤼‍♀️ => ${depName} version is not correct.\n   🤼‍♀️ => Found ${actual}} and should be ${expected}`
+      )}\n   🤼‍♀️ => ${depName} version is not correct.\n   🤼‍♀️ => Found ${actual} and should be ${expected}`
     )
   );
 };
@@ -179,11 +179,11 @@ export const constructJson = <T extends PackageJSON>(
  * @param {json} object
  * @param {isUpdating} boolean
  */
-export const checkDependenciesForVersion = async <T extends PackageJSON>(
+export const checkDependenciesForVersion = <T extends PackageJSON>(
   versionMap: Record<string, string>,
   json: T,
   options: CheckDependenciesForVersionOptions
-): Promise<boolean> => {
+): boolean => {
   const { name, dependencies, devDependencies, peerDependencies } = json;
   const { isUpdating, isDebugging, isSilent, isTesting } = options;
   if (!dependencies && !devDependencies && !peerDependencies) return false;
@@ -230,7 +230,7 @@ export const checkDependenciesForVersion = async <T extends PackageJSON>(
  * @param {options.cwd} string
  * @param {options.isUpdating} boolean
  */
-export const checkMatches = async ({
+export const checkMatches = ({
   versionMap,
   rootDir,
   files,
@@ -239,8 +239,8 @@ export const checkMatches = async ({
   isSilent = true,
   isCLI = false,
   isTesting = false,
-}: CheckMatches): Promise<void> => {
-  const packagesNeedingUpdate: Array<boolean> = files
+}: CheckMatches): void => {
+  const packagesNeedingUpdate = files
     .map((file) => {
       const path = `${rootDir}${file}`;
       const packageJson = readFileSync(path, "utf8");
@@ -257,9 +257,12 @@ export const checkMatches = async ({
     );
 
   if (isDebugging)
-    console.log(`${gradient.passion(`${DEBUG_NAME}:`)}\n   🤼‍♀️ => see updates`, {
-      packagesNeedingUpdate,
-    });
+    console.log(
+      `${gradient.passion(`${DEBUG_NAME}checkMatches:`)}\n   🤼‍♀️ => see updates`,
+      {
+        packagesNeedingUpdate,
+      }
+    );
 
   const isOutOfDate = packagesNeedingUpdate.length > 0;
   if (isOutOfDate && !isUpdating) {
