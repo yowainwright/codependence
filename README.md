@@ -22,7 +22,7 @@ This utility can be used in place of tools that do dependency management and, ye
 
 ---
 
-> \***Codependencies:** are project dependencies which **must be** up-to-date or set to a specific version!
+##### \*Codependencies: are project dependencies which **must be** up-to-date or set to a specific version!
 
 In example, if your repository requires the latest version and `latest` can't be specified as the dependency version within your `package.json`, Codependence will ensure your `package.json` has the **actual latest semver version** set in your `package.json`. It can/will do the same if an exact version is specified!
 
