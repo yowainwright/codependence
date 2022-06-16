@@ -74,16 +74,15 @@ Usage: program [options]
 Codependency, for code dependency. Checks `codependencies` in package.json files to ensure dependencies are up-to-date
 
 Options:
-  -f, --files           file glob pattern
-  -u, --update          update dependencies based on check
-  -r, --rootDir            root directory to start search
-  -i, --ignore          ignore glob pattern
-  --debug               enable debugging
-  --silent              enable mainly silent logging
-  --addDeps             add codependents as dependencies
-  --install             install codependents without saving
-  -c, --codependencies  a path to a file with a codependenies object
-  -h, --help            display help for command
+  -f, --files [files...]                      file glob pattern
+  -u, --update                                update dependencies based on check
+  -r, --rootDir <rootDir>                     root directory to start search
+  -i, --ignore [ignore...]                    ignore glob pattern
+  --debug                                     enable debugging
+  --silent                                    enable mainly silent logging
+  -cds, --codependencies [codependencies...]  a path to a file with a codependenies object
+  -c, --config <config>                       accepts a path to a config file
+  -h, --help                                  display help for command
 ```
 
 ### Node
