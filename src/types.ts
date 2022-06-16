@@ -15,6 +15,7 @@ export type Options = {
   update?: boolean;
   debug?: boolean;
   silent?: boolean;
+  searchPath?: string;
 };
 
 export type ConfigResult = { config: Options } & CosmiconfigResult;

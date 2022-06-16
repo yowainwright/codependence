@@ -7,11 +7,11 @@ import { script } from "./scripts";
 import { DEBUG_NAME } from "./constants";
 import { Options, ConfigResult } from "./types";
 
-export async function action(options: Options = {}): Promise<void | Options> {
+export async function action(options: Options = {}): Promise<void> {
   const explorer = cosmiconfigSync("codependence");
   const result = options?.searchPath
     ? explorer.search(options.searchPath)
-    : (explorer.search() as ConfigResult);
+    : explorer.search();
   const { config: pathConfig = {} } = (
     options?.config ? explorer.load(options?.config) : {}
   ) as ConfigResult;
@@ -28,8 +28,13 @@ export async function action(options: Options = {}): Promise<void | Options> {
     isTestingAction,
     ...updatedOptions
   } = updatedConfig;
-  if (isTestingCLI || isTestingAction) {
+  // capture/test CLI options
+  if (isTestingCLI) {
     console.info({ updatedOptions });
+    return;
+  }
+  // capture action unit test options
+  if (isTestingAction) {
     return updatedOptions;
   }
   try {
@@ -62,6 +67,10 @@ program
     "a path to a file with a codependenies object"
   )
   .option("-c, --config <config>", "accepts a path to a config file")
+  .option(
+    "-s, --searchPath <searchPath>",
+    "a search path string for locationing config files"
+  )
   .action(action)
   .parse(process.argv);
 
