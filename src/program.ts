@@ -14,16 +14,17 @@ export async function action(options: Options = {}): Promise<void> {
     const { config } = (
       options?.config ? explorer.load(options.config) : explorer.search() || {}
     ) as ConfigResult;
-    if (options?.isTestingCLI) {
-      console.info({ config, options });
-      return;
-    }
     const updatedConfig = {
-      ...(config?.codependence ? { ...config.codependence } : config),
+      ...(config ? config : {}),
+      ...(config?.codependence ? { ...config.codependence } : {}),
       ...options,
       isCLI: true,
     };
     const { config: usedConfig, ...updatedOptions } = updatedConfig;
+    if (options?.isTestingCLI) {
+      console.info({ updatedOptions });
+      return;
+    }
     if (!updatedOptions.codependencies) throw '"codependencies" is required';
     await script(updatedOptions);
   } catch (err) {

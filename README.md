@@ -194,4 +194,11 @@ An **optional** boolean value used to enable a more silent developer experience
 
 ---
 
+### `config`: `string`
+
+An **optional** string containing a package to file which contains `codependence` config.
+- The default is `undefined`.
+
+---
+
 Made by [@yowainwright](https://github.com/yowainwright) for fun with passion!

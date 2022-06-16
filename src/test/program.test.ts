@@ -1,38 +1,34 @@
+import { promisify } from "util";
 import { exec } from "child_process";
 import { expect, test } from "vitest";
 import { stdoutToJSON } from "stdouttojson";
+
+export const execPromise = promisify(exec);
 
 /**
  * @notes all tests are based on running from root 👌
  */
 
-test("config w/ unique path test", async () => {
-  const test = await exec(
-    "ts-node ./src/program.ts --config test-package.json --isTestingCLI",
-    (_, stdout) => {
-      const json = stdoutToJSON(stdout);
-      return json;
-    }
+test("w/ no codependence reference", async () => {
+  const { stdout = "{}" } = await execPromise(
+    "ts-node ./src/program.ts --rootDir './src/tests/' --isTestingCLI"
   );
-  console.log({ test });
+  const result = stdoutToJSON(stdout);
+  expect(result.updatedOptions).toStrictEqual({
+    isCLI: "true",
+    isTestingCLI: "true",
+    rootDir: "./src/tests/",
+  });
 });
 
-test("config w/ .codependencerc", async () => {
-  const result = await exec(
-    "ts-node ./src/program.ts --config ./src/test/test-package.json --isTestingCLI"
+test("w/ only options", async () => {
+  const { stdout = "{}" } = await execPromise(
+    "ts-node ./src/program.ts --codependencies lodash fs-extra --isTestingCLI"
   );
-  console.log({ result });
-  expect(1).toBe(1);
-});
-
-test("config w/ options", async () => {
-  let json;
-  await exec(
-    "ts-node ./src/program.ts --codependencies 'lodash' 'fs-extra' --files './src/test/test-package.json' --isTestingCLI",
-    (_, stdout) => {
-      json = stdoutToJSON(stdout);
-      expect(1).toBe(1);
-    }
-  );
-  console.log({ json });
+  const result = stdoutToJSON(stdout);
+  expect(result.updatedOptions).toStrictEqual({
+    isCLI: "true",
+    isTestingCLI: "true",
+    codependencies: ["lodash", "fs-extra"],
+  });
 });
