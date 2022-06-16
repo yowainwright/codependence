@@ -82,6 +82,7 @@ Options:
   --silent                                    enable mainly silent logging
   -cds, --codependencies [codependencies...]  a path to a file with a codependenies object
   -c, --config <config>                       accepts a path to a config file
+  -s, --searchPath <searchPath>               a search path string for locationing config files
   -h, --help                                  display help for command
 ```
 
@@ -196,7 +197,12 @@ An **optional** boolean value used to enable a more silent developer experience
 ### `config`: `string`
 
 An **optional** string containing a package to file which contains `codependence` config.
-- The default is `undefined`.
+- The default is `undefined`
+
+### `searchPath`: `string`
+
+An **optional** string containing a search path for location config files.
+- The default value is `undefined`
 
 ---
 

@@ -8,9 +8,33 @@ import { action } from "../program";
 export const execPromise = promisify(exec);
 
 /**
- * @note all execution tests tests are based on running from root 👌
- * @todo test search, more scenerios tests
+ * @notes
+ * all execution tests tests are based on running from root 👌
+ * action tests are located after execution tests
  */
+
+vi.mock("cosmiconfig", () => {
+  let _cache;
+  const cosmiconfigSync = () => {
+    if (_cache) return _cache;
+    _cache = {
+      load: vi.fn(() => ({
+        config: { codependencies: ["lodash", "fs-extra"] },
+      })),
+      search: vi.fn(() => ({
+        filePath: "foo",
+        config: { codependencies: ["lodash", "rambda"] },
+        isEmpty: false,
+      })),
+    };
+    return _cache;
+  };
+  return { cosmiconfigSync };
+});
+
+vi.mock("../scripts", () => ({
+  script: vi.fn(),
+}));
 
 test("w/ no codependence reference", async () => {
   const { stdout = "{}" } = await execPromise(
@@ -34,22 +58,28 @@ test("w/ only options", async () => {
   });
 });
 
-test.only("action => load config", async () => {
-  vi.mock("cosmiconfig", () => ({
-    cosmiconfigSync: vi.fn(() => ({
-      load: vi.fn(() => ({
-        config: { codependencies: ["lodash", "fs-extra"] },
-      })),
-      search: vi.fn(),
-    })),
-  }));
+test("action => load config", async () => {
+  vi.clearAllMocks();
   const explorer = cosmiconfigSync("codependence");
   const result = await action({ config: "foo-bar", isTestingAction: true });
-
-  expect(explorer.search).toBeDefined();
-  expect(explorer.load).toBeDefined();
+  expect(explorer.search).toHaveBeenCalled();
+  expect(explorer.load).toHaveBeenCalled();
   expect(result).toStrictEqual({
     isCLI: true,
     codependencies: ["lodash", "fs-extra"],
+  });
+});
+
+test("action => search config", async () => {
+  vi.clearAllMocks();
+  const explorer = cosmiconfigSync("codependence");
+  const result = await action({
+    isTestingAction: true,
+  });
+  expect(explorer.search).toHaveBeenCalled();
+  expect(explorer.load).not.toHaveBeenCalled();
+  expect(result).toStrictEqual({
+    isCLI: true,
+    codependencies: ["lodash", "rambda"],
   });
 });
