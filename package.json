@@ -25,6 +25,7 @@
     "cmd:test-pass-run": "ts-node src/index.ts --config 'src/test/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './src/test/' --debug",
     "cmd:test-update-run": "ts-node src/index.ts --config 'src/test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './src/test/' --debug --isTesting",
     "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
     "test": "vitest run",
     "prepublishOnly": "pnpm build",
     "release": "release-it",
@@ -37,8 +38,7 @@
     "cosmiconfig": "^7.0.1",
     "fast-glob": "^3.2.11",
     "fs-extra": "^10.1.0",
-    "gradient-string": "^2.0.1",
-    "npm-registry-fetch": "^13.1.1"
+    "gradient-string": "^2.0.1"
   },
   "devDependencies": {
     "@commitlint/cli": "^17.0.2",

@@ -1,3 +1,3 @@
 {
-  codependencies: ['foo', 'bar', { 'baz': '1.0.0'}]
+  codependencies: ['foo', 'bar']
 }
