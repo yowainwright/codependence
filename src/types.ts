@@ -5,6 +5,7 @@ export type CodeDependencies = Array<CodeDependenciesItem>;
 
 export type Options = {
   isTestingCLI?: boolean;
+  isTestingAction?: boolean;
   isTesting?: boolean;
   codependencies?: CodeDependencies;
   files?: Array<string>;

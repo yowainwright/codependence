@@ -6,7 +6,7 @@ import { stdoutToJSON } from "stdouttojson";
 export const execPromise = promisify(exec);
 
 /**
- * @notes all tests are based on running from root 👌
+ * @note all execution tests tests are based on running from root 👌
  */
 
 test("w/ no codependence reference", async () => {
