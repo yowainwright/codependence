@@ -22,7 +22,7 @@ specifiers:
   lint-staged: ^13.0.1
   npm-registry-fetch: ^13.1.1
   release-it: ^15.0.0
-  stdouttojson: ^0.3.2
+  stdouttojson: ^0.3.5
   ts-node: ^10.8.1
   tslib: ^2.4.0
   tsup: ^6.1.0
@@ -54,7 +54,7 @@ devDependencies:
   is-ci: 3.0.1
   lint-staged: 13.0.1
   release-it: 15.0.0
-  stdouttojson: 0.3.2
+  stdouttojson: 0.3.5
   ts-node: 10.8.1_f5eqjuxkorpjvs4z7mviievvou
   tslib: 2.4.0
   tsup: 6.1.0_3u6mezahkkqoy6xqszupxyezbi
@@ -4514,8 +4514,8 @@ packages:
     engines: {node: '>= 0.8'}
     dev: true
 
-  /stdouttojson/0.3.2:
-    resolution: {integrity: sha512-UjT8/55dsVH5CuO7XRe1VVVIRBSzZPred+uaiZ+/UwnSU5VWl20V4wLbBSzNYeX9iXXDj4o1dMHMyDcJraCa4Q==}
+  /stdouttojson/0.3.5:
+    resolution: {integrity: sha512-fUL7Pa2elfxdMvqOhM99o/IFIiv7qtaucbPgQkRiKfMBk7iZStsRmfQa7b/XFjDCIe323Xel0dIDXrStXX3ABA==}
     dev: true
 
   /strict-uri-encode/2.0.0:
