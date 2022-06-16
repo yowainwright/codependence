@@ -7,22 +7,30 @@ import { script } from "./scripts";
 import { DEBUG_NAME } from "./constants";
 import { Options, ConfigResult } from "./types";
 
-export async function action(options: Options = {}): Promise<void> {
+export async function action(options: Options = {}): Promise<void | Options> {
   const explorer = cosmiconfigSync("codependence");
-  const { config: searchConfig = {} } = explorer.search() || {};
+  const result = options?.searchPath
+    ? explorer.search(options.searchPath)
+    : (explorer.search() as ConfigResult);
   const { config: pathConfig = {} } = (
     options?.config ? explorer.load(options?.config) : {}
   ) as ConfigResult;
   const updatedConfig = {
-    ...searchConfig,
+    ...(!Object.keys(pathConfig).length ? result?.config : {}),
     ...(pathConfig?.codependence ? { ...pathConfig.codependence } : pathConfig),
     ...options,
     isCLI: true,
   };
-  const { config: usedConfig, ...updatedOptions } = updatedConfig;
-  if (options?.isTestingCLI) {
+  const {
+    config: usedConfig,
+    searchPath: usedSearchPath,
+    isTestingCLI,
+    isTestingAction,
+    ...updatedOptions
+  } = updatedConfig;
+  if (isTestingCLI || isTestingAction) {
     console.info({ updatedOptions });
-    return;
+    return updatedOptions;
   }
   try {
     if (!updatedOptions.codependencies) throw '"codependencies" is required';
