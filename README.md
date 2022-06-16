@@ -1,4 +1,4 @@
-# Codependence (WIP) 👯‍♂️ 🤼‍♀️
+# Codependence (WIP) 🤼‍♀️
 
 **Codependence, for code dependency.**
 
