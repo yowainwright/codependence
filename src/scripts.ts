@@ -317,13 +317,12 @@ export const checkMatches = ({
     );
     if (isCLI) process.exit(1);
   } else if (isOutOfDate) {
-    console.log(
+    console.info(
       `${gradient.teen(
         `codependence:`
       )}\n   👯‍♂️ => dependencies were not correct but should be updated! Check your git status. 😃`
     );
   } else {
-    console.log("here");
     console.log(
       `${gradient.teen(
         `codependence:`

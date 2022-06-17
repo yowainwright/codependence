@@ -20,8 +20,6 @@ vi.mock("../src/script", () => {
   return scripts;
 });
 
-const log = vi.spyOn(console, "log");
-
 test("execPromise", async () => {
   const { stdout = "" } = (await execPromise(
     "npm view lodash version latest"
@@ -84,10 +82,11 @@ test("constructDepsToUpdateList => returns empty b/c no updates required", () =>
 });
 
 test("writeConsoleMsgs => should call log", () => {
+  const writeLog = vi.spyOn(console, "log");
   writeConsoleMsgs("foo", [
     { name: "foo", expected: "1.0.0", actual: "2.0.0" },
   ]);
-  expect(log).toHaveBeenCalledTimes(1);
+  expect(writeLog).toHaveBeenCalledTimes(1);
 });
 
 test("constructDeps => with update", () => {
@@ -211,4 +210,32 @@ test("checkDependenciesForVersion => no updates", () => {
     isTesting: true,
   });
   expect(result).toEqual(false);
+});
+
+test("checkMatches => no updates", () => {
+  vi.clearAllMocks();
+  const logCheckMatchesNoUpdates = vi.spyOn(console, "log");
+  const versionMap = {
+    foo: "1.0.0",
+    bar: "1.0.0",
+  };
+  const rootDir = "./test/";
+  const isTesting = true;
+  const files = ["test-pass-package.json"];
+  checkMatches({ versionMap, files, isTesting, rootDir });
+  expect(logCheckMatchesNoUpdates).toBeCalled();
+});
+
+test("checkMatches => with error", () => {
+  vi.clearAllMocks();
+  const logCheckMatchesWithError = vi.spyOn(console, "error");
+  const versionMap = {
+    lodash: "4.18.0",
+    "fs-extra": "5.0.0",
+  };
+  const rootDir = "./test/";
+  const isTesting = true;
+  const files = ["test-fail-package.json"];
+  checkMatches({ versionMap, files, isTesting, rootDir });
+  expect(logCheckMatchesWithError).toBeCalled();
 });
