@@ -323,6 +323,7 @@ export const checkMatches = ({
       )}\n   👯‍♂️ => dependencies were not correct but should be updated! Check your git status. 😃`
     );
   } else {
+    console.log("here");
     console.log(
       `${gradient.teen(
         `codependence:`

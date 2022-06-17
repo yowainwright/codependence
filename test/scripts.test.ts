@@ -20,6 +20,8 @@ vi.mock("../src/script", () => {
   return scripts;
 });
 
+const log = vi.spyOn(console, "log");
+
 test("execPromise", async () => {
   const { stdout = "" } = (await execPromise(
     "npm view lodash version latest"
@@ -82,7 +84,6 @@ test("constructDepsToUpdateList => returns empty b/c no updates required", () =>
 });
 
 test("writeConsoleMsgs => should call log", () => {
-  const log = vi.spyOn(console, "log");
   writeConsoleMsgs("foo", [
     { name: "foo", expected: "1.0.0", actual: "2.0.0" },
   ]);
@@ -158,4 +159,56 @@ test("constructJson => with updates", () => {
       biz: "2.0.0",
     },
   });
+});
+
+test("checkDependenciesForVersion => has updates", () => {
+  const versionMap = {
+    foo: "2.0.0",
+    bar: "2.0.0",
+  };
+  const json = {
+    name: "biz",
+    version: "1.0.0",
+    dependencies: { bar: "1.0.0", foo: "1.0.0" },
+    path: "./test",
+  };
+  const result = checkDependenciesForVersion(versionMap, json, {
+    isTesting: true,
+  });
+  expect(result).toEqual(true);
+});
+
+test("checkDependenciesForVersion => no updates", () => {
+  const versionMap = {
+    foo: "1.0.0",
+    bar: "1.0.0",
+  };
+  const json = {
+    name: "biz",
+    version: "1.0.0",
+    dependencies: { bar: "1.0.0", foo: "1.0.0" },
+    path: "./test",
+  };
+  const result = checkDependenciesForVersion(versionMap, json, {
+    isTesting: true,
+  });
+  expect(result).toEqual(false);
+});
+
+test("checkDependenciesForVersion => no updates", () => {
+  vi.clearAllMocks();
+  const versionMap = {
+    foo: "1.0.0",
+    bar: "1.0.0",
+  };
+  const json = {
+    name: "biz",
+    version: "1.0.0",
+    dependencies: { bar: "1.0.0", foo: "1.0.0" },
+    path: "./test",
+  };
+  const result = checkDependenciesForVersion(versionMap, json, {
+    isTesting: true,
+  });
+  expect(result).toEqual(false);
 });
