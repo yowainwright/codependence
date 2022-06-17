@@ -199,6 +199,7 @@ An **optional** boolean value used to enable a more silent developer experience
 An **optional** string containing a package to file which contains `codependence` config.
 - The default is `undefined`
 
+---
 ### `searchPath`: `string`
 
 An **optional** string containing a search path for location config files.
