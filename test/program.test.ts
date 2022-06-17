@@ -3,7 +3,7 @@ import { exec } from "child_process";
 import { expect, test, vi } from "vitest";
 import { stdoutToJSON } from "stdouttojson";
 import { cosmiconfigSync } from "cosmiconfig";
-import { action } from "../program";
+import { action } from "../src/program";
 
 export const execPromise = promisify(exec);
 
@@ -38,12 +38,12 @@ vi.mock("../scripts", () => ({
 
 test("w/ no codependence reference", async () => {
   const { stdout = "{}" } = await execPromise(
-    "ts-node ./src/program.ts --rootDir './src/tests/' --isTestingCLI"
+    "ts-node ./src/program.ts --rootDir './tests/' --isTestingCLI"
   );
   const result = stdoutToJSON(stdout);
   expect(result.updatedOptions).toStrictEqual({
     isCLI: "true",
-    rootDir: "./src/tests/",
+    rootDir: "./tests/",
   });
 });
 

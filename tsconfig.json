@@ -22,8 +22,8 @@
     "skipLibCheck": true,
     "sourceMap": false
   },
-  "include": ["src"],
-  "exclude": ["src/test/*.ts", "dist"],
+  "include": ["src", "test"],
+  "exclude": ["test/*.ts", "dist"],
   "ts-node": {
     "transpileOnly": true,
     "esm": true,
