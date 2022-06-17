@@ -14,8 +14,22 @@ import {
   DepsToUpdate,
 } from "./types";
 
+/**
+ * execPromise
+ * @description interprets a cmd
+ * @param {cmd} string
+ * @returns {object}
+ */
 export const execPromise = promisify(exec);
 
+/**
+ * constructVersionMap
+ * @description constructs a map of each item in a codependencies array
+ * @param {codependencies} array
+ * @param {exec} fn
+ * @param {isDebugging} boolean
+ * @returns {object}
+ */
 export const constructVersionMap = async (
   codependencies: CodeDependencies,
   exec = execPromise,
@@ -58,6 +72,12 @@ export const constructVersionMap = async (
   return versionMap;
 };
 
+/**
+ * constructVersionTypes
+ * @description constructs an object with a bumpVersion and exactVersion
+ * @param {version} string
+ * @returns {object}
+ */
 export const constructVersionTypes = (
   version: string
 ): Record<string, string> => {
@@ -124,6 +144,14 @@ export const writeConsoleMsgs = (
   );
 };
 
+/**
+ * constructDeps
+ * @description constructed deps with updates
+ * @param {json} object
+ * @param {depName} string
+ * @param {depList} array
+ * @returns {object}
+ */
 export const constructDeps = <T extends PackageJSON>(
   json: T,
   depName: string,
@@ -148,6 +176,14 @@ export const constructDeps = <T extends PackageJSON>(
       )
     : json[depName as keyof PackageJSON];
 
+/**
+ * constructJson
+ * @description constructs json with updates
+ * @param {json} object
+ * @param {depsToUpdate} array
+ * @param {isDebugging} boolean
+ * @returns {object}}
+ */
 export const constructJson = <T extends PackageJSON>(
   json: T,
   depsToUpdate: DepsToUpdate,
@@ -178,6 +214,7 @@ export const constructJson = <T extends PackageJSON>(
  * @param {versionMap} object
  * @param {json} object
  * @param {isUpdating} boolean
+ * @returns {boolean}
  */
 export const checkDependenciesForVersion = <T extends PackageJSON>(
   versionMap: Record<string, string>,
@@ -229,6 +266,13 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
  * @param {options.files} array
  * @param {options.cwd} string
  * @param {options.isUpdating} boolean
+ * @param {options.versionMap} object
+ * @param {options.rootDir} string
+ * @param {options.isDebugging} boolean
+ * @param {options.isSilent} boolean
+ * @param {options.isCLI} boolean
+ * @param {options.isTesting} boolean
+ * @returns {void}
  */
 export const checkMatches = ({
   versionMap,
@@ -290,10 +334,17 @@ export const checkMatches = ({
 /**
  * checkFiles
  * @description checks a glob of json files for dependency discrepancies
- * @param {options.matchers} string
- * @param {options.cwd} string
+ * @param {options.codependencies} array
+ * @param {options.rootDir} string
  * @param {options.ignore} array
- * @param {options.updating} boolean
+ * @param {options.update} boolean
+ * @param {options.files} array
+ * @param {options.rootDir} string
+ * @param {options.debug} boolean
+ * @param {options.silent} boolean
+ * @param {options.isCLI} boolean
+ * @param {options.isTesting} boolean
+ * @returns {void}
  */
 export const checkFiles = async ({
   codependencies,
