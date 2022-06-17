@@ -157,7 +157,7 @@ export const constructDeps = <T extends PackageJSON>(
   depName: string,
   depList: Array<DepToUpdateItem>
 ) =>
-  depList.length
+  depList?.length
     ? depList.reduce(
         (
           newJson: PackageJSON[
@@ -202,9 +202,9 @@ export const constructJson = <T extends PackageJSON>(
   }
   return {
     ...json,
-    dependencies,
-    devDependencies,
-    peerDependencies,
+    ...(dependencies ? { dependencies } : {}),
+    ...(devDependencies ? { devDependencies } : {}),
+    ...(peerDependencies ? { peerDependencies } : {}),
   };
 };
 
