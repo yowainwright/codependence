@@ -80,3 +80,82 @@ test("constructDepsToUpdateList => returns empty b/c no updates required", () =>
   const result = constructDepsToUpdateList({ foo: "1.0.0" }, { foo: "1.0.0" });
   expect(result).toEqual([]);
 });
+
+test("writeConsoleMsgs => should call log", () => {
+  const log = vi.spyOn(console, "log");
+  writeConsoleMsgs("foo", [
+    { name: "foo", expected: "1.0.0", actual: "2.0.0" },
+  ]);
+  expect(log).toHaveBeenCalledTimes(1);
+});
+
+test("constructDeps => with update", () => {
+  const json = {
+    name: "foo",
+    version: "1.0.0",
+    dependencies: { bar: "1.0.0" },
+    path: "./test",
+  };
+  const depName = "bar";
+  const depList = [
+    { name: "bar", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
+  ];
+  const result = constructDeps(json, depName, depList);
+  expect(result).toEqual({ bar: "2.0.0" });
+});
+
+test("constructDeps => with no deplist", () => {
+  const json = {
+    name: "foo",
+    version: "1.0.0",
+    dependencies: { bar: "1.0.0" },
+    path: "./test",
+  };
+  const depName = "bar";
+  const depList = [];
+  const result = constructDeps(json, depName, depList);
+  expect(result).not.toBeDefined();
+});
+
+test("constructDeps => with more deps", () => {
+  const json = {
+    name: "foo",
+    version: "1.0.0",
+    dependencies: { bar: "1.0.0", biz: "1.0.0" },
+    path: "./test",
+  };
+  const depName = "bar";
+  const depList = [
+    { name: "bar", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
+    { name: "biz", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
+  ];
+  const result = constructDeps(json, depName, depList);
+  expect(result).toEqual({ bar: "2.0.0", biz: "2.0.0" });
+});
+
+test("constructJson => with updates", () => {
+  const json = {
+    name: "foo",
+    version: "1.0.0",
+    dependencies: { bar: "1.0.0", biz: "1.0.0" },
+    path: "./test",
+  };
+  const depsToUpdate = {
+    depList: [
+      { name: "bar", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
+      { name: "biz", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
+    ],
+    peerDepList: [],
+    devDepList: [],
+  };
+  const result = constructJson(json, depsToUpdate);
+  expect(result).toStrictEqual({
+    name: "foo",
+    path: "./test",
+    version: "1.0.0",
+    dependencies: {
+      bar: "2.0.0",
+      biz: "2.0.0",
+    },
+  });
+});
