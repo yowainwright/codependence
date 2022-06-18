@@ -377,7 +377,7 @@ export const checkFiles = async ({
     });
   } catch (err) {
     if (debug)
-      console.log(
+      console.error(
         `${gradient.passion(`${DEBUG_NAME}:checkFiles:`)}\n   🤼‍♀️ => ${err}`
       );
   }

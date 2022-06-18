@@ -1,6 +1,7 @@
+import { version } from "os";
 import { expect, test, vi } from "vitest";
-
-import {
+import * as scripts from "../src/scripts";
+const {
   execPromise,
   constructVersionMap,
   constructVersionTypes,
@@ -11,7 +12,7 @@ import {
   checkDependenciesForVersion,
   checkMatches,
   checkFiles,
-} from "../src/scripts";
+} = scripts;
 
 vi.mock("../src/script", () => {
   const scripts = {
@@ -238,4 +239,34 @@ test("checkMatches => with error", () => {
   const files = ["test-fail-package.json"];
   checkMatches({ versionMap, files, isTesting, rootDir });
   expect(logCheckMatchesWithError).toBeCalled();
+});
+
+test("checkFiles => with no updates", async () => {
+  vi.clearAllMocks();
+  const logCheckFilesNoUpdates = vi.spyOn(console, "log");
+  const codependencies = ["lodash", "fs-extra"];
+  const rootDir = "./test/";
+  const files = ["test-pass-package.json"];
+  await checkFiles({ codependencies, rootDir, files });
+  expect(logCheckFilesNoUpdates).toBeCalled();
+});
+
+test.only("checkFiles => with updates", async () => {
+  vi.clearAllMocks();
+  const logCheckFilesWithUpdates = vi.spyOn(console, "error");
+  const codependencies = ["lodash", "fs-extra"];
+  const rootDir = "./test/";
+  const files = ["test-fail-package.json"];
+  await checkFiles({ codependencies, rootDir, files });
+  expect(logCheckFilesWithUpdates).toBeCalled();
+});
+
+test.only("checkFiles => with no codeps", async () => {
+  vi.clearAllMocks();
+  const logCheckFilesWithNoCoDeps = vi.spyOn(console, "error");
+  const codependencies = null;
+  const rootDir = "./test/";
+  const files = ["test-fail-package.json"];
+  await checkFiles({ codependencies, rootDir, files, debug: true } as any);
+  expect(logCheckFilesWithNoCoDeps).toBeCalled();
 });
