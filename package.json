@@ -1,8 +1,8 @@
 {
   "name": "codependence",
   "version": "0.1.0",
-  "description": "Codependency, for code dependency. Checks `coDependencies` in package.json files to ensure dependencies are up-to-date 👯‍♂️",
   "main": "dist/index.cjs",
+  "description": "Checks `coDependencies` in package.json files to ensure dependencies are up-to-date 🤼‍♀️",
   "module": "dist/index.js",
   "type": "module",
   "types": "dist/index.d.ts",
@@ -17,14 +17,17 @@
     "codep": "dist/index.cjs"
   },
   "files": [
-    "bin"
+    "dist"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",
+    "cmd:node:test-fail-run": "node dist/index.js --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug",
+    "cmd:node:test-pass-run": "node dist/index.js --config './test/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './test/' --debug",
     "cmd:test-search": "ts-node src/index.ts --rootDir './test/' --debug --searchPath './test/.codependencerc' --isTestingCLI",
     "cmd:test-fail-run": "ts-node src/index.ts --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug",
     "cmd:test-pass-run": "ts-node src/index.ts --config './test/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './test/' --debug",
     "cmd:test-update-run": "ts-node src/index.ts --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug --isTesting",
+    "coverage": "vitest run --coverage",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "test": "vitest run",
@@ -51,6 +54,7 @@
     "@types/npm-registry-fetch": "^8.0.4",
     "@typescript-eslint/eslint-plugin": "^5.27.1",
     "@typescript-eslint/parser": "^5.27.1",
+    "c8": "^7.11.3",
     "eslint": "^8.17.0",
     "eslint-config-prettier": "^8.5.0",
     "husky": "^8.0.1",
@@ -75,5 +79,9 @@
     "versions",
     "semver"
   ],
-  "lint-staged": {}
+  "lint-staged": {
+     "*.{ts,json,md}": [
+      "eslint --fix"
+    ]
+  }
 }
