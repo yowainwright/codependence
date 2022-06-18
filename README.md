@@ -1,4 +1,4 @@
-# Codependence (WIP) 🤼‍♀️
+# Codependence 🤼‍♀️
 
 **Codependence, for code dependency.**
 
@@ -6,9 +6,9 @@ Codependence is a JavaScript utility tool for checking dependencies in a project
 
 ---
 
-**[💭 &nbsp;Synopsis](#synopsis)** | **[🛠 &nbsp;Usage](#usage)** | **[📦 &nbsp;Install](#install)** | **[ 🏎 &nbsp;Quick Setup](#quick-setup)** | **[🚀&nbsp;CLI](#cli)** | **[🔩&nbsp;Node](#node)** | **[⚖️ &nbsp;Options](#options)**
+**[💭 &nbsp;Synopsis](#synopsis)** | **[🛠 &nbsp;Usage](#usage)** | **[📦 &nbsp;Install](#install)** | **[ 🏎 &nbsp;Quick Setup](#quick-setup)** | **[🚀&nbsp;CLI](#cli)** | **[🔩&nbsp;Node](#node)**
 
-**[🤼‍♀️ &nbsp;&nbsp;Codependencies](#codependencies)** | **[🤝 &nbsp;&nbsp;Contributing](#contributing)**
+**[⚖️ &nbsp;Options](#options)** | **[🤼‍♀️ &nbsp;&nbsp;Codependencies](#codependencies-arraystring--recordstring-string)** | **[🤝 &nbsp;&nbsp;Contributing](#contributing)**
 
 ---
 
@@ -206,5 +206,16 @@ An **optional** string containing a search path for location config files.
 - The default value is `undefined`
 
 ---
+
+## Roadmap
+
+- **Code:**
+  - add more uniform logging utility function
+- **Demo Repos**
+  - **monorepo:** present how **codependence** can work to support monorepo updates
+  - **cron:** present how github action cron can work with **codependence**
+  - **cadence;** present how cadence can be implemented with **codependence**
+- **Documentation**
+  - write recipes section after the demo repos are complete
 
 Made by [@yowainwright](https://github.com/yowainwright) for fun with passion!
