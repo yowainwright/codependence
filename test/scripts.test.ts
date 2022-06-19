@@ -251,7 +251,7 @@ test("checkFiles => with no updates", async () => {
   expect(logCheckFilesNoUpdates).toBeCalled();
 });
 
-test.only("checkFiles => with updates", async () => {
+test("checkFiles => with updates", async () => {
   vi.clearAllMocks();
   const logCheckFilesWithUpdates = vi.spyOn(console, "error");
   const codependencies = ["lodash", "fs-extra"];
@@ -261,7 +261,7 @@ test.only("checkFiles => with updates", async () => {
   expect(logCheckFilesWithUpdates).toBeCalled();
 });
 
-test.only("checkFiles => with no codeps", async () => {
+test("checkFiles => with no codeps", async () => {
   vi.clearAllMocks();
   const logCheckFilesWithNoCoDeps = vi.spyOn(console, "error");
   const codependencies = null;
