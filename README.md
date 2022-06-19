@@ -4,11 +4,21 @@
 
 Codependence is a JavaScript utility tool for checking dependencies in a project to ensure dependencies are up-to-date or match specified version(s).
 
+**Main usecase:**
+
+- Keeping dependencies up-to-date
+
+**Why? What about dependabot and others?**
+
+- Codependence handles monorepos with ease and without bias
+- Codependence is immediate, via a [npm install scripts](https://docs.npmjs.com/cli/v8/using-npm/scripts#npm-install) and [friends](https://typicode.github.io/husky/#/)
+- Codependence can be run along with npm scripts
+
 ---
 
 **[💭 &nbsp;Synopsis](#synopsis)** | **[🛠 &nbsp;Usage](#usage)** | **[📦 &nbsp;Install](#install)** | **[ 🏎 &nbsp;Quick Setup](#quick-setup)** | **[🚀&nbsp;CLI](#cli)** | **[🔩&nbsp;Node](#node)**
 
-**[⚖️ &nbsp;Options](#options)** | **[🤼‍♀️ &nbsp;&nbsp;Codependencies](#codependencies-arraystring--recordstring-string)** | **[🤝 &nbsp;&nbsp;Contributing](#contributing)**
+**[⚖️ &nbsp;Options](#options)** | **[🤼‍♀️ &nbsp;Codependencies](#codependencies-arraystring--recordstring-string)** | **[🤝 &nbsp;Contributing](#contributing)** | **[🗺&nbsp;Roadmap](#roadmap)**
 
 ---
 
@@ -110,6 +120,10 @@ Listed below are all the options which can be used with **Codependence**.
 
 ---
 
+**[Codependencies](#codependencies-arraystring--recordstring-string)** | **[Files](#files-arraystring)** | **[RootDir](#rootdir-string)** | **[Ignore](#ignore-arraystring)** | **[Debug](#debug)** | **[Silent](#silent)** | **[Config](#config-string)** | **[SearchPath](#searchpath-string)**
+
+---
+
 ### `codependencies`: `Array<string | Record<string, string>`
 
 A **required** option or config array! **Codependencies** are required via being passed in an array as a cli option **or as within a `codependence.codependencies` array.
@@ -207,15 +221,50 @@ An **optional** string containing a search path for location config files.
 
 ---
 
+## Contributing
+
+[Contributing](.github/CONTRIBUTING.md) is straightforward.
+
+### Setup
+
+```sh
+nvm install && npm install pnpm && pnpm install
+```
+
+### Issues
+
+- Sprinkle some context
+- Can you submit a pull request if needed?
+
+### Pull Requests
+
+- Add a test (or a description of the test) that should be added
+- Update the readme (if needed)
+- Sprinkle some context in the [pull request](.github/PULL_REQUEST_TEMPLATE.md).
+- Hope it's fun!
+
+Thank you!
+
+---
+
 ## Roadmap
 
 - **Code:**
-  - add more uniform logging utility function
+  - add more uniform logging utility function (will be done asap)
+  - add better spying (in progress)
 - **Demo Repos**
-  - **monorepo:** present how **codependence** can work to support monorepo updates
+  - **monorepo:** present how **codependence** can work to support monorepo updates (in progress)
   - **cron:** present how github action cron can work with **codependence**
   - **cadence;** present how cadence can be implemented with **codependence**
 - **Documentation**
   - write recipes section after the demo repos are complete
+
+---
+
+## Shoutouts
+
+Thanks to [Dev Wells](https://github.com/devdumpling) and [Steve Cox](https://github.com/stevejcox) for the aligned code leading to this project. Thanks [Gabriel Diaz](https://github.com/GaboFDC) for working on the project which uses Codependence with me.
+
+---
 
 Made by [@yowainwright](https://github.com/yowainwright) for fun with passion!

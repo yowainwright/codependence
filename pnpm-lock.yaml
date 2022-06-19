@@ -21,6 +21,7 @@ specifiers:
   husky: ^8.0.1
   is-ci: ^3.0.1
   lint-staged: ^13.0.1
+  path-exists: ^5.0.0
   release-it: ^15.0.0
   stdouttojson: ^0.3.5
   ts-node: ^10.8.1
@@ -53,6 +54,7 @@ devDependencies:
   husky: 8.0.1
   is-ci: 3.0.1
   lint-staged: 13.0.1
+  path-exists: 5.0.0
   release-it: 15.0.0
   stdouttojson: 0.3.5
   ts-node: 10.8.1_w7x2tbnlqsjlyiccdck6zsdv74
@@ -3650,6 +3652,11 @@ packages:
   /path-exists/4.0.0:
     resolution: {integrity: sha512-ak9Qy5Q7jYb2Wwcey5Fpvg2KoAc/ZIhLSLOSBmRmygPsGwkVVt0fZa0qrtMz+m6tJTAHfZQ8FnmB4MG4LWy7/w==}
     engines: {node: '>=8'}
+    dev: true
+
+  /path-exists/5.0.0:
+    resolution: {integrity: sha512-RjhtfwJOxzcFmNOi6ltcbcu4Iu+FL3zEj83dk4kAS+fVpTxXLO1b38RvJgT/0QwvV/L3aY9TAnyv0EOqW4GoMQ==}
+    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
     dev: true
 
   /path-is-absolute/1.0.1:
