@@ -36,12 +36,12 @@
     "husky-setup:pre-commit": "npx husky add .husky/pre-commit 'pnpm run pre-commit'",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "test": "vitest run",
     "pre-commit": "lint-staged --quiet",
     "prepare": "is-ci || pnpm husky-setup",
     "prepublishOnly": "pnpm build",
-    "release": "release-it",
+    "release": "MSG='chore: release '$npm_release_version; release-it --src.commitMessage=$MSG",
     "setup": "pnpm install --reporter=silent && pnpm build",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "author": "Jeff Wainwright <yowainwright@gmail.com> (https://jeffry.in)",
@@ -105,10 +105,5 @@
     "*.{ts,json,md}": [
       "eslint --fix"
     ]
-  },
-  "release-it": {
-    "git": {
-      "commitMessage": "chore: release $npm_package_version"
-    }
   }
 }
