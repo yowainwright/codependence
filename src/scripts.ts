@@ -48,7 +48,7 @@ export const constructVersionMap = async (
           const isModuleSafeCharacters = /[A-Za-z0-9\-_.]/.test(item);
           if (!isModuleSafeCharacters) throw "invalid item";
           const { stdout = "" } = (await exec(
-            "npm view " + item + " version latest"
+            `npm view ${item} version latest`
           )) as unknown as Record<string, string>;
           const version = stdout.toString().replace("\n", "");
           if (version) return { [item]: version };
