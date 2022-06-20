@@ -105,5 +105,10 @@
     "*.{ts,json,md}": [
       "eslint --fix"
     ]
+  },
+  "release-it": {
+    "git": {
+      "commitMessage": "chore: release $npm_package_version"
+    }
   }
 }
