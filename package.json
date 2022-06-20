@@ -41,6 +41,7 @@
     "prepublishOnly": "pnpm build",
     "release": "release-it",
     "setup": "pnpm install --reporter=silent && pnpm build",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "author": "Jeff Wainwright <yowainwright@gmail.com> (https://jeffry.in)",
