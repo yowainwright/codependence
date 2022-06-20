@@ -4,7 +4,6 @@
   "main": "dist/index.cjs",
   "description": "Checks `coDependencies` in package.json files to ensure dependencies are up-to-date 🤼‍♀️",
   "module": "dist/index.js",
-  "type": "module",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
@@ -36,7 +35,7 @@
     "husky-setup:pre-commit": "npx husky add .husky/pre-commit 'pnpm run pre-commit'",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "pre-commit": "lint-staged --quiet",
+    "pre-commit": "lint-staged",
     "prepare": "is-ci || pnpm husky-setup",
     "prepublishOnly": "pnpm build",
     "release": "release-it",
@@ -102,7 +101,7 @@
     }
   },
   "lint-staged": {
-    "*.{ts,json,md}": [
+    "*.{ts,json}": [
       "eslint --fix"
     ]
   },

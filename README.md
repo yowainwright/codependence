@@ -1,34 +1,34 @@
 # Codependence 🤼‍♀️
 
-**Codependence, for code dependency.**
+**Codependence** is a JavaScript utility CLI or node tool for checking dependencies in a project to ensure dependencies are up-to-date or match specified version(s).
 
-Codependence is a JavaScript utility tool for checking dependencies in a project to ensure dependencies are up-to-date or match specified version(s).
+##### Main usecase
 
-**Main usecase:**
+- Keeps dependencies up-to-date—specifically for monorepos, internal release management, and dependency pinning.
 
-- Keeping dependencies up-to-date
+##### Why? What about dependabot and others?
 
-**Why? What about dependabot and others?**
-
-- Codependence handles monorepos with ease and without bias
-- Codependence is immediate, via a [npm install scripts](https://docs.npmjs.com/cli/v8/using-npm/scripts#npm-install) and [friends](https://typicode.github.io/husky/#/)
-- Codependence can be run along with npm scripts
+- **Codependence** handles monorepos child dependency with ease and without bias! ✅
+- **Codependence** is immediate, via a [npm install scripts](https://docs.npmjs.com/cli/v8/using-npm/scripts#npm-install) and build pipeline tools, such as [Husky](https://typicode.github.io/husky/) ✅
+- **Codependence** can be run along with npm scripts or in github actions. ✅
 
 ---
 
+##### Section Links
+
 **[💭 &nbsp;Synopsis](#synopsis)** | **[🛠 &nbsp;Usage](#usage)** | **[📦 &nbsp;Install](#install)** | **[ 🏎 &nbsp;Quick Setup](#quick-setup)** | **[🚀&nbsp;CLI](#cli)** | **[🔩&nbsp;Node](#node)**
 
-**[⚖️ &nbsp;Options](#options)** | **[🤼‍♀️ &nbsp;Codependencies](#codependencies-arraystring--recordstring-string)** | **[🤝 &nbsp;Contributing](#contributing)** | **[🗺&nbsp;Roadmap](#roadmap)**
+**[⚖️ &nbsp;Options](#options)** | **[🤼‍♀️ &nbsp;Codependencies](#codependencies-arraystring--recordstring-string)** | **[🤝 &nbsp;Contributing](#contributing)** | **[🗺 &nbsp;Roadmap](#roadmap)**
 
 ---
 
 ## Synopsis
 
-Codependence is a JavaScript utility that compares a `codependencies` array against `package.json` `dependencies`, `devDependencies`, and `peerDependencies` for \***codependencies** which are not up-to-date or a specific version. Codependence can return a pass/fail result or update specified \***codependencies**.
+**Codependence** is a JavaScript utility that compares a `codependencies` array against `package.json` `dependencies`, `devDependencies`, and `peerDependencies` for \***codependencies** which are not up-to-date or a specific version. Codependence can return a pass/fail result or update specified \***codependencies**.
 
-This utility is useful for ensuring **very dependent** dependencies are always up-to-date—or installed at a specified version.
+This utility is useful for ensuring dependencies are always up-to-date—or installed at a specified version!
 
-This utility can be used in place of tools that do dependency management and, yes, it supports monorepos.
+This utility can work alongside dependency management tools like [dependabot](https://dependabot.com/) or instead of them depending on your requirements.
 
 ---
 
@@ -120,7 +120,9 @@ Listed below are all the options which can be used with **Codependence**.
 
 ---
 
-**[Codependencies](#codependencies-arraystring--recordstring-string)** | **[Files](#files-arraystring)** | **[RootDir](#rootdir-string)** | **[Ignore](#ignore-arraystring)** | **[Debug](#debug)** | **[Silent](#silent)** | **[Config](#config-string)** | **[SearchPath](#searchpath-string)**
+##### Option Links
+
+**[🤼‍♀️ &nbsp; Codependencies](#codependencies-arraystring--recordstring-string)**&nbsp; | **[🗂 &nbsp; Files](#files-arraystring)**&nbsp; | **[🦷 &nbsp; rootDir](#rootdir-string)**&nbsp; | **[ &nbsp; ignore](#ignore-arraystring)**&nbsp; | **[ 🐛 &nbsp; debug](#debug)**&nbsp; | **[🤫 &nbsp; silent](#silent)**&nbsp;| **[⚖️ &nbsp; config](#config-string)**&nbsp; | **[🔦 &nbsp; SearchPath](#searchpath-string)**
 
 ---
 
@@ -263,8 +265,8 @@ Thank you!
 
 ## Shoutouts
 
-Thanks to [Dev Wells](https://github.com/devdumpling) and [Steve Cox](https://github.com/stevejcox) for the aligned code leading to this project. Thanks [Gabriel Diaz](https://github.com/GaboFDC) for working on the project which uses Codependence with me.
+Thanks to [Dev Wells](https://github.com/devdumpling) and [Steve Cox](https://github.com/stevejcox) for the aligned code leading to this project. Thanks [Gabriel Diaz](https://github.com/GaboFDC) for working on the project which uses Codependence with me. Thanks to [Will Jacobson](https://github.com/willzjacobson) for discussing the documentation and language of this project.
 
 ---
 
-Made by [@yowainwright](https://github.com/yowainwright) for fun with passion!
+Made by [@yowainwright](https://github.com/yowainwright) for fun with passion! 🐝
