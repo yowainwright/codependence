@@ -40,7 +40,13 @@ export const constructVersionMap = async (
       try {
         if (typeof item === "object" && Object.keys(item).length === 1) {
           return item;
-        } else if (typeof item === "string" && item.length > 1) {
+        } else if (
+          typeof item === "string" &&
+          item.length > 1 &&
+          !item.includes(" ")
+        ) {
+          const isModuleSafeCharacters = /[A-Za-z0-9\-_.]/.test(item);
+          if (!isModuleSafeCharacters) throw "invalid item";
           const { stdout = "" } = (await exec(
             `npm view ${item} version latest`
           )) as unknown as Record<string, string>;
