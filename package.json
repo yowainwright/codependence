@@ -39,7 +39,7 @@
     "pre-commit": "lint-staged --quiet",
     "prepare": "is-ci || pnpm husky-setup",
     "prepublishOnly": "pnpm build",
-    "release": "MSG='chore: release '$npm_release_version; release-it --src.commitMessage=$MSG",
+    "release": "release-it",
     "setup": "pnpm install --reporter=silent && pnpm build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
@@ -105,5 +105,10 @@
     "*.{ts,json,md}": [
       "eslint --fix"
     ]
+  },
+  "release-it": {
+    "git": {
+      "commitMessage": "chore: release %s"
+    }
   }
 }
