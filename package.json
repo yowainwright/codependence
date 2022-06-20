@@ -3,6 +3,7 @@
   "version": "0.2.0",
   "main": "dist/index.cjs",
   "description": "Checks `coDependencies` in package.json files to ensure dependencies are up-to-date 🤼‍♀️",
+  "type": "module",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
