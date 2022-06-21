@@ -2,9 +2,7 @@
 
 import { program } from "commander";
 import { cosmiconfigSync } from "cosmiconfig";
-import gradient from "gradient-string";
-import { script } from "./scripts";
-import { DEBUG_NAME } from "./constants";
+import { logger, script } from "./scripts";
 import { Options, ConfigResult } from "./types";
 
 export async function action(options: Options = {}): Promise<void> {
@@ -47,9 +45,11 @@ export async function action(options: Options = {}): Promise<void> {
     if (!updatedOptions.codependencies) throw '"codependencies" is required';
     await script(updatedOptions);
   } catch (err) {
-    console.error(
-      `${gradient.passion(`${DEBUG_NAME}cli:error:`)}\n   🤼‍♀️ => ${err}`
-    );
+    logger({
+      type: "error",
+      section: "cli:error",
+      message: (err as string).toString(),
+    });
   }
 }
 

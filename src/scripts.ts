@@ -3,7 +3,6 @@ import { exec } from "child_process";
 import gradient from "gradient-string";
 import { sync as glob } from "fast-glob";
 import { readFileSync, writeFileSync } from "fs-extra";
-import { DEBUG_NAME, LOG_NAME } from "./constants";
 import {
   CheckFiles,
   CodeDependencies,
@@ -12,6 +11,7 @@ import {
   PackageJSON,
   DepToUpdateItem,
   DepsToUpdate,
+  LoggerParams,
 } from "./types";
 
 /**
@@ -21,6 +21,44 @@ import {
  * @returns {object}
  */
 export const execPromise = promisify(exec);
+
+/**
+ * logger
+ * @description logs to console messages
+ * @param {LoggerParams.type} string
+ * @param {LoggerParams.section} string
+ * @param {LoggerParams.message} string
+ * @param {LoggerParams.err} string
+ * @returns {void}
+ */
+export const logger = ({
+  type,
+  section = "",
+  message,
+  err = "",
+  isDebugging = false,
+}: LoggerParams): void => {
+  const emoji = `🤼‍♀️`;
+  const gap = ` => `;
+  const debugMsg = isDebugging ? "debugging:" : "";
+  const sectionMsg = section.length ? `${section}:` : "";
+  const firstLine = `codependence:${debugMsg}${sectionMsg}`;
+  const secondLine = message ? `${emoji}${gap}${message}` : "";
+  if (type === "error") {
+    console.error(gradient.passion(firstLine));
+    if (secondLine) console.error(secondLine);
+    if (err) console.error(err);
+  } else if (type === "debug") {
+    console.debug(gradient.passion(firstLine));
+    if (secondLine) console.debug(secondLine);
+  } else if (type === "info") {
+    console.info(gradient.teen(firstLine));
+    if (secondLine) console.info(secondLine);
+  } else {
+    console.log(gradient.teen(firstLine));
+    if (secondLine) console.log(secondLine);
+  }
+};
 
 /**
  * constructVersionMap
@@ -58,11 +96,12 @@ export const constructVersionMap = async (
         }
       } catch (err) {
         if (isDebugging)
-          console.error(
-            `${gradient.passion(
-              `${DEBUG_NAME}:constructVersionMap:`
-            )}\n   🤼‍♀️ => ${err}`
-          );
+          logger({
+            type: "error",
+            section: `constructVersionMap`,
+            message: (err as string).toString(),
+            isDebugging,
+          });
         return {};
       }
     })
@@ -141,13 +180,14 @@ export const writeConsoleMsgs = (
   depList: Array<Record<string, string>>
 ): void => {
   if (!depList.length) return;
-  Array.from(depList, ({ name: depName, expected, actual }) =>
-    console.log(
-      `${gradient.teen(
-        `${packageName}:`
-      )}\n   🤼‍♀️ => ${depName} version is not correct.\n   🤼‍♀️ => Found ${actual} and should be ${expected}`
-    )
-  );
+  Array.from(depList, ({ name: depName, expected, actual }) => {
+    logger({
+      type: "log",
+      section: packageName,
+      message: `${depName} version is incorrect!`,
+    });
+    console.log(`🤼‍♀️ => Found ${actual} and should be ${expected}`);
+  });
 };
 
 /**
@@ -200,7 +240,12 @@ export const constructJson = <T extends PackageJSON>(
   const devDependencies = constructDeps(json, "devDependencies", devDepList);
   const peerDependencies = constructDeps(json, "peerDependencies", peerDepList);
   if (isDebugging) {
-    console.log(gradient.passion(`${DEBUG_NAME}`), {
+    logger({
+      type: "debug",
+      section: "constructJson",
+      isDebugging,
+    });
+    console.debug({
       dependencies,
       devDependencies,
       peerDependencies,
@@ -233,12 +278,18 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
   const depList = constructDepsToUpdateList(dependencies, versionMap);
   const devDepList = constructDepsToUpdateList(devDependencies, versionMap);
   const peerDepList = constructDepsToUpdateList(peerDependencies, versionMap);
-  if (isDebugging)
-    console.log(`${DEBUG_NAME}checkDependenciesForVersion:`, {
+  if (isDebugging) {
+    logger({
+      type: "debug",
+      isDebugging,
+      section: "checkDependenciesForVersion",
+    });
+    console.debug({
       depList,
       devDepList,
       peerDepList,
     });
+  }
   if (!depList.length && !devDepList.length && !peerDepList.length) {
     return false;
   }
@@ -256,11 +307,11 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
     if (!isTesting) {
       writeFileSync(path, JSON.stringify(newJson, null, 2).concat("\n"));
     } else {
-      console.log(
-        `${gradient.teen(
-          `${LOG_NAME}checkDependenciesForVersion:test-writeFileSync:`
-        )}\n   👯‍♂️ => ${path}`
-      );
+      logger({
+        type: "info",
+        section: "checkDependenciesForVersion:test-writeFileSync:",
+        message: path,
+      });
     }
   }
   return true;
@@ -306,34 +357,34 @@ export const checkMatches = ({
       })
     );
 
-  if (isDebugging)
-    console.log(
-      `${gradient.passion(`${DEBUG_NAME}checkMatches:`)}\n   🤼‍♀️ => see updates`,
-      {
-        packagesNeedingUpdate,
-      }
-    );
+  if (isDebugging) {
+    logger({
+      type: "debug",
+      section: "checkMatches",
+      isDebugging,
+      message: "see updates",
+    });
+    console.debug({ packagesNeedingUpdate });
+  }
 
   const isOutOfDate = packagesNeedingUpdate.length > 0;
   if (isOutOfDate && !isUpdating) {
-    console.error(
-      `${gradient.passion(
-        `codependence:`
-      )}\n   🤼‍♀️ => dependencies are not correct 😞`
-    );
+    logger({
+      type: "error",
+      message: "Dependencies are not correct. 😞",
+    });
     if (isCLI) process.exit(1);
   } else if (isOutOfDate) {
-    console.info(
-      `${gradient.teen(
-        `codependence:`
-      )}\n   👯‍♂️ => dependencies were not correct but should be updated! Check your git status. 😃`
-    );
+    logger({
+      type: "info",
+      message:
+        "Dependencies were not correct but should be updated! Check your git status. 😃",
+    });
   } else {
-    console.log(
-      `${gradient.teen(
-        `codependence:`
-      )}\n   👯‍♂️ => no dependency issues found! 👌`
-    );
+    logger({
+      type: "log",
+      message: "No dependency issues found! 👌",
+    });
   }
 };
 
@@ -382,10 +433,14 @@ export const checkFiles = async ({
       isTesting,
     });
   } catch (err) {
-    if (debug)
-      console.error(
-        `${gradient.passion(`${DEBUG_NAME}:checkFiles:`)}\n   🤼‍♀️ => ${err}`
-      );
+    if (debug) {
+      logger({
+        type: "error",
+        isDebugging: true,
+        section: "checkFiles",
+        message: (err as string).toString(),
+      });
+    }
   }
 };
 

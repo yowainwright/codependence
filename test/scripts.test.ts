@@ -87,7 +87,7 @@ test("writeConsoleMsgs => should call log", () => {
   writeConsoleMsgs("foo", [
     { name: "foo", expected: "1.0.0", actual: "2.0.0" },
   ]);
-  expect(writeLog).toHaveBeenCalledTimes(1);
+  expect(writeLog).toHaveBeenCalledTimes(3);
 });
 
 test("constructDeps => with update", () => {

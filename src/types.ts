@@ -71,3 +71,12 @@ export type DepsToUpdate = {
   devDepList: DepToUpdateItem[];
   peerDepList: DepToUpdateItem[];
 };
+
+export type LoggerParams = {
+  type: "info" | "warn" | "error" | "log" | string;
+  section?: string;
+  message?: string;
+  err?: string;
+  isDebugging?: boolean;
+  obj?: any;
+};
