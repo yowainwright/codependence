@@ -10,7 +10,7 @@
 
 - **Codependence** handles monorepos child dependency with ease and without bias! ✅
 - **Codependence** is immediate, via a [npm install scripts](https://docs.npmjs.com/cli/v8/using-npm/scripts#npm-install) and build pipeline tools, such as [Husky](https://typicode.github.io/husky/) ✅
-- **Codependence** can be run along with npm scripts or in github actions. ✅
+- **Codependence** can be run along with npm scripts or in github actions ✅
 
 ---
 
@@ -117,6 +117,8 @@ checkForUpdate();
 ## Options
 
 Listed below are all the options which can be used with **Codependence**.
+
+Options can be used via CLI options, a config file read from the CLI, or with node by passioning them into the exported functions. Read more below!
 
 ---
 
@@ -252,7 +254,6 @@ Thank you!
 ## Roadmap
 
 - **Code:**
-  - add more uniform logging utility function (will be done asap)
   - add better spying (in progress)
 - **Demo Repos**
   - **monorepo:** present how **codependence** can work to support monorepo updates (in progress)
