@@ -27,7 +27,9 @@
 
 **[💭 &nbsp;Synopsis](#synopsis)** | **[🛠 &nbsp;Usage](#usage)** | **[📦 &nbsp;Install](#install)** | **[ 🏎 &nbsp;Quick Setup](#quick-setup)** | **[🚀&nbsp;CLI](#cli)** | **[🔩&nbsp;Node](#node)**
 
-**[⚖️ &nbsp;Options](#options)** | **[🤼‍♀️ &nbsp;Codependencies](#codependencies-arraystring--recordstring-string)** | **[👌&nbsp;Codependencies Array](#array-types)** **[🤝 &nbsp;Contributing](#contributing)** | **[🗺 &nbsp;Roadmap](#roadmap)**
+**[⚖️ &nbsp;Options](#options)** | **[🤼‍♀️ &nbsp;Codependencies](#codependencies-arraystring--recordstring-string)** | **[👌&nbsp;Codependencies Array](#array-types)**
+
+**[🖼 &nbsp;Demos](#demos)** | **[🤝 &nbsp;Contributing](#contributing)** | **[🗺 &nbsp;Roadmap](#roadmap)**
 
 ---
 
@@ -240,6 +242,8 @@ An **optional** string containing a search path for location config files.
 
 - **[Codependence Cron](https://github.com/yowainwright/codependence-cron):** Codependence running off a Github Action cron job.
 
+---
+
 ## Contributing
 
 [Contributing](.github/CONTRIBUTING.md) is straightforward.
@@ -270,12 +274,11 @@ Thank you!
 
 - **Code:**
   - add better spying/mocking (in progress)
-  - insure codepedence can be written to a config file, not just `package.json` (in progress)
 - **Demo Repos**
   - **monorepo:** present how **codependence** can work to support monorepo updates (in progress)
   - **cadence:** present how cadence can be implemented with **codependence**
 - **Documentation**
-  - write recipes section after the demo repos are complete
+  - write recipes section after the demo repos are complete (in progress)
 
 ---
 
