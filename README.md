@@ -1,16 +1,25 @@
 # Codependence 🤼‍♀️
 
-**Codependence** is a JavaScript utility CLI or node tool for checking dependencies in a project to ensure dependencies are up-to-date or match specified version(s).
+**Codependence** is a JavaScript utility CLI or node tool for checking specified dependencies in a project to ensure dependencies are up-to-date or match a specified version within `package.json` file(s).
 
 ##### Main usecase
 
-- Keeps dependencies up-to-date—specifically for monorepos, internal release management, and dependency pinning.
+- Keeps dependencies up-to-date
+  - **Codependence** updates `package.json`'s dependencies based on a **"codependencies"** array of dependency names
+- Keeps dependencies pinned
+  - **Codependence** keeps specified dependencies pinned (yes, dependencies can be pinned to `~` or `^` versions) in `package.json` files
 
-##### Why? What about dependabot and others?
+##### Why?
 
-- **Codependence** handles monorepos child dependency with ease and without bias! ✅
-- **Codependence** is immediate, via a [npm install scripts](https://docs.npmjs.com/cli/v8/using-npm/scripts#npm-install) and build pipeline tools, such as [Husky](https://typicode.github.io/husky/) ✅
+- **Codependence** is a utility tool focused on a single task (managing specified dependency versions). It is built to work along side tools like Dependabot but it [can also manage dependencies fully](https://github.com/yowainwright/codependence-cron)! ✅
+- **Codependence** handles monorepos child package dependencies with ease and **without** package manager bias! ✅
+- **Codependence** is as immediate as you want it to be, via [npm install scripts](https://docs.npmjs.com/cli/v8/using-npm/scripts#npm-install) and build pipeline tools, such as [Husky](https://typicode.github.io/husky/) ✅
 - **Codependence** can be run along with npm scripts or in github actions ✅
+
+##### Why _not_?
+
+- You don't need intricate dependency version management ❌
+- You prefer specifying necessary dependencies with `latest`, or manually `pinning`, or using a tool like [Dependabot's ignore spec](https://github.blog/changelog/2021-05-21-dependabot-version-updates-can-now-ignore-major-minor-patch-releases/) within a `dependabot.yml`. ❌
 
 ---
 
@@ -18,17 +27,17 @@
 
 **[💭 &nbsp;Synopsis](#synopsis)** | **[🛠 &nbsp;Usage](#usage)** | **[📦 &nbsp;Install](#install)** | **[ 🏎 &nbsp;Quick Setup](#quick-setup)** | **[🚀&nbsp;CLI](#cli)** | **[🔩&nbsp;Node](#node)**
 
-**[⚖️ &nbsp;Options](#options)** | **[🤼‍♀️ &nbsp;Codependencies](#codependencies-arraystring--recordstring-string)** | **[🤝 &nbsp;Contributing](#contributing)** | **[🗺 &nbsp;Roadmap](#roadmap)**
+**[⚖️ &nbsp;Options](#options)** | **[🤼‍♀️ &nbsp;Codependencies](#codependencies-arraystring--recordstring-string)** | **[👌&nbsp;Codependencies Array](#array-types)** **[🤝 &nbsp;Contributing](#contributing)** | **[🗺 &nbsp;Roadmap](#roadmap)**
 
 ---
 
 ## Synopsis
 
-**Codependence** is a JavaScript utility that compares a `codependencies` array against `package.json` `dependencies`, `devDependencies`, and `peerDependencies` for \***codependencies** which are not up-to-date or a specific version. Codependence can return a pass/fail result or update specified \***codependencies**.
+**Codependence** is a JavaScript utility CLI and node tool that compares a `codependencies` array against `package.json` `dependencies`, `devDependencies`, and `peerDependencies` for \***codependencies**. For each dependency included in the array, **Codependence** will either a) check that versions are at `latest` or b) check that a specified version is matched within `package.json` files. **Codependence** can either return a) a pass/fail result _or_ b) update dependencies, devDependencies, and peerDependencies, in package.json file(s).
 
-This utility is useful for ensuring dependencies are always up-to-date—or installed at a specified version!
+This utility is useful for ensuring specified dependencies are up-to-date—or at a specified version within a project's `package.json` files(s)!
 
-This utility can work alongside dependency management tools like [dependabot](https://dependabot.com/) or instead of them depending on your requirements.
+This utility is built to work alongside dependency management tools like [dependabot](https://dependabot.com/). It _could_ work instead of dependency management tool but is built for managing specific dependency versions vs _all_ dependencies.
 
 ---
 
@@ -138,7 +147,7 @@ A **required** option or config array! **Codependencies** are required via being
 
 #### Option Details
 
-Codependencies provide options to enhance your capability to control dependency updates.
+**Codependence** provide options to enhance your capability to control dependency updates.
 
 ##### CLI Example
 
@@ -164,7 +173,9 @@ codependence --codependencies 'fs-extra' 'lodash'
 
 ##### Array Types
 
-Although, generally, it is easiest to use array of strings for `codedependencies` like so, `["fs-extra", "lodash"]`, it is also possible to use object items, like so `[{ "foo": "1.0.0" }]`. This is built in to give you more capability to control your dependencies!
+**Codependence** `codependencies` supports `latest` like so, `["fs-extra", "lodash"]`.
+It will also match a specified version, like so `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`.
+**Codependence** is built in to give you more capability to control your dependencies!
 
 ---
 
@@ -225,6 +236,10 @@ An **optional** string containing a search path for location config files.
 
 ---
 
+## Demos
+
+- **[Codependence Cron](https://github.com/yowainwright/codependence-cron):** Codependence running off a Github Action cron job.
+
 ## Contributing
 
 [Contributing](.github/CONTRIBUTING.md) is straightforward.
@@ -254,11 +269,11 @@ Thank you!
 ## Roadmap
 
 - **Code:**
-  - add better spying (in progress)
+  - add better spying/mocking (in progress)
+  - insure codepedence can be written to a config file, not just `package.json` (in progress)
 - **Demo Repos**
   - **monorepo:** present how **codependence** can work to support monorepo updates (in progress)
-  - **cron:** present how github action cron can work with **codependence**
-  - **cadence;** present how cadence can be implemented with **codependence**
+  - **cadence:** present how cadence can be implemented with **codependence**
 - **Documentation**
   - write recipes section after the demo repos are complete
 
