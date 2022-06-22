@@ -7,11 +7,11 @@
 - Keeps dependencies up-to-date
   - **Codependence** updates `package.json`'s dependencies based on a **"codependencies"** array of dependency names
 - Keeps dependencies pinned
-  - **Codependence** keeps specified dependencies pinned (yes, it dependencies can be pinned to `~` or `^` versions) in `package.json` files
+  - **Codependence** keeps specified dependencies pinned (yes, dependencies can be pinned to `~` or `^` versions) in `package.json` files
 
 ##### Why?
 
-- **Codependence** is a utility tool focused on a single task (managing specified dependencies versions). It is built to work along side tools like Dependabot! ✅
+- **Codependence** is a utility tool focused on a single task (managing specified dependency versions). It is built to work along side tools like Dependabot but it [can also manage dependencies fully](https://github.com/yowainwright/codependence-cron)! ✅
 - **Codependence** handles monorepos child package dependencies with ease and **without** package manager bias! ✅
 - **Codependence** is as immediate as you want it to be, via [npm install scripts](https://docs.npmjs.com/cli/v8/using-npm/scripts#npm-install) and build pipeline tools, such as [Husky](https://typicode.github.io/husky/) ✅
 - **Codependence** can be run along with npm scripts or in github actions ✅
@@ -33,7 +33,7 @@
 
 ## Synopsis
 
-**Codependence** is a JavaScript utility CLI and node tool that compares a `codependencies` array against `package.json` `dependencies`, `devDependencies`, and `peerDependencies` for \***codependencies**. For each dependency included in the array, **Codependence** will either a) check that version are at `latest` or b) check that a specified version is matched within `package.json` files. **Codependence** can either return a) a pass/fail result _or_ b) update \***codependencies** in package.json file(s).
+**Codependence** is a JavaScript utility CLI and node tool that compares a `codependencies` array against `package.json` `dependencies`, `devDependencies`, and `peerDependencies` for \***codependencies**. For each dependency included in the array, **Codependence** will either a) check that versions are at `latest` or b) check that a specified version is matched within `package.json` files. **Codependence** can either return a) a pass/fail result _or_ b) update dependencies, devDependencies, and peerDependencies, in package.json file(s).
 
 This utility is useful for ensuring specified dependencies are up-to-date—or at a specified version within a project's `package.json` files(s)!
 
@@ -236,6 +236,10 @@ An **optional** string containing a search path for location config files.
 
 ---
 
+## Demos
+
+- **[Codependence Cron](https://github.com/yowainwright/codependence-cron):** Codependence running off a Github Action cron job.
+
 ## Contributing
 
 [Contributing](.github/CONTRIBUTING.md) is straightforward.
@@ -266,9 +270,9 @@ Thank you!
 
 - **Code:**
   - add better spying/mocking (in progress)
+  - insure codepedence can be written to a config file, not just `package.json` (in progress)
 - **Demo Repos**
   - **monorepo:** present how **codependence** can work to support monorepo updates (in progress)
-  - **cron:** present how github action cron can work with **codependence**
   - **cadence:** present how cadence can be implemented with **codependence**
 - **Documentation**
   - write recipes section after the demo repos are complete
