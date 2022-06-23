@@ -2,6 +2,8 @@
 
 **Codependence** is a JavaScript utility CLI or node tool for checking specified dependencies in a project to ensure dependencies are up-to-date or match a specified version within `package.json` file(s).
 
+---
+
 ##### Main usecase
 
 - Keeps dependencies up-to-date
@@ -9,6 +11,7 @@
 - Keeps dependencies pinned
   - **Codependence** keeps specified dependencies pinned (yes, dependencies can be pinned to `~` or `^` versions) in `package.json` files
 
+---
 ##### Why?
 
 - **Codependence** is a utility tool focused on a single task (managing specified dependency versions). It is built to work along side tools like Dependabot but it [can also manage dependencies fully](https://github.com/yowainwright/codependence-cron)! ✅
@@ -16,6 +19,7 @@
 - **Codependence** is as immediate as you want it to be, via [npm install scripts](https://docs.npmjs.com/cli/v8/using-npm/scripts#npm-install) and build pipeline tools, such as [Husky](https://typicode.github.io/husky/) ✅
 - **Codependence** can be run along with npm scripts or in github actions ✅
 
+---
 ##### Why _not_?
 
 - You don't need intricate dependency version management ❌
@@ -135,7 +139,9 @@ Options can be used via CLI options, a config file read from the CLI, or with no
 
 ##### Option Links
 
-**[🤼‍♀️ &nbsp; Codependencies](#codependencies-arraystring--recordstring-string)**&nbsp; | **[🗂 &nbsp; Files](#files-arraystring)**&nbsp; | **[🦷 &nbsp; rootDir](#rootdir-string)**&nbsp; | **[ &nbsp; ignore](#ignore-arraystring)**&nbsp; | **[ 🐛 &nbsp; debug](#debug)**&nbsp; | **[🤫 &nbsp; silent](#silent)**&nbsp;| **[⚖️ &nbsp; config](#config-string)**&nbsp; | **[🔦 &nbsp; SearchPath](#searchpath-string)**
+**[🤼‍♀️ &nbsp; Codependencies](#codependencies-arraystring--recordstring-string)**&nbsp; | **[🗂 &nbsp; Files](#files-arraystring)**&nbsp; | **[🦷 &nbsp; rootDir](#rootdir-string)**&nbsp; | **[😌 &nbsp; ignore](#ignore-arraystring)**
+
+**[ 🐛 &nbsp; debug](#debug)**&nbsp; | **[🤫 &nbsp; silent](#silent)**&nbsp;| **[⚖️ &nbsp; config](#config-string)**&nbsp; | **[🔦 &nbsp; SearchPath](#searchpath-string)**
 
 ---
 
@@ -274,6 +280,8 @@ Thank you!
 
 - **Code:**
   - add better spying/mocking (in progress)
+  - add init cmd to cli
+  - add utils functions to be executed with the cli cmd (monorepo, cadence, all deps)
 - **Demo Repos**
   - **monorepo:** present how **codependence** can work to support monorepo updates (in progress)
   - **cadence:** present how cadence can be implemented with **codependence**
