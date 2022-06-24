@@ -119,7 +119,7 @@ export const constructVersionMap = async (
           `🤼‍♀️ => Is ☝️ a private package? Does that name look correct? 🧐`
         );
         console.error(
-          `🤼‍♀️ => Read more about configuring dependencies here: https://github.com/yowainwright/codependence#options`
+          `🤼‍♀️ => Read more about configuring dependencies here: https://github.com/yowainwright/codependence#debugging`
         );
         process.exit(1);
       }

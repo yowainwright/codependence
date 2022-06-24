@@ -33,7 +33,7 @@
 
 **[⚖️ &nbsp;Options](#options)** | **[🤼‍♀️ &nbsp;Codependencies](#codependencies-arraystring--recordstring-string)** | **[👌&nbsp;Codependencies Array](#array-types)**
 
-**[🖼 &nbsp;Demos](#demos)** | **[🤝 &nbsp;Contributing](#contributing)** | **[🗺 &nbsp;Roadmap](#roadmap)**
+**[🖼 &nbsp;Demos](#demos)** | **[🐛 &nbsp;Debugging](#debugging)** | **[🤝 &nbsp;Contributing](#contributing)** | **[🗺 &nbsp;Roadmap](#roadmap)**
 
 ---
 
@@ -242,12 +242,35 @@ An **optional** string containing a package to file which contains `codependence
 An **optional** string containing a search path for location config files.
 - The default value is `undefined`
 
+### `yarnConfig`: `boolean`
+
+An **optional** boolean value used to enable \***yarn config** checking
+- The default value is `false`
+
 ---
 
 ## Demos
 
 - **[Codependence Cron](https://github.com/yowainwright/codependence-cron):** Codependence running off a Github Action cron job.
 - **[Codependence Monorepo](https://github.com/yowainwright/codependence-monorepo):** Codependence monorepo example.
+
+---
+
+## Debugging
+
+### `private packages`
+
+If there is a `.npmrc` file, there is no issue with **Codependence** monitoring private packages. However, if a yarn config is used, Codependence must be instructed to run `version` checks differently.
+
+---
+
+##### Fixes
+
+- With the CLI, add the `--yarnConfig` option.
+- With node, add `yarnConfig: true` to your options or your config.
+- For other private package issues, submit an [issue](https://github.com/yowainwright/codependence/issues) or [pull request](https://github.com/yowainwright/codependence/pulls).
+
+
 
 ---
 
