@@ -71,7 +71,8 @@ export const logger = ({
 export const constructVersionMap = async (
   codependencies: CodeDependencies,
   exec = execPromise,
-  isDebugging = false
+  isDebugging = false,
+  yarnConfig = false
 ) => {
   const updatedCodeDependencies = await Promise.all(
     codependencies.map(async (item) => {
@@ -85,10 +86,17 @@ export const constructVersionMap = async (
         ) {
           const isModuleSafeCharacters = /[A-Za-z0-9\-_.]/.test(item);
           if (!isModuleSafeCharacters) throw "invalid item";
-          const { stdout = "" } = (await exec(
-            `npm view ${item} version latest`
-          )) as unknown as Record<string, string>;
-          const version = stdout.toString().replace("\n", "");
+          const cmd = !yarnConfig
+            ? `npm view ${item} version latest`
+            : `yarn npm info ${item} --fields version --json`;
+          const { stdout = "" } = (await exec(cmd)) as unknown as Record<
+            string,
+            string
+          >;
+
+          const version = !yarnConfig
+            ? stdout.toString().replace("\n", "")
+            : JSON.parse(stdout.toString().replace("\n", ""))?.version;
           if (version) return { [item]: version };
           throw `${version}`;
         } else {
@@ -102,7 +110,18 @@ export const constructVersionMap = async (
             message: (err as string).toString(),
             isDebugging,
           });
-        return {};
+        logger({
+          type: "error",
+          section: `constructVersionMap`,
+          message: `there was an error retrieving ${item}`,
+        });
+        console.error(
+          `🤼‍♀️ => Is ☝️ a private package? Does that name look correct? 🧐`
+        );
+        console.error(
+          `🤼‍♀️ => Read more about configuring dependencies here: https://github.com/yowainwright/codependence#options`
+        );
+        process.exit(1);
       }
     })
   );
@@ -412,6 +431,7 @@ export const checkFiles = async ({
   debug = false,
   silent = false,
   isCLI = false,
+  yarnConfig = false,
   isTesting = false,
 }: CheckFiles): Promise<void> => {
   try {
@@ -420,7 +440,8 @@ export const checkFiles = async ({
     const versionMap = await constructVersionMap(
       codependencies,
       execPromise,
-      debug
+      debug,
+      yarnConfig
     );
     checkMatches({
       versionMap,
