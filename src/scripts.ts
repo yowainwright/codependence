@@ -85,6 +85,7 @@ export const constructVersionMap = async ({
           item.length > 1 &&
           !item.includes(" ")
         ) {
+          // the following 2 lines capture only accepted npm package names
           const isModuleSafeCharacters = /[A-Za-z0-9\-_.]/.test(item);
           if (!isModuleSafeCharacters) throw "invalid item";
           const cmd = !yarnConfig
@@ -446,7 +447,6 @@ export const checkFiles = async ({
       yarnConfig,
       isTesting,
     });
-    console.log({ versionMap });
     checkMatches({
       versionMap,
       rootDir,
