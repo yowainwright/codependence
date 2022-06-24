@@ -5,7 +5,7 @@ import { sync as glob } from "fast-glob";
 import { readFileSync, writeFileSync } from "fs-extra";
 import {
   CheckFiles,
-  CodeDependencies,
+  ConstructVersionMapOptions,
   CheckMatches,
   CheckDependenciesForVersionOptions,
   PackageJSON,
@@ -68,11 +68,13 @@ export const logger = ({
  * @param {isDebugging} boolean
  * @returns {object}
  */
-export const constructVersionMap = async (
-  codependencies: CodeDependencies,
+export const constructVersionMap = async ({
+  codependencies,
   exec = execPromise,
-  isDebugging = false
-) => {
+  debug = false,
+  yarnConfig = false,
+  isTesting = false,
+}: ConstructVersionMapOptions) => {
   const updatedCodeDependencies = await Promise.all(
     codependencies.map(async (item) => {
       try {
@@ -83,26 +85,46 @@ export const constructVersionMap = async (
           item.length > 1 &&
           !item.includes(" ")
         ) {
+          // the following 2 lines capture only accepted npm package names
           const isModuleSafeCharacters = /[A-Za-z0-9\-_.]/.test(item);
           if (!isModuleSafeCharacters) throw "invalid item";
-          const { stdout = "" } = (await exec(
-            `npm view ${item} version latest`
-          )) as unknown as Record<string, string>;
-          const version = stdout.toString().replace("\n", "");
+          const cmd = !yarnConfig
+            ? `npm view ${item} version latest`
+            : `yarn npm info ${item} --fields version --json`;
+          const { stdout = "" } = (await exec(cmd)) as unknown as Record<
+            string,
+            string
+          >;
+
+          const version = !yarnConfig
+            ? stdout.toString().replace("\n", "")
+            : JSON.parse(stdout.toString().replace("\n", ""))?.version;
           if (version) return { [item]: version };
           throw `${version}`;
         } else {
           throw "invalid item";
         }
       } catch (err) {
-        if (isDebugging)
+        if (debug)
           logger({
             type: "error",
             section: `constructVersionMap`,
             message: (err as string).toString(),
-            isDebugging,
+            isDebugging: debug,
           });
-        return {};
+        logger({
+          type: "error",
+          section: `constructVersionMap`,
+          message: `there was an error retrieving ${item}`,
+        });
+        console.error(
+          `🤼‍♀️ => Is ☝️ a private package? Does that name look correct? 🧐`
+        );
+        console.error(
+          `🤼‍♀️ => Read more about configuring dependencies here: https://github.com/yowainwright/codependence#debugging`
+        );
+        if (isTesting) return {};
+        process.exit(1);
       }
     })
   );
@@ -412,16 +434,19 @@ export const checkFiles = async ({
   debug = false,
   silent = false,
   isCLI = false,
+  yarnConfig = false,
   isTesting = false,
 }: CheckFiles): Promise<void> => {
   try {
     const files = glob(matchers, { cwd: rootDir, ignore });
     if (!codependencies) throw '"codependencies" are required';
-    const versionMap = await constructVersionMap(
+    const versionMap = await constructVersionMap({
       codependencies,
-      execPromise,
-      debug
-    );
+      exec: execPromise,
+      debug,
+      yarnConfig,
+      isTesting,
+    });
     checkMatches({
       versionMap,
       rootDir,

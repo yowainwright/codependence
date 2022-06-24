@@ -1,4 +1,3 @@
-import { version } from "os";
 import { expect, test, vi } from "vitest";
 import * as scripts from "../src/scripts";
 const {
@@ -33,7 +32,10 @@ test("constructVersionMap => pass", async () => {
     stdout: "4.0.0",
     stderr: "",
   })) as any;
-  const result = await constructVersionMap(["lodash"], exec);
+  const result = await constructVersionMap({
+    codependencies: ["lodash"],
+    exec,
+  });
   expect(result).toEqual({ lodash: "4.0.0" });
 });
 
@@ -42,16 +44,11 @@ test("constructVersionMap => fail", async () => {
     stdout: "",
     stderr: "",
   })) as any;
-  const result = await constructVersionMap(["lodash"], exec);
-  expect(result).toEqual({});
-});
-
-test("constructVersionMap => fail", async () => {
-  const exec = vi.fn(() => ({
-    stdout: "",
-    stderr: "",
-  })) as any;
-  const result = await constructVersionMap(["lodash"], exec);
+  const result = await constructVersionMap({
+    codependencies: ["lodash"],
+    exec,
+    isTesting: true,
+  });
   expect(result).toEqual({});
 });
 

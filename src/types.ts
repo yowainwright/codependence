@@ -16,6 +16,7 @@ export type Options = {
   debug?: boolean;
   silent?: boolean;
   searchPath?: string;
+  yarnConfig?: boolean;
 };
 
 export type ConfigResult = { config: Options } & CosmiconfigResult;
@@ -30,6 +31,7 @@ export type CheckFiles = {
   silent?: boolean;
   isCLI?: boolean;
   isTesting?: boolean;
+  yarnConfig?: boolean;
 };
 
 export type CheckDependenciesForVersionOptions = {
@@ -79,4 +81,12 @@ export type LoggerParams = {
   err?: string;
   isDebugging?: boolean;
   obj?: any;
+};
+
+export type ConstructVersionMapOptions = {
+  codependencies: CodeDependencies;
+  exec?: any;
+  debug?: boolean;
+  yarnConfig?: boolean;
+  isTesting?: boolean;
 };
