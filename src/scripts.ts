@@ -232,7 +232,7 @@ export const constructDeps = <T extends PackageJSON>(
             | "dependencies"
             | "devDependencies"
             | "peerDependencies"],
-          { name, exact: version }: DepToUpdateItem
+          { name, expected: version }: DepToUpdateItem
         ) => {
           return {
             ...json[depName as keyof T],
