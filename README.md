@@ -247,6 +247,7 @@ An **optional** string containing a search path for location config files.
 ## Demos
 
 - **[Codependence Cron](https://github.com/yowainwright/codependence-cron):** Codependence running off a Github Action cron job.
+- **[Codependence Monorepo](https://github.com/yowainwright/codependence-monorepo):** Codependence monorepo example.
 
 ---
 
