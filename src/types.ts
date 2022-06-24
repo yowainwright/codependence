@@ -82,3 +82,11 @@ export type LoggerParams = {
   isDebugging?: boolean;
   obj?: any;
 };
+
+export type ConstructVersionMapOptions = {
+  codependencies: CodeDependencies;
+  exec?: any;
+  debug?: boolean;
+  yarnConfig?: boolean;
+  isTesting?: boolean;
+};

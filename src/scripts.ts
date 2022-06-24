@@ -5,7 +5,7 @@ import { sync as glob } from "fast-glob";
 import { readFileSync, writeFileSync } from "fs-extra";
 import {
   CheckFiles,
-  CodeDependencies,
+  ConstructVersionMapOptions,
   CheckMatches,
   CheckDependenciesForVersionOptions,
   PackageJSON,
@@ -68,12 +68,13 @@ export const logger = ({
  * @param {isDebugging} boolean
  * @returns {object}
  */
-export const constructVersionMap = async (
-  codependencies: CodeDependencies,
+export const constructVersionMap = async ({
+  codependencies,
   exec = execPromise,
-  isDebugging = false,
-  yarnConfig = false
-) => {
+  debug = false,
+  yarnConfig = false,
+  isTesting = false,
+}: ConstructVersionMapOptions) => {
   const updatedCodeDependencies = await Promise.all(
     codependencies.map(async (item) => {
       try {
@@ -103,12 +104,12 @@ export const constructVersionMap = async (
           throw "invalid item";
         }
       } catch (err) {
-        if (isDebugging)
+        if (debug)
           logger({
             type: "error",
             section: `constructVersionMap`,
             message: (err as string).toString(),
-            isDebugging,
+            isDebugging: debug,
           });
         logger({
           type: "error",
@@ -121,6 +122,7 @@ export const constructVersionMap = async (
         console.error(
           `🤼‍♀️ => Read more about configuring dependencies here: https://github.com/yowainwright/codependence#debugging`
         );
+        if (isTesting) return {};
         process.exit(1);
       }
     })
@@ -437,12 +439,14 @@ export const checkFiles = async ({
   try {
     const files = glob(matchers, { cwd: rootDir, ignore });
     if (!codependencies) throw '"codependencies" are required';
-    const versionMap = await constructVersionMap(
+    const versionMap = await constructVersionMap({
       codependencies,
-      execPromise,
+      exec: execPromise,
       debug,
-      yarnConfig
-    );
+      yarnConfig,
+      isTesting,
+    });
+    console.log({ versionMap });
     checkMatches({
       versionMap,
       rootDir,
