@@ -1,0 +1,17 @@
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  if_merged:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: yowainwright/codependence-post-release
+          event-type: codependence_update
+          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
