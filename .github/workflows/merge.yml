@@ -16,5 +16,5 @@ jobs:
         uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
-          repository: yowainwright/codependence-post-release
+          repository: yowainwright/codependence
           event-type: codependence_update
