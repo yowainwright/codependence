@@ -14,4 +14,3 @@ jobs:
           token: ${{ secrets.GITHUB_ACTION_TOKEN }}
           repository: yowainwright/codependence-post-release
           event-type: codependence_update
-          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
