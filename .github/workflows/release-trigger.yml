@@ -1,7 +1,10 @@
+name: codependence trigger version update 🤼‍♀️
+
 on:
   push:
-    branches:
-      - master
+    # Pattern matched against refs/tags
+    tags:
+      - '**'
 
 jobs:
   build:
