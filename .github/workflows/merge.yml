@@ -1,12 +1,19 @@
+name: codependence trigger version update 🤼‍♀️
+
 on:
-  pull_request:
-    types:
-      - closed
+  push:
+    # Pattern matched against refs/tags
+    tags:
+      - '**'
 
 jobs:
-  if_merged:
-    if: github.event.pull_request.merged == true
+  build:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [16.x]
+
     steps:
       - name: Repository Dispatch
         uses: peter-evans/repository-dispatch@v2
