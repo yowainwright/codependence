@@ -71,7 +71,7 @@
     "lint-staged": "13.0.3",
     "path-exists": "^5.0.0",
     "release-it": "^15.0.0",
-    "stdouttojson": "^0.6.0",
+    "stdouttojson": "^0.7.0",
     "ts-node": "^10.8.1",
     "tslib": "^2.4.0",
     "tsup": "^6.1.0",
