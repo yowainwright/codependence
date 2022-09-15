@@ -227,21 +227,19 @@ export const constructDeps = <T extends PackageJSON>(
 ) =>
   depList?.length
     ? depList.reduce(
-        (
-          newJson: PackageJSON[
-            | "dependencies"
-            | "devDependencies"
-            | "peerDependencies"],
-          { name, expected: version }: DepToUpdateItem
-        ) => {
-          return {
-            ...json[depName as keyof T],
-            ...newJson,
-            [name]: version,
-          };
-        },
-        {}
-      )
+      (
+        newJson: PackageJSON[
+          | "dependencies"
+          | "devDependencies"
+          | "peerDependencies"],
+        { name, expected: version }
+      ) => ({
+        ...json[depName as keyof T],
+        ...newJson,
+        [name]: version,
+      }),
+      {}
+    )
     : json[depName as keyof PackageJSON];
 
 /**
