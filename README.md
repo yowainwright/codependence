@@ -1,4 +1,14 @@
+![codependence-banner](https://user-images.githubusercontent.com/1074042/192463417-3e9bd363-6cec-4d9b-8310-567eb6e11e8f.jpg)
+
+---
+
 # Codependence 🤼‍♀️
+
+![Typed with TypeScript](https://flat.badgen.net/badge/icon/Typed?icon=typescript&label&labelColor=blue&color=555555)
+[![npm version](https://badge.fury.io/js/codependence.svg)](https://badge.fury.io/js/pastoralist)
+![ci](https://github.com/yowainwright/codependence/actions/workflows/ci.yml/badge.svg)
+[![Github](https://badgen.net/badge/icon/github?icon=github&label&color=grey)](https://github.com/yowainwright/codependence)
+![Twitter](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fyowainwright%2Fcodependence)
 
 > Stop wresting with your code dependencies. Use Codependence!
 
