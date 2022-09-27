@@ -2,7 +2,7 @@
 
 ---
 
-# Codependence 🤼‍♀️
+# [Codependence](https://www.npmjs.com/package/codependence) 🤼‍♀️
 
 ![Typed with TypeScript](https://flat.badgen.net/badge/icon/Typed?icon=typescript&label&labelColor=blue&color=555555)
 [![npm version](https://badge.fury.io/js/codependence.svg)](https://badge.fury.io/js/pastoralist)
@@ -10,7 +10,7 @@
 [![Github](https://badgen.net/badge/icon/github?icon=github&label&color=grey)](https://github.com/yowainwright/codependence)
 ![Twitter](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fyowainwright%2Fcodependence)
 
-> Stop wresting with your code dependencies. Use Codependence!
+#### Stop wresting with your code dependencies. Use Codependence!
 
 **Codependence** is a JavaScript utility for checking dependencies to ensure they're up-to-date or match a specified version.
 
@@ -18,17 +18,17 @@
 
 ## Main usecase
 
-##### Keeps dependencies up-to-date
+#### Keeps dependencies up-to-date
 
 Codependence updates `package.json`'s dependencies based on a "codependencies" array of dependency names
 
 ---
 
-##### Keeps dependencies pinned
+#### Keeps dependencies pinned
 
 Codependence keeps specified dependencies \*pinned
 
-##### \*yes, dependencies can be pinned to `~` or `^` versions in `package.json` files
+#### \*yes, dependencies can be pinned to `~` or `^` versions in `package.json` files
 
 ---
 ## Why?
@@ -64,7 +64,7 @@ This utility is built to work alongside dependency management tools like [depend
 
 ---
 
-##### \*Codependencies: are project dependencies which **must be** up-to-date or set to a specific version!
+#### \*Codependencies: are project dependencies which **must be** up-to-date or set to a specific version!
 
 In example, if your repository requires the latest version and `latest` can't be specified as the dependency version within your `package.json`, Codependence will ensure your `package.json` has the **actual latest semver version** set in your `package.json`. It can/will do the same if an exact version is specified!
 
@@ -73,13 +73,14 @@ In example, if your repository requires the latest version and `latest` can't be
 ## Usage
 
 **Codependence** can be used as a standalone CLI, in npm scripts or, secondarily, as node utility.
-##### Install
+
+#### Install
 
 ```sh
 npm install codependence --save-dev
 ```
 
-##### Quick setup
+#### Quick setup
 
 Pure CLI quick run
 
@@ -164,13 +165,13 @@ A **required** option or config array! **Codependencies** are required via being
 
 **Codependence** provide options to enhance your capability to control dependency updates.
 
-##### CLI Example
+#### CLI Example
 
 ```sh
 codependence --codependencies 'fs-extra' 'lodash'
 ```
 
-##### Config Example
+#### Config Example
 
 ```json
 {
@@ -186,7 +187,7 @@ codependence --codependencies 'fs-extra' 'lodash'
 }
 ```
 
-##### Array Types
+#### Array Types
 
 **Codependence** `codependencies` supports `latest` like so, `["fs-extra", "lodash"]`. It will also match a specified version, like so `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`.
 **Codependence** is built in to give you more capability to control your dependencies!
@@ -270,7 +271,7 @@ If there is a `.npmrc` file, there is no issue with **Codependence** monitoring 
 
 ---
 
-##### Fixes
+#### Fixes
 
 - With the CLI, add the `--yarnConfig` option.
 - With node, add `yarnConfig: true` to your options or your config.
