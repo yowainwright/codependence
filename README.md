@@ -16,7 +16,7 @@
 
 ---
 
-## Main usecase
+## Main usecase for Codependence
 
 #### Keeps dependencies up-to-date
 
@@ -31,7 +31,7 @@ Codependence keeps specified dependencies \*pinned
 #### \*yes, dependencies can be pinned to `~` or `^` versions in `package.json` files
 
 ---
-## Why?
+## Why use Codependence?
 
 **Codependence** is a utility tool focused on a single task—managing specified dependency versions!
 
@@ -41,7 +41,7 @@ Codependence keeps specified dependencies \*pinned
 - It can be run along with npm scripts or in github actions
 
 ---
-## Why _not_?
+## Why _not_ use Codependence?
 
 **Codependence** isn't for everybody or every repository. Here are some reasons why it _might not_ be for you!
 
@@ -70,7 +70,7 @@ In example, if your repository requires the latest version and `latest` can't be
 
 ---
 
-## Usage
+## Using Codependence
 
 **Codependence** can be used as a standalone CLI, in npm scripts or, secondarily, as node utility.
 
@@ -104,7 +104,7 @@ Or use it with a config in the root `package.json` file
 
 ---
 
-## CLI
+## Using Codependence as a CLI
 
 **Codependence** is built as a CLI-first, set-it-and-forget-it tool.
 
@@ -128,7 +128,7 @@ Options:
   -h, --help                                  display help for command
 ```
 
-## Node
+## Using Codependence in Node
 
 Although, **Codependence** is built to primarily be a CLI utility, it can be used as a node utility.
 
@@ -146,7 +146,7 @@ const checkForUpdate = async () => {
 checkForUpdate();
 ```
 
-## Options
+## Codependence Configuration Options
 
 Codependence **options** can be used via CLI options, a config file read from the CLI, or with node by passing them into exported Codependence functions. Read more below!
 
@@ -230,14 +230,16 @@ An **optional** boolean value used to enable \***yarn config** checking
 
 ---
 
-## Demos
+## Demos 
+
+Check out Codependence in Action!
 
 - **[Codependence Cron](https://github.com/yowainwright/codependence-cron):** Codependence running off a Github Action cron job.
 - **[Codependence Monorepo](https://github.com/yowainwright/codependence-monorepo):** Codependence monorepo example.
 
 ---
 
-## Debugging
+## Codependence Debugging
 
 ### `private packages`
 
