@@ -104,7 +104,7 @@ Or use it with a config in the root `package.json` file
 
 ---
 
-### CLI
+## CLI
 
 **Codependence** is built as a CLI-first, set-it-and-forget-it tool.
 
@@ -128,7 +128,7 @@ Options:
   -h, --help                                  display help for command
 ```
 
-### Node
+## Node
 
 Although, **Codependence** is built to primarily be a CLI utility, it can be used as a node utility.
 
@@ -154,42 +154,16 @@ Codependence **options** can be used via CLI options, a config file read from th
 
 ### `codependencies`: `Array<string | Record<string, string>`
 
-A **required** option or config array! **Codependencies** are required via being passed in an array as a cli option **or as within a `codependence.codependencies` array.
+A **required** option or *config array! **Codependencies** are required via being passed in an array as a cli option **or as within a `codependence.codependencies` array.
 
 - The default value is `undefined`
 - An array is required!
 
 ---
 
-#### Option Details
+#### \*Config Array Detail
 
-**Codependence** provide options to enhance your capability to control dependency updates.
-
-#### CLI Example
-
-```sh
-codependence --codependencies 'fs-extra' 'lodash'
-```
-
-#### Config Example
-
-```json
-{
-  "codependence": {
-    "codependencies": ["fs-extra", "lodash", { "foo": "1.0.0" }]
-  },
-  "scripts": {
-    "check-dependencies": "codpendence",
-    "prepare": "npm run check-dependencies",
-    "update-dependencies": "codependence --update",
-    "update": "npm run update-codependencies"
-  }
-}
-```
-
-#### Array Types
-
-**Codependence** `codependencies` supports `latest` like so, `["fs-extra", "lodash"]`. It will also match a specified version, like so `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`.
+The Codependence `codependencies` array supports `latest` like so, `["fs-extra", "lodash"]`. It will also match a specified version, like so `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`.
 **Codependence** is built in to give you more capability to control your dependencies!
 
 ---
