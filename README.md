@@ -1,4 +1,4 @@
-![codependence-banner](https://user-images.githubusercontent.com/1074042/192968359-4f625dd5-f7db-4bde-87e8-2592bd8f9f75.jpg)
+<p align="center"><a href="https://github.com/yowainwright/codependence"><img width="150" src="https://user-images.githubusercontent.com/1074042/193081452-bf69df80-ad1e-4a81-8595-00f65d7ad5dc.svg" alt="codependence"></a></p>
 
 ---
 
