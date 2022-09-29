@@ -1,4 +1,4 @@
-![codependence-banner](https://user-images.githubusercontent.com/1074042/192463417-3e9bd363-6cec-4d9b-8310-567eb6e11e8f.jpg)
+![codependence-banner](https://user-images.githubusercontent.com/1074042/192968359-4f625dd5-f7db-4bde-87e8-2592bd8f9f75.jpg)
 
 ---
 
