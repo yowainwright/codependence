@@ -1,7 +1,3 @@
-<p align="center"><a href="https://github.com/yowainwright/codependence"><img width="150" src="https://user-images.githubusercontent.com/1074042/193081452-bf69df80-ad1e-4a81-8595-00f65d7ad5dc.svg" alt="codependence"></a></p>
-
----
-
 # [Codependence](https://www.npmjs.com/package/codependence) 🤼‍♀️
 
 ![Typed with TypeScript](https://flat.badgen.net/badge/icon/Typed?icon=typescript&label&labelColor=blue&color=555555)
