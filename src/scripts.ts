@@ -157,6 +157,7 @@ export const constructVersionTypes = (
   const bumpVersion = version;
   return {
     bumpVersion,
+    bumpCharacter: specifier,
     exactVersion,
   };
 };
@@ -173,21 +174,22 @@ export const constructDepsToUpdateList = (
   versionMap: Record<string, string>
 ): Array<DepToUpdateItem> => {
   if (!Object.keys(dep).length) return [];
+  console.log({ dep, versionMap });
   const versionList = Object.keys(versionMap);
   return Object.entries(dep)
     .map(([name, version]) => {
-      const { exactVersion, bumpVersion } = constructVersionTypes(version);
-      return { name, exactVersion, bumpVersion };
+      const { exactVersion, bumpCharacter, bumpVersion } = constructVersionTypes(version);
+      return { name, exactVersion, bumpCharacter, bumpVersion };
     })
     .filter(
       ({ name, exactVersion }) =>
         versionList.includes(name) && versionMap[name] !== exactVersion
     )
-    .map(({ name, exactVersion, bumpVersion }) => ({
+    .map(({ name, bumpCharacter, bumpVersion }) => ({
       name,
       actual: bumpVersion,
-      exact: exactVersion,
-      expected: versionMap[name],
+      exact: versionMap[name],
+      expected: `${bumpCharacter}${versionMap[name]}`,
     }));
 };
 

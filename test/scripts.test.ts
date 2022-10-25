@@ -54,7 +54,7 @@ test("constructVersionMap => fail", async () => {
 
 test("constructVersionTypes => with ^", () => {
   const result = constructVersionTypes("^1.2.3");
-  expect(result).toEqual({ bumpVersion: "^1.2.3", exactVersion: "1.2.3" });
+  expect(result).toEqual({ bumpCharacter: "^", bumpVersion: "^1.2.3", exactVersion: "1.2.3" });
 });
 
 test("constructVersionTypes with no specifier", () => {
@@ -62,12 +62,12 @@ test("constructVersionTypes with no specifier", () => {
   expect(bumpVersion).toEqual(exactVersion);
 });
 
-test("constructDepsToUpdateList => returns dep to update list", () => {
+test("constructDepsToUpdateList => returns dep to update list with exact characters", () => {
   const result = constructDepsToUpdateList({ foo: "1.0.0" }, { foo: "2.0.0" });
   expect(result).toEqual([
     {
       name: "foo",
-      exact: "1.0.0",
+      exact: "2.0.0",
       expected: "2.0.0",
       actual: "1.0.0",
     },
@@ -159,6 +159,23 @@ test("constructJson => with updates", () => {
 });
 
 test("checkDependenciesForVersion => has updates", () => {
+  const versionMap = {
+    foo: "2.0.0",
+    bar: "2.0.0",
+  };
+  const json = {
+    name: "biz",
+    version: "1.0.0",
+    dependencies: { bar: "1.0.0", foo: "1.0.0" },
+    path: "./test",
+  };
+  const result = checkDependenciesForVersion(versionMap, json, {
+    isTesting: true,
+  });
+  expect(result).toEqual(true);
+});
+
+test("checkDependenciesForVersion => has updates + special characters", () => {
   const versionMap = {
     foo: "2.0.0",
     bar: "2.0.0",
