@@ -27,6 +27,7 @@
     "cmd:ts-node:test-fail-run": "ts-node src/index.ts --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug",
     "cmd:ts-node:test-pass-run": "ts-node src/index.ts --config './test/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './test/' --debug",
     "cmd:ts-node:test-update-run": "ts-node src/index.ts --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug --isTesting",
+    "cmd:ts-node:test-codependencies-cli": "ts-node src/index.ts -c './test/test-fail-package.json' --files 'test-fail-package.json' -cds 'lodash' '{ \"fs-extra\": \"10.0.1\" }' --rootDir './test/' --debug --isTesting",
     "commit": "git-cz",
     "commit-msg": "commitlint --edit $1",
     "coverage": "vitest run --coverage",
@@ -70,6 +71,7 @@
     "is-ci": "^3.0.1",
     "lint-staged": "13.0.3",
     "path-exists": "^5.0.0",
+    "prettier": "^2.7.1",
     "release-it": "^15.4.2",
     "stdouttojson": "^0.7.0",
     "ts-node": "^10.9.1",
@@ -103,7 +105,8 @@
   },
   "lint-staged": {
     "*.{ts,json}": [
-      "eslint --fix"
+      "eslint --fix",
+      "prettier --write"
     ]
   },
   "release-it": {

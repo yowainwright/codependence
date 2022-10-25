@@ -27,6 +27,7 @@ Codependence keeps specified dependencies \*pinned
 #### \*yes, dependencies can be pinned to `~` or `^` versions in `package.json` files
 
 ---
+
 ## Why use Codependence?
 
 **Codependence** is a utility tool focused on a single task—managing specified dependency versions!
@@ -37,6 +38,7 @@ Codependence keeps specified dependencies \*pinned
 - It can be run along with npm scripts or in github actions
 
 ---
+
 ## Why _not_ use Codependence?
 
 **Codependence** isn't for everybody or every repository. Here are some reasons why it _might not_ be for you!
@@ -129,17 +131,17 @@ Options:
 Although, **Codependence** is built to primarily be a CLI utility, it can be used as a node utility.
 
 ```ts
-import codependence from 'codependence';
+import codependence from 'codependence'
 
 const checkForUpdate = async () => {
-  const isLatest = await codependence({ codependencies: ['fs-extra', 'lodash'] });
+  const isLatest = await codependence({ codependencies: ['fs-extra', 'lodash'] })
   if (!isLatest) {
-    console.log('This repo is update-to-date');
+    console.log('This repo is update-to-date')
   } else {
-    console.error('This repo is not update-to-date');
+    console.error('This repo is not update-to-date')
   }
 }
-checkForUpdate();
+checkForUpdate()
 ```
 
 ## Codependence Configuration Options
@@ -150,7 +152,7 @@ Codependence **options** can be used via CLI options, a config file read from th
 
 ### `codependencies`: `Array<string | Record<string, string>`
 
-A **required** option or *config array! **Codependencies** are required via being passed in an array as a cli option **or as within a `codependence.codependencies` array.
+A **required** option or \*config array! **Codependencies** are required via being passed in an array as a cli option \*\*or as within a `codependence.codependencies` array.
 
 - The default value is `undefined`
 - An array is required!
@@ -167,6 +169,7 @@ The Codependence `codependencies` array supports `latest` like so, `["fs-extra",
 ### `files`: `Array<string>`
 
 An **optional** array of strings to check for `package.json` files to update.
+
 - The default value is `['package.json']`
 - This array accepts glob patterns as well, example `["package.json", "**/package.json"`
 
@@ -175,6 +178,7 @@ An **optional** array of strings to check for `package.json` files to update.
 ### `update`: `boolean`
 
 An **optional** boolean which defines whether **Codependence** should update dependencies in `package.json`'s or not.
+
 - The default value is `false`
 
 ---
@@ -182,6 +186,7 @@ An **optional** boolean which defines whether **Codependence** should update dep
 ### `rootDir`: `string`
 
 An **optional** string which can used to specify the root directory to run checks from;
+
 - The default value is `"./"`
 
 ---
@@ -189,6 +194,7 @@ An **optional** string which can used to specify the root directory to run check
 ### `ignore`: `Array<string>`
 
 An **optional** array of strings used to specify directories to ignore
+
 - The default value is `["node_modules/**/*", "**/node_modules/**/*"]`
 - glob patterns are accepted
 
@@ -197,6 +203,7 @@ An **optional** array of strings used to specify directories to ignore
 ### `debug`: `boolean`
 
 An **optional** boolean value used to enable debugging output
+
 - The default value is `false`
 
 ---
@@ -204,6 +211,7 @@ An **optional** boolean value used to enable debugging output
 ### `silent`: `boolean`
 
 An **optional** boolean value used to enable a more silent developer experience
+
 - The default value is `false`
 
 ---
@@ -211,22 +219,39 @@ An **optional** boolean value used to enable a more silent developer experience
 ### `config`: `string`
 
 An **optional** string containing a package to file which contains `codependence` config.
+
 - The default is `undefined`
 
 ---
+
 ### `searchPath`: `string`
 
 An **optional** string containing a search path for location config files.
+
 - The default value is `undefined`
 
 ### `yarnConfig`: `boolean`
 
 An **optional** boolean value used to enable \***yarn config** checking
+
 - The default value is `false`
 
 ---
 
-## Demos 
+## Recipes
+
+Listed below are some common patterns (recipes) for using **Codependence**.
+
+### Don't want a config? No problem!
+
+Starting out, you may not want a config object. Have no fear, **Codependence** can be used as a CLI utility ONLY!
+
+```sh
+codependence --codependencies 'lodash' '{ \"fs-extra\": \"10.0.1\" }'
+
+```
+
+## Demos
 
 Check out Codependence in Action!
 
@@ -248,8 +273,6 @@ If there is a `.npmrc` file, there is no issue with **Codependence** monitoring 
 - With the CLI, add the `--yarnConfig` option.
 - With node, add `yarnConfig: true` to your options or your config.
 - For other private package issues, submit an [issue](https://github.com/yowainwright/codependence/issues) or [pull request](https://github.com/yowainwright/codependence/pulls).
-
-
 
 ---
 
