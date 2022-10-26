@@ -433,7 +433,7 @@ export const checkFiles = async ({
     const globOpts = { cwd: rootDir, ignore }
     const files = glob(matchers, globOpts)
     if (!codependencies) throw '"codependencies" are required'
-    const codependenciesList = constructCodependenciesList(codependencies, files)
+    const codependenciesList = constructCodependenciesList(codependencies, files, rootDir)
     const versionMap = await constructVersionMap({
       codependencies: codependenciesList,
       exec: execPromise,
