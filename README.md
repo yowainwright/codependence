@@ -161,7 +161,12 @@ A **required** option or \*config array! **Codependencies** are required via bei
 
 #### \*Config Array Detail
 
-The Codependence `codependencies` array supports `latest` like so, `["fs-extra", "lodash"]`. It will also match a specified version, like so `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`.
+The Codependence `codependencies` array supports `latest` out-of-the-box. So having this `["fs-extra", "lodash"]` will return the `latest` versions of the packages within the array.
+
+It will also match a specified version, like so `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`.
+
+You can also include a `*` **at the end** of a name you would like to match. For example, `@foo/*` will match all packages with `@foo/` in the name and return their latest versions. This will also work with `foo-*`, etc.
+
 **Codependence** is built in to give you more capability to control your dependencies!
 
 ---
@@ -248,7 +253,12 @@ Starting out, you may not want a config object. Have no fear, **Codependence** c
 
 ```sh
 codependence --codependencies 'lodash' '{ \"fs-extra\": \"10.0.1\" }'
+```
 
+### Want to grab all dependencies which match a `<name>*` (name star) pattern to return the latest version of them? Sure!
+
+```sh
+codependence --codependencies '@foo/*' --update
 ```
 
 ## Demos

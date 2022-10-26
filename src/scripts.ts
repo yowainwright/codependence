@@ -5,9 +5,12 @@ import { sync as glob } from 'fast-glob'
 import { readFileSync, writeFileSync } from 'fs-extra'
 import {
   CheckFiles,
+  CodeDependencies,
+  CodeDependenciesItem,
   ConstructVersionMapOptions,
   CheckMatches,
   CheckDependenciesForVersionOptions,
+  GlobOptions,
   PackageJSON,
   DepToUpdateItem,
   DepsToUpdate,
@@ -179,6 +182,30 @@ export const constructDepsToUpdateList = (
       expected: `${bumpCharacter}${versionMap[name]}`,
     }))
 }
+
+/**
+ * constructDepsToUpdateList
+ * @description returns an array of codependencies including globs
+ * @param {codependencies} array
+ * @param {opts} object
+ * @returns {array} codependencies
+ */
+export const constructCodependenciesList = (codependencies: CodeDependencies, files: Array<string>, rootDir: string) =>
+  codependencies.reduce((acc: CodeDependencies, dep: CodeDependenciesItem): CodeDependencies => {
+    // returns all packages which match a <name>* pattern
+    if (typeof dep === 'string' && dep.includes('*')) {
+      const codependentsGroupName = dep.split('*')[0]
+      const codependentsGroup = files.reduce((acc = [], file: string) => {
+        const path = `${rootDir}${file}`
+        const packageJson = readFileSync(path, 'utf8')
+        const { dependencies = {}, devDependencies = {} } = JSON.parse(packageJson) as unknown as PackageJSON
+        const deps = { ...dependencies, ...devDependencies }
+        return [...acc, ...Object.keys(deps).filter((dep) => dep.includes(codependentsGroupName))]
+      }, [] as Array<string>)
+      return [...acc, ...codependentsGroup]
+    }
+    return [...acc, dep]
+  }, [])
 
 /**
  * writeConsoleMsgs
@@ -403,10 +430,12 @@ export const checkFiles = async ({
   isTesting = false,
 }: CheckFiles): Promise<void> => {
   try {
-    const files = glob(matchers, { cwd: rootDir, ignore })
+    const globOpts = { cwd: rootDir, ignore }
+    const files = glob(matchers, globOpts)
     if (!codependencies) throw '"codependencies" are required'
+    const codependenciesList = constructCodependenciesList(codependencies, files)
     const versionMap = await constructVersionMap({
-      codependencies,
+      codependencies: codependenciesList,
       exec: execPromise,
       debug,
       yarnConfig,
