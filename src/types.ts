@@ -90,8 +90,3 @@ export type ConstructVersionMapOptions = {
   yarnConfig?: boolean
   isTesting?: boolean
 }
-
-export type GlobOptions = {
-  cwd?: string
-  ignore?: Array<string>
-}

@@ -10,7 +10,6 @@ import {
   ConstructVersionMapOptions,
   CheckMatches,
   CheckDependenciesForVersionOptions,
-  GlobOptions,
   PackageJSON,
   DepToUpdateItem,
   DepsToUpdate,
