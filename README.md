@@ -328,7 +328,7 @@ Thank you!
 
 ## Shoutouts
 
-Thanks to [Dev Wells](https://github.com/devdumpling) and [Steve Cox](https://github.com/stevejcox) for the aligned code leading to this project. Thanks to [Will Jacobson](https://github.com/willzjacobson) for discussing the documentation and language of this project.
+Thanks to [Dev Wells](https://github.com/devdumpling) and [Steve Cox](https://github.com/stevejcox) for the aligned code leading to this project. Thanks to [Will Jacobson](https://github.com/willzjacobson) for discussing the documentation and language of this project. Thanks [Navid](https://github.com/NavidK0) for some great insights to improve the api!
 
 ---
 
