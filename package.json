@@ -51,7 +51,7 @@
     "commander": "^9.4.0",
     "cosmiconfig": "^8.0.0",
     "fast-glob": "^3.2.12",
-    "fs-extra": "^10.1.0",
+    "fs-extra": "^11.1.0",
     "gradient-string": "^2.0.2"
   },
   "devDependencies": {
