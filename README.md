@@ -16,8 +16,8 @@
 
 #### Keep dependencies up-to-date
 
-Codependence updates `package.json`'s dependencies based on a "codependencies" array of dependency names.<br> 
-The difference from `{npm,pnpm} update` or `yarn upgrade` is Codependence _allows you to pin what you want and update the rest_!<br>
+Codependence updates `package.json`'s dependencies based on a "codependencies" array of dependency names. 
+The difference from `{npm,pnpm} update` or `yarn upgrade` is Codependence _allows you to pin what you want and update the rest_!
 Furthermore, Codependence works with monorepos and is package manager agnostic.
 
 #### \*yes, dependencies can be pinned to `~` or `^` versions in `package.json` files!
@@ -117,13 +117,11 @@ A **required** option or \*config array! **Codependencies** are required via bei
 
 ---
 
-#### \*Config Array Detail
+### \*Config Array Detail
 
-The Codependence `codependencies` array supports `latest` out-of-the-box. So having this `["fs-extra", "lodash"]` will return the `latest` versions of the packages within the array.
+The Codependence `codependencies` array supports `latest` out-of-the-box. 
 
-It will also match a specified version, like so `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`.
-
-You can also include a `*` **at the end** of a name you would like to match. For example, `@foo/*` will match all packages with `@foo/` in the name and return their latest versions. This will also work with `foo-*`, etc.
+> So having this `["fs-extra", "lodash"]` will return the `latest` versions of the packages within the array. It will also match a specified version, like so `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`. You can also include a `*` **at the end** of a name you would like to match. For example, `@foo/*` will match all packages with `@foo/` in the name and return their latest versions. This will also work with `foo-*`, etc.
 
 **Codependence** is built in to give you more capability to control your dependencies!
 
