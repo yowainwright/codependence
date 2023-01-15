@@ -6,7 +6,7 @@
 [![Github](https://badgen.net/badge/icon/github?icon=github&label&color=grey)](https://github.com/yowainwright/codependence)
 ![Twitter](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fyowainwright%2Fcodependence)
 
-#### Stop wresting with your code dependencies. Use Codependence!
+#### Stop wrestling with your code dependencies. Use Codependence!
 
 **Codependence** is a JavaScript utility for checking dependencies to ensure they're up-to-date or match a specified version.
 
