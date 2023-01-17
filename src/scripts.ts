@@ -166,7 +166,6 @@ export const constructDepsToUpdateList = (
   versionMap: Record<string, string>,
 ): Array<DepToUpdateItem> => {
   if (!Object.keys(dep).length) return []
-  console.log({ dep, versionMap })
   const versionList = Object.keys(versionMap)
   return Object.entries(dep)
     .map(([name, version]) => {
@@ -185,7 +184,7 @@ export const constructDepsToUpdateList = (
 /**
  * constructDepsToUpdateList
  * @description returns an array of codependencies including globs
- * @param {codependencies} array
+ * @param {codependencies} array which may include string and objects, ie [bar, { foo: '0.0.1' }, biz]
  * @param {opts} object
  * @returns {array} codependencies
  */
@@ -194,13 +193,25 @@ export const constructCodependenciesList = (codependencies: CodeDependencies, fi
     // returns all packages which match a <name>* pattern
     if (typeof dep === 'string' && dep.includes('*')) {
       const codependentsGroupName = dep.split('*')[0]
-      const codependentsGroup = files.reduce((acc = [], file: string) => {
+      const codependentsGroup = files.reduce((acc: CodeDependenciesItem[] = [], file: string) => {
         const path = `${rootDir}${file}`
         const packageJson = readFileSync(path, 'utf8')
-        const { dependencies = {}, devDependencies = {} } = JSON.parse(packageJson) as unknown as PackageJSON
-        const deps = { ...dependencies, ...devDependencies }
-        return [...acc, ...Object.keys(deps).filter((dep) => dep.includes(codependentsGroupName))]
-      }, [] as Array<string>)
+        const {
+          codependence,
+          dependencies = {},
+          devDependencies = {},
+        } = JSON.parse(packageJson) as unknown as PackageJSON
+        const deps = { ...devDependencies, ...dependencies }
+        // retrieve pinned codependencies, useful for monorepos
+        const codependencies = codependence?.codependencies || []
+        const pinnedCodependencies = codependencies.filter((dep) => typeof dep != 'string')
+        const pinnedCodependenciesNames = pinnedCodependencies.map((dep) => Object.keys(dep)[0])
+        // ensure the dep list includes the name and isn't pinned to a specific version
+        const depsList = Object.keys(deps).filter(
+          (dep) => dep.includes(codependentsGroupName) && !pinnedCodependenciesNames.includes(dep),
+        )
+        return [...acc, ...depsList, ...pinnedCodependencies]
+      }, [] as CodeDependenciesItem[])
       return [...acc, ...codependentsGroup]
     }
     return [...acc, dep]
