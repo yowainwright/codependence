@@ -66,7 +66,7 @@ Or use it with a config in the root `package.json` file
 
 It is recommendeded to install and setup **Codependence** as a `devDependency` within your root `package.json` and use a `codependence.codependencies` array to define dependencies you need to keep updated or pinned to a specific version.
 
-Furthermore, you can add a codependence object to child `package.json` files in your monorepo to ensure specific dependencies are pinned to a specific different versions across your monorepo.
+Furthermore, you can add a `codependence.codependencies` array to child packages' `package.json` in your monorepo to ensure specific dependencies are pinned to a specific versions within your monorepo packages.
 
 ```sh
 Usage: program [options]
@@ -129,9 +129,9 @@ The Codependence `codependencies` array supports `latest` out-of-the-box.
 
 ---
 
-### Using the `codependence.codependencies` array in Monorepo child `package.json` files
+### Using the `codependence.codependencies` array in Monorepo child packages
 
-You can add codependencies to child `package.json` files in your monorepo to ensure specific dependencies are pinned to a specific different versions across your monorepo.
+You can add a `codependence.codependencies` array to child packages in your monorepo to ensure specific dependencies are pinned to a specific different versions within your monorepo packages.
 
 #### For example
 
@@ -165,9 +165,9 @@ And another `package.json` file in a `@foo/baz` package with following:
 
 ```
 
-And Codependencies will install the right dependency versions for each package in your project!
+Codependencies will install the right dependency version for each package in your monorepo!
 
-> _**Note:** Codependencies can and will still install the expected version defined at the projects root for packages that don't specify differences in their `package.json` files!_
+> _**Note:** Codependencies can and will still install the expected version defined at the monorepo's root for packages that don't specify differences in their `package.json` files!_
 
 ---
 
