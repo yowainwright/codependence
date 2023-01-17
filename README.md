@@ -16,7 +16,7 @@
 
 #### Keep dependencies up-to-date
 
-Codependence updates `package.json`'s dependencies based on a "codependencies" array of dependency names. 
+Codependence updates `package.json`'s dependencies based on a "codependencies" array of dependency names.
 The difference from `{npm,pnpm} update` or `yarn upgrade` is Codependence _allows you to pin what you want and update the rest_!
 Furthermore, Codependence works with monorepos and is package manager agnostic.
 
@@ -65,6 +65,8 @@ Or use it with a config in the root `package.json` file
 **Codependence** is built as a CLI-first, set-it-and-forget-it tool.
 
 It is recommendeded to install and setup **Codependence** as a `devDependency` within your root `package.json` and use a `codependence.codependencies` array to define dependencies you need to keep updated or pinned to a specific version.
+
+Furthermore, you can add a `codependence.codependencies` array to child packages' `package.json` in your monorepo to ensure specific dependencies are pinned to a specific versions within your monorepo packages.
 
 ```sh
 Usage: program [options]
@@ -119,11 +121,53 @@ A **required** option or \*config array! **Codependencies** are required via bei
 
 ### \*Config Array Detail
 
-The Codependence `codependencies` array supports `latest` out-of-the-box. 
+The Codependence `codependencies` array supports `latest` out-of-the-box.
 
 > So having this `["fs-extra", "lodash"]` will return the `latest` versions of the packages within the array. It will also match a specified version, like so `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`. You can also include a `*` **at the end** of a name you would like to match. For example, `@foo/*` will match all packages with `@foo/` in the name and return their latest versions. This will also work with `foo-*`, etc.
 
 **Codependence** is built in to give you more capability to control your dependencies!
+
+---
+
+### Using the `codependence.codependencies` array in Monorepo child packages
+
+You can add a `codependence.codependencies` array to child packages in your monorepo to ensure specific dependencies are pinned to a specific different versions within your monorepo packages.
+
+#### For example
+
+You can have a `package.json` file in a `@foo/bar` package with following:
+
+```typescript
+{
+  "name": "@foo/bar",
+  "dependencies": {
+    "fs-extra": "^9.0.0",
+  },
+  "codependence": {
+    "codependencies": [{ "fs-extra": "^9.0.0" }]
+  }
+}
+
+```
+
+And another `package.json` file in a `@foo/baz` package with following:
+
+```typescript
+{
+  "name": "@foo/baz",
+  "dependencies": {
+    "fs-extra": "^11.1.0",
+  },
+  "codependence": {
+    "codependencies": [{ "fs-extra": "^11.1.0" }]
+  }
+}
+
+```
+
+Codependencies will install the right dependency version for each package in your monorepo!
+
+> _**Note:** Codependencies can and will still install the expected version defined at the monorepo's root for packages that don't specify differences in their `package.json` files!_
 
 ---
 

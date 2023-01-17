@@ -52,8 +52,13 @@ export type CheckMatches = {
   isTesting?: boolean
 }
 
+export type CodependenceConfig = {
+  codependencies?: CodeDependencies
+}
+
 export type PackageJSON = {
   path: string
+  codependence?: CodependenceConfig
   dependencies?: Record<string, string>
   devDependencies?: Record<string, string>
   peerDependencies?: Record<string, string>
