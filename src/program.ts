@@ -3,6 +3,8 @@
 import { program } from 'commander'
 import { cosmiconfigSync } from 'cosmiconfig'
 import { constructCodependenciesArrayFromCLI, logger, script } from './scripts'
+import ora from 'ora'
+import gradient from 'gradient-string'
 import { Options, ConfigResult } from './types'
 
 export async function action(options: Options = {}): Promise<void> {
@@ -44,7 +46,9 @@ export async function action(options: Options = {}): Promise<void> {
 
   try {
     if (!updatedOptions.codependencies) throw '"codependencies" is required'
+    const spinner = ora(`🤼‍♀️ ${gradient.teen(`codependence`)} wrestling...\n`).start()
     await script(updatedOptions)
+    spinner.succeed(`🤼‍♀️ ${gradient.teen(`codependence`)} pinned!`)
   } catch (err) {
     logger({
       type: 'error',

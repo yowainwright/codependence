@@ -51,14 +51,13 @@
     "commander": "^9.5.0",
     "cosmiconfig": "^8.1.0",
     "fast-glob": "^3.2.12",
-    "fs-extra": "^11.1.0",
-    "gradient-string": "^2.0.2"
+    "gradient-string": "^2.0.2",
+    "ora": "5.4.1"
   },
   "devDependencies": {
     "@commitlint/cli": "^17.4.4",
     "@commitlint/config-conventional": "^17.4.4",
     "@commitlint/prompt-cli": "^17.4.4",
-    "@types/fs-extra": "^9.0.13",
     "@types/gradient-string": "^1.1.2",
     "@types/node": "^18.14.6",
     "@types/npm-registry-fetch": "^8.0.4",
@@ -78,7 +77,9 @@
     "tslib": "^2.5.0",
     "tsup": "^6.6.3",
     "tsutils": "^3.21.0",
+    "type-fest": "^3.6.1",
     "typescript": "^4.9.5",
+    "vite": "^4.1.4",
     "vitest": "^0.28.5"
   },
   "keywords": [
