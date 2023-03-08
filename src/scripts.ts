@@ -2,7 +2,7 @@ import { promisify } from 'util'
 import { exec } from 'child_process'
 import gradient from 'gradient-string'
 import { sync as glob } from 'fast-glob'
-import { readFileSync, writeFileSync } from 'fs-extra'
+import { readFileSync, writeFileSync } from 'fs'
 import {
   CheckFiles,
   CodeDependencies,
