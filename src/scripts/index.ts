@@ -14,7 +14,7 @@ import {
   DepToUpdateItem,
   DepsToUpdate,
   LoggerParams,
-} from './types'
+} from '../types'
 
 /**
  * execPromise
