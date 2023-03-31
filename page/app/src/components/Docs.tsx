@@ -1,32 +1,27 @@
-import React from "react";
-import { MDXProvider } from "@mdx-js/react";
-import Highlight, { defaultProps, Language } from "prism-react-renderer";
-import githubTheme from "prism-react-renderer/themes/github";
-import { MDXComponents } from "mdx/types";
+import React from 'react'
+import { MDXProvider } from '@mdx-js/react'
+import Highlight, { defaultProps, Language } from 'prism-react-renderer'
+import { MDXComponents } from 'mdx/types'
 
 export interface PreProps {
   children: {
     props: {
-      children: string;
-      className?: string;
-    };
-  };
+      children: string
+      className?: string
+    }
+  }
 }
 
 const components = {
   pre: ({
     children: {
-      props: { children, className = "" }
-    }
+      props: { children, className = '' },
+    },
   }: PreProps) => {
-    const matches = className?.match(/language-(?<lang>.*)/);
-    const language = matches?.groups?.lang ? matches.groups.lang : "";
+    const matches = className?.match(/language-(?<lang>.*)/)
+    const language = matches?.groups?.lang ? matches.groups.lang : ''
     return (
-      <Highlight
-        {...defaultProps}
-        code={children}
-        language={language as Language}
-      >
+      <Highlight {...defaultProps} code={children} language={language as Language}>
         {({ className, style, tokens, getLineProps, getTokenProps }) => (
           <>
             <pre className={className} style={style}>
@@ -37,20 +32,20 @@ const components = {
                       <span {...getTokenProps({ token, key })} />
                     ))}
                   </div>
-                ) : null
+                ) : null,
               )}
             </pre>
           </>
         )}
       </Highlight>
-    );
-  }
-};
+    )
+  },
+}
 
 export const Docs = ({ Component }: any) => (
   <MDXProvider components={components as MDXComponents}>
-    <article className="prose w-full max-w-4xl flex-grow">
+    <article className='prose w-full max-w-4xl flex-grow'>
       <Component />
     </article>
   </MDXProvider>
-);
+)
