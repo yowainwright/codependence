@@ -23,7 +23,7 @@
     "sourceMap": false
   },
   "include": ["src", "test"],
-  "exclude": ["test/*.ts", "dist"],
+  "exclude": ["test/*.ts", "dist", "page/**"],
   "ts-node": {
     "transpileOnly": true,
     "esm": true,
