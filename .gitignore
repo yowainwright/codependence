@@ -104,5 +104,4 @@ dist
 .tern-port
 
 .dccache
-
-.husky
+docs/app/page
