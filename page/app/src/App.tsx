@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react'
+import { Routes, Route } from 'react-router-dom'
 import { Drawer } from './components/Drawer'
-import { Docs } from './components/Docs'
+import { Home } from './pages/Home'
+import { BasicUsage as Usage } from './pages/Usage'
+import { Cli } from './pages/Cli'
+import { BasicNode as Node } from './pages/Node'
 import { NavBar } from './components/NavBar'
-import Introduction from './content/introduction.mdx'
-import Footer from './content/footer.mdx'
 
 export function App() {
   const [isOpen, setIsOpen] = useState(false)
-  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [theme, setTheme] = useState<'cupcake' | 'night'>('cupcake')
 
   useEffect(() => {
     const root = document.documentElement
@@ -18,7 +20,7 @@ export function App() {
 
   const toggleDrawer = () => setIsOpen(!isOpen)
   const toggleTheme = () => {
-    const updatedTheme = theme === 'light' ? 'dark' : 'light'
+    const updatedTheme = theme === 'cupcake' ? 'night' : 'cupcake'
     setTheme(updatedTheme)
   }
 
@@ -26,8 +28,12 @@ export function App() {
     <main className='App main'>
       <Drawer isOpen={isOpen} toggleDrawer={toggleDrawer}>
         <NavBar isOpen={isOpen} toggleDrawer={toggleDrawer} toggleTheme={toggleTheme} />
-        <Docs Component={Introduction} />
-        <Docs Component={Footer} />
+        <Routes>
+          <Route path='/' element={<Home />} />
+          <Route path='/usage/' element={<Usage />} />
+          <Route path='/cli/' element={<Cli />} />
+          <Route path='/node/' element={<Node />} />
+        </Routes>
       </Drawer>
     </main>
   )

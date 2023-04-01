@@ -16,7 +16,7 @@ export const NavBar = ({ toggleDrawer, toggleTheme }: any) => {
           </span>
           <div className='flex items-center gap-2'>
             <a href='/' aria-current='page' aria-label='Homepage' className='flex-0 btn btn-ghost px-2'>
-              <div className='font-title text-primary inline-flex text-lg transition-all duration-200 md:text-3xl'>
+              <div className='font-title font-black text-primary inline-flex text-lg transition-all duration-200 md:text-3xl'>
                 <span className='uppercase'>Codependence</span>
               </div>
             </a>

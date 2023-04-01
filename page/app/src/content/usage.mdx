@@ -1,0 +1,37 @@
+<section>
+
+# Basic Usage - Just show me the code!
+
+Codependence can be used as a standalone CLI, in npm scripts or, secondarily, as node utility!
+
+#### Install
+
+```bash
+npm install codependence --save-dev
+```
+
+#### Quick setup
+
+Pure CLI quick run
+
+```bash
+codependence --condependencies 'fs-extra' 'lodash'
+```
+
+Or use it with a config in the root package.json file
+
+```js
+{
+  "codependence": {
+    "condependencies": ["fs-extra", "lodash"]
+  },
+  "scripts": {
+    "update-codependencies": "codependence --update",
+    "prepare": "npm run update-codependencies"
+  }
+}
+```
+
+---
+
+</section>
