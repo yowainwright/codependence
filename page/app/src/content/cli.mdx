@@ -1,0 +1,31 @@
+<section>
+
+# Codependence as a CLI
+
+Codependence is built as a CLI-first, set-it-and-forget-it tool.
+
+It is recommendeded to install and setup Codependence as a devDependency within your root package.json and use a codependence.codependencies array to define dependencies you need to keep updated or pinned to a specific version.
+
+Furthermore, you can add a codependence.codependencies array to child packages' package.json in your monorepo to ensure specific dependencies are pinned to a specific versions within your monorepo packages.
+
+```bash
+Usage: program [options]
+
+Codependency, for code dependency. Checks `codependencies` in package.json files to ensure dependencies are up-to-date
+
+Options:
+-f, --files [files...] file glob pattern
+-u, --update update dependencies based on check
+-r, --rootDir <rootDir> root directory to start search
+-i, --ignore [ignore...] ignore glob pattern
+--debug enable debugging
+--silent enable mainly silent logging
+-cds, --codependencies [codependencies...] a path to a file with a codependenies object
+-c, --config <config> accepts a path to a config file
+-s, --searchPath <searchPath> a search path string for locationing config files
+-h, --help display help for command
+```
+
+---
+
+</section>

@@ -6,9 +6,5 @@ module.exports = {
     'node_modules/daisyui/dist/**/*.js',
     'node_modules/react-daisyui/dist/**/*.js',
   ],
-  daisyui: {
-    light: 'cupcake',
-    dark: 'night',
-  },
   plugins: [require('@tailwindcss/typography'), require('daisyui')],
 }
