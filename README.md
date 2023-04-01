@@ -1,4 +1,4 @@
-# [Codependence](https://www.npmjs.com/package/codependence) 🤼‍♀️
+<h1><a href="https://www.npmjs.com/package/codependence" target="_blank">Codependence</a></h1>
 
 ![Typed with TypeScript](https://flat.badgen.net/badge/icon/Typed?icon=typescript&label&labelColor=blue&color=555555)
 [![npm version](https://badge.fury.io/js/codependence.svg)](https://badge.fury.io/js/codependence)
