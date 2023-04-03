@@ -1,4 +1,8 @@
 /** @type {import('tailwindcss').Config} */
+
+const typescript = require('@tailwindcss/typography')
+const daisyui = require('daisyui')
+
 module.exports = {
   content: [
     'index.html',
@@ -6,5 +10,5 @@ module.exports = {
     'node_modules/daisyui/dist/**/*.js',
     'node_modules/react-daisyui/dist/**/*.js',
   ],
-  plugins: [require('@tailwindcss/typography'), require('daisyui')],
+  plugins: [typescript, daisyui],
 }
