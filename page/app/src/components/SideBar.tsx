@@ -56,14 +56,17 @@ export const SideBar = () => {
       </Collapse>
       <Divider />
       <Menu>
-        <Menu.Item>
+        <Menu.Item className='mb-2'>
           <Link to='/usage/'>Basic Usage</Link>
         </Menu.Item>
-        <Menu.Item>
+        <Menu.Item className='mb-2'>
           <Link to='/cli/'>CLI</Link>
         </Menu.Item>
-        <Menu.Item>
+        <Menu.Item className='mb-2'>
           <Link to='/node/'>Node</Link>
+        </Menu.Item>
+        <Menu.Item className='mb-2'>
+          <Link to='/options/'>Options</Link>
         </Menu.Item>
       </Menu>
     </aside>

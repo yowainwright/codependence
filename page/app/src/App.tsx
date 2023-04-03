@@ -5,6 +5,7 @@ import { Home } from './pages/Home'
 import { BasicUsage as Usage } from './pages/Usage'
 import { Cli } from './pages/Cli'
 import { BasicNode as Node } from './pages/Node'
+import { BasicOptions as Options } from './pages/Options'
 import { NavBar } from './components/NavBar'
 
 export function App() {
@@ -33,6 +34,7 @@ export function App() {
           <Route path='/usage/' element={<Usage />} />
           <Route path='/cli/' element={<Cli />} />
           <Route path='/node/' element={<Node />} />
+          <Route path='/options/' element={<Options />} />
         </Routes>
       </Drawer>
     </main>

@@ -1,3 +1,16 @@
 @import "tailwindcss/base";
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
+
+
+.prose :where(code):not(:where([class~="not-prose"] *)) {
+  border-radius: 5px;
+}
+
+[data-theme=cupcake] .prose :where(code):not(:where([class~="not-prose"] *)) {
+  background-color: #efeae6;
+}
+
+[data-theme=night] .prose :where(code):not(:where([class~="not-prose"] *)) {
+  background-color: #222b3e;
+}
