@@ -16,7 +16,7 @@ export const SideBar = () => {
         </Link>
       </figure>
       <h2
-        className='font-title font-black text-primary inline-flex text-lg transition-all duration-200 md:text-3xl mb-5 uppercase
+        className='text-center font-title font-black text-primary text-lg transition-all duration-200 md:text-3xl mb-5 uppercase
 '
       >
         <Link to='/'>Codependence</Link>
@@ -67,6 +67,9 @@ export const SideBar = () => {
         </Menu.Item>
         <Menu.Item className='mb-2'>
           <Link to='/options/'>Options</Link>
+        </Menu.Item>
+        <Menu.Item className='mb-2'>
+          <Link to='/recipes/'>Recipes</Link>
         </Menu.Item>
       </Menu>
     </aside>

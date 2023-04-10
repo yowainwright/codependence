@@ -1,0 +1,23 @@
+<section>
+
+# Recipes
+
+Listed below are some common patterns (recipes) for using **Codependence**.
+
+## Don't want a config? No problem!
+
+Starting out, you may not want a config object. Have no fear, Codependence can be used as a CLI utility ONLY!
+
+```sh
+codependence --codependencies 'lodash' '{ \"fs-extra\": \"10.0.1\" }'
+```
+
+## Want to grab all dependencies which match a `<name>*` (name star) pattern to return the latest version of them? Sure!
+
+```sh
+codependence --codependencies '@foo/_' --update
+```
+
+---
+
+</section>
