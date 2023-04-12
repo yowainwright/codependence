@@ -22,7 +22,10 @@ vi.mock('../src/script', () => {
 })
 
 test('execPromise', async () => {
-  const { stdout = '' } = (await execPromise('npm view lodash version latest')) as unknown as Record<string, string>
+  const { stdout = '' } = (await execPromise('npm', ['view', 'lodash', 'version', 'latest'])) as unknown as Record<
+    string,
+    string
+  >
   expect(stdout.split('.').length).toEqual(3)
 })
 
