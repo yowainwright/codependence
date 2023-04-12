@@ -105,3 +105,4 @@ dist
 
 .dccache
 docs/app/page
+.pnpm-store
