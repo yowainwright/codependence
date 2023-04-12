@@ -1,5 +1,5 @@
 import { promisify } from 'util'
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import gradient from 'gradient-string'
 import { sync as glob } from 'fast-glob'
 import { readFileSync, writeFileSync } from 'fs'
@@ -22,7 +22,7 @@ import {
  * @param {cmd} string
  * @returns {object}
  */
-export const execPromise = promisify(exec)
+export const execPromise = promisify(execFile)
 
 /**
  * logger
@@ -89,9 +89,11 @@ export const constructVersionMap = async ({
           // the following 2 lines capture only accepted npm package names
           const isModuleSafeCharacters = /[A-Za-z0-9\-_.]/.test(item)
           if (!isModuleSafeCharacters) throw 'invalid item'
-          const cmd = !yarnConfig ? `npm view ${item} version latest` : `yarn npm info ${item} --fields version --json`
-          const { stdout = '' } = (await exec(cmd)) as unknown as Record<string, string>
-
+          const runner = !yarnConfig ? 'npm' : 'yarn'
+          const cmd = !yarnConfig
+            ? ['view', item, 'version', 'latest']
+            : ['npm', 'info', 'item', '--fields', 'version', '--json']
+          const { stdout = '' } = (await exec(runner, cmd)) as unknown as Record<string, string>
           const version = !yarnConfig
             ? stdout.toString().replace('\n', '')
             : JSON.parse(stdout.toString().replace('\n', ''))?.version
