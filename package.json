@@ -87,7 +87,7 @@
     "turbo": "^1.8.8",
     "type-fest": "^3.8.0",
     "typescript": "^4.9.5",
-    "vite": "^4.2.1",
+    "vite": "^3.2.7",
     "vitest": "^0.28.5"
   },
   "keywords": [
