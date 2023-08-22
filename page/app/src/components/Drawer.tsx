@@ -7,7 +7,6 @@ export const Drawer = ({ children, isOpen, toggleDrawer }: any) => {
       side={<SideBar />}
       open={isOpen}
       onClickOverlay={toggleDrawer}
-      mobile
     >
       <div className="h-100 px-6">{children}</div>
     </DaisyDrawer>
