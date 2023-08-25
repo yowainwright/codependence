@@ -1,3 +1,4 @@
+import React from "react";
 import { Drawer as DaisyDrawer } from "react-daisyui";
 import { SideBar } from "./SideBar";
 
