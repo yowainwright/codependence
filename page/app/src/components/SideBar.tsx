@@ -29,9 +29,10 @@ export const SideBar = () => {
 
       <Collapse
         onToggle={onToggleDeadSimple}
-        checkbox={true}
+        style={{ visibility: 'visible' }}
+        checkbox
         icon='arrow'
-        className='border border-base-300 bg-base-100 rounded-box p-2'
+        className='visible border border-base-300 bg-base-100 rounded-box p-2'
       >
         <Collapse.Title className='text-md font-bold pb-4 pl-4'>
           Do you want a dead simple way to maintain npm dependencies?
