@@ -1,8 +1,9 @@
 import { promisify } from 'util'
 import { execFile } from 'child_process'
 import gradient from 'gradient-string'
-import { sync as glob } from 'fast-glob'
+import fg from 'fast-glob'
 import { readFileSync, writeFileSync } from 'fs'
+const { sync: glob } = fg
 import {
   CheckFiles,
   CodeDependencies,
