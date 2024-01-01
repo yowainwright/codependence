@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x]
+        node-version: [.x]
 
     steps:
       - name: Repository Dispatch

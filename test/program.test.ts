@@ -38,7 +38,7 @@ vi.mock('../scripts', () => ({
 }))
 
 test('w/ no codependence reference', async () => {
-  const { stdout = '{}' } = await execPromise("ts-node ./src/program.ts --rootDir './tests/' --isTestingCLI")
+  const { stdout = '{}' } = await execPromise("tsx ./src/program.ts --rootDir './tests/' --isTestingCLI")
   const result = stdoutToJSON(stdout) as unknown as { updatedOptions: Options }
   expect(result.updatedOptions).toStrictEqual({
     isCLI: 'true',
@@ -47,9 +47,7 @@ test('w/ no codependence reference', async () => {
 })
 
 test('w/ only options', async () => {
-  const { stdout = '{}' } = await execPromise(
-    'ts-node ./src/program.ts --codependencies lodash fs-extra --isTestingCLI',
-  )
+  const { stdout = '{}' } = await execPromise('tsx ./src/program.ts --codependencies lodash fs-extra --isTestingCLI')
   const result = stdoutToJSON(stdout) as unknown as { updatedOptions: Options }
   expect(result.updatedOptions).toStrictEqual({
     isCLI: 'true',
@@ -59,7 +57,7 @@ test('w/ only options', async () => {
 
 test('w/ advanced codependencies put in via cli', async () => {
   const { stdout = '{}' } = await execPromise(
-    'ts-node ./src/program.ts --codependencies \'lodash\' \'{ "fs-extra": "10.0.1" }\' --isTestingCLI',
+    'tsx ./src/program.ts --codependencies \'lodash\' \'{ "fs-extra": "10.0.1" }\' --isTestingCLI',
   )
   expect(stdout).toContain('[Object]')
   expect(stdout).toContain('lodash')
