@@ -61,14 +61,14 @@
     "ora": "8.0.1"
   },
   "devDependencies": {
-    "@commitlint/cli": "^18.4.3",
-    "@commitlint/config-conventional": "^18.4.3",
-    "@commitlint/prompt-cli": "^18.4.3",
+    "@commitlint/cli": "^18.4.4",
+    "@commitlint/config-conventional": "^18.4.4",
+    "@commitlint/prompt-cli": "^18.4.4",
     "@types/gradient-string": "^1.1.5",
-    "@types/node": "^20.10.6",
+    "@types/node": "^20.10.7",
     "@types/npm-registry-fetch": "^8.0.7",
-    "@typescript-eslint/eslint-plugin": "^6.16.0",
-    "@typescript-eslint/parser": "^6.16.0",
+    "@typescript-eslint/eslint-plugin": "^6.18.0",
+    "@typescript-eslint/parser": "^6.18.0",
     "c8": "^8.0.1",
     "cross-env": "^7.0.3",
     "eslint": "^8.56.0",
@@ -84,11 +84,11 @@
     "tsup": "^8.0.1",
     "tsutils": "^3.21.0",
     "tsx": "^4.7.0",
-    "turbo": "^1.11.2",
+    "turbo": "^1.11.3",
     "type-fest": "^4.9.0",
     "typescript": "^5.3.3",
-    "vite": "^5.0.10",
-    "vitest": "^1.1.1"
+    "vite": "^5.0.11",
+    "vitest": "^1.1.3"
   },
   "keywords": [
     "peerDependencies",
