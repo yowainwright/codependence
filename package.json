@@ -41,7 +41,7 @@
     "lint:fix": "eslint src/**/*.ts --fix",
     "pre-commit": "lint-staged",
     "prepare": "is-ci || husky install",
-    "prepublishOnly": "pnpm run test && pnpm run build",
+    "prepublishOnly": "pnpm test && pnpm build",
     "preview": "pnpm --filter @codependence/app app-preview",
     "release": "release-it",
     "setup": "pnpm install --reporter=silent && pnpm build",
