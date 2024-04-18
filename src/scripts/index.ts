@@ -434,7 +434,7 @@ export const checkFiles = async ({
   codependencies,
   files: matchers = ['package.json'],
   rootDir = './',
-  ignore = ['node_modules/**/*', '**/node_modules/**/*'],
+  ignore = ['**/node_modules/**'],
   update = false,
   debug = false,
   silent = false,
