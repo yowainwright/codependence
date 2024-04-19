@@ -60,6 +60,7 @@ export const logger = ({ type, section = '', message, err = '', isDebugging = fa
 /**
  * constructCodependenciesArrayFromCLI
  * @description constructs an array of codependencies from CLI
+ * @todo TODO enable multiple codependencies
  * @param {codependencies} array an unparsed array of codependencies
  * @returns {array}
  */
