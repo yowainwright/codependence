@@ -1,6 +1,6 @@
 {
   "name": "codependence",
-  "version": "0.2.7-beta.1",
+  "version": "0.2.7-beta.2",
   "main": "dist/index.cjs",
   "description": "Checks `codependencies` in package.json files to ensure dependencies are up-to-date 🤼‍♀️",
   "type": "module",
@@ -56,6 +56,7 @@
   "dependencies": {
     "commander": "^11.1.0",
     "cosmiconfig": "^9.0.0",
+    "execa": "^8.0.1",
     "fast-glob": "^3.3.2",
     "gradient-string": "^2.0.2",
     "ora": "8.0.1"

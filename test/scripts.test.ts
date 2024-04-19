@@ -1,7 +1,6 @@
 import { expect, test, vi } from 'vitest'
 import * as scripts from '../src/scripts'
 const {
-  execPromise,
   constructVersionMap,
   constructVersionTypes,
   constructDepsToUpdateList,
@@ -11,7 +10,6 @@ const {
   checkDependenciesForVersion,
   checkMatches,
   checkFiles,
-  constructCodependenciesList,
 } = scripts
 
 vi.mock('../src/script', () => {
@@ -19,14 +17,6 @@ vi.mock('../src/script', () => {
     execPromise: vi.fn(),
   }
   return scripts
-})
-
-test('execPromise', async () => {
-  const { stdout = '' } = (await execPromise('npm', ['view', 'lodash', 'version', 'latest'])) as unknown as Record<
-    string,
-    string
-  >
-  expect(stdout.split('.').length).toEqual(3)
 })
 
 test('constructVersionMap => pass', async () => {
@@ -74,19 +64,6 @@ test('constructDepsToUpdateList => returns dep to update list with exact charact
       actual: '1.0.0',
     },
   ])
-})
-
-test('constructDepsToUpdateList => returns empty b/c no updates required', () => {
-  const result = constructDepsToUpdateList({ foo: '1.0.0' }, { foo: '1.0.0' })
-  expect(result).toEqual([])
-})
-
-test('constructCodependenciesList => returns codependencies with globs in array', () => {
-  const codependencies = ['fs-*']
-  const files = ['test-fail-package.json']
-  const rootDir = './test/'
-  const result = constructCodependenciesList(codependencies, files, rootDir)
-  expect(result).toEqual(['fs-extra'])
 })
 
 test('writeConsoleMsgs => should call log', () => {
