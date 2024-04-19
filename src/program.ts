@@ -2,7 +2,7 @@
 
 import { program } from 'commander'
 import { cosmiconfigSync } from 'cosmiconfig'
-import { constructCodependenciesArrayFromCLI, logger, script } from './scripts'
+import { logger, script } from './scripts'
 import ora from 'ora'
 import gradient from 'gradient-string'
 import { Options, ConfigResult } from './types'
@@ -13,16 +13,11 @@ export async function action(options: Options = {}): Promise<void> {
   const result = options?.searchPath ? explorer.search(options.searchPath) : explorer.search()
   const { config: pathConfig = {} } = (options?.config ? explorer.load(options?.config) : {}) as ConfigResult
 
-  const initialOptions = {
-    ...options,
-    ...(options?.codependencies ? { codependencies: constructCodependenciesArrayFromCLI(options.codependencies) } : {}),
-  }
-
   // massage config and option data
   const updatedConfig = {
     ...(!Object.keys(pathConfig).length ? result?.config : {}),
     ...(pathConfig?.codependence ? { ...pathConfig.codependence } : pathConfig),
-    ...initialOptions,
+    ...options,
     isCLI: true,
   }
 

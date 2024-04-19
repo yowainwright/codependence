@@ -7,7 +7,8 @@ export type Options = {
   isTestingCLI?: boolean
   isTestingAction?: boolean
   isTesting?: boolean
-  codependencies?: Array<string>
+  // TODO enable multiple codependencies
+  codependencies?: CodeDependencies
   files?: Array<string>
   config?: string
   rootDir?: string

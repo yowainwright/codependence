@@ -60,6 +60,7 @@ export const logger = ({ type, section = '', message, err = '', isDebugging = fa
 /**
  * constructCodependenciesArrayFromCLI
  * @description constructs an array of codependencies from CLI
+ * @todo TODO enable multiple codependencies
  * @param {codependencies} array an unparsed array of codependencies
  * @returns {array}
  */
@@ -93,7 +94,7 @@ export const constructVersionMap = async ({
           const runner = !yarnConfig ? 'npm' : 'yarn'
           const cmd = !yarnConfig
             ? ['view', item, 'version', 'latest']
-            : ['npm', 'info', 'item', '--fields', 'version', '--json']
+            : ['npm', 'info', item, '--fields', 'version', '--json']
           const { stdout = '' } = (await exec(runner, cmd)) as unknown as Record<string, string>
           const version = !yarnConfig
             ? stdout.toString().replace('\n', '')
@@ -187,6 +188,7 @@ export const constructDepsToUpdateList = (
 /**
  * constructDepsToUpdateList
  * @description returns an array of codependencies including globs
+ * @todo TODO enable multiple codependencies
  * @param {codependencies} array which may include string and objects, ie [bar, { foo: '0.0.1' }, biz]
  * @param {opts} object
  * @returns {array} codependencies
@@ -446,9 +448,10 @@ export const checkFiles = async ({
     const globOpts = { cwd: rootDir, ignore }
     const files = glob(matchers, globOpts)
     if (!codependencies) throw '"codependencies" are required'
-    const codependenciesList = constructCodependenciesList(codependencies, files, rootDir)
+    // TODO enable multiple codependencies
+    // const codependenciesList = constructCodependenciesList(codependencies, files, rootDir)
     const versionMap = await constructVersionMap({
-      codependencies: codependenciesList,
+      codependencies,
       exec: execPromise,
       debug,
       yarnConfig,
