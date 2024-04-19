@@ -1,13 +1,10 @@
-import { promisify } from 'util'
-import { execFile } from 'child_process'
+import { execa } from 'execa'
 import gradient from 'gradient-string'
 import fg from 'fast-glob'
 import { readFileSync, writeFileSync } from 'fs'
 const { sync: glob } = fg
 import {
   CheckFiles,
-  CodeDependencies,
-  CodeDependenciesItem,
   ConstructVersionMapOptions,
   CheckMatches,
   CheckDependenciesForVersionOptions,
@@ -16,14 +13,6 @@ import {
   DepsToUpdate,
   LoggerParams,
 } from '../types'
-
-/**
- * execPromise
- * @description interprets a cmd
- * @param {cmd} string
- * @returns {object}
- */
-export const execPromise = promisify(execFile)
 
 /**
  * logger
@@ -58,16 +47,6 @@ export const logger = ({ type, section = '', message, err = '', isDebugging = fa
 }
 
 /**
- * constructCodependenciesArrayFromCLI
- * @description constructs an array of codependencies from CLI
- * @todo TODO enable multiple codependencies
- * @param {codependencies} array an unparsed array of codependencies
- * @returns {array}
- */
-export const constructCodependenciesArrayFromCLI = (codependencies: string[]) =>
-  codependencies.map((item) => (!item.includes('{') ? item : JSON.parse(item)))
-
-/**
  * constructVersionMap
  * @description constructs a map of each item in a codependencies array
  * @param {codependencies} array
@@ -77,7 +56,7 @@ export const constructCodependenciesArrayFromCLI = (codependencies: string[]) =>
  */
 export const constructVersionMap = async ({
   codependencies,
-  exec = execPromise,
+  exec = execa,
   debug = false,
   yarnConfig = false,
   isTesting = false,
@@ -89,16 +68,15 @@ export const constructVersionMap = async ({
           return item
         } else if (typeof item === 'string' && item.length > 1 && !item.includes(' ')) {
           // the following 2 lines capture only accepted npm package names
-          const isModuleSafeCharacters = /[A-Za-z0-9\-_.]/.test(item)
+          const isModuleSafeCharacters = /^[A-Za-z0-9\-_.]+$/.test(item)
           if (!isModuleSafeCharacters) throw 'invalid item'
           const runner = !yarnConfig ? 'npm' : 'yarn'
           const cmd = !yarnConfig
             ? ['view', item, 'version', 'latest']
             : ['npm', 'info', item, '--fields', 'version', '--json']
           const { stdout = '' } = (await exec(runner, cmd)) as unknown as Record<string, string>
-          const version = !yarnConfig
-            ? stdout.toString().replace('\n', '')
-            : JSON.parse(stdout.toString().replace('\n', ''))?.version
+
+          const version = !yarnConfig ? stdout.replace('\n', '') : JSON.parse(stdout.replace('\n', ''))?.version
           if (version) return { [item]: version }
           throw `${version}`
         } else {
@@ -152,8 +130,8 @@ export const constructVersionTypes = (version: string): Record<string, string> =
   const exactVersion = hasSpecifier ? characters : version
   const bumpVersion = version
   return {
-    bumpVersion,
     bumpCharacter: specifier,
+    bumpVersion,
     exactVersion,
   }
 }
@@ -186,43 +164,6 @@ export const constructDepsToUpdateList = (
 }
 
 /**
- * constructDepsToUpdateList
- * @description returns an array of codependencies including globs
- * @todo TODO enable multiple codependencies
- * @param {codependencies} array which may include string and objects, ie [bar, { foo: '0.0.1' }, biz]
- * @param {opts} object
- * @returns {array} codependencies
- */
-export const constructCodependenciesList = (codependencies: CodeDependencies, files: Array<string>, rootDir: string) =>
-  codependencies.reduce((acc: CodeDependencies, dep: CodeDependenciesItem): CodeDependencies => {
-    // returns all packages which match a <name>* pattern
-    if (typeof dep === 'string' && dep.includes('*')) {
-      const codependentsGroupName = dep.split('*')[0]
-      const codependentsGroup = files.reduce((acc: CodeDependenciesItem[] = [], file: string) => {
-        const path = `${rootDir}${file}`
-        const packageJson = readFileSync(path, 'utf8')
-        const {
-          codependence,
-          dependencies = {},
-          devDependencies = {},
-        } = JSON.parse(packageJson) as unknown as PackageJSON
-        const deps = { ...devDependencies, ...dependencies }
-        // retrieve pinned codependencies, useful for monorepos
-        const codependencies = codependence?.codependencies || []
-        const pinnedCodependencies = codependencies.filter((dep) => typeof dep != 'string')
-        const pinnedCodependenciesNames = pinnedCodependencies.map((dep) => Object.keys(dep)[0])
-        // ensure the dep list includes the name and isn't pinned to a specific version
-        const depsList = Object.keys(deps).filter(
-          (dep) => dep.includes(codependentsGroupName) && !pinnedCodependenciesNames.includes(dep),
-        )
-        return [...acc, ...depsList, ...pinnedCodependencies]
-      }, [] as CodeDependenciesItem[])
-      return [...acc, ...codependentsGroup]
-    }
-    return [...acc, dep]
-  }, [])
-
-/**
  * writeConsoleMsgs
  * @param {packageName} string
  * @param {depList} array
@@ -253,12 +194,14 @@ export const constructDeps = <T extends PackageJSON>(json: T, depName: string, d
     ? depList.reduce(
         (
           newJson: PackageJSON['dependencies' | 'devDependencies' | 'peerDependencies'],
-          { name, expected: version },
-        ) => ({
-          ...json[depName as keyof T],
-          ...newJson,
-          [name]: version,
-        }),
+          { name, expected: version }: DepToUpdateItem,
+        ) => {
+          return {
+            ...json[depName as keyof T],
+            ...newJson,
+            [name]: version,
+          }
+        },
         {},
       )
     : json[depName as keyof PackageJSON]
@@ -445,14 +388,11 @@ export const checkFiles = async ({
   isTesting = false,
 }: CheckFiles): Promise<void> => {
   try {
-    const globOpts = { cwd: rootDir, ignore }
-    const files = glob(matchers, globOpts)
+    const files = glob(matchers, { cwd: rootDir, ignore })
     if (!codependencies) throw '"codependencies" are required'
-    // TODO enable multiple codependencies
-    // const codependenciesList = constructCodependenciesList(codependencies, files, rootDir)
     const versionMap = await constructVersionMap({
       codependencies,
-      exec: execPromise,
+      exec: execa,
       debug,
       yarnConfig,
       isTesting,
