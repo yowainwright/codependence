@@ -65,7 +65,7 @@ program
   .option('-i, --ignore [ignore...]', 'ignore glob pattern')
   .option('--debug', 'enable debugging')
   .option('--silent', 'enable mainly silent logging')
-  .option('-cds, --codependencies <codependencies>', 'deps to check')
+  .option('-cds, --codependencies [codependencies...]', 'deps to check')
   .option('-c, --config <config>', 'path to a config file')
   .option('-s, --searchPath <searchPath>', 'path to do a config file search')
   .option('-y, --yarnConfig', 'enable yarn config support')
