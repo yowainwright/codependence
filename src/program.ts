@@ -2,7 +2,7 @@
 
 import { program } from 'commander'
 import { cosmiconfigSync } from 'cosmiconfig'
-import { logger, script } from './scripts'
+import { logger, script } from './scripts/core'
 import ora from 'ora'
 import gradient from 'gradient-string'
 import { Options, ConfigResult } from './types'

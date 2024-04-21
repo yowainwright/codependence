@@ -1,6 +1,6 @@
 {
   "name": "codependence",
-  "version": "0.2.7-beta.2",
+  "version": "0.2.7-beta.4",
   "main": "dist/index.cjs",
   "description": "Checks `codependencies` in package.json files to ensure dependencies are up-to-date 🤼‍♀️",
   "type": "module",
@@ -54,9 +54,9 @@
   "author": "Jeff Wainwright <yowainwright@gmail.com> (https://jeffry.in)",
   "license": "MIT",
   "dependencies": {
+    "@types/fs-extra": "^11.0.4",
     "commander": "^11.1.0",
     "cosmiconfig": "^9.0.0",
-    "execa": "^8.0.1",
     "fast-glob": "^3.3.2",
     "gradient-string": "^2.0.2",
     "ora": "8.0.1"
@@ -123,9 +123,5 @@
     "git": {
       "commitMessage": "chore: release %s"
     }
-  },
-  "engines": {
-    "node": ">=20",
-    "pnpm": ">=8"
   }
 }
