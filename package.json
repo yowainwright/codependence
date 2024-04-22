@@ -1,6 +1,6 @@
 {
   "name": "codependence",
-  "version": "0.2.7-beta.4",
+  "version": "0.2.7-beta.2",
   "main": "dist/index.cjs",
   "description": "Checks `codependencies` in package.json files to ensure dependencies are up-to-date 🤼‍♀️",
   "type": "module",
@@ -40,7 +40,7 @@
     "lint-src": "eslint src --ext .ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "pre-commit": "lint-staged",
-    "prepare": "is-ci || pnpm exec husky install",
+    "prepare": "is-ci || husky install",
     "prepublishOnly": "npm run clean-dist && npm run build-dist",
     "preview": "pnpm --filter @codependence/app app-preview",
     "release": "release-it",
@@ -54,13 +54,12 @@
   "author": "Jeff Wainwright <yowainwright@gmail.com> (https://jeffry.in)",
   "license": "MIT",
   "dependencies": {
-    "@types/fs-extra": "^11.0.4",
     "commander": "^11.1.0",
     "cosmiconfig": "^9.0.0",
+    "execa": "^8.0.1",
     "fast-glob": "^3.3.2",
     "gradient-string": "^2.0.2",
-    "ora": "8.0.1",
-    "rimraf": "^5.0.5"
+    "ora": "8.0.1"
   },
   "devDependencies": {
     "@commitlint/cli": "^18.6.1",
@@ -124,5 +123,9 @@
     "git": {
       "commitMessage": "chore: release %s"
     }
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=8"
   }
 }
