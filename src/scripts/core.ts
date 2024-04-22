@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from 'fs'
+import validatePackageName from 'validate-npm-package-name'
 import { execa } from 'execa'
 import fg from 'fast-glob'
 const { sync: glob } = fg
@@ -27,6 +28,7 @@ export const constructVersionMap = async ({
   debug = false,
   yarnConfig = false,
   isTesting = false,
+  validate = validatePackageName,
 }: ConstructVersionMapOptions) => {
   const updatedCodeDependencies = await Promise.all(
     codependencies.map(async (item) => {
@@ -35,8 +37,10 @@ export const constructVersionMap = async ({
           return item
         } else if (typeof item === 'string' && item.length > 1 && !item.includes(' ')) {
           // the following 2 lines capture only accepted npm package names
-          const isModuleSafeCharacters = /^[A-Za-z0-9\-_.]+$/.test(item)
-          if (!isModuleSafeCharacters) throw 'invalid item'
+          const { validForNewPackages, validForOldPackages, errors } = validate(item)
+          const isValid = [validForNewPackages, validForOldPackages].every((valid) => valid === true)
+          if (!isValid) throw new Error(errors?.join(', '))
+
           const runner = !yarnConfig ? 'npm' : 'yarn'
           const cmd = !yarnConfig
             ? ['view', item, 'version', 'latest']
@@ -44,10 +48,12 @@ export const constructVersionMap = async ({
           const { stdout = '' } = (await exec(runner, cmd)) as unknown as Record<string, string>
 
           const version = !yarnConfig ? stdout.replace('\n', '') : JSON.parse(stdout.replace('\n', ''))?.version
+
           if (version) return { [item]: version }
+
           throw `${version}`
         } else {
-          throw 'invalid item'
+          throw 'invalid item type'
         }
       } catch (err) {
         if (debug)

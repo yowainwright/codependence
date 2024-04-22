@@ -54,13 +54,15 @@
   "author": "Jeff Wainwright <yowainwright@gmail.com> (https://jeffry.in)",
   "license": "MIT",
   "dependencies": {
+    "@types/validate-npm-package-name": "^4.0.2",
     "commander": "^11.1.0",
     "cosmiconfig": "^9.0.0",
     "execa": "^8.0.1",
     "fast-glob": "^3.3.2",
     "gradient-string": "^2.0.2",
     "ora": "8.0.1",
-    "rimraf": "^5.0.5"
+    "rimraf": "^5.0.5",
+    "validate-npm-package-name": "^5.0.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^18.6.1",

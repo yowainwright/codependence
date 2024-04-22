@@ -11,21 +11,20 @@ const {
   checkFiles,
 } = scripts
 
-vi.mock('../src/script', () => {
-  const scripts = {
-    execPromise: vi.fn(),
-  }
-  return scripts
-})
-
 test('constructVersionMap => pass', async () => {
   const exec = vi.fn(() => ({
     stdout: '4.0.0',
     stderr: '',
   })) as any
+  const validate = vi.fn(() => ({
+    validForNewPackages: true,
+    validForOldPackages: true,
+    errors: [],
+  }))
   const result = await constructVersionMap({
     codependencies: ['lodash'],
     exec,
+    validate,
   })
   expect(result).toEqual({ lodash: '4.0.0' })
 })
@@ -35,10 +34,16 @@ test('constructVersionMap => fail', async () => {
     stdout: '',
     stderr: '',
   })) as any
+  const validate = vi.fn(() => ({
+    validForNewPackages: false,
+    validForOldPackages: true,
+    errors: ['foo-bop', 'foo-beep'],
+  }))
   const result = await constructVersionMap({
     codependencies: ['lodash'],
     exec,
     isTesting: true,
+    validate,
   })
   expect(result).toEqual({})
 })
