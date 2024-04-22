@@ -347,7 +347,6 @@ export const checkFiles = async ({
     if (!codependencies) throw '"codependencies" are required'
     const versionMap = await constructVersionMap({
       codependencies,
-      exec: execa,
       debug,
       yarnConfig,
       isTesting,
