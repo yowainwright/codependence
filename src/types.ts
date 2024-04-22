@@ -95,4 +95,5 @@ export type ConstructVersionMapOptions = {
   debug?: boolean
   yarnConfig?: boolean
   isTesting?: boolean
+  validate?: any
 }
