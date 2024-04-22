@@ -40,7 +40,7 @@
     "lint-src": "eslint src --ext .ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "pre-commit": "lint-staged",
-    "prepare": "is-ci || husky install",
+    "prepare": "is-ci || pnpm exec husky install",
     "prepublishOnly": "npm run clean-dist && npm run build-dist",
     "preview": "pnpm --filter @codependence/app app-preview",
     "release": "release-it",
@@ -59,7 +59,8 @@
     "cosmiconfig": "^9.0.0",
     "fast-glob": "^3.3.2",
     "gradient-string": "^2.0.2",
-    "ora": "8.0.1"
+    "ora": "8.0.1",
+    "rimraf": "^5.0.5"
   },
   "devDependencies": {
     "@commitlint/cli": "^18.6.1",
