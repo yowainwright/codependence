@@ -44,7 +44,7 @@
     "prepublishOnly": "npm run clean-dist && npm run build-dist",
     "preview": "pnpm --filter @codependence/app app-preview",
     "release": "release-it",
-    "setup": "pnpm install --reporter=silent && pnpm build",
+    "setup": "pnpm install && pnpm build",
     "test": "turbo run test-src",
     "test-src": "vitest run",
     "typecheck": "turbo run typecheck-src",
@@ -59,7 +59,8 @@
     "execa": "^8.0.1",
     "fast-glob": "^3.3.2",
     "gradient-string": "^2.0.2",
-    "ora": "8.0.1"
+    "ora": "8.0.1",
+    "rimraf": "^5.0.5"
   },
   "devDependencies": {
     "@commitlint/cli": "^18.6.1",
