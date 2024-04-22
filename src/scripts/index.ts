@@ -1,8 +1,7 @@
-import { promisify } from 'util'
-import { exec } from 'child_process'
-import { readFileSync, writeFileSync } from 'fs'
+import { execa } from 'execa'
 import gradient from 'gradient-string'
 import fg from 'fast-glob'
+import { readFileSync, writeFileSync } from 'fs'
 const { sync: glob } = fg
 import {
   CheckFiles,
@@ -14,14 +13,6 @@ import {
   DepsToUpdate,
   LoggerParams,
 } from '../types'
-
-/**
- * execPromise
- * @description interprets a cmd
- * @param {cmd} string
- * @returns {object}
- */
-export const execPromise = promisify(exec)
 
 /**
  * logger
@@ -65,7 +56,7 @@ export const logger = ({ type, section = '', message, err = '', isDebugging = fa
  */
 export const constructVersionMap = async ({
   codependencies,
-  exec = execPromise,
+  exec = execa,
   debug = false,
   yarnConfig = false,
   isTesting = false,
@@ -77,14 +68,15 @@ export const constructVersionMap = async ({
           return item
         } else if (typeof item === 'string' && item.length > 1 && !item.includes(' ')) {
           // the following 2 lines capture only accepted npm package names
-          const isModuleSafeCharacters = /[A-Za-z0-9\-_.]/.test(item)
+          const isModuleSafeCharacters = /^[A-Za-z0-9\-_.]+$/.test(item)
           if (!isModuleSafeCharacters) throw 'invalid item'
-          const cmd = !yarnConfig ? `npm view ${item} version latest` : `yarn npm info ${item} --fields version --json`
-          const { stdout = '' } = (await exec(cmd)) as unknown as Record<string, string>
+          const runner = !yarnConfig ? 'npm' : 'yarn'
+          const cmd = !yarnConfig
+            ? ['view', item, 'version', 'latest']
+            : ['npm', 'info', item, '--fields', 'version', '--json']
+          const { stdout = '' } = (await exec(runner, cmd)) as unknown as Record<string, string>
 
-          const version = !yarnConfig
-            ? stdout.toString().replace('\n', '')
-            : JSON.parse(stdout.toString().replace('\n', ''))?.version
+          const version = !yarnConfig ? stdout.replace('\n', '') : JSON.parse(stdout.replace('\n', ''))?.version
           if (version) return { [item]: version }
           throw `${version}`
         } else {
@@ -138,6 +130,7 @@ export const constructVersionTypes = (version: string): Record<string, string> =
   const exactVersion = hasSpecifier ? characters : version
   const bumpVersion = version
   return {
+    bumpCharacter: specifier,
     bumpVersion,
     exactVersion,
   }
@@ -158,15 +151,15 @@ export const constructDepsToUpdateList = (
   const versionList = Object.keys(versionMap)
   return Object.entries(dep)
     .map(([name, version]) => {
-      const { exactVersion, bumpVersion } = constructVersionTypes(version)
-      return { name, exactVersion, bumpVersion }
+      const { exactVersion, bumpCharacter, bumpVersion } = constructVersionTypes(version)
+      return { name, exactVersion, bumpCharacter, bumpVersion }
     })
     .filter(({ name, exactVersion }) => versionList.includes(name) && versionMap[name] !== exactVersion)
-    .map(({ name, exactVersion, bumpVersion }) => ({
+    .map(({ name, bumpCharacter, bumpVersion }) => ({
       name,
       actual: bumpVersion,
-      exact: exactVersion,
-      expected: versionMap[name],
+      exact: versionMap[name],
+      expected: `${bumpCharacter}${versionMap[name]}`,
     }))
 }
 
@@ -399,7 +392,7 @@ export const checkFiles = async ({
     if (!codependencies) throw '"codependencies" are required'
     const versionMap = await constructVersionMap({
       codependencies,
-      exec: execPromise,
+      exec: execa,
       debug,
       yarnConfig,
       isTesting,
@@ -427,5 +420,5 @@ export const checkFiles = async ({
 }
 
 export const script = checkFiles
-export const core = checkFiles
-export default core
+export const codependence = checkFiles
+export default codependence
