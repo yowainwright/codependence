@@ -2,9 +2,10 @@
 
 import { program } from 'commander'
 import { cosmiconfigSync } from 'cosmiconfig'
-import { logger, script } from './scripts'
 import ora from 'ora'
 import gradient from 'gradient-string'
+import { logger } from './scripts/utils'
+import { script } from './scripts/core'
 import { Options, ConfigResult } from './types'
 
 export async function action(options: Options = {}): Promise<void> {
