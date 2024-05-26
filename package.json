@@ -125,9 +125,5 @@
     "git": {
       "commitMessage": "chore: release %s"
     }
-  },
-  "engines": {
-    "node": ">=20",
-    "pnpm": ">=8"
   }
 }
