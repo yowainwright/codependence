@@ -128,11 +128,11 @@ export const constructDepsToUpdateList = (
       return { name, exactVersion, bumpCharacter, bumpVersion }
     })
     .filter(({ name, exactVersion }) => versionList.includes(name) && versionMap[name] !== exactVersion)
-    .map(({ name, bumpCharacter, bumpVersion }) => ({
+    .map(({ name, bumpVersion }) => ({
       name,
       actual: bumpVersion,
       exact: versionMap[name],
-      expected: `${bumpCharacter}${versionMap[name]}`,
+      expected: `${versionMap[name]}`,
     }))
 }
 

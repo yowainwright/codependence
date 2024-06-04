@@ -70,6 +70,18 @@ test('constructDepsToUpdateList => returns dep to update list with exact charact
   ])
 })
 
+test('constructDepsToUpdateList => returns dep to update list with special characters', () => {
+  const result = constructDepsToUpdateList({ foo: '~1.0.0' }, { foo: '~2.0.0' })
+  expect(result).toEqual([
+    {
+      name: 'foo',
+      exact: '~2.0.0',
+      expected: '~2.0.0',
+      actual: '~1.0.0',
+    },
+  ])
+})
+
 test('constructDeps => with update', () => {
   const json = {
     name: 'foo',
