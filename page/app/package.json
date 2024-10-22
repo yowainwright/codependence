@@ -33,7 +33,7 @@
     "cssnano": "^6.0.0",
     "daisyui": "^2.24.0",
     "mdx-mermaid": "^1.3.2",
-    "mermaid": "^9.1.6",
+    "mermaid": "^10.9.3",
     "postcss": "^8.4.16",
     "react-daisyui": "^2.3.2",
     "react-flow-renderer": "^10.3.17",
