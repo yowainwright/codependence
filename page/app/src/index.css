@@ -2,15 +2,19 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
-
-.prose :where(code):not(:where([class~="not-prose"] *)) {
-  border-radius: 5px;
+/* Styles for code blocks */
+pre {
+  margin: 1.5rem 0;
+  border-radius: 0.375rem;
+  overflow: auto;
 }
 
-[data-theme=cupcake] .prose :where(code):not(:where([class~="not-prose"] *)) {
-  background-color: #efeae6;
+/* Add border to code blocks */
+pre {
+  border: 1px solid #ddd;
 }
 
-[data-theme=night] .prose :where(code):not(:where([class~="not-prose"] *)) {
-  background-color: #222b3e;
+[data-theme=night] pre {
+  border-color: #44475a;
 }
+
