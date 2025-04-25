@@ -1,2 +1,4 @@
 packages:
-  - 'page/*'
+  - page/*
+ignoredBuiltDependencies:
+  - esbuild
