@@ -2,9 +2,14 @@
   "name": "Node.js",
   "build": {
     "dockerfile": "Dockerfile",
-    "args": { "VARIANT": "20-bullseye" }
+    "args": { "VARIANT": "23-bullseye" }
   },
-  "extensions": ["dbaeumer.vscode-eslint"],
-  "postCreateCommand": "pnpm install",
-  "remoteUser": "node"
+  "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode", "github.vscode-github-actions"],
+  "postCreateCommand": "corepack enable && pnpm install",
+  "remoteUser": "node",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "23.0.0"
+    }
+  }
 }
