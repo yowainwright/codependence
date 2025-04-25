@@ -359,7 +359,7 @@ pnpm install
 # Install Node.js 23.0.0
 nvm install 23.0.0
 
-# Install pnpm 10.9
+# Install pnpm 10.9.0
 corepack enable
 corepack prepare pnpm@10.9.0 --activate
 
