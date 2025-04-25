@@ -1,5 +1,5 @@
 [tools]
-# Specify Node.js version 23.x
+# Specify Node.js version 22.x
 node = "23.0.0"
 
 # Specify pnpm version 10.9.x
