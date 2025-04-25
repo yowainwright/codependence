@@ -331,6 +331,7 @@ If there is a `.npmrc` file, there is no issue with **Codependence** monitoring 
 ## Development Environment
 
 This project uses:
+
 - Node.js 23.0.0
 - pnpm 10.9.0
 
@@ -360,8 +361,7 @@ pnpm install
 nvm install 23.0.0
 
 # Install pnpm 10.9.0
-corepack enable
-corepack prepare pnpm@10.9.0 --activate
+npm install -g pnpm@10.9.0
 
 # Install dependencies
 pnpm install

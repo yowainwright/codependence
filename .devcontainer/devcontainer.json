@@ -5,7 +5,7 @@
     "args": { "VARIANT": "23-bullseye" }
   },
   "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode", "github.vscode-github-actions"],
-  "postCreateCommand": "corepack enable && pnpm install",
+  "postCreateCommand": "pnpm install",
   "remoteUser": "node",
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
