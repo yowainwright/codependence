@@ -14,16 +14,25 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20.x]
+        node-version: [23.0.0]
 
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.9.0
+          run_install: false
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-      - run: npm ci
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+      - name: Disable corepack
+        run: |
+          sudo rm -f /usr/local/bin/pnpm
+          sudo rm -f /usr/local/bin/pnpx
+      - run: pnpm install
       - run: pnpm build
       - run: pnpm lint
       - run: pnpm test
