@@ -1,2 +1,11 @@
-page/app/postcss.config.cjs
-page/app/tailwind.config.cjs
+*.json
+*.cjs
+*.mjs
+*.md
+dist
+node_modules
+coverage
+page/app
+.github
+.vscode
+.devcontainer

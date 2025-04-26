@@ -328,15 +328,48 @@ If there is a `.npmrc` file, there is no issue with **Codependence** monitoring 
 
 ---
 
+## Development Environment
+
+This project uses:
+
+- Node.js 22.0.0
+- pnpm 10.9.0
+
+We use [mise](https://mise.jdx.dev/) to manage tool versions. If you have mise installed, it will automatically use the correct versions of Node.js and pnpm.
+
+### Setup with mise
+
+```sh
+# Install mise if you don't have it
+curl https://mise.run | sh
+
+# Clone the repository
+git clone https://github.com/yowainwright/codependence.git
+cd codependence
+
+# mise will automatically use the correct versions from .mise.toml
+mise install
+
+# Install dependencies
+pnpm install
+```
+
+### Setup without mise
+
+```sh
+# Install Node.js 22.0.0
+nvm install 22.0.0
+
+# Install pnpm 10.9.0
+npm install -g pnpm@10.9.0
+
+# Install dependencies
+pnpm install
+```
+
 ## Contributing
 
 [Contributing](.github/CONTRIBUTING.md) is straightforward.
-
-### Setup
-
-```sh
-nvm install && npm install pnpm && pnpm install
-```
 
 ### Issues
 

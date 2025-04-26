@@ -6,5 +6,6 @@
   "rules": {
     "@typescript-eslint/no-explicit-any": "warn",
     "@typescript-eslint/no-unused-vars": "warn"
-  }
+  },
+  "ignorePatterns": ["*.json", "*.cjs", "*.mjs", "*.md", "dist", "node_modules", "coverage", "page/app"]
 }

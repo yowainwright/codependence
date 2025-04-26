@@ -36,7 +36,7 @@ export function App() {
           <Route path='/cli/' element={<Cli />} />
           <Route path='/node/' element={<Node />} />
           <Route path='/options/' element={<Options />} />
-          ;<Route path='/recipes/' element={<Recipes />} />
+          <Route path='/recipes/' element={<Recipes />} />
         </Routes>
       </Drawer>
     </main>
