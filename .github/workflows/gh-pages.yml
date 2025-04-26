@@ -13,38 +13,14 @@ jobs:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-        name: Install pnpm
-        id: pnpm-install
-        with:
-          version: 10.9.0
-          run_install: false
-
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 23.0.0
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
-          run_install: false
-
-      - name: Disable corepack
-        run: |
-          sudo rm -f /usr/local/bin/pnpm
-          sudo rm -f /usr/local/bin/pnpx
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        run: |
-          echo "::set-output name=pnpm_cache_dir::$(pnpm store path)"
-      - uses: actions/cache@v4
-        name: Setup pnpm cache
-        with:
-          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - run: pnpm install --recursive
+          node-version: 22.x
+      - name: Install pnpm
+        run: npm install -g pnpm@10.9.0
+      - name: Install dependencies
+        run: pnpm install
       - run: pnpm build
 
       - name: Deploy 🚀

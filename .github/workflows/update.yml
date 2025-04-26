@@ -10,29 +10,20 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [23.0.0]
+        node-version: [22.x]
 
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.9.0
-          run_install: false
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
-
-      - name: Disable corepack
-        run: |
-          sudo rm -f /usr/local/bin/pnpm
-          sudo rm -f /usr/local/bin/pnpx
-      - run: pnpm install --no-frozen-lockfile
+      - name: Install pnpm
+        run: npm install -g pnpm@10.9.0
+      - name: Install dependencies
+        run: pnpm install
       - run: pnpm build
       - run: pnpm run update
-      - run: pnpm install --no-frozen-lockfile
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:

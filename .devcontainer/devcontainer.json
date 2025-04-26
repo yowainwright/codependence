@@ -9,7 +9,7 @@
   "remoteUser": "node",
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
-      "version": "23.0.0"
+      "version": "22.0.0"
     }
   }
 }
