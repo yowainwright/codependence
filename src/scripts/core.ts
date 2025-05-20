@@ -95,16 +95,26 @@ export const constructVersionMap = async ({
  * @returns {object}
  */
 export const constructVersionTypes = (version: string): Record<string, string> => {
-  const versionCharacters = version.split('')
-  const [firstCharacter, ...rest] = versionCharacters
-  const specifier = ['^', '~'].includes(firstCharacter) ? firstCharacter : ''
-  const hasSpecifier = specifier.length === 1
-  const characters = rest.join('')
-  const exactVersion = hasSpecifier ? characters : version
-  const bumpVersion = version
+  // Check if the version starts with a special character
+  const hasSpecialPrefix = version.startsWith('^') || version.startsWith('~')
+
+  if (!hasSpecialPrefix) {
+    return {
+      bumpCharacter: '',
+      bumpVersion: version,
+      exactVersion: version,
+    }
+  }
+
+  // Extract the first special character as the bump character
+  const bumpCharacter = version[0]
+
+  // Get the version number by removing all leading special characters
+  const exactVersion = version.replace(/^[~^]+/, '')
+
   return {
-    bumpCharacter: specifier,
-    bumpVersion,
+    bumpCharacter,
+    bumpVersion: version,
     exactVersion,
   }
 }
