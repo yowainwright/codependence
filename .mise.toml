@@ -1,6 +1,6 @@
 [tools]
 # Specify Node.js version 22.x
-node = "22.0.0"
+node = "24"
 
 # Specify pnpm version 10.9.x
 pnpm = "10.9.0"
