@@ -35,6 +35,10 @@
     "commit-msg": "commitlint --edit $1",
     "coverage": "vitest run --coverage",
     "dev": "pnpm --filter @codependence/app run app-dev",
+    "format-src": "pnpm dlx prettier --write src",
+    "format-test": "pnpm dlx prettier --write test",
+    "format-app": "pnpm dlx prettier --write page/app",
+    "format": "turbo run format-src && turbo run format-test && turbo run format-app",
     "lint": "turbo run lint-src",
     "lint-fix": "pnpm dlx oxlint . --fix",
     "lint-src": "pnpm dlx oxlint src --ext .ts",
@@ -77,14 +81,11 @@
     "@typescript-eslint/parser": "^8.33.1",
     "c8": "^10.1.3",
     "cross-env": "^7.0.3",
-    "eslint": "^8.57.1",
-    "eslint-config-prettier": "^10.1.5",
     "globals": "^16.2.0",
     "husky": "^9.1.7",
     "is-ci": "^4.1.0",
     "lint-staged": "15.5.1",
     "path-exists": "^5.0.0",
-    "prettier": "^3.5.3",
     "release-it": "^19.0.3",
     "rimraf": "^6.0.1",
     "stdouttojson": "^1.0.0",
@@ -123,11 +124,11 @@
   },
   "lint-staged": {
     "*.ts": [
-      "eslint --fix",
-      "prettier --write"
+      "pnpm dlx oxlint --fix",
+      "pnpm dlx prettier --write"
     ],
     "*.{json,md}": [
-      "prettier --write"
+      "pnpm dlx prettier --write"
     ]
   },
   "release-it": {
@@ -135,9 +136,9 @@
       "commitMessage": "chore: release %s"
     }
   },
-  "packageManager": "pnpm@10.9.0",
+  "packageManager": "pnpm@10.12.1",
   "engines": {
-    "node": ">=22.0.0 <23.0.0",
+    "node": ">=24",
     "pnpm": ">=10.9.0 <11.0.0"
   }
 }

@@ -91,17 +91,19 @@ Options:
 Although, **Codependence** is built to primarily be a CLI utility, it can be used as a node utility.
 
 ```ts
-import codependence from 'codependence'
+import codependence from "codependence";
 
 const checkForUpdate = async () => {
-  const isLatest = await codependence({ codependencies: ['fs-extra', 'lodash'] })
+  const isLatest = await codependence({
+    codependencies: ["fs-extra", "lodash"],
+  });
   if (!isLatest) {
-    console.log('This repo is update-to-date')
+    console.log("This repo is update-to-date");
   } else {
-    console.error('This repo is not update-to-date')
+    console.error("This repo is not update-to-date");
   }
-}
-checkForUpdate()
+};
+checkForUpdate();
 ```
 
 ## Configuration Options
@@ -332,7 +334,7 @@ If there is a `.npmrc` file, there is no issue with **Codependence** monitoring 
 
 This project uses:
 
-- Node.js 22.0.0
+- Node.js 24.0.0
 - pnpm 10.9.0
 
 We use [mise](https://mise.jdx.dev/) to manage tool versions. If you have mise installed, it will automatically use the correct versions of Node.js and pnpm.

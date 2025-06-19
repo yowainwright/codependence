@@ -1,9 +1,9 @@
 [tools]
-# Specify Node.js version 22.x
+# Specify Node.js version 24.x
 node = "24"
 
 # Specify pnpm version 10.9.x
-pnpm = "10.9.0"
+pnpm = "10.12.1"
 
 [env]
 # Add any environment variables needed for the project here
