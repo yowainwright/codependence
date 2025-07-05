@@ -24,6 +24,15 @@
     },
     "//#typecheck-src": {
       "inputs": ["src/**/*.ts"]
+    },
+    "format-src": {
+      "inputs": ["src/**/*.ts"]
+    },
+    "format-test": {
+      "inputs": ["test/**/*.ts"]
+    },
+    "format-app": {
+      "inputs": ["page/app/**/*.{ts,tsx}"]
     }
   }
 }

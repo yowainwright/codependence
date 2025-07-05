@@ -1,0 +1,45 @@
+name: codependence e2e tests 🐳
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Build Docker test image
+        run: |
+          echo "🐳 Building Docker test image..."
+          docker build --target test -t codependence-test -f e2e/Dockerfile .
+          
+      - name: Run e2e init tests
+        run: |
+          echo "🤼‍♀️ Running codependence init e2e tests..."
+          docker run --rm codependence-test:latest
+          
+      - name: Test Docker environment (dev mode)
+        run: |
+          echo "🔧 Testing dev environment setup..."
+          docker run --rm --entrypoint=/bin/sh codependence-test:latest -c "
+            ls -la dist/ &&
+            ls -la node_modules/ &&
+            echo 'Environment setup verified ✅'
+          "
+          
+      - name: Cleanup Docker images
+        if: always()
+        run: |
+          echo "🧹 Cleaning up Docker resources..."
+          docker rmi codependence-test:latest || true
+          docker system prune -f || true

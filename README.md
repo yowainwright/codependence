@@ -3,6 +3,7 @@
 ![Typed with TypeScript](https://flat.badgen.net/badge/icon/Typed?icon=typescript&label&labelColor=blue&color=555555)
 [![npm version](https://badge.fury.io/js/codependence.svg)](https://badge.fury.io/js/codependence)
 ![ci](https://github.com/yowainwright/codependence/actions/workflows/ci.yml/badge.svg)
+![e2e](https://github.com/yowainwright/codependence/actions/workflows/e2e.yml/badge.svg)
 [![Github](https://badgen.net/badge/icon/github?icon=github&label&color=grey)](https://github.com/yowainwright/codependence)
 ![Twitter](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fyowainwright%2Fcodependence)
 
@@ -58,6 +59,32 @@ Or use it with a config in the root `package.json` file
 }
 ```
 
+#### Initialize Codependence
+
+Quickly setup Codependence in your project with the interactive init command:
+
+```sh
+# Interactive setup - choose dependencies and config location
+codependence init
+
+# Create .codependencerc with all dependencies
+codependence init rc
+
+# Add configuration to package.json with all dependencies
+codependence init package
+```
+
+The init command will:
+
+- Scan your `package.json` for dependencies
+- Let you choose which dependencies to pin (or select all)
+- Create either a `.codependencerc` file or add config to `package.json`
+- Handle edge cases like missing files or invalid JSON gracefully
+
+#### Testing
+
+Run e2e tests with Docker: `./e2e/test.sh test`
+
 ---
 
 ## Codependence as a CLI
@@ -91,17 +118,19 @@ Options:
 Although, **Codependence** is built to primarily be a CLI utility, it can be used as a node utility.
 
 ```ts
-import codependence from 'codependence'
+import codependence from "codependence";
 
 const checkForUpdate = async () => {
-  const isLatest = await codependence({ codependencies: ['fs-extra', 'lodash'] })
+  const isLatest = await codependence({
+    codependencies: ["fs-extra", "lodash"],
+  });
   if (!isLatest) {
-    console.log('This repo is update-to-date')
+    console.log("This repo is update-to-date");
   } else {
-    console.error('This repo is not update-to-date')
+    console.error("This repo is not update-to-date");
   }
-}
-checkForUpdate()
+};
+checkForUpdate();
 ```
 
 ## Configuration Options
@@ -243,6 +272,15 @@ An **optional** boolean value used to enable \***yarn config** checking
 
 ---
 
+### `showPinnedDepsOnly`: `boolean`
+
+An **optional** boolean value used to update all dependencies to their latest versions except those specified in the `codependencies` array.
+
+- The default value is `false`
+- When set to `true`, all dependencies not listed in `codependencies` will be updated to their latest versions
+
+---
+
 ## Recipes
 
 Listed below are some common patterns (recipes) for using **Codependence**.
@@ -332,7 +370,7 @@ If there is a `.npmrc` file, there is no issue with **Codependence** monitoring 
 
 This project uses:
 
-- Node.js 22.0.0
+- Node.js 24.0.0
 - pnpm 10.9.0
 
 We use [mise](https://mise.jdx.dev/) to manage tool versions. If you have mise installed, it will automatically use the correct versions of Node.js and pnpm.

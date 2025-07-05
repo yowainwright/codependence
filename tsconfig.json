@@ -3,7 +3,7 @@
     "baseUrl": ".",
     "target": "esnext",
     "module": "esnext",
-    "rootDir": "src",
+    "rootDir": ".",
     "declaration": true,
     "outDir": "./dist",
     "strict": true,
@@ -23,5 +23,5 @@
     "sourceMap": false
   },
   "include": ["src", "test"],
-  "exclude": ["test/*.ts", "dist", "page/**"]
+  "exclude": ["dist", "page/**"]
 }
