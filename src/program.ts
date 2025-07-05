@@ -16,7 +16,6 @@ import {
 } from "./types";
 
 export async function action(options: Options = {}): Promise<void> {
-  // capture config data
   const explorer = cosmiconfigSync("codependence");
   const result = options?.searchPath
     ? explorer.search(options.searchPath)
@@ -25,7 +24,6 @@ export async function action(options: Options = {}): Promise<void> {
     options?.config ? explorer.load(options?.config) : {}
   ) as ConfigResult;
 
-  // massage config and option data
   const updatedConfig = {
     ...(!Object.keys(pathConfig).length ? result?.config : {}),
     ...(pathConfig?.codependence ? { ...pathConfig.codependence } : pathConfig),
@@ -33,7 +31,6 @@ export async function action(options: Options = {}): Promise<void> {
     isCLI: true,
   };
 
-  // remove action level options
   const {
     config: usedConfig,
     searchPath: usedSearchPath,
@@ -42,13 +39,11 @@ export async function action(options: Options = {}): Promise<void> {
     ...updatedOptions
   } = updatedConfig;
 
-  // capture/test CLI options
   if (isTestingCLI) {
     console.info({ updatedOptions });
     return;
   }
 
-  // capture action unit test options
   if (isTestingAction) return updatedOptions;
 
   try {
@@ -77,9 +72,9 @@ export async function initAction(
   try {
     const rcPath = ".codependencerc";
     const packageJsonPath = "package.json";
-
-    // Check if config already exists
-    if (existsSync(rcPath)) {
+    const hasConfig = existsSync(rcPath);
+    if (hasConfig) {
+      spinner.stop();
       logger({
         type: "warn",
         section: "init",
@@ -88,21 +83,27 @@ export async function initAction(
       return;
     }
 
-    // Read package.json
-    if (!existsSync(packageJsonPath)) {
+    const hasPackageJson = existsSync(packageJsonPath);
+    if (!hasPackageJson) {
       throw new Error("package.json not found in the current directory");
     }
 
-    const packageJson = JSON.parse(
-      readFileSync(packageJsonPath, "utf8"),
-    ) as PackageJSON;
+    const content = readFileSync(packageJsonPath, "utf8");
+    let packageJson: PackageJSON;
+    try {
+      packageJson = JSON.parse(content) as PackageJSON;
+    } catch (parseError) {
+      throw new Error(`Invalid JSON in package.json: ${parseError}`);
+    }
+
     const allDeps = {
       ...packageJson.dependencies,
       ...packageJson.devDependencies,
       ...packageJson.peerDependencies,
     };
 
-    if (Object.keys(allDeps).length === 0) {
+    const hasDeps = Object.keys(allDeps).length > 0;
+    if (!hasDeps) {
       throw new Error("No dependencies found in package.json");
     }
 
@@ -110,11 +111,9 @@ export async function initAction(
     let outputType: "rc" | "package" = "rc";
 
     if (type) {
-      // Non-interactive mode
       selectedDeps = Object.keys(allDeps);
       outputType = type === "package" ? "package" : "rc";
     } else {
-      // Interactive mode - Step 1: Choose configuration type
       const { configType } = await inquirer.prompt([
         {
           type: "list",
@@ -130,7 +129,6 @@ export async function initAction(
       if (configType === "all") {
         selectedDeps = Object.keys(allDeps);
       } else {
-        // Interactive mode - Step 2: Select dependencies
         const { selectedDeps: userSelectedDeps } = await inquirer.prompt([
           {
             type: "checkbox",
@@ -144,7 +142,6 @@ export async function initAction(
         ]);
         selectedDeps = userSelectedDeps;
 
-        // Interactive mode - Step 3: Choose output location
         const { outputLocation } = await inquirer.prompt([
           {
             type: "list",
@@ -161,6 +158,7 @@ export async function initAction(
     }
 
     if (selectedDeps.length === 0) {
+      spinner.stop();
       logger({
         type: "info",
         section: "init",
@@ -169,12 +167,10 @@ export async function initAction(
       return;
     }
 
-    // Create config object
     const config: CodependenceConfig = {
       codependencies: selectedDeps,
     };
 
-    // Handle output based on type
     if (outputType === "package") {
       const updatedPackageJson = {
         ...packageJson,
@@ -200,10 +196,11 @@ export async function initAction(
 
     spinner.succeed(`🤼‍♀️ ${gradient.teen(`codependence`)} initialized!`);
   } catch (err) {
+    spinner.stop();
     logger({
       type: "error",
       section: "cli:error",
-      message: (err as string).toString(),
+      message: (err as Error).message || (err as string).toString(),
     });
   }
 }
@@ -224,6 +221,10 @@ program
   .option("-c, --config <config>", "path to a config file")
   .option("-s, --searchPath <searchPath>", "path to do a config file search")
   .option("-y, --yarnConfig", "enable yarn config support")
+  .option(
+    "--showPinnedDepsOnly",
+    "update all deps to latest except those in codependencies",
+  )
   .action(action);
 
 program

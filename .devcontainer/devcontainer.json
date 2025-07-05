@@ -4,11 +4,6 @@
     "dockerfile": "Dockerfile",
     "args": { "VARIANT": "24-bullseye" }
   },
-  "extensions": [
-    "dbaeumer.vscode-eslint",
-    "esbenp.prettier-vscode",
-    "github.vscode-github-actions"
-  ],
   "postCreateCommand": "pnpm install",
   "remoteUser": "node",
   "features": {
