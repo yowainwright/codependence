@@ -31,6 +31,7 @@ vi.mock("ora", () => ({
     start: () => ({
       succeed: vi.fn(),
       fail: vi.fn(),
+      stop: vi.fn(),
     }),
   }),
 }));
@@ -449,7 +450,7 @@ describe("InitAction Function Unit Tests", () => {
     expect(mockLogger).toHaveBeenCalledWith({
       type: "error",
       section: "cli:error",
-      message: "Error: package.json not found in the current directory",
+      message: "package.json not found in the current directory",
     });
   });
 
@@ -472,7 +473,7 @@ describe("InitAction Function Unit Tests", () => {
     expect(mockLogger).toHaveBeenCalledWith({
       type: "error",
       section: "cli:error",
-      message: "Error: No dependencies found in package.json",
+      message: "No dependencies found in package.json",
     });
   });
 
@@ -749,7 +750,7 @@ describe("Edge Cases and Error Handling", () => {
     expect(mockLogger).toHaveBeenCalledWith({
       type: "error",
       section: "cli:error",
-      message: "Error: File write failed",
+      message: "File write failed",
     });
   });
 });
