@@ -41,7 +41,7 @@
     "format": "turbo run format-src && turbo run format-test && turbo run format-app",
     "lint": "turbo run lint-src",
     "lint-fix": "pnpm dlx oxlint . --fix",
-    "lint-src": "pnpm dlx oxlint src --ext .ts",
+    "lint-src": "pnpm dlx oxlint src",
     "lint:fix": "pnpm dlx oxlint src/**/*.ts --fix",
     "pre-commit": "lint-staged",
     "prepare": "is-ci || husky install",
