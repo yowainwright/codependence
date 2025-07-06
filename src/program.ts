@@ -16,6 +16,7 @@ import {
 } from "./types";
 
 export async function action(options: Options = {}): Promise<void> {
+  // capture config data
   const explorer = cosmiconfigSync("codependence");
   const result = options?.searchPath
     ? explorer.search(options.searchPath)
@@ -24,6 +25,7 @@ export async function action(options: Options = {}): Promise<void> {
     options?.config ? explorer.load(options?.config) : {}
   ) as ConfigResult;
 
+  // massage config and option data
   const updatedConfig = {
     ...(!Object.keys(pathConfig).length ? result?.config : {}),
     ...(pathConfig?.codependence ? { ...pathConfig.codependence } : pathConfig),
@@ -31,19 +33,22 @@ export async function action(options: Options = {}): Promise<void> {
     isCLI: true,
   };
 
+  // remove action level options
   const {
-    config: usedConfig,
-    searchPath: usedSearchPath,
+    config: _usedConfig,
+    searchPath: _usedSearchPath,
     isTestingCLI,
     isTestingAction,
     ...updatedOptions
   } = updatedConfig;
 
+  // capture/test CLI options
   if (isTestingCLI) {
     console.info({ updatedOptions });
     return;
   }
 
+  // capture action unit test options
   if (isTestingAction) return updatedOptions;
 
   try {

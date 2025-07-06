@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - name: Install pnpm
-        run: npm install -g pnpm@10.12.1
+        run: npm install -g pnpm@10.12.4
       - name: Install dependencies
         run: pnpm install
       - run: pnpm build

@@ -64,7 +64,7 @@
     "fast-glob": "^3.3.3",
     "gradient-string": "^3.0.0",
     "inquirer": "^9.2.15",
-    "ora": "8.0.1",
+    "ora": "8.2.0",
     "validate-npm-package-name": "^6.0.1"
   },
   "devDependencies": {
@@ -137,9 +137,9 @@
       "commitMessage": "chore: release %s"
     }
   },
-  "packageManager": "pnpm@10.12.1",
+  "packageManager": "pnpm@10.12.4",
   "engines": {
     "node": ">=24",
-    "pnpm": ">=10.9.0 <11.0.0"
+    "pnpm": ">=10.12.0 <11.0.0"
   }
 }

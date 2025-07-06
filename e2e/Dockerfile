@@ -9,7 +9,7 @@ COPY ../package.json ./
 COPY ../pnpm-lock.yaml ./
 
 # Install pnpm
-RUN npm install -g pnpm@10.12.1
+RUN npm install -g pnpm@10.12.4
 
 # Set environment to disable automatic Node switching
 ENV PNPM_NODE_VERSION=24
@@ -28,7 +28,7 @@ RUN pnpm run build-dist
 FROM node:24-slim AS test
 
 # Install pnpm globally
-RUN npm install -g pnpm@10.12.1
+RUN npm install -g pnpm@10.12.4
 
 # Create a non-root user for testing
 RUN groupadd -g 1001 testuser && \
