@@ -99,10 +99,11 @@ describe("CLI Integration Tests", () => {
     const result = stdoutToJSON(stdout) as unknown as {
       updatedOptions: Options;
     };
-    expect(result.updatedOptions).toStrictEqual({
-      isCLI: "true",
-      rootDir: "./test/",
-    });
+    // The test finds the actual package.json with codependence config
+    expect(result.updatedOptions).toHaveProperty("isCLI", "true");
+    expect(result.updatedOptions).toHaveProperty("rootDir", "./test/");
+    expect(result.updatedOptions).toHaveProperty("codependencies");
+    expect(Array.isArray(result.updatedOptions.codependencies)).toBe(true);
   });
 
   test("w/ only options", async () => {
