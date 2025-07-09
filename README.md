@@ -429,7 +429,6 @@ Thank you!
 
 - **Code:**
   - add better spying/mocking (in progress)
-  - add init cmd to cli
   - add utils functions to be executed with the cli cmd (monorepo, cadence, all deps)
 - **Demo Repos**
   - **monorepo:** present how **codependence** can work to support monorepo updates (in progress)
