@@ -35,10 +35,14 @@
     "commit-msg": "commitlint --edit $1",
     "coverage": "vitest run --coverage",
     "dev": "pnpm --filter @codependence/app run app-dev",
+    "format-src": "pnpm dlx prettier --write src",
+    "format-test": "pnpm dlx prettier --write test",
+    "format-app": "pnpm dlx prettier --write page/app",
+    "format": "turbo run format-src && turbo run format-test && turbo run format-app",
     "lint": "turbo run lint-src",
-    "lint-fix": "eslint . --fix",
-    "lint-src": "eslint src --ext .ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
+    "lint-fix": "pnpm dlx oxlint . --fix",
+    "lint-src": "pnpm dlx oxlint src",
+    "lint:fix": "pnpm dlx oxlint src/**/*.ts --fix",
     "pre-commit": "lint-staged",
     "prepare": "is-ci || husky install",
     "prepublishOnly": "npm run clean-dist && npm run build-dist",
@@ -59,6 +63,7 @@
     "execa": "^9.6.0",
     "fast-glob": "^3.3.3",
     "gradient-string": "^3.0.0",
+    "inquirer": "^9.2.15",
     "ora": "8.2.0",
     "validate-npm-package-name": "^6.0.1"
   },
@@ -69,6 +74,7 @@
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.30.1",
     "@types/gradient-string": "^1.1.6",
+    "@types/inquirer": "^9.0.7",
     "@types/node": "^22.16.0",
     "@types/validate-npm-package-name": "^4.0.2",
     "@typescript-eslint/eslint-plugin": "^8.35.1",
@@ -121,11 +127,11 @@
   },
   "lint-staged": {
     "*.ts": [
-      "eslint --fix",
-      "prettier --write"
+      "pnpm dlx oxlint --fix",
+      "pnpm dlx prettier --write"
     ],
     "*.{json,md}": [
-      "prettier --write"
+      "pnpm dlx prettier --write"
     ]
   },
   "release-it": {
@@ -133,9 +139,53 @@
       "commitMessage": "chore: release %s"
     }
   },
-  "packageManager": "pnpm@10.9.0",
+  "packageManager": "pnpm@10.12.4",
   "engines": {
-    "node": ">=22.0.0 <23.0.0",
-    "pnpm": ">=10.9.0 <11.0.0"
+    "node": ">=24",
+    "pnpm": ">=10.12.0 <11.0.0"
+  },
+  "codependence": {
+    "codependencies": [
+      "commander",
+      "cosmiconfig",
+      "execa",
+      "fast-glob",
+      "gradient-string",
+      "inquirer",
+      "ora",
+      "validate-npm-package-name",
+      "@commitlint/cli",
+      "@commitlint/config-conventional",
+      "@commitlint/prompt-cli",
+      "@eslint/eslintrc",
+      "@eslint/js",
+      "@types/gradient-string",
+      "@types/inquirer",
+      "@types/node",
+      "@types/validate-npm-package-name",
+      "@typescript-eslint/eslint-plugin",
+      "@typescript-eslint/parser",
+      "c8",
+      "cross-env",
+      "globals",
+      "husky",
+      "is-ci",
+      "lint-staged",
+      "path-exists",
+      "prettier",
+      "release-it",
+      "rimraf",
+      "stdouttojson",
+      "tslib",
+      "tsup",
+      "tsutils",
+      "tsx",
+      "turbo",
+      "type-fest",
+      "typescript",
+      "typescript-eslint",
+      "vite",
+      "vitest"
+    ]
   }
 }

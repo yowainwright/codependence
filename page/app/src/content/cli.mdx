@@ -9,21 +9,28 @@ It is recommendeded to install and setup Codependence as a devDependency within 
 Furthermore, you can add a codependence.codependencies array to child packages' package.json in your monorepo to ensure specific dependencies are pinned to a specific versions within your monorepo packages.
 
 ```bash
-Usage: program [options]
+Usage: index [options] [command]
 
-Codependency, for code dependency. Checks `codependencies` in package.json files to ensure dependencies are up-to-date
+Codedependency, for code dependency. Checks `coDependencies` in package.json files to ensure dependencies are up-to-date
 
 Options:
--f, --files [files...] file glob pattern
--u, --update update dependencies based on check
--r, --rootDir <rootDir> root directory to start search
--i, --ignore [ignore...] ignore glob pattern
---debug enable debugging
---silent enable mainly silent logging
--cds, --codependencies [codependencies...] a path to a file with a codependenies object
--c, --config <config> accepts a path to a config file
--s, --searchPath <searchPath> a search path string for locationing config files
--h, --help display help for command
+  -t, --isTestingCLI                           enable CLI only testing
+  --isTesting                                  enable running fn tests w/o overwriting
+  -f, --files [files...]                       file glob pattern
+  -u, --update                                 update dependencies based on check
+  -r, --rootDir <rootDir>                      root directory to start search
+  -i, --ignore [ignore...]                     ignore glob pattern
+  --debug                                      enable debugging
+  --silent                                     enable mainly silent logging
+  --cds, --codependencies [codependencies...]  deps to check
+  -c, --config <config>                        path to a config file
+  -s, --searchPath <searchPath>                path to do a config file search
+  -y, --yarnConfig                             enable yarn config support
+  --showPinnedDepsOnly                         update all deps to latest except those in codependencies
+  -h, --help                                   display help for command
+
+Commands:
+  init [type]                                  Initialize codependence configuration interactively
 ```
 
 ---

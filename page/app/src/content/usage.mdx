@@ -2,7 +2,7 @@
 
 # Basic Usage - Just show me the code!
 
-Codependence can be used as a standalone CLI, in npm scripts or, secondarily, as node utility!
+Codedependence can be used as a standalone CLI, in npm scripts or, secondarily, as node utility!
 
 #### Install
 
@@ -31,6 +31,28 @@ Or use it with a config in the root package.json file
   }
 }
 ```
+
+#### Initialize Codependence
+
+Quickly setup Codependence in your project with the interactive init command:
+
+```bash
+# Interactive setup - choose dependencies and config location
+codependence init
+
+# Create .codependencerc with all dependencies
+codependence init rc
+
+# Add configuration to package.json with all dependencies
+codependence init package
+```
+
+The init command will:
+
+- Scan your `package.json` for dependencies
+- Let you choose which dependencies to pin (or select all)
+- Create either a `.codependencerc` file or add config to `package.json`
+- Handle edge cases like missing files or invalid JSON gracefully
 
 ---
 
