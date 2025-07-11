@@ -199,6 +199,55 @@ test("constructDepsToUpdateList => handles mixed special characters correctly", 
   ]);
 });
 
+test("constructPermissiveDepsToUpdateList => updates all deps except codependencies to latest", () => {
+  const deps = { lodash: "^4.0.0", express: "~4.18.0", react: "18.0.0" };
+  const codependencies = ["react"];
+  const result = scripts.constructPermissiveDepsToUpdateList(
+    deps,
+    codependencies,
+  );
+
+  expect(result).toEqual([
+    {
+      name: "lodash",
+      actual: "^4.0.0",
+      exact: "latest",
+      expected: "^latest",
+    },
+    {
+      name: "express",
+      actual: "~4.18.0",
+      exact: "latest",
+      expected: "~latest",
+    },
+  ]);
+});
+
+test("constructPermissiveDepsToUpdateList => handles empty dependencies", () => {
+  const result = scripts.constructPermissiveDepsToUpdateList({}, ["react"]);
+  expect(result).toEqual([]);
+});
+
+test("constructPermissiveDepsToUpdateList => handles no codependencies", () => {
+  const deps = { lodash: "^4.0.0", express: "4.18.0" };
+  const result = scripts.constructPermissiveDepsToUpdateList(deps, []);
+
+  expect(result).toEqual([
+    {
+      name: "lodash",
+      actual: "^4.0.0",
+      exact: "latest",
+      expected: "^latest",
+    },
+    {
+      name: "express",
+      actual: "4.18.0",
+      exact: "latest",
+      expected: "latest",
+    },
+  ]);
+});
+
 test("constructDepsToUpdateList => preserves tilde prefix", () => {
   const result = constructDepsToUpdateList({ foo: "~1.0.0" }, { foo: "2.0.0" });
   expect(result).toEqual([
