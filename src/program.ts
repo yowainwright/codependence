@@ -227,7 +227,7 @@ program
   .option("-s, --searchPath <searchPath>", "path to do a config file search")
   .option("-y, --yarnConfig", "enable yarn config support")
   .option(
-    "--showPinnedDepsOnly",
+    "--permissive",
     "update all deps to latest except those in codependencies",
   )
   .action(action);

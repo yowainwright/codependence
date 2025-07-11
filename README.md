@@ -130,6 +130,15 @@ const checkForUpdate = async () => {
     console.error("This repo is not update-to-date");
   }
 };
+
+const updateAllExceptSpecific = async () => {
+  await codependence({
+    codependencies: ["react", "lodash"], // Keep these at current versions
+    permissive: true, // Update all other dependencies to latest
+    update: true,
+  });
+};
+
 checkForUpdate();
 ```
 
@@ -272,7 +281,7 @@ An **optional** boolean value used to enable \***yarn config** checking
 
 ---
 
-### `showPinnedDepsOnly`: `boolean`
+### `permissive`: `boolean`
 
 An **optional** boolean value used to update all dependencies to their latest versions except those specified in the `codependencies` array.
 
@@ -297,6 +306,13 @@ codependence --codependencies 'lodash' '{ \"fs-extra\": \"10.0.1\" }'
 
 ```sh
 codependence --codependencies '@foo/*' --update
+```
+
+### Want to update all dependencies to latest except specific ones? Use permissive mode!
+
+```sh
+# Update all dependencies to latest except react and lodash
+codependence --codependencies 'react' 'lodash' --permissive --update
 ```
 
 ---

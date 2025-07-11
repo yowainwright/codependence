@@ -18,7 +18,7 @@ export type Options = {
   silent?: boolean;
   searchPath?: string;
   yarnConfig?: boolean;
-  showPinnedDepsOnly?: boolean;
+  permissive?: boolean;
 };
 
 export type ConfigResult = { config: Options } & CosmiconfigResult;
@@ -34,7 +34,7 @@ export type CheckFiles = {
   isCLI?: boolean;
   isTesting?: boolean;
   yarnConfig?: boolean;
-  showPinnedDepsOnly?: boolean;
+  permissive?: boolean;
 };
 
 export type CheckDependenciesForVersionOptions = {
@@ -42,7 +42,7 @@ export type CheckDependenciesForVersionOptions = {
   isDebugging?: boolean;
   isSilent?: boolean;
   isTesting?: boolean;
-  showPinnedDepsOnly?: boolean;
+  permissive?: boolean;
 };
 
 export type CheckMatches = {
@@ -58,7 +58,7 @@ export type CheckMatches = {
 
 export type CodependenceConfig = {
   codependencies?: CodeDependencies;
-  showPinnedDepsOnly?: boolean;
+  permissive?: boolean;
 };
 
 export type PackageJSON = {
