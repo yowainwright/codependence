@@ -149,7 +149,7 @@ export const constructPermissiveDepsToUpdateList = (
   if (!Object.keys(dep).length) return [];
 
   return Object.entries(dep)
-    .filter(([name]) => !codependencies.includes(name)) // Exclude codependencies
+    .filter(([name]) => !codependencies.includes(name))
     .map(([name, version]) => {
       const { bumpCharacter } = constructVersionTypes(version);
       return {
@@ -282,7 +282,6 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
   let depList, devDepList, peerDepList;
 
   if (permissive && codependencies) {
-    // In permissive mode, update all deps to latest except those in codependencies
     depList = constructPermissiveDepsToUpdateList(dependencies, codependencies);
     devDepList = constructPermissiveDepsToUpdateList(
       devDependencies,
@@ -293,7 +292,6 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
       codependencies,
     );
   } else {
-    // Normal mode - only update deps specified in codependencies
     depList = constructDepsToUpdateList(dependencies, versionMap);
     devDepList = constructDepsToUpdateList(devDependencies, versionMap);
     peerDepList = constructDepsToUpdateList(peerDependencies, versionMap);
@@ -456,7 +454,6 @@ export const checkFiles = async ({
       yarnConfig,
       isTesting,
     });
-    // Convert codependencies array to just dependency names for permissive mode
     const depNames = codependencies
       .map((item) => (typeof item === "string" ? item : Object.keys(item)[0]))
       .filter(Boolean);

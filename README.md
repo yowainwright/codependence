@@ -133,8 +133,8 @@ const checkForUpdate = async () => {
 
 const updateAllExceptSpecific = async () => {
   await codependence({
-    codependencies: ["react", "lodash"], // Keep these at current versions
-    permissive: true, // Update all other dependencies to latest
+    codependencies: ["react", "lodash"],
+    permissive: true,
     update: true,
   });
 };
@@ -311,7 +311,6 @@ codependence --codependencies '@foo/*' --update
 ### Want to update all dependencies to latest except specific ones? Use permissive mode!
 
 ```sh
-# Update all dependencies to latest except react and lodash
 codependence --codependencies 'react' 'lodash' --permissive --update
 ```
 
