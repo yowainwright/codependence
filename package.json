@@ -1,6 +1,6 @@
 {
   "name": "codependence",
-  "version": "0.3.1",
+  "version": "1.0.0-0",
   "main": "dist/index.cjs",
   "description": "Checks `codependencies` in package.json files to ensure dependencies are up-to-date 🤼‍♀️",
   "type": "module",
