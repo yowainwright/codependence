@@ -1,4 +1,4 @@
-name: codependence trigger version update 🤼‍♀️
+name: codependence trigger release tests 🤼‍♀️
 
 on:
   push:
@@ -11,12 +11,12 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20.x]
+        node-version: [24.x]
 
     steps:
       - name: Repository Dispatch
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
-          repository: yowainwright/codependence-post-release
+          repository: yowainwright/codependence-test
           event-type: codependence_update
