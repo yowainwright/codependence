@@ -121,6 +121,14 @@ An optional boolean value used to enable \*yarn config checking
 
 The default value is `false`
 
+### `permissive`: `boolean`
+
+An **optional** boolean value used to update all dependencies to their latest versions except those specified in the `codependencies` array.
+
+- The default value is `false`
+- When set to `true`, all dependencies not listed in `codependencies` will be updated to their latest versions
+- This is the **recommended mode** for most projects as it keeps you up-to-date while allowing you to pin specific problematic dependencies
+
 ---
 
 </section>

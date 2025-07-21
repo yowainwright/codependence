@@ -199,6 +199,55 @@ test("constructDepsToUpdateList => handles mixed special characters correctly", 
   ]);
 });
 
+test("constructPermissiveDepsToUpdateList => updates all deps except codependencies to latest", () => {
+  const deps = { lodash: "^4.0.0", express: "~4.18.0", react: "18.0.0" };
+  const codependencies = ["react"];
+  const result = scripts.constructPermissiveDepsToUpdateList(
+    deps,
+    codependencies,
+  );
+
+  expect(result).toEqual([
+    {
+      name: "lodash",
+      actual: "^4.0.0",
+      exact: "latest",
+      expected: "latest",
+    },
+    {
+      name: "express",
+      actual: "~4.18.0",
+      exact: "latest",
+      expected: "latest",
+    },
+  ]);
+});
+
+test("constructPermissiveDepsToUpdateList => handles empty dependencies", () => {
+  const result = scripts.constructPermissiveDepsToUpdateList({}, ["react"]);
+  expect(result).toEqual([]);
+});
+
+test("constructPermissiveDepsToUpdateList => handles no codependencies", () => {
+  const deps = { lodash: "^4.0.0", express: "4.18.0" };
+  const result = scripts.constructPermissiveDepsToUpdateList(deps, []);
+
+  expect(result).toEqual([
+    {
+      name: "lodash",
+      actual: "^4.0.0",
+      exact: "latest",
+      expected: "latest",
+    },
+    {
+      name: "express",
+      actual: "4.18.0",
+      exact: "latest",
+      expected: "latest",
+    },
+  ]);
+});
+
 test("constructDepsToUpdateList => preserves tilde prefix", () => {
   const result = constructDepsToUpdateList({ foo: "~1.0.0" }, { foo: "2.0.0" });
   expect(result).toEqual([
@@ -626,4 +675,89 @@ test("checkFiles => with no codeps", async () => {
   const files = ["test-fail-package.json"];
   await checkFiles({ codependencies, rootDir, files, debug: true } as any);
   expect(logCheckFilesWithNoCoDeps).toBeCalled();
+});
+
+test("checkFiles => with permissive mode only", async () => {
+  vi.clearAllMocks();
+  const logCheckFilesPermissive = vi.spyOn(console, "error");
+  const codependencies = null;
+  const rootDir = "./test/";
+  const files = ["test-fail-package.json"];
+  await checkFiles({ codependencies, rootDir, files, permissive: true } as any);
+  expect(logCheckFilesPermissive).toBeCalled();
+});
+
+test("checkFiles => with permissive mode and codependencies", async () => {
+  vi.clearAllMocks();
+  const logCheckFilesPermissiveWithCodependencies = vi.spyOn(console, "error");
+  const codependencies = ["lodash"];
+  const rootDir = "./test/";
+  const files = ["test-fail-package.json"];
+  await checkFiles({ codependencies, rootDir, files, permissive: true });
+  expect(logCheckFilesPermissiveWithCodependencies).toBeCalled();
+});
+
+test("checkDependenciesForVersion => with permissive mode", () => {
+  const versionMap = {}; // Empty version map for permissive mode
+  const json = {
+    name: "test-package",
+    version: "1.0.0",
+    dependencies: { lodash: "^4.0.0", express: "~4.18.0" },
+    path: "./test",
+  };
+  const result = checkDependenciesForVersion(versionMap, json, {
+    permissive: true,
+    isTesting: true,
+  });
+  expect(result).toEqual(true);
+});
+
+test("checkDependenciesForVersion => with permissive mode and codependencies", () => {
+  const versionMap = {}; // Empty version map for permissive mode
+  const json = {
+    name: "test-package",
+    version: "1.0.0",
+    dependencies: { lodash: "^4.0.0", express: "~4.18.0", react: "^18.0.0" },
+    path: "./test",
+  };
+  const codependencies = ["react"]; // Pin react, update others
+  const result = checkDependenciesForVersion(
+    versionMap,
+    json,
+    {
+      permissive: true,
+      isTesting: true,
+    },
+    codependencies,
+  );
+  expect(result).toEqual(true);
+});
+
+test("constructPermissiveDepsToUpdateList => with mixed dependency types", () => {
+  const deps = {
+    "@types/node": "^18.0.0",
+    typescript: "~4.9.0",
+    lodash: "4.17.21",
+    react: "^18.2.0",
+  };
+  const codependencies = ["react", "typescript"];
+  const result = scripts.constructPermissiveDepsToUpdateList(
+    deps,
+    codependencies,
+  );
+
+  expect(result).toEqual([
+    {
+      name: "@types/node",
+      actual: "^18.0.0",
+      exact: "latest",
+      expected: "latest",
+    },
+    {
+      name: "lodash",
+      actual: "4.17.21",
+      exact: "latest",
+      expected: "latest",
+    },
+  ]);
 });
