@@ -64,21 +64,25 @@ Or use it with a config in the root `package.json` file
 Quickly setup Codependence in your project with the interactive init command:
 
 ```sh
-# Interactive setup - choose dependencies and config location
+# Interactive setup with permissive mode by default - recommended!
 codependence init
 
-# Create .codependencerc with all dependencies
+# Create .codependencerc with all dependencies pinned (legacy mode)
 codependence init rc
 
-# Add configuration to package.json with all dependencies
+# Add configuration to package.json with all dependencies pinned (legacy mode)
 codependence init package
 ```
 
 The init command will:
 
+- **Default to permissive mode** (update all dependencies to latest, except those you want to pin)
 - Scan your `package.json` for dependencies
-- Let you choose which dependencies to pin (or select all)
+- Let you choose your dependency management strategy:
+  - 🚀 **Permissive mode** (default/recommended): Update all to latest, pin specific ones
+  - 🔒 **Pin all mode**: Keep all dependencies at current versions
 - Create either a `.codependencerc` file or add config to `package.json`
+- Provide clear next steps for running Codependence
 - Handle edge cases like missing files or invalid JSON gracefully
 
 #### Testing

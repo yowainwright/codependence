@@ -151,12 +151,11 @@ export const constructPermissiveDepsToUpdateList = (
   return Object.entries(dep)
     .filter(([name]) => !codependencies.includes(name))
     .map(([name, version]) => {
-      const { bumpCharacter } = constructVersionTypes(version);
       return {
         name,
         actual: version,
         exact: "latest",
-        expected: bumpCharacter ? `${bumpCharacter}latest` : "latest",
+        expected: "latest",
       };
     });
 };
@@ -281,15 +280,18 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
 
   let depList, devDepList, peerDepList;
 
-  if (permissive && codependencies) {
-    depList = constructPermissiveDepsToUpdateList(dependencies, codependencies);
+  if (permissive) {
+    depList = constructPermissiveDepsToUpdateList(
+      dependencies,
+      codependencies || [],
+    );
     devDepList = constructPermissiveDepsToUpdateList(
       devDependencies,
-      codependencies,
+      codependencies || [],
     );
     peerDepList = constructPermissiveDepsToUpdateList(
       peerDependencies,
-      codependencies,
+      codependencies || [],
     );
   } else {
     depList = constructDepsToUpdateList(dependencies, versionMap);
@@ -447,16 +449,24 @@ export const checkFiles = async ({
 }: CheckFiles): Promise<void> => {
   try {
     const files = glob(matchers, { cwd: rootDir, ignore });
-    if (!codependencies) throw '"codependencies" are required';
-    const versionMap = await constructVersionMap({
-      codependencies,
-      debug,
-      yarnConfig,
-      isTesting,
-    });
-    const depNames = codependencies
-      .map((item) => (typeof item === "string" ? item : Object.keys(item)[0]))
-      .filter(Boolean);
+    if (!codependencies && !permissive) {
+      throw '"codependencies" are required (unless using permissive mode)';
+    }
+
+    let versionMap = {};
+    let depNames: string[] = [];
+
+    if (codependencies && codependencies.length > 0) {
+      versionMap = await constructVersionMap({
+        codependencies,
+        debug,
+        yarnConfig,
+        isTesting,
+      });
+      depNames = codependencies
+        .map((item) => (typeof item === "string" ? item : Object.keys(item)[0]))
+        .filter(Boolean);
+    }
 
     checkMatches({
       versionMap,

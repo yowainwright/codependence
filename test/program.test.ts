@@ -333,7 +333,7 @@ describe("Action Function Unit Tests", () => {
     expect(mockLogger).toHaveBeenCalledWith({
       type: "error",
       section: "cli:error",
-      message: '"codependencies" is required',
+      message: '"codependencies" is required (unless using permissive mode)',
     });
   });
 
@@ -400,7 +400,7 @@ describe("Action Function Unit Tests", () => {
 });
 
 describe("InitAction Function Unit Tests", () => {
-  test("initAction => creates .codependencerc with all dependencies", async () => {
+  test("initAction => creates .codependencerc with permissive mode by default", async () => {
     existsSync.mockImplementation((path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
@@ -414,15 +414,22 @@ describe("InitAction Function Unit Tests", () => {
       }),
     );
 
-    mockPrompt.mockResolvedValueOnce({
-      configType: "all",
-    });
+    mockPrompt
+      .mockResolvedValueOnce({
+        managementMode: "permissive",
+      })
+      .mockResolvedValueOnce({
+        pinnedDeps: [],
+      })
+      .mockResolvedValueOnce({
+        outputLocation: "rc",
+      });
 
     await initAction();
 
     expect(writeFileSync).toHaveBeenCalledWith(
       ".codependencerc",
-      expect.stringContaining('"codependencies"'),
+      expect.stringContaining('"permissive"'),
     );
   });
 
@@ -434,7 +441,8 @@ describe("InitAction Function Unit Tests", () => {
     expect(mockLogger).toHaveBeenCalledWith({
       type: "warn",
       section: "init",
-      message: ".codependencerc already exists. Skipping initialization.",
+      message:
+        "Codependence configuration already exists. Skipping initialization.",
     });
     expect(writeFileSync).not.toHaveBeenCalled();
   });
@@ -478,7 +486,7 @@ describe("InitAction Function Unit Tests", () => {
     });
   });
 
-  test("initAction => creates .codependencerc with selected dependencies", async () => {
+  test("initAction => creates .codependencerc with selected dependencies in permissive mode", async () => {
     existsSync.mockImplementation((path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
@@ -494,10 +502,10 @@ describe("InitAction Function Unit Tests", () => {
 
     mockPrompt
       .mockResolvedValueOnce({
-        configType: "select",
+        managementMode: "permissive",
       })
       .mockResolvedValueOnce({
-        selectedDeps: ["lodash", "typescript"],
+        pinnedDeps: ["lodash", "typescript"],
       })
       .mockResolvedValueOnce({
         outputLocation: "rc",
@@ -507,11 +515,11 @@ describe("InitAction Function Unit Tests", () => {
 
     expect(writeFileSync).toHaveBeenCalledWith(
       ".codependencerc",
-      expect.stringContaining('"codependencies"'),
+      expect.stringContaining('"permissive"'),
     );
   });
 
-  test("initAction => creates config in package.json", async () => {
+  test("initAction => creates config in package.json in permissive mode", async () => {
     existsSync.mockImplementation((path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
@@ -529,10 +537,10 @@ describe("InitAction Function Unit Tests", () => {
 
     mockPrompt
       .mockResolvedValueOnce({
-        configType: "select",
+        managementMode: "permissive",
       })
       .mockResolvedValueOnce({
-        selectedDeps: ["lodash", "typescript"],
+        pinnedDeps: ["lodash"],
       })
       .mockResolvedValueOnce({
         outputLocation: "package",
@@ -561,23 +569,27 @@ describe("InitAction Function Unit Tests", () => {
 
     mockPrompt
       .mockResolvedValueOnce({
-        configType: "select",
+        managementMode: "permissive",
       })
       .mockResolvedValueOnce({
-        selectedDeps: [],
+        pinnedDeps: [],
       })
       .mockResolvedValueOnce({
-        outputLocation: "rc", // This prompt shouldn't be reached but mock it anyway
+        outputLocation: "rc",
       });
 
     await initAction();
 
-    expect(mockLogger).toHaveBeenCalledWith({
+    // In permissive mode with no dependencies selected, it should still create config
+    expect(writeFileSync).toHaveBeenCalledWith(
+      ".codependencerc",
+      expect.stringContaining('"permissive"'),
+    );
+    expect(mockLogger).not.toHaveBeenCalledWith({
       type: "info",
       section: "init",
       message: "No dependencies selected. Skipping initialization.",
     });
-    expect(writeFileSync).not.toHaveBeenCalled();
   });
 
   test("initAction => non-interactive mode with rc type", async () => {

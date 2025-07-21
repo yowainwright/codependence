@@ -52,7 +52,9 @@ export async function action(options: Options = {}): Promise<void> {
   if (isTestingAction) return updatedOptions;
 
   try {
-    if (!updatedOptions.codependencies) throw '"codependencies" is required';
+    if (!updatedOptions.codependencies && !updatedOptions.permissive) {
+      throw '"codependencies" is required (unless using permissive mode)';
+    }
     const spinner = ora(
       `🤼‍♀️ ${gradient.teen(`codependence`)} wrestling...\n`,
     ).start();
@@ -78,12 +80,24 @@ export async function initAction(
     const rcPath = ".codependencerc";
     const packageJsonPath = "package.json";
     const hasConfig = existsSync(rcPath);
-    if (hasConfig) {
+    const hasPackageJsonConfig = (() => {
+      if (!existsSync(packageJsonPath)) return false;
+      try {
+        const content = readFileSync(packageJsonPath, "utf8");
+        const packageJson = JSON.parse(content);
+        return !!packageJson.codependence;
+      } catch {
+        return false;
+      }
+    })();
+
+    if (hasConfig || hasPackageJsonConfig) {
       spinner.stop();
       logger({
         type: "warn",
         section: "init",
-        message: ".codependencerc already exists. Skipping initialization.",
+        message:
+          "Codependence configuration already exists. Skipping initialization.",
       });
       return;
     }
@@ -112,58 +126,96 @@ export async function initAction(
       throw new Error("No dependencies found in package.json");
     }
 
-    let selectedDeps: string[] = [];
+    spinner.stop();
+
+    console.log(`\n🤼‍♀️ Welcome to ${gradient.teen("Codependence")} setup!\n`);
+    console.log(
+      "Codependence helps you manage dependency versions in your project.\n",
+    );
+
+    let pinnedDeps: string[] = [];
     let outputType: "rc" | "package" = "rc";
+    let usePermissive = true;
 
     if (type) {
-      selectedDeps = Object.keys(allDeps);
+      pinnedDeps = Object.keys(allDeps);
       outputType = type === "package" ? "package" : "rc";
+      usePermissive = false;
     } else {
-      const { configType } = await inquirer.prompt([
+      const { managementMode } = await inquirer.prompt([
         {
           type: "list",
-          name: "configType",
-          message: "How would you like to configure codependence?",
+          name: "managementMode",
+          message: "How would you like to manage your dependencies?",
           choices: [
-            { name: "Set specific dependencies to pin", value: "select" },
-            { name: "Pin all dependencies", value: "all" },
+            {
+              name: "🚀 Permissive mode (recommended) - Update all dependencies to latest, except those you want to pin",
+              value: "permissive",
+            },
+            {
+              name: "🔒 Pin all dependencies - Keep all dependencies at their current versions",
+              value: "all",
+            },
           ],
+          default: "permissive",
         },
       ]);
 
-      if (configType === "all") {
-        selectedDeps = Object.keys(allDeps);
-      } else {
-        const { selectedDeps: userSelectedDeps } = await inquirer.prompt([
+      if (managementMode === "permissive") {
+        usePermissive = true;
+        console.log(
+          "\n📝 In permissive mode, you'll select dependencies to PIN (keep at current version).",
+        );
+        console.log(
+          "   All other dependencies will be updated to their latest versions.\n",
+        );
+
+        const { pinnedDeps: userPinnedDeps } = await inquirer.prompt([
           {
             type: "checkbox",
-            name: "selectedDeps",
-            message: "Select dependencies to pin their versions:",
+            name: "pinnedDeps",
+            message:
+              "Select dependencies to PIN at their current versions (others will update to latest):",
             choices: Object.keys(allDeps).map((dep) => ({
-              name: `${dep} (${allDeps[dep]})`,
+              name: `${dep} (currently: ${allDeps[dep]})`,
               value: dep,
             })),
           },
         ]);
-        selectedDeps = userSelectedDeps;
+        pinnedDeps = userPinnedDeps;
 
+        if (pinnedDeps.length === 0) {
+          console.log(
+            "\n✅ Great! All dependencies will be updated to latest versions.",
+          );
+        }
+      } else {
+        // Pin all dependencies mode
+        usePermissive = false;
+        pinnedDeps = Object.keys(allDeps);
+        console.log(
+          "\n🔒 All dependencies will be pinned at their current versions.",
+        );
+      }
+
+      if (pinnedDeps.length > 0 || managementMode === "permissive") {
         const { outputLocation } = await inquirer.prompt([
           {
             type: "list",
             name: "outputLocation",
             message: "Where would you like to save the configuration?",
             choices: [
-              { name: ".codependencerc", value: "rc" },
+              { name: ".codependencerc (recommended)", value: "rc" },
               { name: "package.json", value: "package" },
             ],
+            default: "rc",
           },
         ]);
         outputType = outputLocation;
       }
     }
 
-    if (selectedDeps.length === 0) {
-      spinner.stop();
+    if (pinnedDeps.length === 0 && !usePermissive) {
       logger({
         type: "info",
         section: "init",
@@ -173,8 +225,11 @@ export async function initAction(
     }
 
     const config: CodependenceConfig = {
-      codependencies: selectedDeps,
+      ...(pinnedDeps.length > 0 ? { codependencies: pinnedDeps } : {}),
+      ...(usePermissive ? { permissive: true } : {}),
     };
+
+    const spinner2 = ora("Creating configuration...").start();
 
     if (outputType === "package") {
       const updatedPackageJson = {
@@ -185,21 +240,30 @@ export async function initAction(
         packageJsonPath,
         JSON.stringify(updatedPackageJson, null, 2),
       );
-      logger({
-        type: "info",
-        section: "init",
-        message: "Added codependence configuration to package.json",
-      });
+      spinner2.succeed("Added codependence configuration to package.json");
     } else {
       writeFileSync(rcPath, JSON.stringify(config, null, 2));
-      logger({
-        type: "info",
-        section: "init",
-        message: `Created .codependencerc with ${selectedDeps.length === Object.keys(allDeps).length ? "all" : "selected"} dependencies`,
-      });
+      spinner2.succeed("Created .codependencerc configuration file");
     }
 
-    spinner.succeed(`🤼‍♀️ ${gradient.teen(`codependence`)} initialized!`);
+    console.log(`\n🎉 ${gradient.teen("Codependence")} setup complete!\n`);
+
+    if (usePermissive) {
+      console.log("📋 Next steps:");
+      console.log("   • Run `codependence --update` to update dependencies");
+      if (pinnedDeps.length > 0) {
+        console.log(
+          `   • These dependencies will stay pinned: ${pinnedDeps.join(", ")}`,
+        );
+      }
+      console.log(
+        "   • All other dependencies will update to latest versions\n",
+      );
+    } else {
+      console.log("📋 Next steps:");
+      console.log("   • Run `codependence` to check dependency versions");
+      console.log("   • Run `codependence --update` to update dependencies\n");
+    }
   } catch (err) {
     spinner.stop();
     logger({
@@ -234,14 +298,21 @@ program
 
 program
   .command("init [type]")
-  .description("Initialize codependence configuration interactively")
+  .description(
+    "Initialize codependence configuration with permissive mode by default",
+  )
   .addHelpText(
     "after",
     `
-    Non-interactive types:
-      rc          Create .codependencerc file with all dependencies
-      package     Add configuration to package.json with all dependencies
-      default     Create .codependencerc with all dependencies (same as rc)
+    Interactive mode (recommended):
+      - Sets up permissive mode by default (update all to latest, pin specific ones)
+      - Allows you to choose which dependencies to pin
+      - Creates .codependencerc or updates package.json
+      
+    Non-interactive types (legacy):
+      rc          Create .codependencerc file with all dependencies pinned
+      package     Add configuration to package.json with all dependencies pinned
+      default     Create .codependencerc with all dependencies pinned (same as rc)
   `,
   )
   .action(initAction);
