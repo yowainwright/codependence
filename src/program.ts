@@ -1,5 +1,3 @@
-import { writeConsoleMsgs } from "./logger/index";
-
 import { program } from "commander";
 import { cosmiconfigSync } from "cosmiconfig";
 import ora from "ora";
@@ -222,11 +220,7 @@ export async function initAction(
     }
 
     if (pinnedDeps.length === 0 && !usePermissive) {
-      logger({
-        type: "info",
-        section: "init",
-        message: "No dependencies selected. Skipping initialization.",
-      });
+      logger.info("No dependencies selected. Skipping initialization.", "init");
       return;
     }
 

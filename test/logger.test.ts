@@ -166,7 +166,7 @@ describe("CodependenceLogger", () => {
       );
 
       const logCall = consoleSpy.log.mock.calls[0][0];
-      const parsedLog = JSON.parse(logCall);
+      const parsedLog = JSON.parse(logCall as string);
       expect(parsedLog.level).toBe("info");
       expect(parsedLog.message).toBe("Test message");
       expect(parsedLog.section).toBe("test-section");
