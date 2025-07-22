@@ -389,7 +389,7 @@ If there is a `.npmrc` file, there is no issue with **Codependence** monitoring 
 
 This project uses:
 
-- Node.js 24.0.0
+- Node.js 18.0.0+
 - pnpm 10.12.4
 
 We use [mise](https://mise.jdx.dev/) to manage tool versions. If you have mise installed, it will automatically use the correct versions of Node.js and pnpm.
@@ -414,8 +414,8 @@ pnpm install
 ### Setup without mise
 
 ```sh
-# Install Node.js 24.0.0
-nvm install 24.0.0
+# Install Node.js 18.0.0+
+nvm install 18
 
 # Install pnpm 10.12.4
 npm install -g pnpm@10.12.4

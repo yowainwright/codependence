@@ -3,7 +3,7 @@ import validatePackageName from "validate-npm-package-name";
 import { execa } from "execa";
 import fg from "fast-glob";
 const { sync: glob } = fg;
-import { logger, writeConsoleMsgs } from "./utils";
+import { logger, writeConsoleMsgs } from "../logger";
 import {
   CheckFiles,
   ConstructVersionMapOptions,
@@ -69,17 +69,16 @@ export const constructVersionMap = async ({
         }
       } catch (err) {
         if (debug)
-          logger({
-            type: "error",
-            section: `constructVersionMap`,
-            message: (err as string).toString(),
-            isDebugging: debug,
-          });
-        logger({
-          type: "error",
-          section: `constructVersionMap`,
-          message: `there was an error retrieving ${item}`,
-        });
+          logger.debug(
+            (err as string).toString(),
+            undefined,
+            "constructVersionMap",
+          );
+        logger.error(
+          `there was an error retrieving ${item}`,
+          undefined,
+          "constructVersionMap",
+        );
         console.error(
           `🤼‍♀️ => Is ☝️ a private package? Does that name look correct? 🧐`,
         );
@@ -241,16 +240,15 @@ export const constructJson = <T extends PackageJSON>(
   const devDependencies = constructDeps(json, "devDependencies", devDepList);
   const peerDependencies = constructDeps(json, "peerDependencies", peerDepList);
   if (isDebugging) {
-    logger({
-      type: "debug",
-      section: "constructJson",
-      isDebugging,
-    });
-    console.debug({
-      dependencies,
-      devDependencies,
-      peerDependencies,
-    });
+    logger.debug(
+      "constructJson debug info",
+      {
+        dependencies,
+        devDependencies,
+        peerDependencies,
+      },
+      "constructJson",
+    );
   }
   return {
     ...json,
@@ -299,16 +297,15 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
     peerDepList = constructDepsToUpdateList(peerDependencies, versionMap);
   }
   if (isDebugging) {
-    logger({
-      type: "debug",
-      isDebugging,
-      section: "checkDependenciesForVersion",
-    });
-    console.debug({
-      depList,
-      devDepList,
-      peerDepList,
-    });
+    logger.debug(
+      "checkDependenciesForVersion debug info",
+      {
+        depList,
+        devDepList,
+        peerDepList,
+      },
+      "checkDependenciesForVersion",
+    );
   }
   if (!depList.length && !devDepList.length && !peerDepList.length) {
     return false;
@@ -327,11 +324,7 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
     if (!isTesting) {
       writeFileSync(path, JSON.stringify(newJson, null, 2).concat("\n"));
     } else {
-      logger({
-        type: "info",
-        section: "checkDependenciesForVersion:test-writeFileSync:",
-        message: path,
-      });
+      logger.info(`test-writeFileSync: ${path}`, "checkDependenciesForVersion");
     }
   }
   return true;
@@ -358,6 +351,8 @@ export const checkMatches = ({
   isUpdating = false,
   isDebugging = false,
   isSilent = true,
+  isVerbose = false,
+  isQuiet = false,
   isCLI = false,
   isTesting = false,
   permissive = false,
@@ -381,6 +376,8 @@ export const checkMatches = ({
           isUpdating,
           isDebugging,
           isSilent,
+          isVerbose,
+          isQuiet,
           isTesting,
           permissive,
         },
@@ -389,33 +386,19 @@ export const checkMatches = ({
     );
 
   if (isDebugging) {
-    logger({
-      type: "debug",
-      section: "checkMatches",
-      isDebugging,
-      message: "see updates",
-    });
-    console.debug({ packagesNeedingUpdate });
+    logger.debug("see updates", { packagesNeedingUpdate }, "checkMatches");
   }
 
   const isOutOfDate = packagesNeedingUpdate.length > 0;
   if (isOutOfDate && !isUpdating) {
-    logger({
-      type: "error",
-      message: "Dependencies are not correct. 😞",
-    });
+    logger.error("Dependencies are not correct. 😞");
     if (isCLI) process.exit(1);
   } else if (isOutOfDate) {
-    logger({
-      type: "info",
-      message:
-        "Dependencies were not correct but should be updated! Check your git status. 😃",
-    });
+    logger.info(
+      "Dependencies were not correct but should be updated! Check your git status. 😃",
+    );
   } else {
-    logger({
-      type: "log",
-      message: "No dependency issues found! 👌",
-    });
+    logger.info("No dependency issues found! 👌");
   }
 };
 
@@ -442,6 +425,8 @@ export const checkFiles = async ({
   update = false,
   debug = false,
   silent = false,
+  verbose = false,
+  quiet = false,
   isCLI = false,
   yarnConfig = false,
   isTesting = false,
@@ -474,6 +459,8 @@ export const checkFiles = async ({
       files,
       isCLI,
       isSilent: silent,
+      isVerbose: verbose,
+      isQuiet: quiet,
       isUpdating: update,
       isDebugging: debug,
       isTesting,
@@ -482,12 +469,7 @@ export const checkFiles = async ({
     });
   } catch (err) {
     if (debug) {
-      logger({
-        type: "error",
-        isDebugging: true,
-        section: "checkFiles",
-        message: (err as string).toString(),
-      });
+      logger.debug((err as string).toString(), undefined, "checkFiles");
     }
   }
 };

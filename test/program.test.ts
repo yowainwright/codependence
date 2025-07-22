@@ -15,7 +15,14 @@ const { existsSync, readFileSync, writeFileSync, mockPrompt, mockLogger } =
     readFileSync: vi.fn(),
     writeFileSync: vi.fn(),
     mockPrompt: vi.fn(),
-    mockLogger: vi.fn(),
+    mockLogger: {
+      configure: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+      verbose: vi.fn(),
+    },
   }));
 
 // Mock fs module
@@ -52,7 +59,7 @@ vi.mock("inquirer", () => ({
 }));
 
 // Mock logger
-vi.mock("../src/scripts/utils", () => ({
+vi.mock("../src/logger", () => ({
   logger: mockLogger,
 }));
 
@@ -77,7 +84,7 @@ vi.mock("cosmiconfig", () => {
 });
 
 // Mock scripts/core
-vi.mock("../src/scripts/core", () => ({
+vi.mock("../src/scripts", () => ({
   script: vi.fn(),
 }));
 
@@ -330,24 +337,24 @@ describe("Action Function Unit Tests", () => {
     });
 
     await action({});
-    expect(mockLogger).toHaveBeenCalledWith({
-      type: "error",
-      section: "cli:error",
-      message: '"codependencies" is required (unless using permissive mode)',
-    });
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      '"codependencies" is required (unless using permissive mode)',
+      undefined,
+      "cli:error",
+    );
   });
 
   test("action => handles script execution error", async () => {
-    const { script } = await import("../src/scripts/core");
+    const { script } = await import("../src/scripts");
     vi.mocked(script).mockRejectedValue(new Error("Script execution failed"));
 
     await action({ codependencies: ["lodash"] });
 
-    expect(mockLogger).toHaveBeenCalledWith({
-      type: "error",
-      section: "cli:error",
-      message: "Error: Script execution failed",
-    });
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      "Error: Script execution failed",
+      undefined,
+      "cli:error",
+    );
   });
 
   test("action => processes all options correctly", async () => {
@@ -438,12 +445,10 @@ describe("InitAction Function Unit Tests", () => {
 
     await initAction();
 
-    expect(mockLogger).toHaveBeenCalledWith({
-      type: "warn",
-      section: "init",
-      message:
-        "Codependence configuration already exists. Skipping initialization.",
-    });
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      "Codependence configuration already exists. Skipping initialization.",
+      "init",
+    );
     expect(writeFileSync).not.toHaveBeenCalled();
   });
 
@@ -456,11 +461,11 @@ describe("InitAction Function Unit Tests", () => {
 
     await initAction();
 
-    expect(mockLogger).toHaveBeenCalledWith({
-      type: "error",
-      section: "cli:error",
-      message: "package.json not found in the current directory",
-    });
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      "package.json not found in the current directory",
+      undefined,
+      "cli:error",
+    );
   });
 
   test("initAction => handles no dependencies found", async () => {
@@ -479,11 +484,11 @@ describe("InitAction Function Unit Tests", () => {
 
     await initAction();
 
-    expect(mockLogger).toHaveBeenCalledWith({
-      type: "error",
-      section: "cli:error",
-      message: "No dependencies found in package.json",
-    });
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      "No dependencies found in package.json",
+      undefined,
+      "cli:error",
+    );
   });
 
   test("initAction => creates .codependencerc with selected dependencies in permissive mode", async () => {
@@ -585,11 +590,10 @@ describe("InitAction Function Unit Tests", () => {
       ".codependencerc",
       expect.stringContaining('"permissive"'),
     );
-    expect(mockLogger).not.toHaveBeenCalledWith({
-      type: "info",
-      section: "init",
-      message: "No dependencies selected. Skipping initialization.",
-    });
+    expect(mockLogger.info).not.toHaveBeenCalledWith(
+      "No dependencies selected. Skipping initialization.",
+      "init",
+    );
   });
 
   test("initAction => non-interactive mode with rc type", async () => {
@@ -696,11 +700,11 @@ describe("InitAction Function Unit Tests", () => {
 
     await initAction();
 
-    expect(mockLogger).toHaveBeenCalledWith({
-      type: "error",
-      section: "cli:error",
-      message: expect.stringContaining("Unexpected token"),
-    });
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      expect.stringContaining("Unexpected token"),
+      undefined,
+      "cli:error",
+    );
   });
 });
 
@@ -760,10 +764,10 @@ describe("Edge Cases and Error Handling", () => {
 
     await initAction("rc");
 
-    expect(mockLogger).toHaveBeenCalledWith({
-      type: "error",
-      section: "cli:error",
-      message: "File write failed",
-    });
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      "File write failed",
+      undefined,
+      "cli:error",
+    );
   });
 });

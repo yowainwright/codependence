@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import * as scripts from "../src/scripts/core";
+import * as scripts from "../../src/scripts";
 const {
   constructVersionMap,
   constructVersionTypes,
@@ -668,13 +668,19 @@ test("checkFiles => with updates", async () => {
 });
 
 test("checkFiles => with no codeps", async () => {
+  const { logger } = await import("../../src/logger");
+  const originalConfig = logger.getConfig();
+  logger.configure({ level: "debug" });
+
   vi.clearAllMocks();
-  const logCheckFilesWithNoCoDeps = vi.spyOn(console, "error");
+  const logCheckFilesWithNoCoDeps = vi.spyOn(console, "debug");
   const codependencies = null;
   const rootDir = "./test/";
   const files = ["test-fail-package.json"];
   await checkFiles({ codependencies, rootDir, files, debug: true } as any);
   expect(logCheckFilesWithNoCoDeps).toBeCalled();
+
+  logger.configure(originalConfig);
 });
 
 test("checkFiles => with permissive mode only", async () => {

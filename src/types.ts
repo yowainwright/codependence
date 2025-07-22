@@ -16,6 +16,8 @@ export type Options = {
   update?: boolean;
   debug?: boolean;
   silent?: boolean;
+  verbose?: boolean;
+  quiet?: boolean;
   searchPath?: string;
   yarnConfig?: boolean;
   permissive?: boolean;
@@ -31,6 +33,8 @@ export type CheckFiles = {
   update?: boolean;
   debug?: boolean;
   silent?: boolean;
+  verbose?: boolean;
+  quiet?: boolean;
   isCLI?: boolean;
   isTesting?: boolean;
   yarnConfig?: boolean;
@@ -41,6 +45,8 @@ export type CheckDependenciesForVersionOptions = {
   isUpdating?: boolean;
   isDebugging?: boolean;
   isSilent?: boolean;
+  isVerbose?: boolean;
+  isQuiet?: boolean;
   isTesting?: boolean;
   permissive?: boolean;
 };
@@ -52,6 +58,8 @@ export type CheckMatches = {
   isUpdating?: boolean;
   isDebugging?: boolean;
   isSilent?: boolean;
+  isVerbose?: boolean;
+  isQuiet?: boolean;
   isCLI?: boolean;
   isTesting?: boolean;
 };
@@ -82,15 +90,6 @@ export type DepsToUpdate = {
   depList: DepToUpdateItem[];
   devDepList: DepToUpdateItem[];
   peerDepList: DepToUpdateItem[];
-};
-
-export type LoggerParams = {
-  type: "info" | "warn" | "error" | "log" | string;
-  section?: string;
-  message?: string;
-  err?: string;
-  isDebugging?: boolean;
-  obj?: any;
 };
 
 export type ConstructVersionMapOptions = {

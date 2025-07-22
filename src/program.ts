@@ -1,13 +1,11 @@
-#!/usr/bin/env node
-
 import { program } from "commander";
 import { cosmiconfigSync } from "cosmiconfig";
 import ora from "ora";
 import gradient from "gradient-string";
 import inquirer from "inquirer";
 import { readFileSync, writeFileSync, existsSync } from "fs";
-import { logger } from "./scripts/utils";
-import { script } from "./scripts/core";
+import { logger } from "./logger";
+import { script } from "./scripts";
 import {
   Options,
   ConfigResult,
@@ -16,6 +14,18 @@ import {
 } from "./types";
 
 export async function action(options: Options = {}): Promise<void> {
+  // Configure logger based on CLI flags
+  const loggerConfig = {
+    level: options.verbose
+      ? ("verbose" as const)
+      : options.debug
+        ? ("debug" as const)
+        : ("info" as const),
+    silent: options.quiet || false,
+    structured: false,
+  };
+  logger.configure(loggerConfig);
+
   // capture config data
   const explorer = cosmiconfigSync("codependence");
   const result = options?.searchPath
@@ -61,11 +71,7 @@ export async function action(options: Options = {}): Promise<void> {
     await script(updatedOptions);
     spinner.succeed(`🤼‍♀️ ${gradient.teen(`codependence`)} pinned!`);
   } catch (err) {
-    logger({
-      type: "error",
-      section: "cli:error",
-      message: (err as string).toString(),
-    });
+    logger.error((err as string).toString(), undefined, "cli:error");
   }
 }
 
@@ -93,12 +99,10 @@ export async function initAction(
 
     if (hasConfig || hasPackageJsonConfig) {
       spinner.stop();
-      logger({
-        type: "warn",
-        section: "init",
-        message:
-          "Codependence configuration already exists. Skipping initialization.",
-      });
+      logger.warn(
+        "Codependence configuration already exists. Skipping initialization.",
+        "init",
+      );
       return;
     }
 
@@ -216,11 +220,7 @@ export async function initAction(
     }
 
     if (pinnedDeps.length === 0 && !usePermissive) {
-      logger({
-        type: "info",
-        section: "init",
-        message: "No dependencies selected. Skipping initialization.",
-      });
+      logger.info("No dependencies selected. Skipping initialization.", "init");
       return;
     }
 
@@ -266,11 +266,11 @@ export async function initAction(
     }
   } catch (err) {
     spinner.stop();
-    logger({
-      type: "error",
-      section: "cli:error",
-      message: (err as Error).message || (err as string).toString(),
-    });
+    logger.error(
+      (err as Error).message || (err as string).toString(),
+      undefined,
+      "cli:error",
+    );
   }
 }
 
@@ -286,6 +286,8 @@ program
   .option("-i, --ignore [ignore...]", "ignore glob pattern")
   .option("--debug", "enable debugging")
   .option("--silent", "enable mainly silent logging")
+  .option("-v, --verbose", "enable verbose logging (shows debug info)")
+  .option("-q, --quiet", "suppress all output except errors")
   .option("--cds, --codependencies [codependencies...]", "deps to check")
   .option("-c, --config <config>", "path to a config file")
   .option("-s, --searchPath <searchPath>", "path to do a config file search")
@@ -308,7 +310,7 @@ program
       - Sets up permissive mode by default (update all to latest, pin specific ones)
       - Allows you to choose which dependencies to pin
       - Creates .codependencerc or updates package.json
-      
+
     Non-interactive types (legacy):
       rc          Create .codependencerc file with all dependencies pinned
       package     Add configuration to package.json with all dependencies pinned

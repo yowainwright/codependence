@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /* eslint-disable @typescript-eslint/no-unused-expressions */
-import { program } from './program'
-import { script } from './scripts/core'
+import { program } from "./program";
+import { script } from "./scripts";
 
-program
+program;
 
-export { script }
+export { script };
