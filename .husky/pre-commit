@@ -1,2 +1,2 @@
 #!/usr/bin/env sh
-pnpm run pre-commit
+bun run pre-commit

@@ -7,7 +7,17 @@ Codedependence can be used as a standalone CLI, in npm scripts or, secondarily, 
 #### Install
 
 ```bash
+# Using npm
 npm install codependence --save-dev
+
+# Using bun
+bun add codependence --dev
+
+# Using yarn
+yarn add codependence --dev
+
+# Using pnpm
+pnpm add codependence --save-dev
 ```
 
 #### Quick setup
@@ -27,7 +37,7 @@ Or use it with a config in the root package.json file
   },
   "scripts": {
     "update-codependencies": "codependence --update",
-    "prepare": "npm run update-codependencies"
+    "prepare": "bun run update-codependencies"
   }
 }
 ```

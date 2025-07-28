@@ -1,20 +1,20 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import gfm from 'remark-gfm'
-import slug from 'rehype-slug'
-import rehypePrettyCode from 'rehype-pretty-code'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import gfm from "remark-gfm";
+import slug from "rehype-slug";
+import rehypePrettyCode from "rehype-pretty-code";
 
 export default defineConfig(async () => {
-  const mdx = await import('@mdx-js/rollup')
+  const mdx = await import("@mdx-js/rollup");
   return {
-    base: '/codependence/',
-    root: '.',
+    base: "/codependence/",
+    root: ".",
     plugins: [
       react({
-        jsxRuntime: 'classic',
+        jsxRuntime: "classic",
       }),
       mdx.default({
-        providerImportSource: '@mdx-js/react',
+        providerImportSource: "@mdx-js/react",
         remarkPlugins: [gfm],
         rehypePlugins: [
           slug,
@@ -22,21 +22,21 @@ export default defineConfig(async () => {
             rehypePrettyCode,
             {
               theme: {
-                light: 'github-light',
-                dark: 'dracula',
+                light: "github-light",
+                dark: "dracula",
               },
               keepBackground: true,
               onVisitLine(node) {
                 // Prevent lines from collapsing in `display: grid` mode
                 if (node.children.length === 0) {
-                  node.children = [{ type: 'text', value: ' ' }]
+                  node.children = [{ type: "text", value: " " }];
                 }
               },
               onVisitHighlightedLine(node) {
-                node.properties.className.push('highlighted')
+                node.properties.className.push("highlighted");
               },
               onVisitHighlightedWord(node) {
-                node.properties.className = ['word']
+                node.properties.className = ["word"];
               },
             },
           ],
@@ -44,7 +44,7 @@ export default defineConfig(async () => {
       }),
     ],
     build: {
-      outDir: './dist',
+      outDir: "./dist",
     },
-  }
-})
+  };
+});

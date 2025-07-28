@@ -390,9 +390,9 @@ If there is a `.npmrc` file, there is no issue with **Codependence** monitoring 
 This project uses:
 
 - Node.js 18.0.0+
-- pnpm 10.12.4
+- Bun 1.2.9+
 
-We use [mise](https://mise.jdx.dev/) to manage tool versions. If you have mise installed, it will automatically use the correct versions of Node.js and pnpm.
+We use [mise](https://mise.jdx.dev/) to manage tool versions. If you have mise installed, it will automatically use the correct versions of Node.js and bun.
 
 ### Setup with mise
 
@@ -408,7 +408,7 @@ cd codependence
 mise install
 
 # Install dependencies
-pnpm install
+bun install
 ```
 
 ### Setup without mise
@@ -417,11 +417,11 @@ pnpm install
 # Install Node.js 18.0.0+
 nvm install 18
 
-# Install pnpm 10.12.4
-npm install -g pnpm@10.12.4
+# Install bun
+curl -fsSL https://bun.sh/install | bash
 
 # Install dependencies
-pnpm install
+bun install
 ```
 
 ## Contributing

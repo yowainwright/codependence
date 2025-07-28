@@ -1,34 +1,42 @@
 # Multi-stage Dockerfile for testing codependence init functionality
 FROM node:24-slim AS builder
 
+# Install curl, unzip and other necessary tools
+RUN apt-get update && apt-get install -y curl unzip && rm -rf /var/lib/apt/lists/*
+
 # Set working directory
 WORKDIR /app
 
 # Copy package files
-COPY ../package.json ./
-COPY ../pnpm-lock.yaml ./
+COPY package.json ./
+COPY bun.lock ./
+COPY bunfig.toml ./
 
-# Install pnpm
-RUN npm install -g pnpm@10.12.4
+# Copy workspace directories (needed for bun install with workspaces)
+COPY page/ ./page/
 
-# Set environment to disable automatic Node switching
-ENV PNPM_NODE_VERSION=24
-ENV SKIP_NODE_VERSION_CHECK=1
+# Install bun
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:$PATH"
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN bun install --frozen-lockfile
 
 # Copy source code
-COPY .. .
+COPY . .
 
 # Build the project normally
-RUN pnpm run build-dist
+RUN bun run build-dist
 
 # Test stage - clean environment for testing
 FROM node:24-slim AS test
 
-# Install pnpm globally
-RUN npm install -g pnpm@10.12.4
+# Install curl, unzip and other necessary tools
+RUN apt-get update && apt-get install -y curl unzip && rm -rf /var/lib/apt/lists/*
+
+# Install bun globally
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:$PATH"
 
 # Create a non-root user for testing
 RUN groupadd -g 1001 testuser && \
@@ -40,10 +48,12 @@ WORKDIR /test
 # Copy built distribution and necessary files from builder stage
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=builder /app/bun.lock ./bun.lock
+COPY --from=builder /app/bunfig.toml ./bunfig.toml
+COPY --from=builder /app/page ./page
 
 # Install only production dependencies (skip prepare scripts)
-RUN pnpm install --production --frozen-lockfile --ignore-scripts
+RUN bun install --production --frozen-lockfile --ignore-scripts
 
 # Copy test fixtures
 COPY e2e/fixtures/* ./

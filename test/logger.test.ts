@@ -1,28 +1,28 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, jest } from "bun:test";
 import { logger, legacyLogger, writeConsoleMsgs } from "../src/logger";
 import type { LogLevel } from "../src/logger";
 
 describe("CodependenceLogger", () => {
   let consoleSpy: {
-    log: ReturnType<typeof vi.spyOn>;
-    error: ReturnType<typeof vi.spyOn>;
-    warn: ReturnType<typeof vi.spyOn>;
-    debug: ReturnType<typeof vi.spyOn>;
+    log: jest.Mock<any>;
+    error: jest.Mock<any>;
+    warn: jest.Mock<any>;
+    debug: jest.Mock<any>;
   };
 
   beforeEach(() => {
     consoleSpy = {
-      log: vi.spyOn(console, "log").mockImplementation(() => {}),
-      error: vi.spyOn(console, "error").mockImplementation(() => {}),
-      warn: vi.spyOn(console, "warn").mockImplementation(() => {}),
-      debug: vi.spyOn(console, "debug").mockImplementation(() => {}),
+      log: jest.spyOn(console, "log").mockImplementation(() => {}),
+      error: jest.spyOn(console, "error").mockImplementation(() => {}),
+      warn: jest.spyOn(console, "warn").mockImplementation(() => {}),
+      debug: jest.spyOn(console, "debug").mockImplementation(() => {}),
     };
 
     logger.configure({ level: "info", silent: false, structured: false });
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    jest.restoreAllMocks();
   });
 
   describe("configuration", () => {

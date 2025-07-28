@@ -26,34 +26,34 @@
     "clean": "turbo run clean-dist",
     "cmd:node:test-fail-run": "node dist/index.js --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug",
     "cmd:node:test-pass-run": "node dist/index.js --config './test/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './test/' --debug",
-    "cmd:tsx:test-search": "tsx src/index.ts --rootDir './test/' --debug --searchPath './test/.codependencerc' --isTestingCLI",
-    "cmd:tsx:test-fail-run": "tsx src/index.ts --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug",
-    "cmd:tsx:test-pass-run": "tsx src/index.ts --config './test/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './test/' --debug",
-    "cmd:tsx:test-update-run": "tsx src/index.ts --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug --isTesting",
-    "cmd:tsx:test-codependencies-cli": "tsx src/index.ts -c './test/test-fail-package.json' --files 'test-fail-package.json' -cds 'lodash' '{ \"fs-extra\": \"10.0.1\" }' --rootDir './test/' --debug --isTesting",
+    "cmd:bun:test-search": "bun src/index.ts --rootDir './test/' --debug --searchPath './test/.codependencerc' --isTestingCLI",
+    "cmd:bun:test-fail-run": "bun src/index.ts --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug",
+    "cmd:bun:test-pass-run": "bun src/index.ts --config './test/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './test/' --debug",
+    "cmd:bun:test-update-run": "bun src/index.ts --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug --isTesting",
+    "cmd:bun:test-codependencies-cli": "bun src/index.ts -c './test/test-fail-package.json' --files 'test-fail-package.json' -cds 'lodash' '{ \"fs-extra\": \"10.0.1\" }' --rootDir './test/' --debug --isTesting",
     "commit": "git-cz",
     "commit-msg": "commitlint --edit $1",
-    "coverage": "vitest run --coverage",
-    "dev": "pnpm --filter @codependence/app run app-dev",
-    "format-src": "pnpm dlx prettier --write src",
-    "format-test": "pnpm dlx prettier --write test",
-    "format-app": "pnpm dlx prettier --write page/app",
+    "coverage": "bun test --coverage",
+    "dev": "cd page/app && bun run app-dev",
+    "format-src": "bun x prettier --write src",
+    "format-test": "bun x prettier --write test",
+    "format-app": "bun x prettier --write page/app",
     "format": "turbo run format-src && turbo run format-test && turbo run format-app",
     "lint": "turbo run lint-src",
-    "lint-fix": "pnpm dlx oxlint . --fix",
-    "lint-src": "pnpm dlx oxlint src",
-    "lint:fix": "pnpm dlx oxlint src/**/*.ts --fix",
+    "lint-fix": "bun x oxlint . --fix",
+    "lint-src": "bun x oxlint src",
+    "lint:fix": "bun x oxlint src/**/*.ts --fix",
     "pre-commit": "lint-staged",
     "prepare": "is-ci || husky install",
     "prepublishOnly": "npm run clean-dist && npm run build-dist",
-    "preview": "pnpm --filter @codependence/app app-preview",
+    "preview": "cd page/app && bun run app-preview",
     "release": "release-it",
-    "setup": "pnpm install && pnpm build",
+    "setup": "bun install && bun run build",
     "test": "turbo run test-src",
-    "test-src": "vitest run",
+    "test-src": "bun test",
     "typecheck": "turbo run typecheck-src",
     "typecheck-src": "tsc --noEmit",
-    "update": "echo 'temp default' && pnpm update"
+    "update": "echo 'temp default' && bun update"
   },
   "author": "Jeff Wainwright <yowainwright@gmail.com> (https://jeffry.in)",
   "license": "MIT",
@@ -79,6 +79,7 @@
     "@types/validate-npm-package-name": "^4.0.2",
     "@typescript-eslint/eslint-plugin": "^8.35.1",
     "@typescript-eslint/parser": "^8.35.1",
+    "bun-types": "^1.2.19",
     "c8": "^10.1.3",
     "cross-env": "^7.0.3",
     "eslint": "^8.57.1",
@@ -95,13 +96,11 @@
     "tslib": "^2.8.1",
     "tsup": "^8.5.0",
     "tsutils": "^3.21.0",
-    "tsx": "^4.20.3",
     "turbo": "^2.5.4",
     "type-fest": "^4.41.0",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.35.1",
-    "vite": "^6.3.5",
-    "vitest": "^3.2.4"
+    "vite": "^6.3.5"
   },
   "keywords": [
     "peerDependencies",
@@ -127,11 +126,11 @@
   },
   "lint-staged": {
     "*.ts": [
-      "pnpm dlx oxlint --fix",
-      "pnpm dlx prettier --write"
+      "bun x oxlint --fix",
+      "bun x prettier --write"
     ],
     "*.{json,md}": [
-      "pnpm dlx prettier --write"
+      "bun x prettier --write"
     ]
   },
   "release-it": {
@@ -139,7 +138,10 @@
       "commitMessage": "chore: release %s"
     }
   },
-  "packageManager": "pnpm@10.12.4",
+  "packageManager": "bun@1.2.9",
+  "workspaces": [
+    "page/app"
+  ],
   "engines": {
     "node": ">=18"
   },
@@ -178,13 +180,11 @@
       "tslib",
       "tsup",
       "tsutils",
-      "tsx",
       "turbo",
       "type-fest",
       "typescript",
       "typescript-eslint",
-      "vite",
-      "vitest"
+      "vite"
     ]
   }
 }

@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 import { Divider, Menu } from "react-daisyui";
 import { FaBook, FaTerminal, FaCode, FaCogs, FaUtensils } from "react-icons/fa";
 
@@ -19,7 +19,8 @@ export const SideBar = () => {
         <Link to="/">Codependence</Link>
       </h2>
       <h3 className="font-title text-base-content inline-flex text-sm transition-all duration-200 md:text-3m pl-4">
-        Codependence is a JavaScript utility for checking dependencies to ensure they're up-to-date or match a specified version.
+        Codependence is a JavaScript utility for checking dependencies to ensure
+        they're up-to-date or match a specified version.
       </h3>
       <Divider />
       <div className="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box">
@@ -47,19 +48,29 @@ export const SideBar = () => {
       <Divider />
       <ul className="menu menu-compact">
         <li>
-          <Link to="/usage/"><FaBook /> Basic Usage</Link>
+          <Link to="/usage/">
+            <FaBook /> Basic Usage
+          </Link>
         </li>
         <li>
-          <Link to="/cli/"><FaTerminal /> CLI</Link>
+          <Link to="/cli/">
+            <FaTerminal /> CLI
+          </Link>
         </li>
         <li>
-          <Link to="/node/"><FaCode /> Node</Link>
+          <Link to="/node/">
+            <FaCode /> Node
+          </Link>
         </li>
         <li>
-          <Link to="/options/"><FaCogs /> Options</Link>
+          <Link to="/options/">
+            <FaCogs /> Options
+          </Link>
         </li>
         <li>
-          <Link to="/recipes/"><FaUtensils /> Recipes</Link>
+          <Link to="/recipes/">
+            <FaUtensils /> Recipes
+          </Link>
         </li>
       </ul>
     </Menu>
