@@ -1,6 +1,9 @@
 # Multi-stage Dockerfile for testing codependence init functionality
 FROM node:24-slim AS builder
 
+# Install curl, unzip and other necessary tools
+RUN apt-get update && apt-get install -y curl unzip && rm -rf /var/lib/apt/lists/*
+
 # Set working directory
 WORKDIR /app
 
@@ -8,6 +11,9 @@ WORKDIR /app
 COPY package.json ./
 COPY bun.lock ./
 COPY bunfig.toml ./
+
+# Copy workspace directories (needed for bun install with workspaces)
+COPY page/ ./page/
 
 # Install bun
 RUN curl -fsSL https://bun.sh/install | bash
@@ -25,6 +31,9 @@ RUN bun run build-dist
 # Test stage - clean environment for testing
 FROM node:24-slim AS test
 
+# Install curl, unzip and other necessary tools
+RUN apt-get update && apt-get install -y curl unzip && rm -rf /var/lib/apt/lists/*
+
 # Install bun globally
 RUN curl -fsSL https://bun.sh/install | bash
 ENV PATH="/root/.bun/bin:$PATH"
@@ -41,9 +50,10 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/bun.lock ./bun.lock
 COPY --from=builder /app/bunfig.toml ./bunfig.toml
+COPY --from=builder /app/page ./page
 
 # Install only production dependencies (skip prepare scripts)
-RUN bun install --production --frozen-lockfile
+RUN bun install --production --frozen-lockfile --ignore-scripts
 
 # Copy test fixtures
 COPY e2e/fixtures/* ./
