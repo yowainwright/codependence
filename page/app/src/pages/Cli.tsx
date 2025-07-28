@@ -1,9 +1,9 @@
-import React from 'react'
-import { Docs } from '../components/Docs'
-import Badges from '../content/badges.mdx'
+import React from "react";
+import { Docs } from "../components/Docs";
+import Badges from "../content/badges.mdx";
 
-import Usage from '../content/cli.mdx'
-import Footer from '../content/footer.mdx'
+import Usage from "../content/cli.mdx";
+import Footer from "../content/footer.mdx";
 
 export const Cli = () => (
   <>
@@ -11,4 +11,4 @@ export const Cli = () => (
     <Docs Component={Usage} />
     <Docs Component={Footer} />
   </>
-)
+);

@@ -17,11 +17,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24.x
-      - name: Install pnpm
-        run: npm install -g pnpm@10.9.0
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
       - name: Install dependencies
-        run: pnpm install
-      - run: pnpm build
+        run: bun install
+      - run: bun run build
 
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4.6.3

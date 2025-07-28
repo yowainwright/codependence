@@ -1,4 +1,4 @@
-import { expect, test, vi } from "vitest";
+import { expect, test, jest } from "bun:test";
 import * as scripts from "../../src/scripts";
 const {
   constructVersionMap,
@@ -12,11 +12,11 @@ const {
 } = scripts;
 
 test("constructVersionMap => pass", async () => {
-  const exec = vi.fn(() => ({
+  const exec = jest.fn(() => ({
     stdout: "4.0.0",
     stderr: "",
   })) as any;
-  const validate = vi.fn(() => ({
+  const validate = jest.fn(() => ({
     validForNewPackages: true,
     validForOldPackages: true,
     errors: [],
@@ -30,11 +30,11 @@ test("constructVersionMap => pass", async () => {
 });
 
 test("constructVersionMap => with object in codependencies", async () => {
-  const exec = vi.fn(() => ({
+  const exec = jest.fn(() => ({
     stdout: "4.0.0",
     stderr: "",
   })) as any;
-  const validate = vi.fn(() => ({
+  const validate = jest.fn(() => ({
     validForNewPackages: true,
     validForOldPackages: true,
     errors: [],
@@ -48,11 +48,11 @@ test("constructVersionMap => with object in codependencies", async () => {
 });
 
 test("constructVersionMap => with yarnConfig", async () => {
-  const exec = vi.fn(() => ({
+  const exec = jest.fn(() => ({
     stdout: '{"version":"4.0.0"}',
     stderr: "",
   })) as any;
-  const validate = vi.fn(() => ({
+  const validate = jest.fn(() => ({
     validForNewPackages: true,
     validForOldPackages: true,
     errors: [],
@@ -67,11 +67,11 @@ test("constructVersionMap => with yarnConfig", async () => {
 });
 
 test("constructVersionMap => fail", async () => {
-  const exec = vi.fn(() => ({
+  const exec = jest.fn(() => ({
     stdout: "",
     stderr: "",
   })) as any;
-  const validate = vi.fn(() => ({
+  const validate = jest.fn(() => ({
     validForNewPackages: false,
     validForOldPackages: true,
     errors: ["foo-bop", "foo-beep"],
@@ -86,11 +86,11 @@ test("constructVersionMap => fail", async () => {
 });
 
 test("constructVersionMap => with invalid item type", async () => {
-  const exec = vi.fn(() => ({
+  const exec = jest.fn(() => ({
     stdout: "4.0.0",
     stderr: "",
   })) as any;
-  const validate = vi.fn(() => ({
+  const validate = jest.fn(() => ({
     validForNewPackages: true,
     validForOldPackages: true,
     errors: [],
@@ -547,7 +547,6 @@ test("checkDependenciesForVersion => no updates", () => {
 });
 
 test("checkDependenciesForVersion => no updates", () => {
-  vi.clearAllMocks();
   const versionMap = {
     foo: "1.0.0",
     bar: "1.0.0",
@@ -565,7 +564,6 @@ test("checkDependenciesForVersion => no updates", () => {
 });
 
 test("checkDependenciesForVersion => with isUpdating=true", () => {
-  vi.clearAllMocks();
   const versionMap = {
     foo: "2.0.0",
     bar: "2.0.0",
@@ -584,7 +582,6 @@ test("checkDependenciesForVersion => with isUpdating=true", () => {
 });
 
 test("checkDependenciesForVersion => with no dependencies", () => {
-  vi.clearAllMocks();
   const versionMap = {
     foo: "2.0.0",
     bar: "2.0.0",
@@ -601,7 +598,6 @@ test("checkDependenciesForVersion => with no dependencies", () => {
 });
 
 test("checkDependenciesForVersion => with devDependencies and peerDependencies", () => {
-  vi.clearAllMocks();
   const versionMap = {
     foo: "2.0.0",
     bar: "2.0.0",
@@ -620,8 +616,7 @@ test("checkDependenciesForVersion => with devDependencies and peerDependencies",
 });
 
 test("checkMatches => no updates", () => {
-  vi.clearAllMocks();
-  const logCheckMatchesNoUpdates = vi.spyOn(console, "log");
+  const logCheckMatchesNoUpdates = jest.spyOn(console, "log");
   const versionMap = {
     foo: "1.0.0",
     bar: "1.0.0",
@@ -630,12 +625,12 @@ test("checkMatches => no updates", () => {
   const isTesting = true;
   const files = ["test-pass-package.json"];
   checkMatches({ versionMap, files, isTesting, rootDir });
-  expect(logCheckMatchesNoUpdates).toBeCalled();
+  expect(logCheckMatchesNoUpdates).toHaveBeenCalled();
+  logCheckMatchesNoUpdates.mockRestore();
 });
 
 test("checkMatches => with error", () => {
-  vi.clearAllMocks();
-  const logCheckMatchesWithError = vi.spyOn(console, "error");
+  const logCheckMatchesWithError = jest.spyOn(console, "error");
   const versionMap = {
     lodash: "4.18.0",
     "fs-extra": "5.0.0",
@@ -644,27 +639,28 @@ test("checkMatches => with error", () => {
   const isTesting = true;
   const files = ["test-fail-package.json"];
   checkMatches({ versionMap, files, isTesting, rootDir });
-  expect(logCheckMatchesWithError).toBeCalled();
+  expect(logCheckMatchesWithError).toHaveBeenCalled();
+  logCheckMatchesWithError.mockRestore();
 });
 
 test("checkFiles => with no updates", async () => {
-  vi.clearAllMocks();
-  const logCheckFilesNoUpdates = vi.spyOn(console, "log");
+  const logCheckFilesNoUpdates = jest.spyOn(console, "log");
   const codependencies = ["lodash", "fs-extra"];
   const rootDir = "./test/";
   const files = ["test-pass-package.json"];
   await checkFiles({ codependencies, rootDir, files });
-  expect(logCheckFilesNoUpdates).toBeCalled();
+  expect(logCheckFilesNoUpdates).toHaveBeenCalled();
+  logCheckFilesNoUpdates.mockRestore();
 });
 
 test("checkFiles => with updates", async () => {
-  vi.clearAllMocks();
-  const logCheckFilesWithUpdates = vi.spyOn(console, "error");
+  const logCheckFilesWithUpdates = jest.spyOn(console, "error");
   const codependencies = ["lodash", "fs-extra"];
   const rootDir = "./test/";
   const files = ["test-fail-package.json"];
   await checkFiles({ codependencies, rootDir, files });
-  expect(logCheckFilesWithUpdates).toBeCalled();
+  expect(logCheckFilesWithUpdates).toHaveBeenCalled();
+  logCheckFilesWithUpdates.mockRestore();
 });
 
 test("checkFiles => with no codeps", async () => {
@@ -672,35 +668,38 @@ test("checkFiles => with no codeps", async () => {
   const originalConfig = logger.getConfig();
   logger.configure({ level: "debug" });
 
-  vi.clearAllMocks();
-  const logCheckFilesWithNoCoDeps = vi.spyOn(console, "debug");
+  const logCheckFilesWithNoCoDeps = jest.spyOn(console, "debug");
   const codependencies = null;
   const rootDir = "./test/";
   const files = ["test-fail-package.json"];
   await checkFiles({ codependencies, rootDir, files, debug: true } as any);
-  expect(logCheckFilesWithNoCoDeps).toBeCalled();
+  expect(logCheckFilesWithNoCoDeps).toHaveBeenCalled();
+  logCheckFilesWithNoCoDeps.mockRestore();
 
   logger.configure(originalConfig);
 });
 
 test("checkFiles => with permissive mode only", async () => {
-  vi.clearAllMocks();
-  const logCheckFilesPermissive = vi.spyOn(console, "error");
+  const logCheckFilesPermissive = jest.spyOn(console, "error");
   const codependencies = null;
   const rootDir = "./test/";
   const files = ["test-fail-package.json"];
   await checkFiles({ codependencies, rootDir, files, permissive: true } as any);
-  expect(logCheckFilesPermissive).toBeCalled();
+  expect(logCheckFilesPermissive).toHaveBeenCalled();
+  logCheckFilesPermissive.mockRestore();
 });
 
 test("checkFiles => with permissive mode and codependencies", async () => {
-  vi.clearAllMocks();
-  const logCheckFilesPermissiveWithCodependencies = vi.spyOn(console, "error");
+  const logCheckFilesPermissiveWithCodependencies = jest.spyOn(
+    console,
+    "error",
+  );
   const codependencies = ["lodash"];
   const rootDir = "./test/";
   const files = ["test-fail-package.json"];
   await checkFiles({ codependencies, rootDir, files, permissive: true });
-  expect(logCheckFilesPermissiveWithCodependencies).toBeCalled();
+  expect(logCheckFilesPermissiveWithCodependencies).toHaveBeenCalled();
+  logCheckFilesPermissiveWithCodependencies.mockRestore();
 });
 
 test("checkDependenciesForVersion => with permissive mode", () => {

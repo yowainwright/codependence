@@ -5,7 +5,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build-dist": "cross-env NODE_ENV=production pnpm run app-build",
+    "build-dist": "cross-env NODE_ENV=production bun run app-build",
     "clean-dist": "rimraf dist",
     "app-dev": "vite",
     "app-build": "tsc && vite build --emptyOutDir",

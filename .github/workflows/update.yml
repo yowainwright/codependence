@@ -18,12 +18,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-      - name: Install pnpm
-        run: npm install -g pnpm@10.9.0
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
       - name: Install dependencies
-        run: pnpm install
-      - run: pnpm build
-      - run: pnpm run update
+        run: bun install
+      - run: bun run build
+      - run: bun run update
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:

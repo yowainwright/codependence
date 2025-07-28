@@ -13,7 +13,7 @@ import {
   CodependenceConfig,
 } from "./types";
 
-export async function action(options: Options = {}): Promise<void> {
+export async function action(options: Options = {}): Promise<void | Options> {
   // Configure logger based on CLI flags
   const loggerConfig = {
     level: options.verbose
@@ -296,7 +296,9 @@ program
     "--permissive",
     "update all deps to latest except those in codependencies",
   )
-  .action(action);
+  .action(async (options: Options) => {
+    await action(options);
+  });
 
 program
   .command("init [type]")

@@ -7,6 +7,7 @@ export type Options = {
   isTestingCLI?: boolean;
   isTestingAction?: boolean;
   isTesting?: boolean;
+  isCLI?: boolean;
   // TODO enable multiple codependencies
   codependencies?: CodeDependencies;
   files?: Array<string>;

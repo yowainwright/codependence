@@ -6,29 +6,28 @@ WORKDIR /app
 
 # Copy package files
 COPY ../package.json ./
-COPY ../pnpm-lock.yaml ./
+COPY ../bun.lock ./
+COPY ../bunfig.toml ./
 
-# Install pnpm
-RUN npm install -g pnpm@10.12.4
-
-# Set environment to disable automatic Node switching
-ENV PNPM_NODE_VERSION=24
-ENV SKIP_NODE_VERSION_CHECK=1
+# Install bun
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:$PATH"
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN bun install --frozen-lockfile
 
 # Copy source code
 COPY .. .
 
 # Build the project normally
-RUN pnpm run build-dist
+RUN bun run build-dist
 
 # Test stage - clean environment for testing
 FROM node:24-slim AS test
 
-# Install pnpm globally
-RUN npm install -g pnpm@10.12.4
+# Install bun globally
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:$PATH"
 
 # Create a non-root user for testing
 RUN groupadd -g 1001 testuser && \
@@ -40,10 +39,11 @@ WORKDIR /test
 # Copy built distribution and necessary files from builder stage
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=builder /app/bun.lock ./bun.lock
+COPY --from=builder /app/bunfig.toml ./bunfig.toml
 
 # Install only production dependencies (skip prepare scripts)
-RUN pnpm install --production --frozen-lockfile --ignore-scripts
+RUN bun install --production --frozen-lockfile
 
 # Copy test fixtures
 COPY e2e/fixtures/* ./

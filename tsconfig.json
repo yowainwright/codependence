@@ -11,7 +11,7 @@
     "esModuleInterop": true,
     "lib": ["esnext", "dom", "es6", "dom.iterable"],
     "forceConsistentCasingInFileNames": true,
-    "types": ["node"],
+    "types": ["node", "bun-types"],
     "noEmit": false,
     "noImplicitReturns": true,
     "noUnusedLocals": true,

@@ -1,8 +1,8 @@
 export type Action = {
-  type: string
-  payload: any
-}
+  type: string;
+  payload: any;
+};
 
 export interface State {
-  isSidebarOpen: boolean
+  isSidebarOpen: boolean;
 }

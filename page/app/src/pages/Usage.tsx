@@ -1,9 +1,9 @@
-import React from 'react'
-import { Docs } from '../components/Docs'
-import Badges from '../content/badges.mdx'
+import React from "react";
+import { Docs } from "../components/Docs";
+import Badges from "../content/badges.mdx";
 
-import Usage from '../content/usage.mdx'
-import Footer from '../content/footer.mdx'
+import Usage from "../content/usage.mdx";
+import Footer from "../content/footer.mdx";
 
 export const BasicUsage = () => (
   <>
@@ -11,4 +11,4 @@ export const BasicUsage = () => (
     <Docs Component={Usage} />
     <Docs Component={Footer} />
   </>
-)
+);

@@ -1,4 +1,0 @@
-packages:
-  - page/*
-ignoredBuiltDependencies:
-  - esbuild
