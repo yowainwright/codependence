@@ -5,9 +5,9 @@ FROM node:24-slim AS builder
 WORKDIR /app
 
 # Copy package files
-COPY ../package.json ./
-COPY ../bun.lock ./
-COPY ../bunfig.toml ./
+COPY package.json ./
+COPY bun.lock ./
+COPY bunfig.toml ./
 
 # Install bun
 RUN curl -fsSL https://bun.sh/install | bash
@@ -17,7 +17,7 @@ ENV PATH="/root/.bun/bin:$PATH"
 RUN bun install --frozen-lockfile
 
 # Copy source code
-COPY .. .
+COPY . .
 
 # Build the project normally
 RUN bun run build-dist
