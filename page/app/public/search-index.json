@@ -1,0 +1,44 @@
+[
+  {
+    "title": "Introduction",
+    "content": "Codependence is a JavaScript utility for checking dependencies to ensure they're up-to-date or match a specified version. Learn about Synopsis, Why Use Codependence, and Why Not Use Codependence.",
+    "url": "/documentation/introduction",
+    "section": "Getting Started"
+  },
+  {
+    "title": "CLI Usage",
+    "content": "Command line interface documentation for Codependence. Learn how to use codependence from the terminal with various options and flags.",
+    "url": "/documentation/cli",
+    "section": "Usage"
+  },
+  {
+    "title": "Node.js API",
+    "content": "Using Codependence programmatically in Node.js applications. Import and use the codependence API in your JavaScript or TypeScript projects.",
+    "url": "/documentation/node",
+    "section": "Usage"
+  },
+  {
+    "title": "Options",
+    "content": "Configuration options for Codependence. Learn about all available options including --update, --unused, --circular, and more.",
+    "url": "/documentation/options",
+    "section": "Usage"
+  },
+  {
+    "title": "Usage Examples",
+    "content": "Example usage patterns and common scenarios for using Codependence in your projects.",
+    "url": "/documentation/usage",
+    "section": "Usage"
+  },
+  {
+    "title": "Recipes",
+    "content": "Common recipes and patterns for using Codependence effectively in various project setups including monorepos.",
+    "url": "/documentation/recipes",
+    "section": "Advanced"
+  },
+  {
+    "title": "Main Use Case",
+    "content": "Primary use cases for Codependence - managing critical dependencies that must be at specific versions.",
+    "url": "/documentation/main-usecase",
+    "section": "Advanced"
+  }
+]

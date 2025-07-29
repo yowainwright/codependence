@@ -1,0 +1,154 @@
+---
+title: Codependence Options
+description: Configuration options for Codependence.
+---
+<section>
+
+## Configuration Options
+
+Codependence options can be used via CLI options, a config file read from the CLI,
+or with node by passing them into exported Codependence functions. Read more below!
+
+---
+
+### `codependencies`: `Array<string | Record<string, string>`
+
+A **required** option or \*config array! Codependencies are required via being passed in an array as a cli option \*\*or as within a `codependence.codependencies` array.
+
+- The default value is `undefined`
+- An array is required!
+
+---
+
+### \*Config Array Detail
+
+The Codependence codependencies array supports latest out-of-the-box.
+
+> So having this `["fs-extra", "lodash"]` will return the latest versions of the packages within the array. It will also match a specified version, like so `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`. You can also include a _ at the end of a name you would like to match. For example, `@foo/_`will match all packages with`@foo/`in the name and return their latest versions. This will also work with`foo-\*`, etc.
+
+Codependence is built in to give you more capability to control your dependencies!
+
+### Using the `codependence.codependencies` array in Monorepo child packages
+
+You can add a `codependence.codependencies` array to child packages in your monorepo to ensure specific dependencies are
+pinned to a specific different versions within your monorepo packages.
+
+#### For example
+
+You can have a package.json file in a `@foo/bar` package with following:
+
+```json
+{
+  "name": "@foo/bar",
+  "dependencies": {
+    "fs-extra": "^9.0.0"
+  },
+  "codependence": {
+    "codependencies": [{ "fs-extra": "^9.0.0" }]
+  }
+}
+```
+
+And another package.json file in a `@foo/baz` package with following:
+
+```json
+{
+  "name": "@foo/baz",
+  "dependencies": {
+    "fs-extra": "^11.1.0"
+  },
+  "codependence": {
+    "codependencies": [{ "fs-extra": "^11.1.0" }]
+  }
+}
+```
+
+Codependencies will install the right dependency version for each package in your monorepo!
+
+> **Note:** Codependencies can and will still install the expected version defined at the monorepo's root for packages that don't specify differences in their package.json files!
+
+---
+
+### `files`: `Array<string>`
+
+An **optional** array of strings to check for package.json files to update.
+
+- The default value is `['package.json']`
+- This array accepts glob patterns as well, example `["package.json", "\*\*/package.json"]`
+
+### `update`: `boolean`
+
+An **optional** boolean which defines whether Codependence should update dependencies in package.json's or not.
+
+- The default value is `false`
+
+### `rootDir`: `string`
+
+An **optional** string which can used to specify the root directory to run checks from;
+
+The default value is `"./"`
+
+### `ignore`: `Array<string>`
+
+An **optional** array of strings used to specify directories to ignore
+
+- The default value is `["node_modules/**/*", "**/node_modules/**/*"]`
+- glob patterns are accepted
+
+### `debug`: `boolean`
+
+An **optional** boolean value used to enable debugging output
+
+- The default value is `false`
+
+### `silent`: `boolean`
+
+An optional boolean value used to enable a more silent developer experience
+
+- The default value is `false`
+
+### `verbose`: `boolean`
+
+An optional boolean value used to enable verbose logging output with debug information
+
+- The default value is `false`
+- When enabled, shows additional debug information, structured data, and detailed operation logs
+- Useful for troubleshooting and development
+
+### `quiet`: `boolean`
+
+An optional boolean value used to suppress all output except errors
+
+- The default value is `false`
+- When enabled, only error messages will be displayed
+- Useful for CI/CD environments where you want clean logs
+
+### `config`: `string`
+
+An optional string containing a package to file which contains codependence config.
+
+- The default is `undefined`
+
+### `searchPath`: `string`
+
+An optional string containing a search path for location config files.
+
+- The default value is `undefined`
+
+### `yarnConfig`: `boolean`
+
+An optional boolean value used to enable \*yarn config checking
+
+The default value is `false`
+
+### `permissive`: `boolean`
+
+An **optional** boolean value used to update all dependencies to their latest versions except those specified in the `codependencies` array.
+
+- The default value is `false`
+- When set to `true`, all dependencies not listed in `codependencies` will be updated to their latest versions
+- This is the **recommended mode** for most projects as it keeps you up-to-date while allowing you to pin specific problematic dependencies
+
+---
+
+</section>

@@ -1,0 +1,31 @@
+---
+title: Codependence in Node
+description: How to use Codependence as a Node.js utility.
+---
+
+<section>
+
+# Codependence in Node
+
+Although, Codependence is built to primarily be a CLI utility, it can be used as a node utility.
+
+```ts
+import codependence from "codependence";
+
+const checkForUpdate = async () => {
+  const isLatest = await codependence({
+    codependencies: ["fs-extra", "lodash"],
+  });
+  if (!isLatest) {
+    console.log("This repo is update-to-date");
+  } else {
+    console.error("This repo is not update-to-date");
+  }
+};
+
+checkForUpdate();
+```
+
+---
+
+</section>

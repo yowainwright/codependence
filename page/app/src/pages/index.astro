@@ -1,0 +1,19 @@
+---
+import CodeBlock from "../components/home/CodeBlock.astro";
+import Features from "../components/home/Features.tsx";
+import Hero from "../components/home/Hero.astro";
+import "@fontsource-variable/outfit";
+import Integration from "../components/home/Integration.astro";
+import Install from "../components/home/Install.astro";
+import HomeLayout from "../layouts/HomeLayout.astro";
+---
+
+<HomeLayout title="Home">
+  <div class="px-3 md:px-10 xl:px-28">
+    <Hero />
+    <CodeBlock />
+    <Features client:load />
+    <Integration />
+    <Install />
+  </div>
+</HomeLayout>
