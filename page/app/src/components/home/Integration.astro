@@ -1,0 +1,81 @@
+---
+import Terminal from "../common/Terminal.astro";
+---
+
+<div class="flex justify-center py-20 lg:py-28">
+  <div class="xl:flex gap-16 max-w-6xl">
+    <div class="w-full max-w-3xl mt-10 xl:mt-0">
+      <div class="relative overflow-hidden rounded-lg bg-gray-900 border border-base-content/20">
+        {/* Terminal header with dots */}
+        <div class="bg-gray-800 px-4 py-3 flex items-center gap-2">
+          <div class="flex gap-2">
+            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+          </div>
+        </div>
+        
+        {/* Terminal content */}
+        <div class="bg-gray-900 p-6">
+          <div class="text-sm font-mono">
+            <div class="flex gap-2">
+              <span class="text-green-400">$</span>
+              <span class="text-gray-300">npx codependence</span>
+            </div>
+            <div class="mt-3">
+              <div class="text-gray-400 mb-2">Checking codependencies...</div>
+              <div class="space-y-1">
+                <div class="text-green-400">✓ react@18.2.0 matches ^18.0.0</div>
+                <div class="text-green-400">✓ react-dom@18.2.0 matches ^18.0.0</div>
+                <div class="text-green-400">✓ typescript@5.3.3 matches ^5.0.0</div>
+                <div class="text-red-400">✗ eslint@7.32.0 does not match ^8.0.0</div>
+                <div class="text-red-400">✗ prettier@2.8.8 does not match ^3.0.0</div>
+              </div>
+            </div>
+            
+            <div class="flex gap-2 mt-4">
+              <span class="text-green-400">$</span>
+              <span class="text-gray-300">npx codependence --update</span>
+            </div>
+            <div class="mt-3">
+              <div class="text-gray-400 mb-2">Updating mismatched dependencies...</div>
+              <div class="space-y-1">
+                <div class="text-blue-400">⟳ Updating eslint from 7.32.0 to 8.57.0...</div>
+                <div class="text-blue-400">⟳ Updating prettier from 2.8.8 to 3.2.5...</div>
+                <div class="text-green-400 mt-2">✓ All codependencies updated successfully!</div>
+              </div>
+            </div>
+
+            <div class="flex gap-2 mt-4">
+              <span class="text-green-400">$</span>
+              <span class="text-gray-300">npx codependence</span>
+            </div>
+            <div class="mt-3">
+              <div class="text-gray-400 mb-2">Checking codependencies...</div>
+              <div class="text-green-400">✓ All dependencies match requirements!</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="xl:max-w-lg flex flex-col justify-center font-outfit">
+      <h1 class="text-4xl lg:text-5xl font-black">
+        Works Seamlessly With Your <span class="text-primary">Project</span>
+      </h1>
+
+      <p class="mt-8 text-lg">
+        Codependence integrates effortlessly into your existing workflow. Whether you're using npm, yarn, pnpm, or bun, it works right out of the box with zero configuration required.
+      </p>
+
+      <p class="mt-4 text-lg">
+        Analyze dependencies, detect circular references, find unused packages, and maintain a clean codebase - all from your terminal with simple commands.
+      </p>
+
+      <div class="flex gap-4 mt-8">
+        <a href="/documentation/introduction" class="btn">Get Started</a>
+        <a href="/documentation/cli" class="btn btn-outline">View CLI Docs</a>
+      </div>
+    </div>
+  </div>
+</div>

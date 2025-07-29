@@ -1,0 +1,60 @@
+---
+title: Introduction
+description: Stop wrestling with code dependencies. Use Codependence!
+---
+
+<section className="grid grid-flow-col-dense justify-start gap-x-2 mb-8">
+
+<img src="https://flat.badgen.net/badge/icon/Typed?icon=typescript&label&labelColor=blue&color=555555" />
+
+<a href="https://badge.fury.io/js/codependence">
+  <img alt="npm version" src="https://badge.fury.io/js/codependence.svg" />
+</a>
+
+<img src="https://github.com/yowainwright/codependence/actions/workflows/ci.yml/badge.svg" />
+
+<a href="https://github.com/yowainwright/codependence">
+  <img src="https://badgen.net/badge/icon/github?icon=github&label&color=black" />
+</a>
+
+<img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fyowainwright%2Fcodependence" />
+
+</section>
+
+<section>
+
+## Introduction
+
+**Codependence** is a JavaScript utility for checking specified `node_modules` are up-to-date or match a specified version.
+
+## Synopsis
+
+Codependence is a JavaScript utility CLI or node_module. It checks a project's **"codependencies"** in an array of strings that reference dependencies a project has listed in its `package.json` dependencies. 
+
+Codependencies are a `package.json` and JavaScript ecosystem-specific concept. The naming convention for codependencies come from what may be the most important dependencies—a co-dependence that must be up-to-date or match a specific version to ensure your project works as expected. 
+
+It compares the codependencies array to the project's current dependencies listed in one or more `package.json` files. It then parses over each dependency and validates the following:
+
+- That each listed codependency is at latest or matches the specified version.
+
+Codependence can either pass or fail CI based on these checks. It can also update the mismatched dependencies automatically to match the latest version or the specified version.
+
+Codependence works alongside tools like [dependabot](https://dependabot.com). If a dependency is specified as a codependency, you can reliably ensure that project dependency is at a target version—a version you're project is tested to work with. This helps when tracking peerDependencies in projects and ensures they work as expected.
+
+## Why use Codependence?
+
+**Codependence** is a utility tool focused on a single task—managing specified dependency versions!
+
+- **Made to be used with other tools:** Codependence complements tools like [Dependabot](https://github.com/dependabot), ensuring critical dependency versions meet specified requirements. 
+- **Great for monorepos:** Codependence handles monorepos with ease by making sure multiple `package.json` files have dependencies that match specified versions.
+- **Easy to add in CI:** Codependence can be run with a `package.json` npm script or GitHub action and fail or pass CI depending on whether the specified dependencies match the required versions.
+- **Works with your current setup:** Integrate Codependence into your existing workflow using build pipeline tools like [Husky](https://github.com/typicode/husky) to run Codependence before commits or pushes.
+
+## Why not use Codependence?
+
+While Codependence is a powerful tool for managing dependency versions, it might not be the right choice for every project:
+
+- **You don't need intricate dependency version management.** If your project doesn't require strict version control for specific dependencies, Codependence might add unnecessary complexity.
+- **You're happy with your current setup.** If you prefer using the latest versions, manual version pinning, or Dependabot's ignore specification, Codependence may not offer additional benefits.
+
+</section>

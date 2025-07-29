@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes:
+    cupcake --default,
+    night --prefersdark;
+}
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --font-outfit: "Outfit Variable", "sans-serif";
+}

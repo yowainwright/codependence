@@ -23,6 +23,21 @@
     },
     "test-src": {
       "inputs": ["src/**/*.ts", "test/**/*.ts"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "inputs": ["src/**/*", "page/app/**/*"]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "inputs": ["src/**/*", "page/app/**/*"]
+    },
+    "preview": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true
     }
   }
 }
