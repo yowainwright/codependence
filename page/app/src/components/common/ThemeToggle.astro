@@ -29,16 +29,16 @@
       return localStorage.getItem("theme");
     }
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      return "dark";
+      return "codependence-dark";
     }
-    return "winter";
+    return "codependence-light";
   })();
 
-  if (theme === "winter") {
-    document.documentElement.setAttribute("data-theme", "winter");
+  if (theme === "codependence-light") {
+    document.documentElement.setAttribute("data-theme", "codependence-light");
     document.getElementById("themeToggle").classList.remove("swap-active");
   } else {
-    document.documentElement.setAttribute("data-theme", "dark");
+    document.documentElement.setAttribute("data-theme", "codependence-dark");
     document.getElementById("themeToggle").classList.add("swap-active");
   }
 
@@ -46,9 +46,9 @@
 
   const handleToggleClick = () => {
     const element = document.documentElement;
-    const isDark = element.dataset.theme === "dark";
-    localStorage.setItem("theme", isDark ? "winter" : "dark");
-    element.setAttribute("data-theme", isDark ? "winter" : "dark");
+    const isDark = element.dataset.theme === "codependence-dark";
+    localStorage.setItem("theme", isDark ? "codependence-light" : "codependence-dark");
+    element.setAttribute("data-theme", isDark ? "codependence-light" : "codependence-dark");
     if (isDark) {
       document.getElementById("themeToggle").classList.remove("swap-active");
     } else {

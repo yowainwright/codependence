@@ -1,0 +1,121 @@
+
+/* Codependence Light Theme */
+[data-theme="codependence-light"] {
+  --color-scheme: light;
+  
+  /* Primary colors */
+  --color-primary: #e879f9; /* Usage: background-color: var(--color-primary); */
+  --color-primary-rgb: 232 121 249; /* Usage with opacity: background-color: rgb(var(--color-primary-rgb) / 0.5); */
+  --color-primary-content: #ffffff;
+  --color-primary-content-rgb: 255 255 255;
+  
+  /* Secondary colors */
+  --color-secondary: #c084fc; /* Usage: color: var(--color-secondary); */
+  --color-secondary-rgb: 192 132 252; /* Usage with opacity: color: rgb(var(--color-secondary-rgb) / 0.75); */
+  --color-secondary-content: #ffffff;
+  --color-secondary-content-rgb: 255 255 255;
+  
+  /* Accent colors */
+  --color-accent: #f97316; /* Usage: border-color: var(--color-accent); */
+  --color-accent-rgb: 249 115 22; /* Usage with opacity: border-color: rgb(var(--color-accent-rgb) / 0.3); */
+  --color-accent-content: #ffffff;
+  --color-accent-content-rgb: 255 255 255;
+  
+  /* Neutral colors */
+  --color-neutral: #6b5b7b; /* Usage: fill: var(--color-neutral); */
+  --color-neutral-rgb: 107 91 123; /* Usage with opacity: fill: rgb(var(--color-neutral-rgb) / 0.8); */
+  --color-neutral-content: #ffffff;
+  --color-neutral-content-rgb: 255 255 255;
+  
+  /* Base colors */
+  --color-base-100: #fef6f0; /* Main background - Usage: background-color: var(--color-base-100); */
+  --color-base-100-rgb: 254 246 240; /* Usage with opacity: background-color: rgb(var(--color-base-100-rgb) / 0.95); */
+  --color-base-200: #fde8db; /* Secondary background - Usage: background-color: var(--color-base-200); */
+  --color-base-200-rgb: 253 232 219; /* Usage with opacity: background-color: rgb(var(--color-base-200-rgb) / 0.9); */
+  --color-base-300: #fbd5c0; /* Tertiary background - Usage: background-color: var(--color-base-300); */
+  --color-base-300-rgb: 251 213 192; /* Usage with opacity: background-color: rgb(var(--color-base-300-rgb) / 0.85); */
+  --color-base-content: #9333ea; /* Main text - Usage: color: var(--color-base-content); */
+  --color-base-content-rgb: 147 51 234; /* Usage with opacity: color: rgb(var(--color-base-content-rgb) / 0.7); */
+  
+  /* Semantic colors */
+  --color-info: #3b82f6; /* Info state - Usage: background-color: var(--color-info); */
+  --color-info-rgb: 59 130 246; /* Usage with opacity: background-color: rgb(var(--color-info-rgb) / 0.2); */
+  --color-info-content: #ffffff;
+  --color-info-content-rgb: 255 255 255;
+  
+  --color-success: #10b981; /* Success state - Usage: background-color: var(--color-success); */
+  --color-success-rgb: 16 185 129; /* Usage with opacity: background-color: rgb(var(--color-success-rgb) / 0.2); */
+  --color-success-content: #ffffff;
+  --color-success-content-rgb: 255 255 255;
+  
+  --color-warning: #f59e0b; /* Warning state - Usage: background-color: var(--color-warning); */
+  --color-warning-rgb: 245 158 11; /* Usage with opacity: background-color: rgb(var(--color-warning-rgb) / 0.2); */
+  --color-warning-content: #ffffff;
+  --color-warning-content-rgb: 255 255 255;
+  
+  --color-error: #ef4444; /* Error state - Usage: background-color: var(--color-error); */
+  --color-error-rgb: 239 68 68; /* Usage with opacity: background-color: rgb(var(--color-error-rgb) / 0.2); */
+  --color-error-content: #ffffff;
+  --color-error-content-rgb: 255 255 255;
+}
+
+/* Codependence Dark Theme */
+[data-theme="codependence-dark"] {
+  --color-scheme: dark;
+  
+  /* Primary colors */
+  --color-primary: #d946ef; /* Usage: background-color: var(--color-primary); */
+  --color-primary-rgb: 217 70 239; /* Usage with opacity: background-color: rgb(var(--color-primary-rgb) / 0.5); */
+  --color-primary-content: #fef3f2;
+  --color-primary-content-rgb: 254 243 242;
+  
+  /* Secondary colors */
+  --color-secondary: #a855f7; /* Usage: color: var(--color-secondary); */
+  --color-secondary-rgb: 168 85 247; /* Usage with opacity: color: rgb(var(--color-secondary-rgb) / 0.75); */
+  --color-secondary-content: #fef3f2;
+  --color-secondary-content-rgb: 254 243 242;
+  
+  /* Accent colors */
+  --color-accent: #dc2626; /* Usage: border-color: var(--color-accent); */
+  --color-accent-rgb: 220 38 38; /* Usage with opacity: border-color: rgb(var(--color-accent-rgb) / 0.3); */
+  --color-accent-content: #fef3f2;
+  --color-accent-content-rgb: 254 243 242;
+  
+  /* Neutral colors */
+  --color-neutral: #f9a8d4; /* Usage: fill: var(--color-neutral); */
+  --color-neutral-rgb: 249 168 212; /* Usage with opacity: fill: rgb(var(--color-neutral-rgb) / 0.8); */
+  --color-neutral-content: #2d1b2e;
+  --color-neutral-content-rgb: 45 27 46;
+  
+  /* Base colors */
+  --color-base-100: #2d1b2e; /* Main background - Usage: background-color: var(--color-base-100); */
+  --color-base-100-rgb: 45 27 46; /* Usage with opacity: background-color: rgb(var(--color-base-100-rgb) / 0.95); */
+  --color-base-200: #231825; /* Secondary background - Usage: background-color: var(--color-base-200); */
+  --color-base-200-rgb: 35 24 37; /* Usage with opacity: background-color: rgb(var(--color-base-200-rgb) / 0.9); */
+  --color-base-300: #1a131b; /* Tertiary background - Usage: background-color: var(--color-base-300); */
+  --color-base-300-rgb: 26 19 27; /* Usage with opacity: background-color: rgb(var(--color-base-300-rgb) / 0.85); */
+  --color-base-content: #f9a8d4; /* Main text - Usage: color: var(--color-base-content); */
+  --color-base-content-rgb: 249 168 212; /* Usage with opacity: color: rgb(var(--color-base-content-rgb) / 0.7); */
+  
+  /* Semantic colors */
+  --color-info: #3b82f6; /* Info state - Usage: background-color: var(--color-info); */
+  --color-info-rgb: 59 130 246; /* Usage with opacity: background-color: rgb(var(--color-info-rgb) / 0.2); */
+  --color-info-content: #1e293b;
+  --color-info-content-rgb: 30 41 59;
+  
+  --color-success: #10b981; /* Success state - Usage: background-color: var(--color-success); */
+  --color-success-rgb: 16 185 129; /* Usage with opacity: background-color: rgb(var(--color-success-rgb) / 0.2); */
+  --color-success-content: #14532d;
+  --color-success-content-rgb: 20 83 45;
+  
+  --color-warning: #f59e0b; /* Warning state - Usage: background-color: var(--color-warning); */
+  --color-warning-rgb: 245 158 11; /* Usage with opacity: background-color: rgb(var(--color-warning-rgb) / 0.2); */
+  --color-warning-content: #451a03;
+  --color-warning-content-rgb: 69 26 3;
+  
+  --color-error: #ef4444; /* Error state - Usage: background-color: var(--color-error); */
+  --color-error-rgb: 239 68 68; /* Usage with opacity: background-color: rgb(var(--color-error-rgb) / 0.2); */
+  --color-error-content: #450a0a;
+  --color-error-content-rgb: 69 10 10;
+}
+

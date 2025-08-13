@@ -1,11 +1,139 @@
 @import "tailwindcss";
 @plugin "daisyui" {
   themes:
-    cupcake --default,
-    night --prefersdark;
+    codependence-light --default,
+    codependence-dark --prefersdark,
+    cupcake,
+    night;
 }
 @plugin "@tailwindcss/typography";
 
 @theme {
   --font-outfit: "Outfit Variable", "sans-serif";
+}
+
+/* Custom selection colors for each theme */
+[data-theme="codependence-light"] ::selection {
+  background-color: oklch(75% 0.15 320 / 0.3); /* Pinkish-purple with transparency */
+  color: oklch(55% 0.12 320); /* Deep pinkish-purple text */
+}
+
+[data-theme="codependence-dark"] ::selection {
+  background-color: hsl(243 75% 59% / 0.3); /* Primary color with transparency */
+  color: hsl(0 0% 100%); /* White text */
+}
+
+[data-theme="cupcake"] ::selection {
+  background-color: hsl(290 70% 65% / 0.3); /* Pinkish-purple with transparency */
+  color: hsl(290 50% 45%); /* Deep pinkish-purple text */
+}
+
+[data-theme="night"] ::selection {
+  background-color: hsl(243 75% 59% / 0.3); /* Primary color with transparency */
+  color: hsl(0 0% 100%); /* White text */
+}
+
+/* Custom gradient backgrounds */
+[data-theme="codependence-light"] {
+  background: linear-gradient(135deg, 
+    oklch(99% 0.01 90) 0%,      /* very light yellow */
+    oklch(98% 0.02 70) 25%,     /* light tan */
+    oklch(97% 0.03 50) 50%,     /* light peachy tan */
+    oklch(98% 0.02 30) 75%,     /* light rust */
+    oklch(99% 0.01 90) 100%     /* back to light yellow */
+  );
+  min-height: 100vh;
+}
+
+[data-theme="codependence-dark"] {
+  background: linear-gradient(135deg, 
+    oklch(15% 0.02 340) 0%, 
+    oklch(12% 0.04 340) 50%, 
+    oklch(14% 0.03 340) 100%
+  );
+  min-height: 100vh;
+}
+
+/* Custom text gradients for Codependence branding with shiny effect */
+[data-theme="codependence-light"] .text-transparent {
+  background: linear-gradient(135deg, 
+    oklch(80% 0.25 350) 0%,      /* bright pink */
+    oklch(85% 0.15 340) 20%,     /* light pink - highlight */
+    oklch(75% 0.20 330) 40%,     /* medium pink */
+    oklch(70% 0.18 310) 60%,     /* purple-pink */
+    oklch(78% 0.16 320) 80%,     /* light purple-pink - highlight */
+    oklch(65% 0.20 300) 100%     /* deep purple */
+  ) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  background-size: 200% 200%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+[data-theme="codependence-dark"] .text-transparent {
+  background: linear-gradient(135deg,
+    oklch(85% 0.18 350) 0%,      /* bright light pink */
+    oklch(90% 0.12 340) 20%,     /* very light pink - highlight */
+    oklch(85% 0.15 330) 40%,     /* light pink */
+    oklch(80% 0.14 320) 60%,     /* light purple-pink */
+    oklch(88% 0.10 325) 80%,     /* very light purple - highlight */
+    oklch(75% 0.16 310) 100%     /* light purple */
+  ) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  background-size: 200% 200%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+/* Shimmer animation for shiny effect */
+@keyframes shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Fallback for text if gradient doesn't work */
+[data-theme="codependence-light"] h1:not(.text-transparent),
+[data-theme="codependence-light"] .text-2xl:not(.text-transparent) {
+  color: oklch(75% 0.20 340);
+}
+
+[data-theme="codependence-dark"] h1:not(.text-transparent),
+[data-theme="codependence-dark"] .text-2xl:not(.text-transparent) {
+  color: oklch(85% 0.15 340);
+}
+
+/* Navigation background with gradient */
+[data-theme="codependence-light"] .navbar {
+  background: linear-gradient(135deg, 
+    oklch(99% 0.01 90 / 0.8) 0%,      /* very light yellow with transparency */
+    oklch(98% 0.02 70 / 0.8) 25%,     /* light tan with transparency */
+    oklch(97% 0.03 50 / 0.8) 50%,     /* light peachy tan with transparency */
+    oklch(98% 0.02 30 / 0.8) 75%,     /* light rust with transparency */
+    oklch(99% 0.01 90 / 0.8) 100%     /* back to light yellow with transparency */
+  ) !important;
+}
+
+[data-theme="codependence-dark"] .navbar {
+  background: linear-gradient(135deg, 
+    oklch(15% 0.02 340 / 0.8) 0%, 
+    oklch(12% 0.04 340 / 0.8) 50%, 
+    oklch(14% 0.03 340 / 0.8) 100%
+  ) !important;
+}
+
+/* Install section - transparent background to show page gradient */
+[data-theme="codependence-light"] .hero.bg-base-100,
+[data-theme="codependence-dark"] .hero.bg-base-100 {
+  background: transparent !important;
 }
