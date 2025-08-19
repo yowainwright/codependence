@@ -17,10 +17,10 @@ const pathname = new URL(Astro.request.url).pathname;
 
 <header class="sticky top-0 z-30">
   <nav
-    class="navbar bg-base-100/80 border-b border-base-content/10 backdrop-blur-3xl justify-center items-center py-2 sm:px-0 md:px-20 font-outfit"
+    class="navbar bg-[#faebed] dark:bg-[#0F172A] backdrop-blur-3xl justify-center items-center py-2 sm:px-0 md:px-20 font-outfit border-b border-base-content/20"
   >
     <div class="dropdown">
-      <div tabindex="0" role="button" class="btn btn-ghost btn-square lg:hidden">
+      <div tabindex="0" role="button" class="btn btn-ghost btn-square lg:hidden border-none rounded-lg">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           class="h-5 w-5"
@@ -55,7 +55,7 @@ const pathname = new URL(Astro.request.url).pathname;
     <div class="navbar-start">
       <a href="/" class="px-2">
         <h1
-          class="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/50"
+          class="text-xl md:text-2xl font-bold text-primary"
         >
           Codependence
         </h1>
@@ -81,7 +81,7 @@ const pathname = new URL(Astro.request.url).pathname;
 
     <div class="navbar-end">
       <a
-        class="btn btn-sm btn-ghost btn-square"
+        class="btn btn-sm btn-ghost btn-square border-none rounded-lg"
         href="https://github.com/yowainwright/codependence"
         aria-label="github"
       >

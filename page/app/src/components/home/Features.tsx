@@ -46,9 +46,9 @@ export default function Features() {
       {features.map((feature) => {
         const Icon = feature.icon;
         return (
-          <div key={feature.title} className="card max-w-2xl bg-gradient-to-t from-base-100 to-base-300/50 border border-base-content/20 hover:border-base-content/40 transition">
+          <div key={feature.title} className="card max-w-2xl bg-transparent border border-base-content/20 hover:shadow-lg transition rounded-lg">
             <div className="card-body font-outfit">
-              <div className="h-16 w-16 bg-base-300 rounded-full flex items-center justify-center">
+              <div className="h-16 w-16 bg-transparent rounded-full flex items-center justify-center">
                 <Icon className="w-8 h-8 text-primary" />
               </div>
               <h2 className="card-title">{feature.title}</h2>

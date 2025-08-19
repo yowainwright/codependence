@@ -4,101 +4,101 @@ const codeSnippets = [
   {
     id: 'init',
     lines: [
-      { text: '$ ', color: 'text-green-400' },
-      { text: 'npx codependence init', color: 'text-gray-300' },
+      { text: '$ ', color: 'text-primary' },
+      { text: 'npx codependence init', color: 'text-base-content' },
       { text: '\n\n', color: '' },
-      { text: 'Creating .codependencerc...', color: 'text-gray-400' },
+      { text: 'Creating .codependencerc...', color: 'text-base-content/70' },
       { text: '\n', color: '' },
-      { text: '✓', color: 'text-green-400' },
-      { text: ' Configuration file created', color: 'text-gray-300' }
+      { text: '✓', color: 'text-success' },
+      { text: ' Configuration file created', color: 'text-base-content' }
     ]
   },
   {
     id: 'config',
     lines: [
-      { text: '// .codependencerc', color: 'text-gray-500' },
-      { text: '\n{\n  ', color: 'text-gray-300' },
-      { text: '"codependencies"', color: 'text-blue-400' },
-      { text: ': {\n    ', color: 'text-gray-300' },
-      { text: '"react"', color: 'text-blue-400' },
-      { text: ': ', color: 'text-gray-300' },
-      { text: '"^18.0.0"', color: 'text-green-400' },
-      { text: ',\n    ', color: 'text-gray-300' },
-      { text: '"typescript"', color: 'text-blue-400' },
-      { text: ': ', color: 'text-gray-300' },
-      { text: '"^5.0.0"', color: 'text-green-400' },
-      { text: ',\n    ', color: 'text-gray-300' },
-      { text: '"eslint"', color: 'text-blue-400' },
-      { text: ': ', color: 'text-gray-300' },
-      { text: '"^8.0.0"', color: 'text-green-400' },
-      { text: ',\n    ', color: 'text-gray-300' },
-      { text: '"prettier"', color: 'text-blue-400' },
-      { text: ': ', color: 'text-gray-300' },
-      { text: '"^3.0.0"', color: 'text-green-400' },
-      { text: '\n  }\n}', color: 'text-gray-300' }
+      { text: '// .codependencerc', color: 'text-base-content/50' },
+      { text: '\n{\n  ', color: 'text-base-content' },
+      { text: '"codependencies"', color: 'text-primary' },
+      { text: ': {\n    ', color: 'text-base-content' },
+      { text: '"react"', color: 'text-primary' },
+      { text: ': ', color: 'text-base-content' },
+      { text: '"^18.0.0"', color: 'text-success' },
+      { text: ',\n    ', color: 'text-base-content' },
+      { text: '"typescript"', color: 'text-primary' },
+      { text: ': ', color: 'text-base-content' },
+      { text: '"^5.0.0"', color: 'text-success' },
+      { text: ',\n    ', color: 'text-base-content' },
+      { text: '"eslint"', color: 'text-primary' },
+      { text: ': ', color: 'text-base-content' },
+      { text: '"^8.0.0"', color: 'text-success' },
+      { text: ',\n    ', color: 'text-base-content' },
+      { text: '"prettier"', color: 'text-primary' },
+      { text: ': ', color: 'text-base-content' },
+      { text: '"^3.0.0"', color: 'text-success' },
+      { text: '\n  }\n}', color: 'text-base-content' }
     ]
   },
   {
     id: 'check',
     lines: [
-      { text: '$ ', color: 'text-green-400' },
-      { text: 'npx codependence', color: 'text-gray-300' },
+      { text: '$ ', color: 'text-primary' },
+      { text: 'npx codependence', color: 'text-base-content' },
       { text: '\n\n', color: '' },
-      { text: 'Checking codependencies...', color: 'text-gray-400' },
+      { text: 'Checking codependencies...', color: 'text-base-content/70' },
       { text: '\n', color: '' },
-      { text: '✓', color: 'text-green-400' },
-      { text: ' react@', color: 'text-gray-300' },
-      { text: '18.2.0', color: 'text-cyan-400' },
-      { text: ' matches ', color: 'text-gray-300' },
-      { text: '^18.0.0', color: 'text-green-400' },
+      { text: '✓', color: 'text-success' },
+      { text: ' react@', color: 'text-base-content' },
+      { text: '18.2.0', color: 'text-info' },
+      { text: ' matches ', color: 'text-base-content' },
+      { text: '^18.0.0', color: 'text-success' },
       { text: '\n', color: '' },
-      { text: '✓', color: 'text-green-400' },
-      { text: ' typescript@', color: 'text-gray-300' },
-      { text: '5.3.3', color: 'text-cyan-400' },
-      { text: ' matches ', color: 'text-gray-300' },
-      { text: '^5.0.0', color: 'text-green-400' },
+      { text: '✓', color: 'text-success' },
+      { text: ' typescript@', color: 'text-base-content' },
+      { text: '5.3.3', color: 'text-info' },
+      { text: ' matches ', color: 'text-base-content' },
+      { text: '^5.0.0', color: 'text-success' },
       { text: '\n', color: '' },
-      { text: '✗', color: 'text-red-400' },
-      { text: ' eslint@', color: 'text-gray-300' },
-      { text: '7.32.0', color: 'text-cyan-400' },
-      { text: ' does not match ', color: 'text-gray-300' },
-      { text: '^8.0.0', color: 'text-red-400' },
+      { text: '✗', color: 'text-error' },
+      { text: ' eslint@', color: 'text-base-content' },
+      { text: '7.32.0', color: 'text-info' },
+      { text: ' does not match ', color: 'text-base-content' },
+      { text: '^8.0.0', color: 'text-error' },
       { text: '\n', color: '' },
-      { text: '✗', color: 'text-red-400' },
-      { text: ' prettier@', color: 'text-gray-300' },
-      { text: '2.8.8', color: 'text-cyan-400' },
-      { text: ' does not match ', color: 'text-gray-300' },
-      { text: '^3.0.0', color: 'text-red-400' }
+      { text: '✗', color: 'text-error' },
+      { text: ' prettier@', color: 'text-base-content' },
+      { text: '2.8.8', color: 'text-info' },
+      { text: ' does not match ', color: 'text-base-content' },
+      { text: '^3.0.0', color: 'text-error' }
     ]
   },
   {
     id: 'update',
     lines: [
-      { text: '$ ', color: 'text-green-400' },
-      { text: 'npx codependence --update', color: 'text-gray-300' },
+      { text: '$ ', color: 'text-primary' },
+      { text: 'npx codependence --update', color: 'text-base-content' },
       { text: '\n\n', color: '' },
-      { text: 'Updating mismatched dependencies...', color: 'text-gray-400' },
+      { text: 'Updating mismatched dependencies...', color: 'text-base-content/70' },
       { text: '\n', color: '' },
-      { text: '⟳', color: 'text-blue-400' },
-      { text: ' Updating ', color: 'text-gray-300' },
-      { text: 'eslint', color: 'text-yellow-400' },
-      { text: ' from ', color: 'text-gray-300' },
-      { text: '7.32.0', color: 'text-red-400' },
-      { text: ' to ', color: 'text-gray-300' },
-      { text: '8.57.0', color: 'text-green-400' },
-      { text: '...', color: 'text-gray-400' },
+      { text: '⟳', color: 'text-info' },
+      { text: ' Updating ', color: 'text-base-content' },
+      { text: 'eslint', color: 'text-warning' },
+      { text: ' from ', color: 'text-base-content' },
+      { text: '7.32.0', color: 'text-error' },
+      { text: ' to ', color: 'text-base-content' },
+      { text: '8.57.0', color: 'text-success' },
+      { text: '...', color: 'text-base-content/70' },
       { text: '\n', color: '' },
-      { text: '⟳', color: 'text-blue-400' },
-      { text: ' Updating ', color: 'text-gray-300' },
-      { text: 'prettier', color: 'text-yellow-400' },
-      { text: ' from ', color: 'text-gray-300' },
-      { text: '2.8.8', color: 'text-red-400' },
-      { text: ' to ', color: 'text-gray-300' },
-      { text: '3.2.5', color: 'text-green-400' },
-      { text: '...', color: 'text-gray-400' },
+      { text: '⟳', color: 'text-info' },
+      { text: ' Updating ', color: 'text-base-content' },
+      { text: 'prettier', color: 'text-warning' },
+      { text: ' from ', color: 'text-base-content' },
+      { text: '2.8.8', color: 'text-error' },
+      { text: ' to ', color: 'text-base-content' },
+      { text: '3.2.5', color: 'text-success' },
+      { text: '...', color: 'text-base-content/70' },
       { text: '\n', color: '' },
-      { text: '✓', color: 'text-green-400' },
-      { text: ' All codependencies updated successfully!', color: 'text-gray-300' }
+      { text: '✓', color: 'text-success' },
+      { text: ' All codependencies updated successfully!', color: 'text-base-content' }
     ]
   }
 ];
@@ -109,9 +109,9 @@ export default function SpotlightCode() {
   return (
     <div className="w-full max-w-3xl mt-10 xl:mt-0">
       {/* Single terminal window */}
-      <div className="relative overflow-hidden rounded-lg bg-gray-900 border border-base-content/20">
+      <div className="relative overflow-hidden rounded-lg bg-white dark:bg-gray-900 border border-base-content/20">
         {/* Terminal header with dots */}
-        <div className="bg-gray-800 px-4 py-3 flex items-center gap-2">
+        <div className="bg-gray-100 dark:bg-gray-800 px-4 py-3 flex items-center gap-2">
           <div className="flex gap-2">
             <div className="w-3 h-3 rounded-full bg-red-500"></div>
             <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
@@ -120,7 +120,7 @@ export default function SpotlightCode() {
         </div>
         
         {/* Terminal content */}
-        <div className="bg-gray-900 p-6 space-y-6 min-h-[500px]">
+        <div className="bg-white dark:bg-gray-900 p-6 space-y-6 min-h-[500px]">
           {codeSnippets.map((snippet, index) => (
             <div
               key={snippet.id}

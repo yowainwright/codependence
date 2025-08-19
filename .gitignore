@@ -111,3 +111,4 @@ docs/app/page
 .astro
 .DS_Store
 page/app/dist
+.kiro

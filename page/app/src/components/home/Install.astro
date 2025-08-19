@@ -3,7 +3,7 @@ import { CopyButton } from "../common/CopyButton";
 ---
 
 <div
-  class="hero bg-base-100 text-base-content mx-auto py-28 max-w-md md:max-w-full"
+  class="hero bg-transparent text-base-content mx-auto py-28 max-w-md md:max-w-full"
 >
   <div class="hero-content text-center">
     <div class="w-full max-w-xl font-outfit">
@@ -15,14 +15,14 @@ import { CopyButton } from "../common/CopyButton";
         Get started with Codependence in seconds
       </p>
       <div
-        class="flex items-center bg-base-300 rounded-lg shadow-sm mt-4 justify-between"
+        class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg shadow-sm mt-4 justify-between"
       >
         <code class="ml-4">npm install --save-dev codependence</code>
         <CopyButton client:only="react" text="npm install --save-dev codependence" />
       </div>
 
       <a href="/documentation/introduction">
-        <button class="btn btn-primary mt-7">Get Started</button>
+        <button class="btn btn-primary mt-7 rounded-lg border-none">Get Started</button>
       </a>
     </div>
   </div>
