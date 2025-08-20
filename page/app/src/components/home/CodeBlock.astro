@@ -1,5 +1,6 @@
 ---
 import SpotlightCode from "./SpotlightCode";
+import { resolveDocsUrl } from "../../utils/urlResolver";
 ---
 
 <div class="flex justify-center py-20 lg:py-28">
@@ -16,7 +17,7 @@ import SpotlightCode from "./SpotlightCode";
       </p>
 
       <div class="flex gap-4 mt-8">
-        <a href="/documentation/introduction" class="btn rounded-lg border-none bg-primary text-white">Get Started</a>
+        <a href={resolveDocsUrl("introduction")} class="btn rounded-lg border-none bg-primary text-white">Get Started</a>
         <a href="https://github.com/yowainwright/codependence" class="btn btn-outline rounded-lg border-none">View on GitHub</a>
       </div>
     </div>
