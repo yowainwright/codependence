@@ -1,5 +1,6 @@
 ---
 import Terminal from "../common/Terminal.astro";
+import { resolveDocsUrl } from "../../utils/urlResolver";
 ---
 
 <div class="flex justify-center py-20 lg:py-28">
@@ -73,8 +74,8 @@ import Terminal from "../common/Terminal.astro";
       </p>
 
       <div class="flex gap-4 mt-8">
-        <a href="/documentation/introduction" class="btn rounded-lg border-none bg-primary text-white">Get Started</a>
-        <a href="/documentation/cli" class="btn btn-outline rounded-lg border-none">View CLI Docs</a>
+        <a href={resolveDocsUrl("introduction")} class="btn rounded-lg border-none bg-primary text-white">Get Started</a>
+        <a href={resolveDocsUrl("cli")} class="btn btn-outline rounded-lg border-none">View CLI Docs</a>
       </div>
     </div>
   </div>

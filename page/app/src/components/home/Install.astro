@@ -1,5 +1,6 @@
 ---
 import { CopyButton } from "../common/CopyButton";
+import { resolveDocsUrl } from "../../utils/urlResolver";
 ---
 
 <div
@@ -21,7 +22,7 @@ import { CopyButton } from "../common/CopyButton";
         <CopyButton client:only="react" text="npm install --save-dev codependence" />
       </div>
 
-      <a href="/documentation/introduction">
+      <a href={resolveDocsUrl("introduction")}>
         <button class="btn btn-primary mt-7 rounded-lg border-none">Get Started</button>
       </a>
     </div>

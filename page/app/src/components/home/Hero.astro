@@ -1,5 +1,6 @@
 ---
 import { CopyButton } from "../common/CopyButton";
+import { resolveUrl, resolveDocsUrl } from "../../utils/urlResolver";
 ---
 
 <div class="hero">
@@ -28,7 +29,7 @@ import { CopyButton } from "../common/CopyButton";
   <div class="hero-content text-center min-h-[40rem] font-outfit">
     <div class="max-w-2xl md:max-w-6xl">
       <div class="flex justify-center mb-8">
-        <img src="/logos/codependence.svg" alt="Codependence Logo" class="w-32 h-32 md:w-40 md:h-40" />
+        <img src={resolveUrl("logos/codependence.svg")} alt="Codependence Logo" class="w-32 h-32 md:w-40 md:h-40" />
       </div>
       <h1 class="text-4xl md:text-5xl lg:text-7xl">
         Stop wrestling with
@@ -42,7 +43,7 @@ import { CopyButton } from "../common/CopyButton";
         </p>
       </div>
       <div class="flex sm:flex-row flex-col justify-center items-center gap-5">
-        <a href="/documentation/introduction">
+        <a href={resolveDocsUrl("introduction")}>
           <button
             class="btn bg-primary text-white hover:bg-base-content/80 rounded-lg border-none"
             >Get Started
