@@ -1,5 +1,6 @@
 ---
 import SIDEBAR from "../../constants/sidebar";
+import { resolveUrl } from "../../utils/urlResolver";
 
 const pathname = new URL(Astro.request.url).pathname;
 ---
@@ -11,7 +12,7 @@ const pathname = new URL(Astro.request.url).pathname;
     <div
       class="bg-base-100 sticky top-0 z-20 items-center gap-2 bg-opacity-90 px-4 py-2 backdrop-blur lg:flex font-outfit"
     >
-      <a href="/" class="px-2">
+      <a href={resolveUrl("")} class="px-2">
         <h1
           class="text-2xl font-bold text-primary"
         >

@@ -1,14 +1,16 @@
+import { resolveDocsUrl } from "../utils/urlResolver";
+
 const SIDEBAR = [
   {
     title: "Getting Started",
     items: [
       {
         title: "Introduction",
-        href: "/documentation/introduction",
+        href: resolveDocsUrl("introduction"),
       },
       {
         title: "Main Use Case",
-        href: "/documentation/main-usecase",
+        href: resolveDocsUrl("main-usecase"),
       },
     ],
   },
@@ -18,19 +20,19 @@ const SIDEBAR = [
     items: [
       {
         title: "CLI",
-        href: "/documentation/cli",
+        href: resolveDocsUrl("cli"),
       },
       {
         title: "Node.js",
-        href: "/documentation/node",
+        href: resolveDocsUrl("node"),
       },
       {
         title: "Options",
-        href: "/documentation/options",
+        href: resolveDocsUrl("options"),
       },
       {
         title: "Usage Examples",
-        href: "/documentation/usage",
+        href: resolveDocsUrl("usage"),
       },
     ],
   },
@@ -40,7 +42,7 @@ const SIDEBAR = [
     items: [
       {
         title: "Recipes",
-        href: "/documentation/recipes",
+        href: resolveDocsUrl("recipes"),
       },
     ],
   },

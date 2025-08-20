@@ -12,5 +12,5 @@ export function resolveUrl(path: string): string {
 
 // Convenience function for docs paths
 export function resolveDocsUrl(slug: string): string {
-  return resolveUrl(`documentation/${slug}`);
+  return resolveUrl(`docs/${slug}`);
 }

@@ -1,14 +1,15 @@
 ---
 import ThemeToggle from "../common/ThemeToggle.astro";
+import { resolveUrl, resolveDocsUrl } from "../../utils/urlResolver";
 
 const navigation = [
   {
     title: "Home",
-    href: "/",
+    href: resolveUrl(""),
   },
   {
-    title: "Documentation",
-    href: "/documentation/introduction",
+    title: "Docs",
+    href: resolveDocsUrl("introduction"),
   },
 ];
 
@@ -53,7 +54,7 @@ const pathname = new URL(Astro.request.url).pathname;
       </ul>
     </div>
     <div class="navbar-start">
-      <a href="/" class="px-2">
+      <a href={resolveUrl("")} class="px-2">
         <h1
           class="text-xl md:text-2xl font-bold text-primary"
         >
