@@ -9,6 +9,17 @@ interface SearchItem {
   section?: string;
 }
 
+// Get base URL from meta tag or default
+const getBaseUrl = () => {
+  const baseMeta = document.querySelector('meta[name="base-url"]');
+  return baseMeta?.getAttribute('content') || '/codependence/';
+};
+
+const resolveDocsUrl = (slug: string) => {
+  const base = getBaseUrl();
+  return `${base}docs/${slug}`;
+};
+
 export default function FuseSearch() {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -21,20 +32,21 @@ export default function FuseSearch() {
   useEffect(() => {
     const loadSearchIndex = async () => {
       try {
-        const response = await fetch('/search-index.json');
+        const baseUrl = getBaseUrl();
+        const response = await fetch(`${baseUrl}search-index.json`);
         const data = await response.json();
         setSearchIndex(data);
       } catch (error) {
         console.error('Failed to load search index:', error);
         // Fallback to basic index
         setSearchIndex([
-          { title: 'Introduction', content: 'Getting started with Codependence', url: '/documentation/introduction' },
-          { title: 'CLI Usage', content: 'Command line interface documentation', url: '/documentation/cli' },
-          { title: 'Node.js API', content: 'Using Codependence in Node.js', url: '/documentation/node' },
-          { title: 'Options', content: 'Configuration options', url: '/documentation/options' },
-          { title: 'Usage Examples', content: 'Example usage patterns', url: '/documentation/usage' },
-          { title: 'Recipes', content: 'Common recipes and patterns', url: '/documentation/recipes' },
-          { title: 'Main Use Case', content: 'Primary use cases for Codependence', url: '/documentation/main-usecase' },
+          { title: 'Introduction', content: 'Getting started with Codependence', url: resolveDocsUrl('introduction') },
+          { title: 'CLI Usage', content: 'Command line interface documentation', url: resolveDocsUrl('cli') },
+          { title: 'Node.js API', content: 'Using Codependence in Node.js', url: resolveDocsUrl('node') },
+          { title: 'Options', content: 'Configuration options', url: resolveDocsUrl('options') },
+          { title: 'Usage Examples', content: 'Example usage patterns', url: resolveDocsUrl('usage') },
+          { title: 'Recipes', content: 'Common recipes and patterns', url: resolveDocsUrl('recipes') },
+          { title: 'Main Use Case', content: 'Primary use cases for Codependence', url: resolveDocsUrl('main-usecase') },
         ]);
       }
     };
