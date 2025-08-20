@@ -17,7 +17,7 @@ const pathname = new URL(Astro.request.url).pathname;
 
 <header class="sticky top-0 z-30">
   <nav
-    class="navbar bg-[#faebed] dark:bg-[#0F172A] backdrop-blur-3xl justify-center items-center py-2 sm:px-0 md:px-20 font-outfit border-b border-base-content/20"
+    class="navbar bg-base-200 backdrop-blur-3xl justify-center items-center py-2 sm:px-0 md:px-20 font-outfit border-b border-base-content/20"
   >
     <div class="dropdown">
       <div tabindex="0" role="button" class="btn btn-ghost btn-square lg:hidden border-none rounded-lg">
@@ -42,7 +42,7 @@ const pathname = new URL(Astro.request.url).pathname;
           navigation.map((item) => (
             <li>
               <a
-                class={`hover:text-primary hover:bg-primary/5 transition flex ${pathname === item.href ? "text-primary bg-primary/5" : ""}`}
+                class={`hover:text-primary hover:bg-base-300 transition flex ${pathname === item.href ? "text-primary bg-base-300" : ""}`}
                 href={item.href}
               >
                 {item.title}
@@ -68,7 +68,7 @@ const pathname = new URL(Astro.request.url).pathname;
           navigation.map((item) => (
             <li>
               <a
-                class={`hover:text-primary hover:bg-primary/5 transition flex ${pathname === item.href ? "text-primary bg-primary/5" : ""}`}
+                class={`hover:text-primary hover:bg-base-300 rounded-md transition flex ${pathname === item.href ? "text-primary bg-base-300" : ""}`}
                 href={item.href}
               >
                 {item.title}
@@ -81,7 +81,7 @@ const pathname = new URL(Astro.request.url).pathname;
 
     <div class="navbar-end">
       <a
-        class="btn btn-sm btn-ghost btn-square border-none rounded-lg"
+        class="btn btn-sm btn-ghost btn-square rounded-lg"
         href="https://github.com/yowainwright/codependence"
         aria-label="github"
       >

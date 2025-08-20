@@ -5,18 +5,18 @@ import Terminal from "../common/Terminal.astro";
 <div class="flex justify-center py-20 lg:py-28">
   <div class="xl:flex gap-16 max-w-6xl">
     <div class="w-full max-w-3xl mt-10 xl:mt-0">
-      <div class="relative overflow-hidden rounded-lg bg-white dark:bg-gray-900 border border-base-content/20">
+      <div class="relative overflow-hidden rounded-lg bg-base-100 border border-base-content/20">
         {/* Terminal header with dots */}
-        <div class="bg-gray-100 dark:bg-gray-800 px-4 py-3 flex items-center gap-2">
+        <div class="bg-base-300 px-4 py-3 flex items-center gap-2">
           <div class="flex gap-2">
             <div class="w-3 h-3 rounded-full bg-red-500"></div>
             <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
             <div class="w-3 h-3 rounded-full bg-green-500"></div>
           </div>
         </div>
-        
+
         {/* Terminal content */}
-        <div class="bg-white dark:bg-gray-900 p-6">
+        <div class="bg-base-300 p-6">
           <div class="text-sm font-mono">
             <div class="flex gap-2">
               <span class="text-primary">$</span>
@@ -32,7 +32,7 @@ import Terminal from "../common/Terminal.astro";
                 <div class="text-error">✗ prettier@2.8.8 does not match ^3.0.0</div>
               </div>
             </div>
-            
+
             <div class="flex gap-2 mt-4">
               <span class="text-green-400">$</span>
               <span class="text-gray-300">npx codependence --update</span>
@@ -73,7 +73,7 @@ import Terminal from "../common/Terminal.astro";
       </p>
 
       <div class="flex gap-4 mt-8">
-        <a href="/documentation/introduction" class="btn rounded-lg border-none">Get Started</a>
+        <a href="/documentation/introduction" class="btn rounded-lg border-none bg-primary text-white">Get Started</a>
         <a href="/documentation/cli" class="btn btn-outline rounded-lg border-none">View CLI Docs</a>
       </div>
     </div>

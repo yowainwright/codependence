@@ -5,9 +5,9 @@ description: How to use Codependence as a Node.js utility.
 
 <section>
 
-# Codependence in Node
+## Overview
 
-Although, Codependence is built to primarily be a CLI utility, it can be used as a node utility.
+Although Codependence is built to primarily be a CLI utility, it can be used as a Node.js module for programmatic usage.
 
 ```ts
 import codependence from "codependence";
@@ -26,6 +26,84 @@ const checkForUpdate = async () => {
 checkForUpdate();
 ```
 
----
+## API Reference
+
+### Basic Usage
+
+The `codependence` function accepts an options object with the same parameters as the CLI:
+
+```ts
+interface CodependenceOptions {
+  codependencies?: string[];
+  files?: string[];
+  update?: boolean;
+  rootDir?: string;
+  ignore?: string[];
+  debug?: boolean;
+  silent?: boolean;
+  verbose?: boolean;
+  quiet?: boolean;
+  config?: string;
+  searchPath?: string;
+  yarnConfig?: boolean;
+  permissive?: boolean;
+}
+```
+
+## Examples
+
+### Check Specific Dependencies
+
+```ts
+import codependence from "codependence";
+
+await codependence({
+  codependencies: ["react@^18.0.0", "typescript@^5.0.0"],
+  update: false
+});
+```
+
+### Update Dependencies in Monorepo
+
+```ts
+import codependence from "codependence";
+
+await codependence({
+  files: ["packages/*/package.json"],
+  codependencies: ["eslint", "prettier"],
+  update: true,
+  rootDir: process.cwd()
+});
+```
+
+### Using with Configuration File
+
+```ts
+import codependence from "codependence";
+
+await codependence({
+  config: "./codependence.config.json"
+});
+```
+
+## Return Values
+
+The function returns a boolean:
+- `true` - Dependencies need updating
+- `false` - All dependencies are up-to-date
+
+## Error Handling
+
+Wrap calls in try-catch blocks to handle errors:
+
+```ts
+try {
+  const needsUpdate = await codependence({ 
+    codependencies: ["lodash"] 
+  });
+} catch (error) {
+  console.error("Codependence check failed:", error);
+}
+```
 
 </section>

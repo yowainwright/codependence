@@ -5,13 +5,15 @@ description: Command Line Interface for Codependence
 
 <section>
 
-# Codependence as a CLI
+## Overview
 
 Codependence is built as a CLI-first, set-it-and-forget-it tool.
 
 It is recommendeded to install and setup Codependence as a devDependency within your root package.json and use a codependence.codependencies array to define dependencies you need to keep updated or pinned to a specific version.
 
 Furthermore, you can add a codependence.codependencies array to child packages' package.json in your monorepo to ensure specific dependencies are pinned to a specific versions within your monorepo packages.
+
+## Command Line Usage
 
 ```bash
 Usage: index [options] [command]
@@ -40,6 +42,41 @@ Commands:
   init [type]                                  Initialize codependence configuration interactively
 ```
 
----
+## Commands
+
+### init
+
+Initialize codependence configuration interactively. This command helps you set up Codependence in your project.
+
+```bash
+codependence init
+```
+
+## Options Reference
+
+### File and Directory Options
+- `-f, --files [files...]` - Specify file glob patterns to check
+- `-r, --rootDir <rootDir>` - Set the root directory to start search
+- `-i, --ignore [ignore...]` - Specify glob patterns to ignore
+- `-s, --searchPath <searchPath>` - Path to search for config files
+
+### Update Options
+- `-u, --update` - Automatically update dependencies based on check results
+- `--permissive` - Update all dependencies to latest except those specified in codependencies
+
+### Configuration Options
+- `-c, --config <config>` - Path to a configuration file
+- `--cds, --codependencies [codependencies...]` - Specify dependencies to check inline
+- `-y, --yarnConfig` - Enable yarn configuration support
+
+### Output Options
+- `--debug` - Enable debugging output
+- `--silent` - Enable mainly silent logging
+- `-v, --verbose` - Enable verbose logging (shows debug info)
+- `-q, --quiet` - Suppress all output except errors
+
+### Testing Options
+- `-t, --isTestingCLI` - Enable CLI only testing
+- `--isTesting` - Enable running function tests without overwriting
 
 </section>

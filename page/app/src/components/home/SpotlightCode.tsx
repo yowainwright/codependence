@@ -109,18 +109,18 @@ export default function SpotlightCode() {
   return (
     <div className="w-full max-w-3xl mt-10 xl:mt-0">
       {/* Single terminal window */}
-      <div className="relative overflow-hidden rounded-lg bg-white dark:bg-gray-900 border border-base-content/20">
+      <div className="relative overflow-hidden rounded-lg border border-base-content/20">
         {/* Terminal header with dots */}
-        <div className="bg-gray-100 dark:bg-gray-800 px-4 py-3 flex items-center gap-2">
+        <div className="bg-base-300 px-4 py-3 flex items-center gap-2">
           <div className="flex gap-2">
             <div className="w-3 h-3 rounded-full bg-red-500"></div>
             <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
             <div className="w-3 h-3 rounded-full bg-green-500"></div>
           </div>
         </div>
-        
+
         {/* Terminal content */}
-        <div className="bg-white dark:bg-gray-900 p-6 space-y-6 min-h-[500px]">
+        <div className="bg-base-300 p-6 space-y-6 min-h-[500px]">
           {codeSnippets.map((snippet, index) => (
             <div
               key={snippet.id}
@@ -136,15 +136,15 @@ export default function SpotlightCode() {
                   background: 'radial-gradient(circle at center, hsl(var(--p) / 0.05), transparent 70%)',
                 }}
               />
-              
+
               <pre className="text-sm font-mono relative">
                 <code>
                   {snippet.lines.map((line, lineIndex) => (
-                    <span 
-                      key={lineIndex} 
+                    <span
+                      key={lineIndex}
                       className={`transition-all duration-300 ${
-                        activeIndex === index 
-                          ? line.color || 'text-base-content' 
+                        activeIndex === index
+                          ? line.color || 'text-base-content'
                           : 'text-base-content/40'
                       }`}
                     >

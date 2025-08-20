@@ -1,6 +1,6 @@
 ---
 import ThemeToggle from "../common/ThemeToggle.astro";
-import FuseSearch from "./FuseSearch";
+import Search from "./Search";
 ---
 
 <header class="sticky top-0 z-30">
@@ -21,7 +21,7 @@ import FuseSearch from "./FuseSearch";
             d="M4 6h16M4 12h16M4 18h16"></path>
         </svg>
       </label>
-      <FuseSearch client:only="react" />
+      <Search client:only="react" />
     </div>
 
     <div class="navbar-end">

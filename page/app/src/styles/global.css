@@ -12,26 +12,14 @@
   --font-outfit: "Outfit Variable", "sans-serif";
 }
 
-/* Custom gradient backgrounds */
+/* Clean backgrounds - using base colors from theme */
 [data-theme="codependence-light"] {
-  background: linear-gradient(135deg, 
-    #FFF5F7 0%,      /* very light pink */
-    #FFE4E1 25%,     /* misty rose */
-    #FFDDD8 50%,     /* subtle pink */
-    #FFE7E3 75%,     /* light peach pink */
-    #FFF5F7 100%     /* back to very light pink */
-  );
+  background: var(--color-base-100);
   min-height: 100vh;
 }
 
 [data-theme="codependence-dark"] {
-  background: linear-gradient(135deg, 
-    #0F172A 0%,      /* very dark blue */
-    #1E293B 25%,     /* dark slate */
-    #334155 50%,     /* medium slate */
-    #475569 75%,     /* lighter slate */
-    #0F172A 100%     /* back to very dark blue */
-  );
+  background: var(--color-base-100);
   min-height: 100vh;
 }
 

@@ -6,6 +6,10 @@ const SIDEBAR = [
         title: "Introduction",
         href: "/documentation/introduction",
       },
+      {
+        title: "Main Use Case",
+        href: "/documentation/main-usecase",
+      },
     ],
   },
 
@@ -37,10 +41,6 @@ const SIDEBAR = [
       {
         title: "Recipes",
         href: "/documentation/recipes",
-      },
-      {
-        title: "Main Use Case",
-        href: "/documentation/main-usecase",
       },
     ],
   },

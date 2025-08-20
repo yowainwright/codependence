@@ -7,14 +7,27 @@ description: Keep dependencies up-to-date
 
 ## Main Usecase
 
-#### _Keep dependencies up-to-date_
+### Keep Dependencies Up-to-date
 
 Codependence updates package.json's dependencies based on a "codependencies" array of dependency names. The difference from `{npm,pnpm,bun} update` or `yarn upgrade` is Codependence allows you to pin what you want and update the rest! Furthermore, Codependence works with monorepos and is package manager agnostic.
 
-> #### \*yes, dependencies can be pinned to `~` or `^` versions in package.json files!
+## Key Features
 
-Readme more about Codependence why you might want to use it below!
+### Version Pinning Flexibility
+Dependencies can be pinned to `~` or `^` versions in package.json files, giving you precise control over update ranges.
 
----
+### Package Manager Agnostic
+Works seamlessly with npm, yarn, pnpm, and bun without requiring specific configuration.
+
+### Monorepo Support
+Handles multiple package.json files across your monorepo with a single command.
+
+## Why This Matters
+
+Traditional package managers update all dependencies or none. Codependence gives you the granular control to:
+- Keep critical dependencies at specific versions
+- Update everything else to latest
+- Maintain consistency across multiple packages
+- Automate updates in CI/CD pipelines
 
 </section>
