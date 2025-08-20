@@ -108,3 +108,7 @@ docs/app/page
 .pnpm-store
 .turbo
 .vscode
+.astro
+.DS_Store
+page/app/dist
+.kiro

@@ -16,16 +16,29 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24.x
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v2
+          node-version: 24
+
+      - uses: oven-sh/setup-bun@v2
+        name: Install Bun
+
+      - name: Get Bun cache directory
+        id: bun-cache
+        run: |
+          echo "bun_cache_dir=$(bun pm cache dir)" >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@v4
+        name: Setup Bun cache
         with:
-          bun-version: latest
-      - name: Install dependencies
-        run: bun install
-      - run: bun run build
+          path: ${{ steps.bun-cache.outputs.bun_cache_dir }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - run: bun install
+      - run: cd page/app && bun install && bun run build
+      - run: touch page/app/dist/.nojekyll
 
       - name: Deploy 🚀
-        uses: JamesIves/github-pages-deploy-action@v4.6.3
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: page/app/dist

@@ -1,0 +1,82 @@
+---
+title: CLI
+description: Command Line Interface for Codependence
+---
+
+<section>
+
+## Overview
+
+Codependence is built as a CLI-first, set-it-and-forget-it tool.
+
+It is recommendeded to install and setup Codependence as a devDependency within your root package.json and use a codependence.codependencies array to define dependencies you need to keep updated or pinned to a specific version.
+
+Furthermore, you can add a codependence.codependencies array to child packages' package.json in your monorepo to ensure specific dependencies are pinned to a specific versions within your monorepo packages.
+
+## Command Line Usage
+
+```bash
+Usage: index [options] [command]
+
+Codedependency, for code dependency. Checks `coDependencies` in package.json files to ensure dependencies are up-to-date
+
+Options:
+  -t, --isTestingCLI                           enable CLI only testing
+  --isTesting                                  enable running fn tests w/o overwriting
+  -f, --files [files...]                       file glob pattern
+  -u, --update                                 update dependencies based on check
+  -r, --rootDir <rootDir>                      root directory to start search
+  -i, --ignore [ignore...]                     ignore glob pattern
+  --debug                                      enable debugging
+  --silent                                     enable mainly silent logging
+  -v, --verbose                                enable verbose logging (shows debug info)
+  -q, --quiet                                  suppress all output except errors
+  --cds, --codependencies [codependencies...]  deps to check
+  -c, --config <config>                        path to a config file
+  -s, --searchPath <searchPath>                path to do a config file search
+  -y, --yarnConfig                             enable yarn config support
+  --permissive                                 update all deps to latest except those in codependencies
+  -h, --help                                   display help for command
+
+Commands:
+  init [type]                                  Initialize codependence configuration interactively
+```
+
+## Commands
+
+### init
+
+Initialize codependence configuration interactively. This command helps you set up Codependence in your project.
+
+```bash
+codependence init
+```
+
+## Options Reference
+
+### File and Directory Options
+- `-f, --files [files...]` - Specify file glob patterns to check
+- `-r, --rootDir <rootDir>` - Set the root directory to start search
+- `-i, --ignore [ignore...]` - Specify glob patterns to ignore
+- `-s, --searchPath <searchPath>` - Path to search for config files
+
+### Update Options
+- `-u, --update` - Automatically update dependencies based on check results
+- `--permissive` - Update all dependencies to latest except those specified in codependencies
+
+### Configuration Options
+- `-c, --config <config>` - Path to a configuration file
+- `--cds, --codependencies [codependencies...]` - Specify dependencies to check inline
+- `-y, --yarnConfig` - Enable yarn configuration support
+
+### Output Options
+- `--debug` - Enable debugging output
+- `--silent` - Enable mainly silent logging
+- `-v, --verbose` - Enable verbose logging (shows debug info)
+- `-q, --quiet` - Suppress all output except errors
+
+### Testing Options
+- `-t, --isTestingCLI` - Enable CLI only testing
+- `--isTesting` - Enable running function tests without overwriting
+
+</section>

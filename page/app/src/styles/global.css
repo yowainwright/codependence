@@ -1,0 +1,74 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes:
+    codependence-light --default,
+    codependence-dark --prefersdark,
+    cupcake,
+    night;
+}
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --font-outfit: "Outfit Variable", "sans-serif";
+}
+
+/* Clean backgrounds - using base colors from theme */
+[data-theme="codependence-light"] {
+  background: var(--color-base-100);
+  min-height: 100vh;
+}
+
+[data-theme="codependence-dark"] {
+  background: var(--color-base-100);
+  min-height: 100vh;
+}
+
+/* Custom text gradients for Codependence branding with shiny effect */
+[data-theme="codependence-light"] .text-transparent {
+  background: linear-gradient(135deg, 
+    #4169E1 0%,      /* royal blue */
+    #6495ED 20%,     /* cornflower blue - highlight */
+    #1E40AF 40%,     /* blue */
+    #1E3A8A 60%,     /* dark blue */
+    #3B82F6 80%,     /* blue - highlight */
+    #1D4ED8 100%     /* blue */
+  ) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  background-size: 200% 200%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+[data-theme="codependence-dark"] .text-transparent {
+  background: linear-gradient(135deg,
+    #1E3A8A 0%,      /* dark blue */
+    #1E40AF 20%,     /* blue - highlight */
+    #1D4ED8 40%,     /* brighter blue */
+    #3B82F6 60%,     /* light blue */
+    #60A5FA 80%,     /* lighter blue - highlight */
+    #93C5FD 100%     /* very light blue */
+  ) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  background-size: 200% 200%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+/* Shimmer animation for shiny effect */
+@keyframes shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+
