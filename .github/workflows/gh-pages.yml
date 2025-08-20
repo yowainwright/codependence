@@ -1,16 +1,24 @@
-name: gh-pages
+name: Deploy to GitHub Pages
+
 on:
   push:
     branches:
       - main
+
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
-  build-and-deploy:
-    concurrency: ci-${{ github.ref }} # Recommended if you intend to make multiple deployments in quick succession.
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout 🛎️
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install Node.js
@@ -18,27 +26,43 @@ jobs:
         with:
           node-version: 24
 
-      - uses: oven-sh/setup-bun@v2
-        name: Install Bun
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Get Bun cache directory
         id: bun-cache
         run: |
           echo "bun_cache_dir=$(bun pm cache dir)" >> $GITHUB_OUTPUT
 
-      - uses: actions/cache@v4
-        name: Setup Bun cache
+      - name: Setup Bun cache
+        uses: actions/cache@v4
         with:
           path: ${{ steps.bun-cache.outputs.bun_cache_dir }}
           key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
-      - run: bun install
-      - run: cd page/app && bun install && bun run build
-      - run: touch page/app/dist/.nojekyll
+      - name: Install dependencies
+        run: bun install
 
-      - name: Deploy 🚀
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: Build site
+        run: cd page/app && bun install && bun run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          folder: page/app/dist
+          path: ./page/app/dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
