@@ -1,75 +1,9 @@
 {
   "name": "codependence",
   "version": "1.0.0-1",
-  "main": "dist/index.cjs",
-  "description": "Checks `codependencies` in package.json files to ensure dependencies are up-to-date 🤼‍♀️",
-  "type": "module",
-  "module": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
-  },
-  "bin": {
-    "codependence": "dist/index.js",
-    "cdp": "dist/index.js"
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "turbo run build-dist",
-    "build-dist": "tsup src/index.ts --format esm,cjs --dts",
-    "clean-dist": "rimraf dist",
-    "clean": "turbo run clean-dist && cd page/app && rimraf dist",
-    "cmd:node:test-fail-run": "node dist/index.js --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug",
-    "cmd:node:test-pass-run": "node dist/index.js --config './test/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './test/' --debug",
-    "cmd:bun:test-search": "bun src/index.ts --rootDir './test/' --debug --searchPath './test/.codependencerc' --isTestingCLI",
-    "cmd:bun:test-fail-run": "bun src/index.ts --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug",
-    "cmd:bun:test-pass-run": "bun src/index.ts --config './test/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './test/' --debug",
-    "cmd:bun:test-update-run": "bun src/index.ts --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug --isTesting",
-    "cmd:bun:test-codependencies-cli": "bun src/index.ts -c './test/test-fail-package.json' --files 'test-fail-package.json' -cds 'lodash' '{ \"fs-extra\": \"10.0.1\" }' --rootDir './test/' --debug --isTesting",
-    "commit": "git-cz",
-    "commit-msg": "commitlint --edit $1",
-    "coverage": "bun test --coverage",
-    "dev": "turbo run dev",
-    "docs:dev": "turbo run dev --filter=@codependence/docs",
-    "docs:build": "turbo run build --filter=@codependence/docs",
-    "docs:preview": "turbo run preview --filter=@codependence/docs",
-    "format-src": "bun x prettier --write src",
-    "format-test": "bun x prettier --write test",
-    "format-app": "bun x prettier --write page/app",
-    "format": "turbo run format-src && turbo run format-test && turbo run format-app",
-    "lint": "turbo run lint-src",
-    "lint-fix": "bun x oxlint . --fix",
-    "lint-src": "bun x oxlint src",
-    "lint:fix": "bun x oxlint src/**/*.ts --fix",
-    "pre-commit": "lint-staged",
-    "prepare": "is-ci || husky install",
-    "prepublishOnly": "npm run clean-dist && npm run build-dist",
-    "preview": "turbo run preview",
-    "release": "release-it",
-    "setup": "bun install && bun run build",
-    "test": "turbo run test-src",
-    "test-src": "bun test",
-    "typecheck": "turbo run typecheck-src",
-    "typecheck-src": "tsc --noEmit",
-    "update": "echo 'temp default' && bun update"
-  },
   "author": "Jeff Wainwright <yowainwright@gmail.com> (https://jeffry.in)",
-  "license": "MIT",
-  "dependencies": {
-    "commander": "^13.1.0",
-    "cosmiconfig": "^9.0.0",
-    "execa": "^9.6.0",
-    "fast-glob": "^3.3.3",
-    "gradient-string": "^3.0.0",
-    "inquirer": "^9.2.15",
-    "ora": "8.2.0",
-    "validate-npm-package-name": "^6.0.1"
-  },
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
@@ -105,48 +39,15 @@
     "typescript-eslint": "^8.35.1",
     "vite": "^6.3.5"
   },
-  "keywords": [
-    "peerDependencies",
-    "optionalDependencies",
-    "optional-dependencies",
-    "dependencies",
-    "devDependencies",
-    "versioning",
-    "versions",
-    "semver"
-  ],
-  "commitlint": {
-    "extends": [
-      "@commitlint/config-conventional"
-    ],
-    "rules": {
-      "header-max-length": [
-        2,
-        "always",
-        120
-      ]
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     }
   },
-  "lint-staged": {
-    "*.ts": [
-      "bun x oxlint --fix",
-      "bun x prettier --write"
-    ],
-    "*.{json,md}": [
-      "bun x prettier --write"
-    ]
-  },
-  "release-it": {
-    "git": {
-      "commitMessage": "chore: release %s"
-    }
-  },
-  "packageManager": "bun@1.2.9",
-  "workspaces": [
-    "page/app"
-  ],
-  "engines": {
-    "node": ">=18"
+  "bin": {
+    "codependence": "dist/index.js",
+    "cdp": "dist/index.js"
   },
   "codependence": {
     "codependencies": [
@@ -189,5 +90,94 @@
       "typescript-eslint",
       "vite"
     ]
-  }
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ],
+    "rules": {
+      "header-max-length": [
+        2,
+        "always",
+        120
+      ]
+    }
+  },
+  "description": "Checks `codependencies` in package.json files to ensure dependencies are up-to-date 🤼‍♀️",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "peerDependencies",
+    "optionalDependencies",
+    "optional-dependencies",
+    "dependencies",
+    "devDependencies",
+    "versioning",
+    "versions",
+    "semver"
+  ],
+  "license": "MIT",
+  "lint-staged": {
+    "*.ts": [
+      "bun x oxlint --fix",
+      "bun x prettier --write"
+    ],
+    "*.{json,md}": [
+      "bun x prettier --write"
+    ]
+  },
+  "packageManager": "bun@1.2.9",
+  "release-it": {
+    "git": {
+      "commitMessage": "chore: release %s"
+    }
+  },
+  "scripts": {
+    "build": "turbo run build-dist",
+    "build-dist": "tsup src/index.ts --format esm,cjs --dts",
+    "clean-dist": "rimraf dist",
+    "clean": "turbo run clean-dist && cd page/app && rimraf dist",
+    "cmd:node:test-fail-run": "node dist/index.js --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug",
+    "cmd:node:test-pass-run": "node dist/index.js --config './test/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './test/' --debug",
+    "cmd:bun:test-search": "bun src/index.ts --rootDir './test/' --debug --searchPath './test/.codependencerc' --isTestingCLI",
+    "cmd:bun:test-fail-run": "bun src/index.ts --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug",
+    "cmd:bun:test-pass-run": "bun src/index.ts --config './test/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './test/' --debug",
+    "cmd:bun:test-update-run": "bun src/index.ts --config './test/test-fail-package.json' --files 'test-fail-package.json' --rootDir './test/' --debug --isTesting",
+    "cmd:bun:test-codependencies-cli": "bun src/index.ts -c './test/test-fail-package.json' --files 'test-fail-package.json' -cds 'lodash' '{ \"fs-extra\": \"10.0.1\" }' --rootDir './test/' --debug --isTesting",
+    "commit": "git-cz",
+    "commit-msg": "commitlint --edit $1",
+    "coverage": "bun test --coverage",
+    "dev": "turbo run dev",
+    "docs:dev": "turbo run dev --filter=@codependence/docs",
+    "docs:build": "turbo run build --filter=@codependence/docs",
+    "docs:preview": "turbo run preview --filter=@codependence/docs",
+    "format-src": "bun x prettier --write src",
+    "format-test": "bun x prettier --write test",
+    "format-app": "bun x prettier --write page/app",
+    "format": "turbo run format-src && turbo run format-test && turbo run format-app",
+    "lint": "turbo run lint-src",
+    "lint-fix": "bun x oxlint . --fix",
+    "lint-src": "bun x oxlint src",
+    "lint:fix": "bun x oxlint src/**/*.ts --fix",
+    "pre-commit": "lint-staged",
+    "prepare": "is-ci || husky install",
+    "prepublishOnly": "npm run clean-dist && npm run build-dist",
+    "preview": "turbo run preview",
+    "release": "release-it",
+    "setup": "bun install && bun run build",
+    "test": "turbo run test-src",
+    "test-src": "bun test",
+    "typecheck": "turbo run typecheck-src",
+    "typecheck-src": "tsc --noEmit",
+    "update": "echo 'temp default' && bun update"
+  },
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "workspaces": [
+    "page/app"
+  ]
 }

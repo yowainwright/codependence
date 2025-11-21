@@ -1,8 +1,7 @@
 import { readFileSync, writeFileSync } from "fs";
-import validatePackageName from "validate-npm-package-name";
-import { execa } from "execa";
-import fg from "fast-glob";
-const { sync: glob } = fg;
+import { validatePackageName } from "../utils/validate-package";
+import { exec } from "../utils/exec";
+import { glob } from "../utils/glob";
 import { logger, writeConsoleMsgs } from "../logger";
 import {
   CheckFiles,
@@ -24,7 +23,7 @@ import {
  */
 export const constructVersionMap = async ({
   codependencies,
-  exec = execa,
+  exec: execFn = exec,
   debug = false,
   yarnConfig = false,
   isTesting = false,
@@ -40,22 +39,16 @@ export const constructVersionMap = async ({
           item.length > 1 &&
           !item.includes(" ")
         ) {
-          // the following 2 lines capture only accepted npm package names
           const { validForNewPackages, validForOldPackages, errors } =
             validate(item);
-          const isValid = [validForNewPackages, validForOldPackages].every(
-            (valid) => valid === true,
-          );
+          const isValid = validForNewPackages || validForOldPackages;
           if (!isValid) throw new Error(errors?.join(", "));
 
           const runner = !yarnConfig ? "npm" : "yarn";
           const cmd = !yarnConfig
             ? ["view", item, "version", "latest"]
             : ["npm", "info", item, "--fields", "version", "--json"];
-          const { stdout = "" } = (await exec(
-            runner,
-            cmd,
-          )) as unknown as Record<string, string>;
+          const { stdout = "" } = await execFn(runner, cmd);
 
           const version = !yarnConfig
             ? stdout.replace("\n", "")
@@ -433,7 +426,7 @@ export const checkFiles = async ({
   permissive = false,
 }: CheckFiles): Promise<void> => {
   try {
-    const files = glob(matchers, { cwd: rootDir, ignore });
+    const files = await glob(matchers, { cwd: rootDir, ignore });
     if (!codependencies && !permissive) {
       throw '"codependencies" are required (unless using permissive mode)';
     }
