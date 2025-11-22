@@ -19,8 +19,8 @@ COPY page/ ./page/
 RUN curl -fsSL https://bun.sh/install | bash
 ENV PATH="/root/.bun/bin:$PATH"
 
-# Install dependencies
-RUN bun install --frozen-lockfile
+# Install dependencies (skip git hooks setup in Docker)
+RUN bun install --frozen-lockfile --ignore-scripts
 
 # Copy source code
 COPY . .
