@@ -55,26 +55,30 @@ rm -f go.mod .codependencerc
 # Test 5: Detection without language flag
 echo "\n5. Testing automatic language detection..."
 
-rm -f package.json
-cp python-requirements.txt requirements.txt
-if node ./dist/index.js --debug --codependencies requests 2>&1 | grep -q "requests"; then
+mkdir -p autodetect-test
+cd autodetect-test
+cp ../python-requirements.txt requirements.txt
+if node ../dist/index.js --debug --codependencies requests 2>&1 | grep -q "requests"; then
   echo "✓ Python auto-detection test passed"
 else
   echo "✗ Python auto-detection test failed"
+  cd ..
+  rm -rf autodetect-test
   exit 1
 fi
-rm -f requirements.txt
+cd ..
+rm -rf autodetect-test
 
-# Test Go detection
-cp go.mod go.mod.test
-mv go.mod.test go.mod
-if node ./dist/index.js --debug --codependencies github.com/gin-gonic/gin 2>&1 | grep -q "gin"; then
+mkdir -p go-autodetect-test
+cd go-autodetect-test
+cp ../go.mod .
+if node ../dist/index.js --debug --codependencies github.com/gin-gonic/gin 2>&1 | grep -q "gin"; then
   echo "✓ Go auto-detection test passed"
 else
   echo "✗ Go auto-detection test failed - this is expected if go is not installed"
-  # Don't fail the test suite for Go detection if go CLI isn't available
 fi
-rm -f go.mod
+cd ..
+rm -rf go-autodetect-test
 
 # Test 6: Mixed project (Node.js + Python)
 echo "\n6. Testing polyglot project (Node.js + Python)..."
