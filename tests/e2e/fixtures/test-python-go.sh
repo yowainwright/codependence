@@ -55,7 +55,7 @@ rm -f go.mod .codependencerc
 # Test 5: Detection without language flag
 echo "\n5. Testing automatic language detection..."
 
-# Test Python detection
+rm -f package.json
 cp python-requirements.txt requirements.txt
 if node ./dist/index.js --debug --codependencies requests 2>&1 | grep -q "requests"; then
   echo "✓ Python auto-detection test passed"
