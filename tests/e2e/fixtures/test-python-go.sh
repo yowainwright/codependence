@@ -7,7 +7,7 @@ echo "=== Testing codependence with Python and Go ==="
 echo "\n1. Testing Python requirements.txt..."
 cp python-requirements.txt requirements.txt
 cp .codependencerc-python .codependencerc
-if node ../../../dist/index.js --debug 2>&1 | grep -q "requests\|flask\|django"; then
+if node ./dist/index.js --debug 2>&1 | grep -q "requests\|flask\|django"; then
   echo "✓ Python requirements.txt test passed"
 else
   echo "✗ Python requirements.txt test failed"
@@ -19,7 +19,7 @@ rm -f requirements.txt .codependencerc
 echo "\n2. Testing Python pyproject.toml (poetry)..."
 cp python-pyproject.toml pyproject.toml
 cp .codependencerc-python .codependencerc
-if node ../../../dist/index.js --debug 2>&1 | grep -q "requests\|flask\|django"; then
+if node ./dist/index.js --debug 2>&1 | grep -q "requests\|flask\|django"; then
   echo "✓ Python pyproject.toml test passed"
 else
   echo "✗ Python pyproject.toml test failed"
@@ -31,7 +31,7 @@ rm -f pyproject.toml .codependencerc
 echo "\n3. Testing Python Pipfile..."
 cp python-Pipfile Pipfile
 cp .codependencerc-python .codependencerc
-if node ../../../dist/index.js --debug 2>&1 | grep -q "requests\|flask\|django"; then
+if node ./dist/index.js --debug 2>&1 | grep -q "requests\|flask\|django"; then
   echo "✓ Python Pipfile test passed"
 else
   echo "✗ Python Pipfile test failed"
@@ -44,7 +44,7 @@ echo "\n4. Testing Go go.mod..."
 cp go.mod go.mod.test
 mv go.mod.test go.mod
 cp .codependencerc-go .codependencerc
-if node ../../../dist/index.js --debug 2>&1 | grep -q "gin-gonic\|lib/pq\|golang.org"; then
+if node ./dist/index.js --debug 2>&1 | grep -q "gin-gonic\|lib/pq\|golang.org"; then
   echo "✓ Go go.mod test passed"
 else
   echo "✗ Go go.mod test failed"
@@ -57,7 +57,7 @@ echo "\n5. Testing automatic language detection..."
 
 # Test Python detection
 cp python-requirements.txt requirements.txt
-if node ../../../dist/index.js --debug --codependencies requests 2>&1 | grep -q "requests"; then
+if node ./dist/index.js --debug --codependencies requests 2>&1 | grep -q "requests"; then
   echo "✓ Python auto-detection test passed"
 else
   echo "✗ Python auto-detection test failed"
@@ -68,7 +68,7 @@ rm -f requirements.txt
 # Test Go detection
 cp go.mod go.mod.test
 mv go.mod.test go.mod
-if node ../../../dist/index.js --debug --codependencies github.com/gin-gonic/gin 2>&1 | grep -q "gin"; then
+if node ./dist/index.js --debug --codependencies github.com/gin-gonic/gin 2>&1 | grep -q "gin"; then
   echo "✓ Go auto-detection test passed"
 else
   echo "✗ Go auto-detection test failed - this is expected if go is not installed"
@@ -80,7 +80,7 @@ rm -f go.mod
 echo "\n6. Testing polyglot project (Node.js + Python)..."
 cp test-package.json package.json
 cp python-requirements.txt requirements.txt
-if node ../../../dist/index.js --debug --codependencies lodash 2>&1 | grep -q "lodash"; then
+if node ./dist/index.js --debug --codependencies lodash 2>&1 | grep -q "lodash"; then
   echo "✓ Polyglot project test passed (prioritizes Node.js)"
 else
   echo "✗ Polyglot project test failed"
