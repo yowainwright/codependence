@@ -114,3 +114,4 @@ page/app/dist
 .kiro
 .claude/settings.json
 tmp
+.husky/

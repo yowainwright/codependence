@@ -7,7 +7,7 @@ import {
   gray,
   bold,
   gradient,
-} from "../../src/utils/colors";
+} from "../../../src/utils/colors";
 
 describe("colors", () => {
   it("should apply green color", () => {

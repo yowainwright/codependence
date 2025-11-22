@@ -1,5 +1,5 @@
 import { describe, test, expect, mock } from "bun:test";
-import { Prompt, createPrompt } from "../../src/utils/prompts";
+import { Prompt, createPrompt } from "../../../src/utils/prompts";
 import * as readline from "readline";
 
 describe("Prompt", () => {

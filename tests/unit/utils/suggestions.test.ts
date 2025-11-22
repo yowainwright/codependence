@@ -5,7 +5,7 @@ import {
   formatEnhancedError,
   COMMON_PACKAGES,
   type ErrorContext,
-} from "../../src/utils/suggestions";
+} from "../../../src/utils/suggestions";
 
 describe("findSimilarPackages", () => {
   test("should find packages with distance 1", () => {

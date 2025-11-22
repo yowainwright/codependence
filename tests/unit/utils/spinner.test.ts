@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { createSpinner } from "../../src/utils/spinner";
+import { createSpinner } from "../../../src/utils/spinner";
 
 describe("createSpinner", () => {
   it("should create a spinner with text", () => {

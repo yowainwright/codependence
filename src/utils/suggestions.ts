@@ -97,7 +97,7 @@ export interface ErrorContext {
 }
 
 export const formatEnhancedError = (context: ErrorContext): string => {
-  const { packageName, error, isNetworkError, isValidationError } = context;
+  const { packageName, error: _error, isNetworkError, isValidationError } = context;
   const lines: string[] = [];
 
   lines.push(`❌ Failed to fetch version for "${packageName}"`);

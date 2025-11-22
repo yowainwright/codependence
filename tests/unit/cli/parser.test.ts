@@ -1,5 +1,5 @@
 import { describe, test, expect, spyOn } from "bun:test";
-import { parseArgs, showHelp } from "../../src/cli/parser";
+import { parseArgs, showHelp } from "../../../src/cli/parser";
 
 describe("parseArgs", () => {
   const baseArgs = ["node", "script.js"];

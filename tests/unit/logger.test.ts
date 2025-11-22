@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from "bun:test";
-import { logger, legacyLogger, writeConsoleMsgs } from "../src/logger";
-import type { LogLevel } from "../src/logger";
+import { logger, legacyLogger, writeConsoleMsgs } from "../../src/logger";
+import type { LogLevel } from "../../src/logger";
 
 describe("CodependenceLogger", () => {
   let consoleSpy: {

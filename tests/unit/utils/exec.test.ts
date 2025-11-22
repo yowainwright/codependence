@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { exec } from "../../src/utils/exec";
+import { exec } from "../../../src/utils/exec";
 
 describe("exec", () => {
   it("should execute a command and return stdout", async () => {

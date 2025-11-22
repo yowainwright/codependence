@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import { createTable, formatVersionTable } from "../../src/utils/table";
-import type { TableColumn, TableRow, VersionDiff } from "../../src/utils/table";
+import { createTable, formatVersionTable } from "../../../src/utils/table";
+import type { TableColumn, TableRow, VersionDiff } from "../../../src/utils/table";
 
 describe("createTable", () => {
   test("should create a basic table", () => {

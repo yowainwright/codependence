@@ -13,11 +13,11 @@ import {
   formatPerformanceMetrics,
   initAction,
   run,
-} from "../src/program";
-import type { Options } from "../src/types";
+} from "../../src/program";
+import type { Options } from "../../src/types";
 import * as fs from "fs";
-import * as logger from "../src/logger";
-import * as scripts from "../src/scripts";
+import * as logger from "../../src/logger";
+import * as scripts from "../../src/scripts";
 
 describe("Action Function Tests (Fast)", () => {
   let scriptSpy: ReturnType<typeof jest.spyOn>;
@@ -174,7 +174,7 @@ describe("Action Function Tests (Fast)", () => {
 
   test("processes codependencies from config", async () => {
     const result = await action({
-      config: "./test/.codependencerc",
+      config: "./tests/unit/fixtures/.codependencerc",
       isTestingAction: true,
     });
 

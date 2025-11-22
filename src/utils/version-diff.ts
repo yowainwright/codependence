@@ -1,5 +1,5 @@
 import { readFileSync } from "fs";
-import type { VersionDiff, DepToUpdateItem } from "../types";
+import type { VersionDiff } from "../types";
 import { formatVersionTable } from "./table";
 
 export const buildVersionDiff = (

@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from "bun:test";
-import { ResponseCache, RequestDeduplicator } from "../../src/utils/cache";
+import { ResponseCache, RequestDeduplicator } from "../../../src/utils/cache";
 
 describe("ResponseCache", () => {
   let cache: ResponseCache;

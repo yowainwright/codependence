@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
-import { glob } from "../../src/utils/glob";
+import { glob } from "../../../src/utils/glob";
 
 const testDir = join(process.cwd(), "test-glob-temp");
 
