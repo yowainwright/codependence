@@ -1,0 +1,128 @@
+name: 'Codependence'
+description: 'Check and update dependencies to ensure they are up-to-date or match specified versions'
+author: 'Jeff Wainwright'
+branding:
+  icon: 'package'
+  color: 'blue'
+
+inputs:
+  codependencies:
+    description: 'Space-separated list of dependencies to check (e.g., "lodash react")'
+    required: false
+  config:
+    description: 'Path to config file'
+    required: false
+  files:
+    description: 'File glob patterns (space-separated)'
+    required: false
+  update:
+    description: 'Update dependencies based on check (true/false)'
+    required: false
+    default: 'false'
+  permissive:
+    description: 'Update all dependencies to latest except those in codependencies (true/false)'
+    required: false
+    default: 'false'
+  fail-on-outdated:
+    description: 'Fail the action if dependencies are outdated (true/false)'
+    required: false
+    default: 'true'
+  rootDir:
+    description: 'Root directory to start search'
+    required: false
+  ignore:
+    description: 'Ignore glob patterns (space-separated)'
+    required: false
+  silent:
+    description: 'Enable silent logging (true/false)'
+    required: false
+    default: 'false'
+  debug:
+    description: 'Enable debug logging (true/false)'
+    required: false
+    default: 'false'
+  yarnConfig:
+    description: 'Enable yarn config support (true/false)'
+    required: false
+    default: 'false'
+
+outputs:
+  outdated:
+    description: 'Whether any dependencies were outdated (true/false)'
+    value: ${{ steps.codependence.outputs.outdated }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install Codependence
+      shell: bash
+      run: npm install -g codependence
+
+    - name: Run Codependence
+      id: codependence
+      shell: bash
+      run: |
+        set +e
+
+        CMD="codependence"
+
+        # Add codependencies
+        if [ -n "${{ inputs.codependencies }}" ]; then
+          for dep in ${{ inputs.codependencies }}; do
+            CMD="$CMD --codependencies \"$dep\""
+          done
+        fi
+
+        # Add config
+        [ -n "${{ inputs.config }}" ] && CMD="$CMD --config ${{ inputs.config }}"
+
+        # Add files
+        if [ -n "${{ inputs.files }}" ]; then
+          for file in ${{ inputs.files }}; do
+            CMD="$CMD --files \"$file\""
+          done
+        fi
+
+        # Add update flag
+        [ "${{ inputs.update }}" = "true" ] && CMD="$CMD --update"
+
+        # Add permissive flag
+        [ "${{ inputs.permissive }}" = "true" ] && CMD="$CMD --permissive"
+
+        # Add rootDir
+        [ -n "${{ inputs.rootDir }}" ] && CMD="$CMD --rootDir ${{ inputs.rootDir }}"
+
+        # Add ignore patterns
+        if [ -n "${{ inputs.ignore }}" ]; then
+          for pattern in ${{ inputs.ignore }}; do
+            CMD="$CMD --ignore \"$pattern\""
+          done
+        fi
+
+        # Add logging flags
+        [ "${{ inputs.silent }}" = "true" ] && CMD="$CMD --silent"
+        [ "${{ inputs.debug }}" = "true" ] && CMD="$CMD --debug"
+
+        # Add yarn config
+        [ "${{ inputs.yarnConfig }}" = "true" ] && CMD="$CMD --yarnConfig"
+
+        echo "Running: $CMD"
+        eval $CMD
+        EXIT_CODE=$?
+
+        if [ $EXIT_CODE -ne 0 ]; then
+          echo "outdated=true" >> $GITHUB_OUTPUT
+          if [ "${{ inputs.fail-on-outdated }}" = "true" ]; then
+            echo "::error::Dependencies are outdated. Run 'codependence --update' to fix."
+            exit 1
+          fi
+        else
+          echo "outdated=false" >> $GITHUB_OUTPUT
+        fi
+
+        exit 0

@@ -6,36 +6,25 @@ description: Configuration options for Codependence.
 
 ## Configuration Options
 
-Codependence options can be used via CLI options, a config file read from the CLI,
-or with node by passing them into exported Codependence functions. Read more below!
+Use options via CLI, config file, or Node function parameters.
 
 ---
 
 ### `codependencies`: `Array<string | Record<string, string>`
 
-A **required** option or \*config array! Codependencies are required via being passed in an array as a cli option \*\*or as within a `codependence.codependencies` array.
+**Required.** Array of dependencies to check/update.
 
-- The default value is `undefined`
-- An array is required!
+**Supports:**
+- `["fs-extra", "lodash"]` - Latest versions
+- `[{ "foo": "1.0.0" }]` - Exact version
+- `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]` - Range versions
+- `@foo/*` or `foo-*` - Wildcard patterns match all packages with prefix
 
----
+### Monorepo child packages
 
-### \*Config Array Detail
+Add `codependence.codependencies` arrays to child packages for package-specific version control.
 
-The Codependence codependencies array supports latest out-of-the-box.
-
-> So having this `["fs-extra", "lodash"]` will return the latest versions of the packages within the array. It will also match a specified version, like so `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`. You can also include a _ at the end of a name you would like to match. For example, `@foo/_`will match all packages with`@foo/`in the name and return their latest versions. This will also work with`foo-\*`, etc.
-
-Codependence is built in to give you more capability to control your dependencies!
-
-### Using the `codependence.codependencies` array in Monorepo child packages
-
-You can add a `codependence.codependencies` array to child packages in your monorepo to ensure specific dependencies are
-pinned to a specific different versions within your monorepo packages.
-
-#### For example
-
-You can have a package.json file in a `@foo/bar` package with following:
+**Example:**
 
 ```json
 {
@@ -63,91 +52,45 @@ And another package.json file in a `@foo/baz` package with following:
 }
 ```
 
-Codependencies will install the right dependency version for each package in your monorepo!
-
-> **Note:** Codependencies can and will still install the expected version defined at the monorepo's root for packages that don't specify differences in their package.json files!
+Installs correct version per package. Packages without specific configs use monorepo root versions.
 
 ---
 
 ### `files`: `Array<string>`
-
-An **optional** array of strings to check for package.json files to update.
-
-- The default value is `['package.json']`
-- This array accepts glob patterns as well, example `["package.json", "\*\*/package.json"]`
+Glob patterns for `package.json` files to check. Default: `['package.json']`
 
 ### `update`: `boolean`
-
-An **optional** boolean which defines whether Codependence should update dependencies in package.json's or not.
-
-- The default value is `false`
+Auto-update dependencies. Default: `false`
 
 ### `rootDir`: `string`
-
-An **optional** string which can used to specify the root directory to run checks from;
-
-The default value is `"./"`
+Root directory to start search. Default: `"./"`
 
 ### `ignore`: `Array<string>`
-
-An **optional** array of strings used to specify directories to ignore
-
-- The default value is `["node_modules/**/*", "**/node_modules/**/*"]`
-- glob patterns are accepted
+Directories to ignore (glob patterns). Default: `["node_modules/**/*", "**/node_modules/**/*"]`
 
 ### `debug`: `boolean`
-
-An **optional** boolean value used to enable debugging output
-
-- The default value is `false`
+Enable debugging output. Default: `false`
 
 ### `silent`: `boolean`
-
-An optional boolean value used to enable a more silent developer experience
-
-- The default value is `false`
+Minimal logging. Default: `false`
 
 ### `verbose`: `boolean`
-
-An optional boolean value used to enable verbose logging output with debug information
-
-- The default value is `false`
-- When enabled, shows additional debug information, structured data, and detailed operation logs
-- Useful for troubleshooting and development
+Detailed debug logs—useful for troubleshooting. Default: `false`
 
 ### `quiet`: `boolean`
-
-An optional boolean value used to suppress all output except errors
-
-- The default value is `false`
-- When enabled, only error messages will be displayed
-- Useful for CI/CD environments where you want clean logs
+Only show errors—useful for CI/CD. Default: `false`
 
 ### `config`: `string`
-
-An optional string containing a package to file which contains codependence config.
-
-- The default is `undefined`
+Path to config file. Default: `undefined`
 
 ### `searchPath`: `string`
-
-An optional string containing a search path for location config files.
-
-- The default value is `undefined`
+Search path for config files. Default: `undefined`
 
 ### `yarnConfig`: `boolean`
-
-An optional boolean value used to enable \*yarn config checking
-
-The default value is `false`
+Enable yarn config checking. Default: `false`
 
 ### `permissive`: `boolean`
-
-An **optional** boolean value used to update all dependencies to their latest versions except those specified in the `codependencies` array.
-
-- The default value is `false`
-- When set to `true`, all dependencies not listed in `codependencies` will be updated to their latest versions
-- This is the **recommended mode** for most projects as it keeps you up-to-date while allowing you to pin specific problematic dependencies
+**Recommended mode.** Update all dependencies to latest except those in `codependencies`. Default: `false`
 
 ---
 

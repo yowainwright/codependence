@@ -1,0 +1,58 @@
+# Example workflow showing how to use the Codependence GitHub Action
+# Copy this file to your .github/workflows/ directory and remove the .example extension
+
+name: Check Dependencies
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 1' # Weekly on Monday
+
+jobs:
+  check-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check dependencies are up-to-date
+        uses: yowainwright/codependence@v1
+        with:
+          # Use permissive mode - update all except pinned
+          permissive: true
+          codependencies: 'react lodash'
+          fail-on-outdated: true
+
+  check-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update dependencies
+        uses: yowainwright/codependence@v1
+        with:
+          update: true
+          permissive: true
+          codependencies: 'react @types/node'
+
+      - name: Commit changes
+        if: success()
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add package.json
+          git diff --staged --quiet || git commit -m "chore: update dependencies [skip ci]"
+          git push
+
+  monorepo-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check monorepo dependencies
+        uses: yowainwright/codependence@v1
+        with:
+          files: 'package.json **/package.json'
+          config: '.codependencerc'
+          fail-on-outdated: true
