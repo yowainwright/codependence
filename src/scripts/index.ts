@@ -3,6 +3,10 @@ import { validatePackageName } from "../utils/validate-package";
 import { exec } from "../utils/exec";
 import { glob } from "../utils/glob";
 import { logger, writeConsoleMsgs } from "../logger";
+import { versionCache, requestDeduplicator } from "../utils/cache";
+import { formatEnhancedError } from "../utils/suggestions";
+import { collectAllDiffs, displayVersionDiffs } from "../utils/version-diff";
+import { Prompt } from "../utils/prompts";
 import {
   CheckFiles,
   ConstructVersionMapOptions,
@@ -28,61 +32,119 @@ export const constructVersionMap = async ({
   yarnConfig = false,
   isTesting = false,
   validate = validatePackageName,
+  noCache = false,
+  onProgress,
 }: ConstructVersionMapOptions) => {
+  const total = codependencies.length;
+  let current = 0;
+
   const updatedCodeDependencies = await Promise.all(
     codependencies.map(async (item) => {
       try {
-        if (typeof item === "object" && Object.keys(item).length === 1) {
+        const isObjectType = typeof item === "object";
+        const hasOneKey = isObjectType && Object.keys(item).length === 1;
+        if (hasOneKey) {
           return item;
-        } else if (
-          typeof item === "string" &&
-          item.length > 1 &&
-          !item.includes(" ")
-        ) {
-          const { validForNewPackages, validForOldPackages, errors } =
-            validate(item);
-          const isValid = validForNewPackages || validForOldPackages;
-          if (!isValid) throw new Error(errors?.join(", "));
+        }
 
+        const isStringType = typeof item === "string";
+        const hasLength = isStringType && item.length > 1;
+        const hasNoSpace = isStringType && !item.includes(" ");
+        const isValidString = hasLength && hasNoSpace;
+
+        if (!isValidString) {
+          throw "invalid item type";
+        }
+
+        const { validForNewPackages, validForOldPackages, errors } =
+          validate(item);
+        const isValid = validForNewPackages || validForOldPackages;
+        if (!isValid) {
+          const errorContext = {
+            packageName: item,
+            error: errors?.join(", ") || "Invalid package name",
+            isValidationError: true,
+          };
+          throw new Error(formatEnhancedError(errorContext));
+        }
+
+        const cacheKey = `${yarnConfig ? "yarn" : "npm"}:${item}`;
+        const shouldUseCache = !noCache;
+
+        if (shouldUseCache) {
+          const cachedVersion = versionCache.get(cacheKey);
+          if (cachedVersion) {
+            current++;
+            if (onProgress) onProgress(current, total, item);
+            return { [item]: cachedVersion };
+          }
+        }
+
+        const version = await requestDeduplicator.dedupe(cacheKey, async () => {
           const runner = !yarnConfig ? "npm" : "yarn";
           const cmd = !yarnConfig
             ? ["view", item, "version", "latest"]
             : ["npm", "info", item, "--fields", "version", "--json"];
+
           const { stdout = "" } = await execFn(runner, cmd);
 
-          const version = !yarnConfig
+          const parsedVersion = !yarnConfig
             ? stdout.replace("\n", "")
             : JSON.parse(stdout.replace("\n", ""))?.version;
 
-          if (version) return { [item]: version };
+          if (!parsedVersion) {
+            throw new Error(`No version found for ${item}`);
+          }
 
-          throw `${version}`;
-        } else {
-          throw "invalid item type";
+          return parsedVersion;
+        });
+
+        if (shouldUseCache) {
+          versionCache.set(cacheKey, version);
         }
+
+        current++;
+        if (onProgress) onProgress(current, total, item);
+
+        return { [item]: version };
       } catch (err) {
-        if (debug)
+        if (debug) {
           logger.debug(
-            (err as string).toString(),
+            (err as Error).message || (err as string).toString(),
             undefined,
             "constructVersionMap",
           );
-        logger.error(
-          `there was an error retrieving ${item}`,
-          undefined,
-          "constructVersionMap",
-        );
-        console.error(
-          `🤼‍♀️ => Is ☝️ a private package? Does that name look correct? 🧐`,
-        );
-        console.error(
-          `🤼‍♀️ => Read more about configuring dependencies here: https://github.com/yowainwright/codependence#debugging`,
-        );
+        }
+
+        const isNetworkError =
+          err instanceof Error &&
+          (err.message.includes("ENOTFOUND") ||
+            err.message.includes("ETIMEDOUT") ||
+            err.message.includes("EAI_AGAIN"));
+
+        const isValidationError =
+          err instanceof Error && err.message.includes("Invalid package");
+
+        const packageName = typeof item === "string" ? item : "unknown";
+
+        if (!isValidationError) {
+          const errorContext = {
+            packageName,
+            error: err as Error,
+            isNetworkError,
+            isValidationError: false,
+          };
+          console.error("\n" + formatEnhancedError(errorContext) + "\n");
+        } else {
+          console.error("\n" + (err as Error).message + "\n");
+        }
+
         if (isTesting) return {};
         process.exit(1);
       }
     }),
   );
+
   const versionMap = updatedCodeDependencies.reduce(
     (acc: Record<string, string> = {}, item: Record<string, string>) => {
       const [name] = Object.keys(item);
@@ -91,6 +153,7 @@ export const constructVersionMap = async ({
     },
     {},
   );
+
   return versionMap;
 };
 
@@ -424,26 +487,78 @@ export const checkFiles = async ({
   yarnConfig = false,
   isTesting = false,
   permissive = false,
+  dryRun = false,
+  interactive = false,
+  noCache = false,
+  onProgress,
 }: CheckFiles): Promise<void> => {
   try {
     const files = await glob(matchers, { cwd: rootDir, ignore });
-    if (!codependencies && !permissive) {
+
+    const hasNoDepsAndNotPermissive = !codependencies && !permissive;
+    if (hasNoDepsAndNotPermissive) {
       throw '"codependencies" are required (unless using permissive mode)';
     }
 
-    let versionMap = {};
+    let versionMap: Record<string, string> = {};
     let depNames: string[] = [];
 
-    if (codependencies && codependencies.length > 0) {
+    const hasDependencies = codependencies && codependencies.length > 0;
+    if (hasDependencies) {
       versionMap = await constructVersionMap({
         codependencies,
         debug,
         yarnConfig,
         isTesting,
+        noCache,
+        onProgress,
       });
       depNames = codependencies
         .map((item) => (typeof item === "string" ? item : Object.keys(item)[0]))
         .filter(Boolean);
+    }
+
+    const shouldShowDiffs = (update || dryRun) && !silent && !quiet;
+    const allDiffs = shouldShowDiffs
+      ? collectAllDiffs(versionMap, files, rootDir, depNames, permissive)
+      : [];
+
+    if (shouldShowDiffs && allDiffs.length > 0) {
+      displayVersionDiffs(allDiffs, dryRun);
+    }
+
+    let shouldUpdate = update && !dryRun;
+
+    if (interactive && update && !dryRun && !isTesting) {
+      const diffsNeedingUpdate = allDiffs.filter((d) => d.current !== d.latest);
+
+      if (diffsNeedingUpdate.length > 0) {
+        const prompt = new Prompt();
+        const selected = await prompt.checkbox(
+          "Select packages to update:",
+          diffsNeedingUpdate.map((diff) => ({
+            name: `${diff.package} (${diff.current} → ${diff.latest})`,
+            value: diff.package,
+          })),
+        );
+        prompt.close();
+
+        if (selected.length === 0) {
+          console.log("\n❌ No packages selected. Skipping update.\n");
+          shouldUpdate = false;
+        } else {
+          const selectedDeps = depNames.filter((dep) => selected.includes(dep));
+          depNames = selectedDeps;
+
+          const filteredVersionMap: Record<string, string> = {};
+          for (const dep of selectedDeps) {
+            if (versionMap[dep]) {
+              filteredVersionMap[dep] = versionMap[dep];
+            }
+          }
+          versionMap = filteredVersionMap;
+        }
+      }
     }
 
     checkMatches({
@@ -454,7 +569,7 @@ export const checkFiles = async ({
       isSilent: silent,
       isVerbose: verbose,
       isQuiet: quiet,
-      isUpdating: update,
+      isUpdating: shouldUpdate,
       isDebugging: debug,
       isTesting,
       permissive,

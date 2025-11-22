@@ -111,6 +111,12 @@ const warn = (state: SpinnerState, text?: string): Spinner => {
 
 const createSpinnerMethods = (state: SpinnerState): Spinner => {
   return {
+    get text() {
+      return state.text;
+    },
+    set text(value: string) {
+      state.text = value;
+    },
     start: () => start(state),
     stop: () => stop(state),
     succeed: (text?: string) => succeed(state, text),

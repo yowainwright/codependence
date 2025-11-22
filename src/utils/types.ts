@@ -22,6 +22,7 @@ export interface SpinnerState {
 }
 
 export interface Spinner {
+  text: string;
   start: () => Spinner;
   stop: () => Spinner;
   succeed: (text?: string) => Spinner;

@@ -18,6 +18,10 @@ export const OPTION_DEFINITIONS: OptionDefinition[] = [
   { flags: ["--permissive"], hasValue: false },
   { flags: ["-l", "--language"], hasValue: true },
   { flags: ["-h", "--help"], hasValue: false },
+  { flags: ["--dry-run"], hasValue: false },
+  { flags: ["--interactive"], hasValue: false },
+  { flags: ["--watch"], hasValue: false },
+  { flags: ["--no-cache"], hasValue: false },
 ];
 
 export const HELP_TEXT = `
@@ -47,10 +51,17 @@ Options:
   --permissive                      Update all deps to latest except those in codependencies
   -l, --language <lang>            Target language (nodejs, go, python)
   -h, --help                        Show this help message
+  --dry-run                         Show what would change without modifying files
+  --interactive                     Choose which packages to update interactively
+  --watch                           Watch for changes and re-check continuously
+  --no-cache                        Disable version caching for fresh results
 
 Examples:
   codependence --update             Update all dependencies
-  codependence --config .codependencerc
+  codependence --update --dry-run   Preview changes without updating
+  codependence --update --interactive
+                                    Choose which packages to update
+  codependence --watch              Watch mode for development
   codependence init                 Interactive setup
   codependence --language go        Use Go provider
 `;

@@ -81,6 +81,7 @@ test("constructVersionMap => fail", async () => {
     exec,
     isTesting: true,
     validate,
+    noCache: true,
   });
   expect(result).toEqual({});
 });
