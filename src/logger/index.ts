@@ -1,4 +1,4 @@
-import gradient from "gradient-string";
+import { cyan, red, yellow, gray, bold } from "../utils/colors";
 
 import type {
   LogLevel,
@@ -27,11 +27,11 @@ class CodependenceLogger {
   };
 
   private colors = {
-    error: gradient.passion,
-    warn: gradient.fruit,
-    info: gradient.teen,
-    debug: gradient.mind,
-    verbose: gradient.cristal,
+    error: red,
+    warn: yellow,
+    info: (text: string) => bold(cyan(text)),
+    debug: gray,
+    verbose: gray,
   };
 
   private emojis = {
@@ -215,7 +215,7 @@ class CodependenceLogger {
   separator(): void {
     const shouldShowSeparator = !this.config.silent && !this.config.structured;
     if (shouldShowSeparator) {
-      const separatorLine = gradient.teen("  ─".repeat(50));
+      const separatorLine = bold(cyan("  ─".repeat(50)));
       console.log(separatorLine);
     }
   }

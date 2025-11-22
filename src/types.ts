@@ -1,5 +1,3 @@
-import { CosmiconfigResult } from "cosmiconfig/dist/types";
-
 export type CodeDependenciesItem = string | Record<string, string>;
 export type CodeDependencies = Array<CodeDependenciesItem>;
 
@@ -8,7 +6,6 @@ export type Options = {
   isTestingAction?: boolean;
   isTesting?: boolean;
   isCLI?: boolean;
-  // TODO enable multiple codependencies
   codependencies?: CodeDependencies;
   files?: Array<string>;
   config?: string;
@@ -22,9 +19,11 @@ export type Options = {
   searchPath?: string;
   yarnConfig?: boolean;
   permissive?: boolean;
+  dryRun?: boolean;
+  interactive?: boolean;
+  watch?: boolean;
+  noCache?: boolean;
 };
-
-export type ConfigResult = { config: Options } & CosmiconfigResult;
 
 export type CheckFiles = {
   codependencies?: CodeDependencies;
@@ -40,6 +39,10 @@ export type CheckFiles = {
   isTesting?: boolean;
   yarnConfig?: boolean;
   permissive?: boolean;
+  dryRun?: boolean;
+  interactive?: boolean;
+  noCache?: boolean;
+  onProgress?: (current: number, total: number, packageName: string) => void;
 };
 
 export type CheckDependenciesForVersionOptions = {
@@ -100,4 +103,22 @@ export type ConstructVersionMapOptions = {
   yarnConfig?: boolean;
   isTesting?: boolean;
   validate?: any;
+  noCache?: boolean;
+  onProgress?: (current: number, total: number, packageName: string) => void;
+};
+
+export type PerformanceMetrics = {
+  totalPackages: number;
+  cacheHits: number;
+  cacheMisses: number;
+  durationMs: number;
+  startTime: number;
+};
+
+export type VersionDiff = {
+  package: string;
+  current: string;
+  latest: string;
+  isPinned: boolean;
+  willUpdate: boolean;
 };

@@ -1,5 +1,5 @@
 import { expect, test, jest } from "bun:test";
-import * as scripts from "../../src/scripts";
+import * as scripts from "../../../src/scripts";
 const {
   constructVersionMap,
   constructVersionTypes,
@@ -81,6 +81,7 @@ test("constructVersionMap => fail", async () => {
     exec,
     isTesting: true,
     validate,
+    noCache: true,
   });
   expect(result).toEqual({});
 });
@@ -621,7 +622,7 @@ test("checkMatches => no updates", () => {
     foo: "1.0.0",
     bar: "1.0.0",
   };
-  const rootDir = "./test/";
+  const rootDir = "./tests/unit/fixtures/";
   const isTesting = true;
   const files = ["test-pass-package.json"];
   checkMatches({ versionMap, files, isTesting, rootDir });
@@ -635,7 +636,7 @@ test("checkMatches => with error", () => {
     lodash: "4.18.0",
     "fs-extra": "5.0.0",
   };
-  const rootDir = "./test/";
+  const rootDir = "./tests/unit/fixtures/";
   const isTesting = true;
   const files = ["test-fail-package.json"];
   checkMatches({ versionMap, files, isTesting, rootDir });
@@ -646,7 +647,7 @@ test("checkMatches => with error", () => {
 test("checkFiles => with no updates", async () => {
   const logCheckFilesNoUpdates = jest.spyOn(console, "log");
   const codependencies = ["lodash", "fs-extra"];
-  const rootDir = "./test/";
+  const rootDir = "./tests/unit/fixtures/";
   const files = ["test-pass-package.json"];
   await checkFiles({ codependencies, rootDir, files });
   expect(logCheckFilesNoUpdates).toHaveBeenCalled();
@@ -656,7 +657,7 @@ test("checkFiles => with no updates", async () => {
 test("checkFiles => with updates", async () => {
   const logCheckFilesWithUpdates = jest.spyOn(console, "error");
   const codependencies = ["lodash", "fs-extra"];
-  const rootDir = "./test/";
+  const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
   await checkFiles({ codependencies, rootDir, files });
   expect(logCheckFilesWithUpdates).toHaveBeenCalled();
@@ -664,13 +665,13 @@ test("checkFiles => with updates", async () => {
 });
 
 test("checkFiles => with no codeps", async () => {
-  const { logger } = await import("../../src/logger");
+  const { logger } = await import("../../../src/logger");
   const originalConfig = logger.getConfig();
   logger.configure({ level: "debug" });
 
   const logCheckFilesWithNoCoDeps = jest.spyOn(console, "debug");
   const codependencies = null;
-  const rootDir = "./test/";
+  const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
   await checkFiles({ codependencies, rootDir, files, debug: true } as any);
   expect(logCheckFilesWithNoCoDeps).toHaveBeenCalled();
@@ -682,7 +683,7 @@ test("checkFiles => with no codeps", async () => {
 test("checkFiles => with permissive mode only", async () => {
   const logCheckFilesPermissive = jest.spyOn(console, "error");
   const codependencies = null;
-  const rootDir = "./test/";
+  const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
   await checkFiles({ codependencies, rootDir, files, permissive: true } as any);
   expect(logCheckFilesPermissive).toHaveBeenCalled();
@@ -695,7 +696,7 @@ test("checkFiles => with permissive mode and codependencies", async () => {
     "error",
   );
   const codependencies = ["lodash"];
-  const rootDir = "./test/";
+  const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
   await checkFiles({ codependencies, rootDir, files, permissive: true });
   expect(logCheckFilesPermissiveWithCodependencies).toHaveBeenCalled();

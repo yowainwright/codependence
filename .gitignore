@@ -112,3 +112,6 @@ docs/app/page
 .DS_Store
 page/app/dist
 .kiro
+.claude/settings.json
+tmp
+.husky/

@@ -16,13 +16,13 @@
       "inputs": ["src/**/*.ts"]
     },
     "format-test": {
-      "inputs": ["test/**/*.ts"]
+      "inputs": ["tests/**/*.ts"]
     },
     "format-app": {
       "inputs": ["page/app/**/*.{ts,tsx}"]
     },
     "test-src": {
-      "inputs": ["src/**/*.ts", "test/**/*.ts"]
+      "inputs": ["src/**/*.ts", "tests/**/*.ts"]
     },
     "dev": {
       "cache": false,

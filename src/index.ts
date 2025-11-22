@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-/* eslint-disable @typescript-eslint/no-unused-expressions */
-import { program } from "./program";
+import { run } from "./program";
 import { script } from "./scripts";
+import { logger } from "./logger";
 
-program;
+run().catch((err) => {
+  logger.error(err.message || err.toString(), undefined, "cli:error");
+  process.exit(1);
+});
 
 export { script };

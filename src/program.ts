@@ -1,20 +1,49 @@
-import { program } from "commander";
-import { cosmiconfigSync } from "cosmiconfig";
-import ora from "ora";
-import gradient from "gradient-string";
-import inquirer from "inquirer";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { logger } from "./logger";
 import { script } from "./scripts";
-import {
-  Options,
-  ConfigResult,
-  PackageJSON,
-  CodependenceConfig,
-} from "./types";
+import { createSpinner } from "./utils/spinner";
+import { cyan, bold, green, gray, red } from "./utils/colors";
+import { Prompt } from "./utils/prompts";
+import { loadConfig } from "./utils/config";
+import { parseArgs, showHelp } from "./cli/parser";
+import { Options, PackageJSON, CodependenceConfig } from "./types";
+
+const gradient = (text: string) => bold(cyan(text));
+
+export const mergeConfigs = (
+  options: Options,
+  baseConfig: Record<string, unknown>,
+  pathConfig: Record<string, unknown>,
+): Options => {
+  const hasPathConfig = Object.keys(pathConfig).length > 0;
+  const effectiveBaseConfig = hasPathConfig ? {} : baseConfig;
+  const hasCodependenceKey =
+    pathConfig?.codependence !== undefined &&
+    typeof pathConfig.codependence === "object" &&
+    pathConfig.codependence !== null;
+  const normalizedPathConfig = hasCodependenceKey
+    ? (pathConfig.codependence as Record<string, unknown>)
+    : pathConfig;
+
+  const updatedConfig = {
+    ...effectiveBaseConfig,
+    ...normalizedPathConfig,
+    ...options,
+    isCLI: true,
+  };
+
+  const {
+    config: _usedConfig,
+    searchPath: _usedSearchPath,
+    isTestingCLI,
+    isTestingAction,
+    ...updatedOptions
+  } = updatedConfig;
+
+  return updatedOptions as Options;
+};
 
 export async function action(options: Options = {}): Promise<void | Options> {
-  // Configure logger based on CLI flags
   const loggerConfig = {
     level: options.verbose
       ? ("verbose" as const)
@@ -26,31 +55,17 @@ export async function action(options: Options = {}): Promise<void | Options> {
   };
   logger.configure(loggerConfig);
 
-  // capture config data
-  const explorer = cosmiconfigSync("codependence");
-  const result = options?.searchPath
-    ? explorer.search(options.searchPath)
-    : explorer.search();
-  const { config: pathConfig = {} } = (
-    options?.config ? explorer.load(options?.config) : {}
-  ) as ConfigResult;
+  const result = loadConfig(undefined, options?.searchPath);
+  const configFileResult = options?.config ? loadConfig(options.config) : null;
+  const pathConfig = configFileResult?.config || {};
+  const baseConfig = result?.config || {};
 
-  // massage config and option data
-  const updatedConfig = {
-    ...(!Object.keys(pathConfig).length ? result?.config : {}),
-    ...(pathConfig?.codependence ? { ...pathConfig.codependence } : pathConfig),
-    ...options,
-    isCLI: true,
-  };
+  const updatedOptions = mergeConfigs(options, baseConfig, pathConfig);
 
-  // remove action level options
-  const {
-    config: _usedConfig,
-    searchPath: _usedSearchPath,
-    isTestingCLI,
-    isTestingAction,
-    ...updatedOptions
-  } = updatedConfig;
+  const isTestingCLI =
+    (options as Record<string, unknown>).isTestingCLI === true;
+  const isTestingAction =
+    (options as Record<string, unknown>).isTestingAction === true;
 
   // capture/test CLI options
   if (isTestingCLI) {
@@ -62,24 +77,110 @@ export async function action(options: Options = {}): Promise<void | Options> {
   if (isTestingAction) return updatedOptions;
 
   try {
-    if (!updatedOptions.codependencies && !updatedOptions.permissive) {
+    const hasNoDepsAndNotPermissive =
+      !updatedOptions.codependencies && !updatedOptions.permissive;
+    if (hasNoDepsAndNotPermissive) {
       throw '"codependencies" is required (unless using permissive mode)';
     }
-    const spinner = ora(
-      `🤼‍♀️ ${gradient.teen(`codependence`)} wrestling...\n`,
+
+    const isDryRun = updatedOptions.dryRun === true;
+    const isWatchMode = updatedOptions.watch === true;
+
+    if (isDryRun) {
+      console.log(cyan("\n📊 Dry run - no files will be modified\n"));
+    }
+
+    if (isWatchMode) {
+      await runWatchMode(updatedOptions);
+      return;
+    }
+
+    const startTime = Date.now();
+    const spinner = createSpinner(
+      `🤼‍♀️ ${gradient(`codependence`)} wrestling...\n`,
     ).start();
-    await script(updatedOptions);
-    spinner.succeed(`🤼‍♀️ ${gradient.teen(`codependence`)} pinned!`);
+
+    const optionsWithProgress = {
+      ...updatedOptions,
+      onProgress: (current: number, total: number, packageName: string) => {
+        spinner.text = `🤼‍♀️ ${gradient(`codependence`)} checking ${packageName} (${current}/${total})`;
+      },
+    };
+
+    await script(optionsWithProgress);
+
+    const duration = Date.now() - startTime;
+    const successMessage = isDryRun
+      ? `🤼‍♀️ ${gradient(`codependence`)} dry run complete!`
+      : `🤼‍♀️ ${gradient(`codependence`)} pinned!`;
+
+    spinner.succeed(successMessage);
+
+    const shouldShowMetrics = updatedOptions.verbose === true;
+    if (shouldShowMetrics) {
+      showPerformanceMetrics(duration);
+    }
   } catch (err) {
     logger.error((err as string).toString(), undefined, "cli:error");
   }
 }
 
+export const formatPerformanceMetrics = (
+  duration: number,
+  stats: { hits: number; misses: number; size: number },
+  hitRate: number,
+): string[] => {
+  const lines: string[] = [];
+  lines.push("\n⚡ Performance:");
+  lines.push(`  ⏱️  Completed in ${duration}ms`);
+
+  const hasCache = stats.size > 0;
+  if (hasCache) {
+    lines.push(
+      `  📦 Cache: ${stats.hits} hits, ${stats.misses} misses (${hitRate.toFixed(1)}% hit rate)`,
+    );
+    lines.push(`  💾 ${stats.size} packages cached\n`);
+  } else {
+    lines.push(`  📦 No cache hits (first run)\n`);
+  }
+
+  return lines;
+};
+
+const showPerformanceMetrics = (duration: number): void => {
+  const { versionCache } = require("./utils/cache");
+  const stats = versionCache.getStats();
+  const hitRate = versionCache.getHitRate();
+  const lines = formatPerformanceMetrics(duration, stats, hitRate);
+  lines.forEach((line) => console.log(line));
+};
+
+const runWatchMode = async (options: Options): Promise<void> => {
+  console.log(cyan(`\n👀 Watch mode enabled - checking every 30 seconds...\n`));
+  console.log(gray("Press Ctrl+C to stop\n"));
+
+  const checkDependencies = async () => {
+    const now = new Date().toLocaleTimeString();
+    console.log(gray(`\n[${now}] Checking dependencies...`));
+
+    try {
+      await script(options);
+      console.log(green(`✓ All dependencies checked (${now})`));
+    } catch (err) {
+      console.error(red(`✗ Check failed: ${(err as Error).message}`));
+    }
+  };
+
+  await checkDependencies();
+
+  setInterval(checkDependencies, 30000);
+};
+
 export async function initAction(
   type?: "rc" | "package" | "default",
 ): Promise<void> {
-  const spinner = ora(
-    `🤼‍♀️ ${gradient.teen(`codependence`)} initializing...\n`,
+  const spinner = createSpinner(
+    `🤼‍♀️ ${gradient(`codependence`)} initializing...\n`,
   ).start();
 
   try {
@@ -132,7 +233,7 @@ export async function initAction(
 
     spinner.stop();
 
-    console.log(`\n🤼‍♀️ Welcome to ${gradient.teen("Codependence")} setup!\n`);
+    console.log(`\n🤼‍♀️ Welcome to ${gradient("Codependence")} setup!\n`);
     console.log(
       "Codependence helps you manage dependency versions in your project.\n",
     );
@@ -146,24 +247,20 @@ export async function initAction(
       outputType = type === "package" ? "package" : "rc";
       usePermissive = false;
     } else {
-      const { managementMode } = await inquirer.prompt([
-        {
-          type: "list",
-          name: "managementMode",
-          message: "How would you like to manage your dependencies?",
-          choices: [
-            {
-              name: "🚀 Permissive mode (recommended) - Update all dependencies to latest, except those you want to pin",
-              value: "permissive",
-            },
-            {
-              name: "🔒 Pin all dependencies - Keep all dependencies at their current versions",
-              value: "all",
-            },
-          ],
-          default: "permissive",
-        },
-      ]);
+      const prompt = new Prompt();
+      const managementMode = await prompt.list(
+        "How would you like to manage your dependencies?",
+        [
+          {
+            name: "🚀 Permissive mode (recommended) - Update all dependencies to latest, except those you want to pin",
+            value: "permissive",
+          },
+          {
+            name: "🔒 Pin all dependencies - Keep all dependencies at their current versions",
+            value: "all",
+          },
+        ],
+      );
 
       if (managementMode === "permissive") {
         usePermissive = true;
@@ -174,18 +271,13 @@ export async function initAction(
           "   All other dependencies will be updated to their latest versions.\n",
         );
 
-        const { pinnedDeps: userPinnedDeps } = await inquirer.prompt([
-          {
-            type: "checkbox",
-            name: "pinnedDeps",
-            message:
-              "Select dependencies to PIN at their current versions (others will update to latest):",
-            choices: Object.keys(allDeps).map((dep) => ({
-              name: `${dep} (currently: ${allDeps[dep]})`,
-              value: dep,
-            })),
-          },
-        ]);
+        const userPinnedDeps = await prompt.checkbox(
+          "Select dependencies to PIN at their current versions (others will update to latest):",
+          Object.keys(allDeps).map((dep) => ({
+            name: `${dep} (currently: ${allDeps[dep]})`,
+            value: dep,
+          })),
+        );
         pinnedDeps = userPinnedDeps;
 
         if (pinnedDeps.length === 0) {
@@ -202,34 +294,40 @@ export async function initAction(
         );
       }
 
-      if (pinnedDeps.length > 0 || managementMode === "permissive") {
-        const { outputLocation } = await inquirer.prompt([
-          {
-            type: "list",
-            name: "outputLocation",
-            message: "Where would you like to save the configuration?",
-            choices: [
-              { name: ".codependencerc (recommended)", value: "rc" },
-              { name: "package.json", value: "package" },
-            ],
-            default: "rc",
-          },
-        ]);
-        outputType = outputLocation;
+      const shouldPromptForOutput =
+        pinnedDeps.length > 0 || managementMode === "permissive";
+      if (shouldPromptForOutput) {
+        const outputLocation = await prompt.list(
+          "Where would you like to save the configuration?",
+          [
+            { name: ".codependencerc (recommended)", value: "rc" },
+            { name: "package.json", value: "package" },
+          ],
+        );
+        outputType = outputLocation as "rc" | "package";
       }
+
+      prompt.close();
     }
 
-    if (pinnedDeps.length === 0 && !usePermissive) {
+    const hasNoDepsAndNotPermissive = pinnedDeps.length === 0 && !usePermissive;
+    if (hasNoDepsAndNotPermissive) {
       logger.info("No dependencies selected. Skipping initialization.", "init");
       return;
     }
 
+    const hasPinnedDeps = pinnedDeps.length > 0;
+    const codependenciesConfig = hasPinnedDeps
+      ? { codependencies: pinnedDeps }
+      : {};
+    const permissiveConfig = usePermissive ? { permissive: true } : {};
+
     const config: CodependenceConfig = {
-      ...(pinnedDeps.length > 0 ? { codependencies: pinnedDeps } : {}),
-      ...(usePermissive ? { permissive: true } : {}),
+      ...codependenciesConfig,
+      ...permissiveConfig,
     };
 
-    const spinner2 = ora("Creating configuration...").start();
+    const spinner2 = createSpinner("Creating configuration...").start();
 
     if (outputType === "package") {
       const updatedPackageJson = {
@@ -246,7 +344,7 @@ export async function initAction(
       spinner2.succeed("Created .codependencerc configuration file");
     }
 
-    console.log(`\n🎉 ${gradient.teen("Codependence")} setup complete!\n`);
+    console.log(`\n🎉 ${gradient("Codependence")} setup complete!\n`);
 
     if (usePermissive) {
       console.log("📋 Next steps:");
@@ -274,53 +372,23 @@ export async function initAction(
   }
 }
 
-program
-  .description(
-    "Codependency, for code dependency. Checks `coDependencies` in package.json files to ensure dependencies are up-to-date",
-  )
-  .option("-t, --isTestingCLI", "enable CLI only testing")
-  .option("--isTesting", "enable running fn tests w/o overwriting")
-  .option("-f, --files [files...]", "file glob pattern")
-  .option("-u, --update", "update dependencies based on check")
-  .option("-r, --rootDir <rootDir>", "root directory to start search")
-  .option("-i, --ignore [ignore...]", "ignore glob pattern")
-  .option("--debug", "enable debugging")
-  .option("--silent", "enable mainly silent logging")
-  .option("-v, --verbose", "enable verbose logging (shows debug info)")
-  .option("-q, --quiet", "suppress all output except errors")
-  .option("--cds, --codependencies [codependencies...]", "deps to check")
-  .option("-c, --config <config>", "path to a config file")
-  .option("-s, --searchPath <searchPath>", "path to do a config file search")
-  .option("-y, --yarnConfig", "enable yarn config support")
-  .option(
-    "--permissive",
-    "update all deps to latest except those in codependencies",
-  )
-  .action(async (options: Options) => {
-    await action(options);
-  });
+export async function run(args: string[] = process.argv): Promise<void> {
+  const parsed = parseArgs(args);
 
-program
-  .command("init [type]")
-  .description(
-    "Initialize codependence configuration with permissive mode by default",
-  )
-  .addHelpText(
-    "after",
-    `
-    Interactive mode (recommended):
-      - Sets up permissive mode by default (update all to latest, pin specific ones)
-      - Allows you to choose which dependencies to pin
-      - Creates .codependencerc or updates package.json
+  const isHelpRequested = parsed.options.help === true;
+  if (isHelpRequested) {
+    showHelp();
+    return;
+  }
 
-    Non-interactive types (legacy):
-      rc          Create .codependencerc file with all dependencies pinned
-      package     Add configuration to package.json with all dependencies pinned
-      default     Create .codependencerc with all dependencies pinned (same as rc)
-  `,
-  )
-  .action(initAction);
+  const isInitCommand = args.includes("init");
+  if (isInitCommand) {
+    const initType = args.find(
+      (arg) => arg === "rc" || arg === "package" || arg === "default",
+    ) as "rc" | "package" | "default" | undefined;
+    await initAction(initType);
+    return;
+  }
 
-program.parse(process.argv);
-
-export { program };
+  await action(parsed.options as Options);
+}
