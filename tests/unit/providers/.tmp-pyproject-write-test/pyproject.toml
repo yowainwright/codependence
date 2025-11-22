@@ -1,0 +1,10 @@
+[tool.poetry]
+name = "myproject"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+requests = "^2.31.0"
+flask = "~2.0.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.0.0"

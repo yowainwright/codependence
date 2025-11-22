@@ -1,0 +1,51 @@
+name: codependence e2e multilang tests 🌍
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  e2e-multilang-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker multi-language test image
+        run: |
+          echo "🌍 Building Docker multi-language test image..."
+          docker build --target multilang-test -t codependence-multilang-test -f tests/e2e/Dockerfile.multilang .
+
+      - name: Run e2e Python and Go tests
+        run: |
+          echo "🐍🐹 Running codependence Python and Go e2e tests..."
+          docker run --rm codependence-multilang-test:latest
+
+      - name: Test Docker environment (Python + Go)
+        run: |
+          echo "🔧 Testing multi-language environment setup..."
+          docker run --rm --entrypoint=/bin/sh codependence-multilang-test:latest -c "
+            echo '📦 Checking Node.js...'
+            node --version &&
+            echo '🐍 Checking Python...'
+            python3 --version &&
+            pip3 --version &&
+            poetry --version &&
+            echo '🐹 Checking Go...'
+            go version &&
+            echo '✅ All language environments verified!'
+          "
+
+      - name: Cleanup Docker images
+        if: always()
+        run: |
+          echo "🧹 Cleaning up Docker resources..."
+          docker rmi codependence-multilang-test:latest || true
+          docker system prune -f || true
