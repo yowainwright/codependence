@@ -2,8 +2,8 @@ services:
   # Automated test runner
   test:
     build:
-      context: ..
-      dockerfile: e2e/Dockerfile
+      context: ../..
+      dockerfile: tests/e2e/Dockerfile
       target: test
     volumes:
       - test-results:/test/results
@@ -13,8 +13,8 @@ services:
   # Interactive development environment
   dev:
     build:
-      context: ..
-      dockerfile: e2e/Dockerfile
+      context: ../..
+      dockerfile: tests/e2e/Dockerfile
       target: test
     volumes:
       - ..:/app:ro
@@ -46,8 +46,8 @@ services:
   # Builder for development
   builder:
     build:
-      context: ..
-      dockerfile: e2e/Dockerfile
+      context: ../..
+      dockerfile: tests/e2e/Dockerfile
       target: builder
     volumes:
       - ..:/app

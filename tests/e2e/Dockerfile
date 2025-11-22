@@ -56,7 +56,7 @@ COPY --from=builder /app/page ./page
 RUN bun install --production --frozen-lockfile --ignore-scripts
 
 # Copy test fixtures
-COPY e2e/fixtures/* ./
+COPY tests/e2e/fixtures/* ./
 
 # Make test script executable
 RUN chmod +x test-init.sh
