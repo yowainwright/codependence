@@ -57,8 +57,8 @@ RUN curl -fsSL https://bun.sh/install | bash
 ENV PATH="/root/.bun/bin:$PATH"
 
 # Install Python package managers
-RUN pip3 install --no-cache-dir pip --upgrade && \
-    pip3 install --no-cache-dir poetry pipenv
+RUN pip3 install --no-cache-dir --break-system-packages pip --upgrade && \
+    pip3 install --no-cache-dir --break-system-packages poetry pipenv
 
 # Create test user
 RUN groupadd -g 1001 testuser && \
