@@ -21,7 +21,7 @@ jobs:
       - name: Build Docker test image
         run: |
           echo "🐳 Building Docker test image..."
-          docker build --target test -t codependence-test -f e2e/Dockerfile .
+          docker build --target test -t codependence-test -f tests/e2e/Dockerfile .
           
       - name: Run e2e init tests
         run: |
