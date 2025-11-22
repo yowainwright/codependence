@@ -381,7 +381,7 @@ export async function run(args: string[] = process.argv): Promise<void> {
     return;
   }
 
-  const isInitCommand = parsed.command === "init";
+  const isInitCommand = args.includes("init");
   if (isInitCommand) {
     const initType = args.find(
       (arg) => arg === "rc" || arg === "package" || arg === "default",
