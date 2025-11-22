@@ -18,6 +18,7 @@ import type { Options } from "../../src/types";
 import * as fs from "fs";
 import * as logger from "../../src/logger";
 import * as scripts from "../../src/scripts";
+import * as config from "../../src/utils/config";
 
 describe("Action Function Tests (Fast)", () => {
   let scriptSpy: ReturnType<typeof jest.spyOn>;
@@ -287,6 +288,9 @@ describe("Action Function Tests (Fast)", () => {
 
   test("should handle error when codependencies are missing", async () => {
     scriptSpy.mockRestore();
+    const configSpy = jest
+      .spyOn(config, "loadConfig")
+      .mockReturnValue({ config: {}, configPath: null });
     const errorSpy = jest
       .spyOn(logger.logger, "error")
       .mockImplementation(() => {});
@@ -301,11 +305,15 @@ describe("Action Function Tests (Fast)", () => {
       "cli:error",
     );
     errorSpy.mockRestore();
+    configSpy.mockRestore();
     scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue(undefined);
   });
 
   test("should handle error with permissive mode not set", async () => {
     scriptSpy.mockRestore();
+    const configSpy = jest
+      .spyOn(config, "loadConfig")
+      .mockReturnValue({ config: {}, configPath: null });
     const errorSpy = jest
       .spyOn(logger.logger, "error")
       .mockImplementation(() => {});
@@ -318,6 +326,7 @@ describe("Action Function Tests (Fast)", () => {
       "cli:error",
     );
     errorSpy.mockRestore();
+    configSpy.mockRestore();
     scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue(undefined);
   });
 
@@ -398,7 +407,11 @@ describe("initAction", () => {
   });
 
   test("should handle invalid JSON in package.json", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+      if (path === ".codependencerc") return false;
+      if (path === "package.json") return true;
+      return false;
+    });
     const readFileSyncSpy = jest
       .spyOn(fs, "readFileSync")
       .mockReturnValue("invalid json{");
@@ -415,7 +428,11 @@ describe("initAction", () => {
   });
 
   test("should handle no dependencies in package.json", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+      if (path === ".codependencerc") return false;
+      if (path === "package.json") return true;
+      return false;
+    });
     const readFileSyncSpy = jest
       .spyOn(fs, "readFileSync")
       .mockReturnValue(JSON.stringify({}));
@@ -432,7 +449,11 @@ describe("initAction", () => {
   });
 
   test("should create .codependencerc with non-interactive mode", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+      if (path === ".codependencerc") return false;
+      if (path === "package.json") return true;
+      return false;
+    });
     const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(
       JSON.stringify({
         dependencies: { lodash: "4.17.21" },
@@ -454,7 +475,11 @@ describe("initAction", () => {
   });
 
   test("should create package.json config with package type", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+      if (path === ".codependencerc") return false;
+      if (path === "package.json") return true;
+      return false;
+    });
     const packageJsonContent = JSON.stringify({
       name: "test",
       dependencies: { lodash: "4.17.21" },
@@ -478,7 +503,11 @@ describe("initAction", () => {
   });
 
   test("should handle default type", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+      if (path === ".codependencerc") return false;
+      if (path === "package.json") return true;
+      return false;
+    });
     const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(
       JSON.stringify({
         dependencies: { lodash: "4.17.21" },
@@ -518,7 +547,10 @@ describe("run", () => {
   });
 
   test("should call initAction for init command", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+      // Config already exists - should warn
+      return true;
+    });
     const warnSpy = jest
       .spyOn(logger.logger, "warn")
       .mockImplementation(() => {});
@@ -537,7 +569,11 @@ describe("run", () => {
   });
 
   test("should handle init command with package type", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+      if (path === ".codependencerc") return false;
+      if (path === "package.json") return true;
+      return false;
+    });
     const readFileSyncSpy = jest
       .spyOn(fs, "readFileSync")
       .mockReturnValue(JSON.stringify({ dependencies: { lodash: "4.17.21" } }));
@@ -554,7 +590,11 @@ describe("run", () => {
   });
 
   test("should handle init command with default type", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+      if (path === ".codependencerc") return false;
+      if (path === "package.json") return true;
+      return false;
+    });
     const readFileSyncSpy = jest
       .spyOn(fs, "readFileSync")
       .mockReturnValue(JSON.stringify({ dependencies: { lodash: "4.17.21" } }));
