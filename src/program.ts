@@ -392,11 +392,3 @@ export async function run(args: string[] = process.argv): Promise<void> {
 
   await action(parsed.options as Options);
 }
-
-const isMainModule = require.main === module;
-if (isMainModule) {
-  run().catch((err) => {
-    logger.error(err.message || err.toString(), undefined, "cli:error");
-    process.exit(1);
-  });
-}
