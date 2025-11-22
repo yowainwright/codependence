@@ -1,5 +1,3 @@
-import { CosmiconfigResult } from "cosmiconfig/dist/types";
-
 export type CodeDependenciesItem = string | Record<string, string>;
 export type CodeDependencies = Array<CodeDependenciesItem>;
 
@@ -27,8 +25,6 @@ export type Options = {
   watch?: boolean;
   noCache?: boolean;
 };
-
-export type ConfigResult = { config: Options } & CosmiconfigResult;
 
 export type CheckFiles = {
   codependencies?: CodeDependencies;
