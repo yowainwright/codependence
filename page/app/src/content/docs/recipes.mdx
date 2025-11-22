@@ -6,32 +6,27 @@ description: Common patterns and usage examples for Codependence.
 
 # Recipes
 
-Listed below are some common patterns (recipes) for using **Codependence**.
-
-## Don't want a config? No problem!
-
-Starting out, you may not want a config object. Have no fear, Codependence can be used as a CLI utility ONLY!
+## CLI-only (no config)
 
 ```sh
 codependence --codependencies 'lodash' '{ \"fs-extra\": \"10.0.1\" }'
 ```
 
-## Want to grab all dependencies which match a `<name>*` (name star) pattern to return the latest version of them? Sure!
+## Wildcard patterns (latest for all matches)
 
 ```sh
 codependence --codependencies '@foo/*' --update
 ```
 
-## Want to update all dependencies to latest except specific ones? Use permissive mode!
+## Permissive mode (update all except specific)
 
 ```sh
 codependence --codependencies 'react' 'lodash' --permissive --update
 ```
 
-## Quick permissive setup with config
+## Permissive config setup
 
-Create a `.codependencerc` with permissive mode:
-
+`.codependencerc`:
 ```json
 {
   "permissive": true,
@@ -39,8 +34,7 @@ Create a `.codependencerc` with permissive mode:
 }
 ```
 
-Then just run:
-
+Run:
 ```sh
 codependence --update
 ```

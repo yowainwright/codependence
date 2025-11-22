@@ -7,21 +7,13 @@ description: "A summary of Codependence"
 
 ## Synopsis
 
-Codependence is a JavaScript utility CLI and node tool that compares a codependencies array against `package.json` dependencies, devDependencies, and peerDependencies for **\*codependencies**.
+CLI and Node tool that compares a "codependencies" array against `package.json` dependencies, devDependencies, and peerDependencies.
 
-For each dependency included in the codependencies array, Codependence will either **a)** check that versions are at latest or **b)** Check that a specified version is matched within package.json files. Codependence can either **a)** return a pass/fail result or **b)** update dependencies, devDependencies, and peerDependencies, in package.json file(s).
+For each dependency: checks if versions are at latest or match specified versions. Returns pass/fail or auto-updates `package.json` files.
 
----
+Ensures specified dependencies are up-to-date or pinned to specific versions—giving you full control over dependency management.
 
-Codependence is useful for ensuring specified dependencies are up-to-date—or at a specified version within a project's package.json files(s)!
-
-This utility is built to work alongside dependency management tools like dependabot. It could work instead of dependency management tool but is built for managing specific dependency versions vs all dependencies.
-
----
-
-#### \*Codependencies: are project dependencies which must be up-to-date or set to a specific version!
-
-In example, if your repository requires the latest version and latest can't be specified as the dependency version within your package.json, Codependence will ensure your package.json has the **actual latest semver version** set in your `package.json`. It can/will do the same if an exact version is specified!
+**Codependencies:** Project dependencies that must be up-to-date or set to a specific version. When `latest` can't be specified in `package.json`, Codependence ensures the actual latest semver version is set.
 
 ---
 

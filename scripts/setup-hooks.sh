@@ -14,6 +14,15 @@ fi
 
 echo "Setting up git hooks..."
 
+# Check if core.hooksPath is set and reset it if needed
+CURRENT_HOOKS_PATH=$(git config --get core.hooksPath 2>/dev/null || echo "")
+if [ -n "$CURRENT_HOOKS_PATH" ]; then
+  echo "⚠️  Found core.hooksPath set to: $CURRENT_HOOKS_PATH"
+  echo "   Resetting to use .git/hooks/ instead..."
+  git config --unset core.hooksPath
+  echo "✓ Reset core.hooksPath"
+fi
+
 mkdir -p "$HOOKS_DIR"
 
 if [ -f "$PRE_COMMIT" ]; then
