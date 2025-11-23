@@ -58,31 +58,33 @@ echo "\n5. Testing automatic language detection..."
 mv package.json package.json.bak
 mv node_modules node_modules.bak 2>/dev/null || true
 cp python-requirements.txt requirements.txt
-OUTPUT=$(node ./dist/index.js --debug --codependencies requests 2>&1)
-echo "$OUTPUT"
-if echo "$OUTPUT" | grep -q "requests"; then
+echo '{"codependencies":["requests"]}' > .codependencerc
+if node ./dist/index.js --debug 2>&1 | grep -q "requests"; then
   echo "✓ Python auto-detection test passed"
 else
   echo "✗ Python auto-detection test failed"
   mv package.json.bak package.json
   mv node_modules.bak node_modules 2>/dev/null || true
-  rm -f requirements.txt
+  rm -f requirements.txt .codependencerc
   exit 1
 fi
-rm -f requirements.txt
+rm -f requirements.txt .codependencerc
 mv package.json.bak package.json
 mv node_modules.bak node_modules 2>/dev/null || true
 
 mv package.json package.json.bak
+mv node_modules node_modules.bak 2>/dev/null || true
 cp go.mod go.mod.test
 mv go.mod.test go.mod
-if node ./dist/index.js --debug --codependencies github.com/gin-gonic/gin 2>&1 | grep -q "gin"; then
+echo '{"codependencies":["github.com/gin-gonic/gin"]}' > .codependencerc
+if node ./dist/index.js --debug 2>&1 | grep -q "gin"; then
   echo "✓ Go auto-detection test passed"
 else
   echo "✗ Go auto-detection test failed - this is expected if go is not installed"
 fi
-rm -f go.mod
+rm -f go.mod .codependencerc
 mv package.json.bak package.json
+mv node_modules.bak node_modules 2>/dev/null || true
 
 # Test 6: Mixed project (Node.js + Python)
 echo "\n6. Testing polyglot project (Node.js + Python)..."
