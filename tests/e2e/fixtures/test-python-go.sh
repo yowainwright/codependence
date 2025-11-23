@@ -41,8 +41,6 @@ rm -f Pipfile .codependencerc
 
 # Test 4: Go go.mod
 echo "\n4. Testing Go go.mod..."
-cp go.mod go.mod.test
-mv go.mod.test go.mod
 cp .codependencerc-go .codependencerc
 if node ./dist/index.js --debug 2>&1 | grep -q "gin-gonic\|lib/pq\|golang.org"; then
   echo "✓ Go go.mod test passed"
@@ -50,7 +48,7 @@ else
   echo "✗ Go go.mod test failed"
   exit 1
 fi
-rm -f go.mod .codependencerc
+rm -f .codependencerc
 
 # Test 5: Detection without language flag
 echo "\n5. Testing automatic language detection..."
@@ -74,8 +72,6 @@ mv node_modules.bak node_modules 2>/dev/null || true
 
 mv package.json package.json.bak
 mv node_modules node_modules.bak 2>/dev/null || true
-cp go.mod go.mod.test
-mv go.mod.test go.mod
 echo '{"codependencies":["github.com/gin-gonic/gin"]}' > .codependencerc
 if node ./dist/index.js --debug 2>&1 | grep -q "gin"; then
   echo "✓ Go auto-detection test passed"
@@ -90,12 +86,13 @@ mv node_modules.bak node_modules 2>/dev/null || true
 echo "\n6. Testing polyglot project (Node.js + Python)..."
 cp test-package.json package.json
 cp python-requirements.txt requirements.txt
-if node ./dist/index.js --debug --codependencies lodash 2>&1 | grep -q "lodash"; then
+echo '{"codependencies":["lodash"]}' > .codependencerc
+if node ./dist/index.js --debug 2>&1 | grep -q "lodash"; then
   echo "✓ Polyglot project test passed (prioritizes Node.js)"
 else
   echo "✗ Polyglot project test failed"
   exit 1
 fi
-rm -f package.json requirements.txt
+rm -f package.json requirements.txt .codependencerc
 
 echo "\n=== All Python and Go tests passed! ==="
