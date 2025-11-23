@@ -1,11 +1,9 @@
 <h1><a href="https://www.npmjs.com/package/codependence" target="_blank">Codependence</a></h1>
 
-![Typed with TypeScript](https://flat.badgen.net/badge/icon/Typed?icon=typescript&label&labelColor=blue&color=555555)
 [![npm version](https://badge.fury.io/js/codependence.svg)](https://badge.fury.io/js/codependence)
 ![ci](https://github.com/yowainwright/codependence/actions/workflows/ci.yml/badge.svg)
 ![e2e](https://github.com/yowainwright/codependence/actions/workflows/e2e.yml/badge.svg)
 [![codecov](https://codecov.io/gh/yowainwright/codependence/branch/main/graph/badge.svg)](https://codecov.io/gh/yowainwright/codependence)
-[![Github](https://badgen.net/badge/icon/github?icon=github&label&color=grey)](https://github.com/yowainwright/codependence)
 
 #### Stop wrestling with your code dependencies. Use Codependence!
 
@@ -87,7 +85,16 @@ The init command will:
 
 #### Testing
 
-Run e2e tests with Docker: `./e2e/test.sh test`
+**Unit Tests:**
+```sh
+bun test                    # Run all unit tests
+bun test --coverage        # Run with coverage report
+```
+
+**E2E Tests:**
+```sh
+./tests/e2e/test-multilang.sh all    # Run all e2e tests (Node.js, Python, Go)
+```
 
 ---
 

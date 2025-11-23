@@ -1,0 +1,6 @@
+[packages]
+requests = "==2.31.0"
+flask = ">=2.0.0"
+
+[dev-packages]
+pytest = "==7.4.0"
