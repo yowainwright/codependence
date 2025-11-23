@@ -56,17 +56,22 @@ rm -f go.mod .codependencerc
 echo "\n5. Testing automatic language detection..."
 
 mv package.json package.json.bak
+mv node_modules node_modules.bak 2>/dev/null || true
 cp python-requirements.txt requirements.txt
-if node ./dist/index.js --debug --codependencies requests 2>&1 | grep -q "requests"; then
+OUTPUT=$(node ./dist/index.js --debug --codependencies requests 2>&1)
+echo "$OUTPUT"
+if echo "$OUTPUT" | grep -q "requests"; then
   echo "✓ Python auto-detection test passed"
 else
   echo "✗ Python auto-detection test failed"
   mv package.json.bak package.json
+  mv node_modules.bak node_modules 2>/dev/null || true
   rm -f requirements.txt
   exit 1
 fi
 rm -f requirements.txt
 mv package.json.bak package.json
+mv node_modules.bak node_modules 2>/dev/null || true
 
 mv package.json package.json.bak
 cp go.mod go.mod.test
