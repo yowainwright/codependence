@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Codependence Configuration",
+  "description": "Configuration for managing dependency versions across your project",
+  "type": "object",
+  "properties": {
+    "codependencies": {
+      "description": "List of dependencies to pin at specific versions",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "description": "Package name"
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "minProperties": 1,
+                "maxProperties": 1,
+                "description": "Package name with version constraint"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "permissive": {
+      "type": "boolean",
+      "description": "When true, updates all dependencies to latest except those in codependencies",
+      "default": false
+    },
+    "language": {
+      "type": "string",
+      "enum": ["nodejs", "python", "go"],
+      "description": "Target programming language for dependency management"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Glob patterns for manifest files to check"
+    },
+    "ignore": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Glob patterns for files to ignore"
+    }
+  },
+  "additionalProperties": false,
+  "anyOf": [
+    {
+      "required": ["codependencies"]
+    },
+    {
+      "required": ["permissive"],
+      "properties": {
+        "permissive": {
+          "const": true
+        }
+      }
+    }
+  ]
+}

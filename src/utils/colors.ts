@@ -25,3 +25,11 @@ export const bold = (text: string): string => {
 export const gradient = (text: string): string => {
   return `${cyan(text)}`;
 };
+
+export const success = (text: string = "✓"): string => {
+  return green(text);
+};
+
+export const error = (text: string = "✗"): string => {
+  return red(text);
+};

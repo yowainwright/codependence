@@ -22,6 +22,8 @@ export const OPTION_DEFINITIONS: OptionDefinition[] = [
   { flags: ["--interactive"], hasValue: false },
   { flags: ["--watch"], hasValue: false },
   { flags: ["--no-cache"], hasValue: false },
+  { flags: ["--format"], hasValue: true },
+  { flags: ["--output-file"], hasValue: true },
 ];
 
 export const HELP_TEXT = `
@@ -55,15 +57,44 @@ Options:
   --interactive                     Choose which packages to update interactively
   --watch                           Watch for changes and re-check continuously
   --no-cache                        Disable version caching for fresh results
+  --format <type>                   Output format: json, markdown, or table (default: table)
+  --output-file <path>              Write output to file instead of stdout
 
 Examples:
-  codependence --update             Update all dependencies
-  codependence --update --dry-run   Preview changes without updating
-  codependence --update --interactive
-                                    Choose which packages to update
-  codependence --watch              Watch mode for development
-  codependence init                 Interactive setup
-  codependence --language go        Use Go provider
+  # Get started
+  codependence init                           Interactive setup wizard
+  codependence init rc                        Create .codependencerc with all deps pinned
+
+  # Check and update
+  codependence                                Check for outdated dependencies
+  codependence --update                       Update all dependencies to latest
+  codependence --update --dry-run             Preview changes without modifying files
+
+  # Permissive mode (update all except pinned)
+  codependence --permissive --update          Update all deps except those in config
+  codependence --permissive --codependencies react lodash --update
+                                              Pin react & lodash, update everything else
+
+  # Selective updates
+  codependence --codependencies react vue --update
+                                              Only update react and vue
+  codependence --update --interactive         Choose which packages to update
+
+  # Monorepo & multi-language
+  codependence --files '**/package.json'      Update all package.json files in monorepo
+  codependence --language python              Check Python requirements.txt/pyproject.toml
+  codependence --language go                  Check Go go.mod dependencies
+
+  # Development
+  codependence --watch                        Watch mode - check every 30 seconds
+  codependence --verbose                      Show performance metrics and cache stats
+  codependence --no-cache                     Bypass cache for fresh results
+
+  # Output formats (useful for CI/CD)
+  codependence --format json                  Output as JSON for programmatic use
+  codependence --format markdown              Output as Markdown for PR comments
+  codependence --format json --output-file deps.json
+                                              Save JSON output to file
 `;
 
 export const ARGS_START_INDEX = 2;

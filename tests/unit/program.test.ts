@@ -18,7 +18,7 @@ import type { Options } from "../../src/types";
 import * as fs from "fs";
 import * as logger from "../../src/logger";
 import * as scripts from "../../src/scripts";
-import * as config from "../../src/utils/config";
+import * as config from "../../src/config";
 
 describe("Action Function Tests (Fast)", () => {
   let scriptSpy: ReturnType<typeof jest.spyOn>;
@@ -852,5 +852,224 @@ describe("formatPerformanceMetrics", () => {
     result.forEach((line) => {
       expect(typeof line).toBe("string");
     });
+  });
+});
+
+describe("Format and Output File Tests", () => {
+  let writeFileSpy: ReturnType<typeof jest.spyOn>;
+  let consoleLogSpy: ReturnType<typeof jest.spyOn>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    writeFileSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+    consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    writeFileSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+  });
+
+  test("should accept format option in action", async () => {
+    const result = await action({
+      codependencies: ["react"],
+      format: "json",
+      isTestingAction: true,
+    });
+
+    expect(result).toBeDefined();
+    if (result && typeof result === "object") {
+      expect(result.format).toBe("json");
+    }
+  });
+
+  test("should accept outputFile option in action", async () => {
+    const result = await action({
+      codependencies: ["react"],
+      outputFile: "/tmp/output.json",
+      isTestingAction: true,
+    });
+
+    expect(result).toBeDefined();
+    if (result && typeof result === "object") {
+      expect(result.outputFile).toBe("/tmp/output.json");
+    }
+  });
+
+  test("should accept both format and outputFile options", async () => {
+    const result = await action({
+      codependencies: ["react"],
+      format: "markdown",
+      outputFile: "/tmp/output.md",
+      isTestingAction: true,
+    });
+
+    expect(result).toBeDefined();
+    if (result && typeof result === "object") {
+      expect(result.format).toBe("markdown");
+      expect(result.outputFile).toBe("/tmp/output.md");
+    }
+  });
+
+  test("should accept table format option", async () => {
+    const result = await action({
+      codependencies: ["react"],
+      format: "table",
+      isTestingAction: true,
+    });
+
+    expect(result).toBeDefined();
+    if (result && typeof result === "object") {
+      expect(result.format).toBe("table");
+    }
+  });
+
+  test("should merge format option with other options", async () => {
+    const result = await action({
+      codependencies: ["react", "lodash"],
+      format: "json",
+      debug: true,
+      verbose: true,
+      isTestingAction: true,
+    });
+
+    expect(result).toBeDefined();
+    if (result && typeof result === "object") {
+      expect(result.format).toBe("json");
+      expect(result.debug).toBe(true);
+      expect(result.verbose).toBe(true);
+    }
+  });
+});
+
+describe("Format Integration Tests", () => {
+  let scriptSpy: ReturnType<typeof jest.spyOn>;
+  let writeFileSpy: ReturnType<typeof jest.spyOn>;
+  let consoleLogSpy: ReturnType<typeof jest.spyOn>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    
+    scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue([
+      {
+        package: "react",
+        current: "17.0.0",
+        latest: "18.0.0",
+        isPinned: false,
+        willUpdate: true,
+      },
+      {
+        package: "lodash",
+        current: "4.17.21",
+        latest: "4.17.21",
+        isPinned: false,
+        willUpdate: false,
+      },
+    ]);
+
+    writeFileSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+    consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    scriptSpy.mockRestore();
+    writeFileSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+  });
+
+  test("should call script with onProgress callback when format is set", async () => {
+    await action({
+      codependencies: ["react", "lodash"],
+      format: "json",
+    });
+
+    expect(scriptSpy).toHaveBeenCalled();
+    const callArgs = scriptSpy.mock.calls[0][0];
+    expect(callArgs).toHaveProperty("onProgress");
+    expect(typeof callArgs.onProgress).toBe("function");
+  });
+
+  test("should write JSON output to file when outputFile is specified", async () => {
+    await action({
+      codependencies: ["react", "lodash"],
+      format: "json",
+      outputFile: "/tmp/test-output.json",
+    });
+
+    expect(writeFileSpy).toHaveBeenCalledWith(
+      "/tmp/test-output.json",
+      expect.stringContaining('"status"')
+    );
+  });
+
+  test("should write markdown output to console when no outputFile", async () => {
+    await action({
+      codependencies: ["react", "lodash"],
+      format: "markdown",
+    });
+
+    const jsonCalls = consoleLogSpy.mock.calls.filter((call) =>
+      call[0]?.includes("# Dependency Status")
+    );
+    expect(jsonCalls.length).toBeGreaterThan(0);
+  });
+
+  test("should write table output to console when format is table", async () => {
+    await action({
+      codependencies: ["react", "lodash"],
+      format: "table",
+    });
+
+    const tableCalls = consoleLogSpy.mock.calls.filter((call) =>
+      call[0]?.includes("Outdated")
+    );
+    expect(tableCalls.length).toBeGreaterThan(0);
+  });
+
+  test("should transform diffs to DependencyInfo format", async () => {
+    await action({
+      codependencies: ["react", "lodash"],
+      format: "json",
+    });
+
+    const jsonOutput = consoleLogSpy.mock.calls.find((call) =>
+      call[0]?.includes('"package"')
+    );
+    expect(jsonOutput).toBeDefined();
+
+    if (jsonOutput && jsonOutput[0]) {
+      const parsed = JSON.parse(jsonOutput[0]);
+      expect(parsed.dependencies[0]).toHaveProperty("package", "react");
+      expect(parsed.dependencies[0]).toHaveProperty("current", "17.0.0");
+      expect(parsed.dependencies[0]).toHaveProperty("latest", "18.0.0");
+      expect(parsed.dependencies[0]).toHaveProperty("isPinned", false);
+    }
+  });
+
+
+  test("should not show spinner when format option is set", async () => {
+    await action({
+      codependencies: ["react"],
+      format: "json",
+    });
+
+    const spinnerCalls = consoleLogSpy.mock.calls.filter((call) =>
+      call[0]?.includes("wrestling")
+    );
+    expect(spinnerCalls.length).toBe(0);
+  });
+
+  test("should handle empty diffs with formatters", async () => {
+    scriptSpy.mockResolvedValue([]);
+
+    await action({
+      codependencies: [],
+      format: "json",
+    });
+
+    const output = consoleLogSpy.mock.calls.find((call) =>
+      call[0]?.includes("up-to-date")
+    );
+    expect(output).toBeDefined();
   });
 });

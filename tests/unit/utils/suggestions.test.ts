@@ -257,6 +257,305 @@ describe("formatEnhancedError", () => {
     expect(result).toContain("Network connection issue");
     expect(result).not.toContain("Did you mean");
   });
+
+  describe("private package detection", () => {
+    test("should detect scoped private package", () => {
+      const context: ErrorContext = {
+        packageName: "@myorg/private-package",
+        error: new Error("404 Not Found"),
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("PRIVATE PACKAGE");
+      expect(result).toContain(".npmrc with auth token");
+      expect(result).toContain("Configure custom registry");
+    });
+
+    test("should detect private package with explicit flag", () => {
+      const context: ErrorContext = {
+        packageName: "@company/internal-lib",
+        error: new Error("Not found"),
+        isPrivatePackage: true,
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("PRIVATE PACKAGE");
+      expect(result).toContain("//registry.npmjs.org/:_authToken=");
+    });
+
+    test("should provide .npmrc suggestion for private packages", () => {
+      const context: ErrorContext = {
+        packageName: "@myorg/package",
+        error: new Error("401 Unauthorized"),
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("Option 1: Add .npmrc with auth token");
+      expect(result).toContain("Option 2: Configure custom registry");
+      expect(result).toContain("Option 3: Exclude from codependencies");
+    });
+
+    test("should not detect non-scoped packages as private", () => {
+      const context: ErrorContext = {
+        packageName: "regular-package",
+        error: new Error("Not found"),
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).not.toContain("PRIVATE PACKAGE");
+    });
+
+    test("should not detect packages without slash as private", () => {
+      const context: ErrorContext = {
+        packageName: "@scoped",
+        error: new Error("Not found"),
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).not.toContain("PRIVATE PACKAGE");
+    });
+  });
+
+  describe("registry mismatch detection", () => {
+    test("should detect registry mismatch in error message", () => {
+      const context: ErrorContext = {
+        packageName: "lodash",
+        error: new Error("Package not found in registry"),
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("Package found in npm but not your registry");
+      expect(result).toContain("custom registry");
+      expect(result).toContain("npm config set registry");
+    });
+
+    test("should detect registry mismatch with explicit flag", () => {
+      const context: ErrorContext = {
+        packageName: "react",
+        error: new Error("Not found"),
+        isRegistryMismatch: true,
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("Package found in npm but not your registry");
+      expect(result).toContain("https://registry.npmjs.org");
+    });
+
+    test("should provide registry configuration suggestions", () => {
+      const context: ErrorContext = {
+        packageName: "express",
+        error: new Error("404 from registry"),
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("Add package to your internal registry");
+      expect(result).toContain("codependence --registry");
+    });
+
+    test("should detect case insensitive registry keyword", () => {
+      const context: ErrorContext = {
+        packageName: "test",
+        error: new Error("Registry timeout"),
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("registry");
+    });
+  });
+
+  describe("timeout detection", () => {
+    test("should detect timeout in error message", () => {
+      const context: ErrorContext = {
+        packageName: "slow-package",
+        error: new Error("Request timeout"),
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("Network timeout");
+      expect(result).toContain("Check internet connection");
+      expect(result).toContain("--timeout 30000");
+    });
+
+    test("should detect ETIMEDOUT error code", () => {
+      const context: ErrorContext = {
+        packageName: "test-package",
+        error: new Error("ETIMEDOUT connection timeout"),
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("Network timeout");
+      expect(result).toContain("Retrying automatically");
+    });
+
+    test("should detect 'timed out' phrase", () => {
+      const context: ErrorContext = {
+        packageName: "test-package",
+        error: new Error("Connection timed out"),
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("Network timeout");
+    });
+
+    test("should show retry count when provided", () => {
+      const context: ErrorContext = {
+        packageName: "test-package",
+        error: new Error("timeout"),
+        retryCount: 2,
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("Attempt 2/3");
+    });
+
+    test("should not show retry message when retryCount is 0", () => {
+      const context: ErrorContext = {
+        packageName: "test-package",
+        error: new Error("timeout"),
+        retryCount: 0,
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("Retrying automatically");
+    });
+
+    test("should provide timeout configuration suggestion", () => {
+      const context: ErrorContext = {
+        packageName: "test-package",
+        error: new Error("timeout"),
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("Increase timeout: --timeout 30000");
+      expect(result).toContain("npm cache clean");
+    });
+
+    test("should detect timeout with explicit flag", () => {
+      const context: ErrorContext = {
+        packageName: "test-package",
+        error: new Error("Network error"),
+        isTimeout: true,
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("Network timeout");
+    });
+
+    test("should not show timeout for network error", () => {
+      const context: ErrorContext = {
+        packageName: "test-package",
+        error: new Error("Network timeout"),
+        isNetworkError: true,
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("Network connection issue");
+      expect(result).not.toContain("Retrying automatically");
+    });
+
+    test("should provide proxy configuration suggestion", () => {
+      const context: ErrorContext = {
+        packageName: "test-package",
+        error: new Error("timeout"),
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("If behind proxy, configure npm config");
+    });
+  });
+
+  describe("error prioritization", () => {
+    test("should prioritize validation over private package", () => {
+      const context: ErrorContext = {
+        packageName: "@org/invalid",
+        error: new Error("Error"),
+        isValidationError: true,
+        isPrivatePackage: true,
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("Invalid package name format");
+      expect(result).not.toContain("PRIVATE PACKAGE");
+    });
+
+    test("should prioritize private package over registry mismatch", () => {
+      const context: ErrorContext = {
+        packageName: "@org/package",
+        error: new Error("registry error"),
+        isPrivatePackage: true,
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("PRIVATE PACKAGE");
+      expect(result).not.toContain("registry mismatch");
+    });
+
+    test("should prioritize registry mismatch over timeout", () => {
+      const context: ErrorContext = {
+        packageName: "package",
+        error: new Error("registry timeout"),
+        isRegistryMismatch: true,
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("Package found in npm but not your registry");
+      expect(result).not.toContain("Retrying automatically");
+    });
+
+    test("should prioritize timeout over network error", () => {
+      const context: ErrorContext = {
+        packageName: "package",
+        error: new Error("timeout"),
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).toContain("Network timeout");
+    });
+
+    test("should not show error message for private packages", () => {
+      const context: ErrorContext = {
+        packageName: "@org/package",
+        error: new Error("Some detailed error message"),
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).not.toContain("Some detailed error message");
+    });
+
+    test("should not show error message for registry mismatch", () => {
+      const context: ErrorContext = {
+        packageName: "package",
+        error: new Error("registry error with details"),
+      };
+
+      const result = formatEnhancedError(context);
+
+      expect(result).not.toContain("registry error with details");
+    });
+  });
 });
 
 describe("COMMON_PACKAGES", () => {

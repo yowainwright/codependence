@@ -1,38 +1,8 @@
-import { existsSync, readFileSync } from "fs";
+import { existsSync } from "fs";
 import { resolve, dirname } from "path";
+import { CONFIG_FILES } from "./constants";
+import { loadPackageJson, loadRcFile } from "./utils";
 import type { ConfigResult } from "./types";
-
-const CONFIG_FILES = [
-  ".codependencerc",
-  ".codependencerc.json",
-  "package.json",
-];
-
-const parseJSON = (content: string): Record<string, unknown> | null => {
-  try {
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
-};
-
-const loadPackageJson = (filepath: string): Record<string, unknown> | null => {
-  const content = readFileSync(filepath, "utf8");
-  const json = parseJSON(content);
-  if (!json) return null;
-
-  const codependenceConfig = json.codependence;
-  if (!codependenceConfig || typeof codependenceConfig !== "object") {
-    return null;
-  }
-
-  return codependenceConfig as Record<string, unknown>;
-};
-
-const loadRcFile = (filepath: string): Record<string, unknown> | null => {
-  const content = readFileSync(filepath, "utf8");
-  return parseJSON(content);
-};
 
 const searchForConfig = (searchFrom: string): ConfigResult | null => {
   let currentDir = resolve(searchFrom);

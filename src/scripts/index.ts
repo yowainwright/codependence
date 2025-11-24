@@ -15,6 +15,7 @@ import {
   PackageJSON,
   DepToUpdateItem,
   DepsToUpdate,
+  VersionDiff,
 } from "../types";
 
 /**
@@ -490,8 +491,9 @@ export const checkFiles = async ({
   dryRun = false,
   interactive = false,
   noCache = false,
+  format,
   onProgress,
-}: CheckFiles): Promise<void> => {
+}: CheckFiles): Promise<VersionDiff[] | void> => {
   try {
     const files = await glob(matchers, { cwd: rootDir, ignore });
 
@@ -518,11 +520,12 @@ export const checkFiles = async ({
         .filter(Boolean);
     }
 
-    const shouldShowDiffs = (update || dryRun) && !silent && !quiet;
-    const allDiffs = shouldShowDiffs
+    const shouldCollectDiffs = format !== undefined || ((update || dryRun) && !silent && !quiet);
+    const allDiffs = shouldCollectDiffs
       ? collectAllDiffs(versionMap, files, rootDir, depNames, permissive)
       : [];
 
+    const shouldShowDiffs = (update || dryRun) && !silent && !quiet && format === undefined;
     if (shouldShowDiffs && allDiffs.length > 0) {
       displayVersionDiffs(allDiffs, dryRun);
     }
@@ -561,20 +564,25 @@ export const checkFiles = async ({
       }
     }
 
-    checkMatches({
-      versionMap,
-      rootDir,
-      files,
-      isCLI,
-      isSilent: silent,
-      isVerbose: verbose,
-      isQuiet: quiet,
-      isUpdating: shouldUpdate,
-      isDebugging: debug,
-      isTesting,
-      permissive,
-      codependencies: depNames,
-    });
+    const shouldCheckMatches = format === undefined;
+    if (shouldCheckMatches) {
+      checkMatches({
+        versionMap,
+        rootDir,
+        files,
+        isCLI,
+        isSilent: silent,
+        isVerbose: verbose,
+        isQuiet: quiet,
+        isUpdating: shouldUpdate,
+        isDebugging: debug,
+        isTesting,
+        permissive,
+        codependencies: depNames,
+      });
+    }
+
+    return allDiffs;
   } catch (err) {
     if (debug) {
       logger.debug((err as string).toString(), undefined, "checkFiles");

@@ -23,6 +23,8 @@ export type Options = {
   interactive?: boolean;
   watch?: boolean;
   noCache?: boolean;
+  format?: "json" | "markdown" | "table";
+  outputFile?: string;
 };
 
 export type CheckFiles = {
@@ -42,6 +44,7 @@ export type CheckFiles = {
   dryRun?: boolean;
   interactive?: boolean;
   noCache?: boolean;
+  format?: "json" | "markdown" | "table";
   onProgress?: (current: number, total: number, packageName: string) => void;
 };
 
@@ -96,13 +99,25 @@ export type DepsToUpdate = {
   peerDepList: DepToUpdateItem[];
 };
 
+export type ExecFunction = (
+  command: string,
+  args: string[],
+  options?: { cwd?: string; maxRetries?: number; retryDelay?: number },
+) => Promise<{ stdout: string; stderr: string }>;
+
+export type ValidateFunction = (packageName: string) => {
+  validForNewPackages: boolean;
+  validForOldPackages: boolean;
+  errors?: string[];
+};
+
 export type ConstructVersionMapOptions = {
   codependencies: CodeDependencies;
-  exec?: any;
+  exec?: ExecFunction;
   debug?: boolean;
   yarnConfig?: boolean;
   isTesting?: boolean;
-  validate?: any;
+  validate?: ValidateFunction;
   noCache?: boolean;
   onProgress?: (current: number, total: number, packageName: string) => void;
 };
@@ -121,4 +136,11 @@ export type VersionDiff = {
   latest: string;
   isPinned: boolean;
   willUpdate: boolean;
+};
+
+export type DependencyInfo = {
+  name: string;
+  current: string;
+  latest: string;
+  isPinned?: boolean;
 };
