@@ -5,7 +5,7 @@ echo "=== Testing codependence with Python and Go ==="
 
 # Test 1: Python requirements.txt
 echo "\n1. Testing Python requirements.txt..."
-cp python-requirements.txt requirements.txt
+cp python-requirements.txt.fixture requirements.txt
 cp .codependencerc-python .codependencerc
 if node ./dist/index.js --debug 2>&1 | grep -q "requests\|flask\|django"; then
   echo "✓ Python requirements.txt test passed"
@@ -17,7 +17,7 @@ rm -f requirements.txt .codependencerc
 
 # Test 2: Python pyproject.toml (poetry)
 echo "\n2. Testing Python pyproject.toml (poetry)..."
-cp python-pyproject.toml pyproject.toml
+cp python-pyproject.toml.fixture pyproject.toml
 cp .codependencerc-python .codependencerc
 if node ./dist/index.js --debug 2>&1 | grep -q "requests\|flask\|django"; then
   echo "✓ Python pyproject.toml test passed"
@@ -29,7 +29,7 @@ rm -f pyproject.toml .codependencerc
 
 # Test 3: Python Pipfile (pipenv)
 echo "\n3. Testing Python Pipfile..."
-cp python-Pipfile Pipfile
+cp python-Pipfile.fixture Pipfile
 cp .codependencerc-python .codependencerc
 if node ./dist/index.js --debug 2>&1 | grep -q "requests\|flask\|django"; then
   echo "✓ Python Pipfile test passed"
@@ -41,6 +41,7 @@ rm -f Pipfile .codependencerc
 
 # Test 4: Go go.mod
 echo "\n4. Testing Go go.mod..."
+cp go.mod.fixture go.mod
 cp .codependencerc-go .codependencerc
 if node ./dist/index.js --debug 2>&1 | grep -q "gin-gonic\|lib/pq\|golang.org"; then
   echo "✓ Go go.mod test passed"
@@ -48,14 +49,14 @@ else
   echo "✗ Go go.mod test failed"
   exit 1
 fi
-rm -f .codependencerc
+rm -f go.mod .codependencerc
 
 # Test 5: Detection without language flag
 echo "\n5. Testing automatic language detection..."
 
 mv package.json package.json.bak
 mv node_modules node_modules.bak 2>/dev/null || true
-cp python-requirements.txt requirements.txt
+cp python-requirements.txt.fixture requirements.txt
 echo '{"codependencies":["requests"]}' > .codependencerc
 if node ./dist/index.js --debug 2>&1 | grep -q "requests"; then
   echo "✓ Python auto-detection test passed"
@@ -72,6 +73,7 @@ mv node_modules.bak node_modules 2>/dev/null || true
 
 mv package.json package.json.bak
 mv node_modules node_modules.bak 2>/dev/null || true
+cp go.mod.fixture go.mod
 echo '{"codependencies":["github.com/gin-gonic/gin"]}' > .codependencerc
 if node ./dist/index.js --debug 2>&1 | grep -q "gin"; then
   echo "✓ Go auto-detection test passed"
@@ -85,7 +87,7 @@ mv node_modules.bak node_modules 2>/dev/null || true
 # Test 6: Mixed project (Node.js + Python)
 echo "\n6. Testing polyglot project (Node.js + Python)..."
 cp test-package.json.fixture package.json
-cp python-requirements.txt requirements.txt
+cp python-requirements.txt.fixture requirements.txt
 echo '{"codependencies":["lodash"]}' > .codependencerc
 if node ./dist/index.js --debug 2>&1 | grep -q "lodash"; then
   echo "✓ Polyglot project test passed (prioritizes Node.js)"
