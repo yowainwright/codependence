@@ -30,9 +30,3 @@ export interface Spinner {
   info: (text?: string) => Spinner;
   warn: (text?: string) => Spinner;
 }
-
-export interface ConfigResult {
-  config: Record<string, unknown>;
-  filepath?: string;
-  isEmpty?: boolean;
-}

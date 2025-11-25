@@ -5,7 +5,7 @@ echo "=== Testing codependence init functionality ==="
 
 # Test 1: Non-interactive RC creation (legacy mode - pins all deps)
 echo "\n1. Testing init with dependencies available (legacy pin-all mode)..."
-cp test-package.json package.json
+cp test-package.json.fixture package.json
 rm -f .codependencerc
 node dist/index.js init rc
 if [ -f ".codependencerc" ]; then
@@ -26,7 +26,7 @@ fi
 echo "\n2. Testing package.json configuration (legacy pin-all mode)..."
 rm -f .codependencerc
 rm -f package.json
-cp test-package.json package.json
+cp test-package.json.fixture package.json
 node dist/index.js init package
 if grep -q '"codependence"' package.json; then
   # Verify package.json has codependencies but not permissive flag
@@ -55,7 +55,7 @@ fi
 echo "\n4. Testing no dependencies scenario..."
 rm -f .codependencerc
 rm -f package.json
-cp minimal-package.json package.json
+cp minimal-package.json.fixture package.json
 if node dist/index.js init rc 2>&1 | grep -q "No dependencies found"; then
   echo "✓ No dependencies error test passed"
 else
@@ -69,7 +69,7 @@ rm -f .codependencerc
 rm -f package.json
 # Create subdirectory to avoid Node.js parsing issues
 mkdir -p invalid-test
-cp invalid-package.json invalid-test/package.json
+cp invalid-package.json.fixture invalid-test/package.json
 cd invalid-test
 if node ../dist/index.js init rc 2>&1 | grep -q "Invalid JSON in package.json"; then
   echo "✓ Invalid JSON error test passed"
@@ -93,7 +93,7 @@ fi
 
 # Test 7: Validate permissive mode doesn't require codependencies
 echo "\n7. Testing permissive mode doesn't require codependencies..."
-cp test-package.json package.json
+cp test-package.json.fixture package.json
 rm -f .codependencerc
 # Create a minimal permissive config - should not throw "codependencies required" error
 echo '{"permissive": true}' > .codependencerc
@@ -107,7 +107,7 @@ fi
 
 # Test 8: Test permissive mode config structure validation
 echo "\n8. Testing permissive mode config structure validation..."
-cp test-package.json package.json
+cp test-package.json.fixture package.json
 rm -f .codependencerc
 # Create config with both permissive mode and some pinned deps
 echo '{"permissive": true, "codependencies": ["lodash"]}' > .codependencerc
@@ -135,7 +135,7 @@ fi
 echo "\n10. Testing init default type creates pin-all config..."
 rm -f .codependencerc
 rm -f package.json
-cp test-package.json package.json
+cp test-package.json.fixture package.json
 node dist/index.js init default
 if [ -f ".codependencerc" ]; then
   # Should create pin-all config (not permissive)

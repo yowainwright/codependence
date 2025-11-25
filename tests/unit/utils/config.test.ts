@@ -1,5 +1,5 @@
 import { expect, test, describe, beforeEach } from "bun:test";
-import { loadConfig } from "../../../src/utils/config";
+import { loadConfig } from "../../../src/config";
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 

@@ -4,9 +4,10 @@ import { script } from "./scripts";
 import { createSpinner } from "./utils/spinner";
 import { cyan, bold, green, gray, red } from "./utils/colors";
 import { Prompt } from "./utils/prompts";
-import { loadConfig } from "./utils/config";
+import { loadConfig } from "./config";
 import { parseArgs, showHelp } from "./cli/parser";
-import { Options, PackageJSON, CodependenceConfig } from "./types";
+import { format } from "./utils/formatters";
+import { Options, PackageJSON, CodependenceConfig, DependencyInfo } from "./types";
 
 const gradient = (text: string) => bold(cyan(text));
 
@@ -96,29 +97,54 @@ export async function action(options: Options = {}): Promise<void | Options> {
     }
 
     const startTime = Date.now();
-    const spinner = createSpinner(
-      `🤼‍♀️ ${gradient(`codependence`)} wrestling...\n`,
-    ).start();
+    const formatType = updatedOptions.format || "table";
+    const shouldUseFormatter = updatedOptions.format !== undefined;
+
+    const spinner = !shouldUseFormatter
+      ? createSpinner(`🤼‍♀️ ${gradient(`codependence`)} wrestling...\n`).start()
+      : null;
 
     const optionsWithProgress = {
       ...updatedOptions,
       onProgress: (current: number, total: number, packageName: string) => {
-        spinner.text = `🤼‍♀️ ${gradient(`codependence`)} checking ${packageName} (${current}/${total})`;
+        if (spinner) {
+          spinner.text = `🤼‍♀️ ${gradient(`codependence`)} checking ${packageName} (${current}/${total})`;
+        }
       },
     };
 
-    await script(optionsWithProgress);
-
+    const diffs = await script(optionsWithProgress);
     const duration = Date.now() - startTime;
-    const successMessage = isDryRun
-      ? `🤼‍♀️ ${gradient(`codependence`)} dry run complete!`
-      : `🤼‍♀️ ${gradient(`codependence`)} pinned!`;
 
-    spinner.succeed(successMessage);
+    if (shouldUseFormatter && diffs) {
+      const dependencyInfo: DependencyInfo[] = diffs.map((diff) => ({
+        name: diff.package,
+        current: diff.current,
+        latest: diff.latest,
+        isPinned: diff.isPinned,
+      }));
 
-    const shouldShowMetrics = updatedOptions.verbose === true;
-    if (shouldShowMetrics) {
-      showPerformanceMetrics(duration);
+      const formattedOutput = format(dependencyInfo, formatType, duration);
+
+      if (updatedOptions.outputFile) {
+        writeFileSync(updatedOptions.outputFile, formattedOutput);
+        console.log(`Output written to ${updatedOptions.outputFile}`);
+      } else {
+        console.log(formattedOutput);
+      }
+    } else {
+      const successMessage = isDryRun
+        ? `🤼‍♀️ ${gradient(`codependence`)} dry run complete!`
+        : `🤼‍♀️ ${gradient(`codependence`)} pinned!`;
+
+      if (spinner) {
+        spinner.succeed(successMessage);
+      }
+
+      const shouldShowMetrics = updatedOptions.verbose === true;
+      if (shouldShowMetrics) {
+        showPerformanceMetrics(duration);
+      }
     }
   } catch (err) {
     logger.error((err as string).toString(), undefined, "cli:error");

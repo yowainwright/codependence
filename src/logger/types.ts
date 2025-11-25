@@ -11,7 +11,7 @@ export interface LogEntry {
   section?: string;
   message?: string;
   error?: string | Error;
-  data?: any;
+  data?: unknown;
   timestamp?: Date;
 }
 
@@ -27,5 +27,5 @@ export interface LoggerParams {
   message?: string;
   err?: string;
   isDebugging?: boolean;
-  obj?: any;
+  obj?: unknown;
 }

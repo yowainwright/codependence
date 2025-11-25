@@ -158,7 +158,7 @@ class CodependenceLogger {
    * @param data - Optional data object for debugging
    * @param section - Optional section name for context
    */
-  debug(message: string, data?: any, section?: string): void {
+  debug(message: string, data?: unknown, section?: string): void {
     this.output({ level: "debug", message, data, section });
   }
 
@@ -168,7 +168,7 @@ class CodependenceLogger {
    * @param data - Optional data object for verbose output
    * @param section - Optional section name for context
    */
-  verbose(message: string, data?: any, section?: string): void {
+  verbose(message: string, data?: unknown, section?: string): void {
     this.output({ level: "verbose", message, data, section });
   }
 

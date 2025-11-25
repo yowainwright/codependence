@@ -84,7 +84,7 @@ mv node_modules.bak node_modules 2>/dev/null || true
 
 # Test 6: Mixed project (Node.js + Python)
 echo "\n6. Testing polyglot project (Node.js + Python)..."
-cp test-package.json package.json
+cp test-package.json.fixture package.json
 cp python-requirements.txt requirements.txt
 echo '{"codependencies":["lodash"]}' > .codependencerc
 if node ./dist/index.js --debug 2>&1 | grep -q "lodash"; then
