@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Fuse from 'fuse.js';
-import { FiSearch } from 'react-icons/fi';
+import { Search } from 'lucide-react';
 
 interface SearchItem {
   title: string;
@@ -109,7 +109,7 @@ export default function FuseSearch() {
         }}
         className="btn btn-sm gap-2"
       >
-        <FiSearch className="w-4 h-4" />
+        <Search className="w-4 h-4" />
         <span className="hidden sm:inline">Search</span>
         <kbd className="kbd kbd-xs hidden sm:inline">⌘K</kbd>
       </button>
@@ -118,7 +118,7 @@ export default function FuseSearch() {
         <div className="absolute top-full mt-2 left-0 right-0 sm:left-auto sm:right-auto sm:w-96 bg-base-100 rounded-lg shadow-xl border border-base-300 z-50">
           <div className="p-4">
             <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/50 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/50 w-4 h-4" />
               <input
                 ref={inputRef}
                 type="text"
