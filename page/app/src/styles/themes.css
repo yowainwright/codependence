@@ -1,8 +1,8 @@
 [data-theme="codependence-light"] {
   --color-scheme: light;
 
-  --color-primary: #0EA5E9;
-  --color-primary-rgb: 14 165 233;
+  --color-primary: #9B4D5A;
+  --color-primary-rgb: 155 77 90;
   --color-primary-content: #ffffff;
   --color-primary-content-rgb: 255 255 255;
 
@@ -16,8 +16,8 @@
   --color-accent-content: #ffffff;
   --color-accent-content-rgb: 255 255 255;
 
-  --color-neutral: #8B5CF6;
-  --color-neutral-rgb: 139 92 246;
+  --color-neutral: #7D3E4A;
+  --color-neutral-rgb: 125 62 74;
   --color-neutral-content: #ffffff;
   --color-neutral-content-rgb: 255 255 255;
 
@@ -30,8 +30,8 @@
   --color-base-content: #0C4A6E;
   --color-base-content-rgb: 12 74 110;
 
-  --color-info: #0EA5E9;
-  --color-info-rgb: 14 165 233;
+  --color-info: #9B4D5A;
+  --color-info-rgb: 155 77 90;
   --color-info-content: #ffffff;
   --color-info-content-rgb: 255 255 255;
 

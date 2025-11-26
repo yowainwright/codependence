@@ -11,11 +11,11 @@ export default defineConfig({
   trailingSlash: "never",
   markdown: {
     shikiConfig: {
-      theme: 'github-light',
       themes: {
         light: 'github-light',
         dark: 'github-dark'
       },
+      defaultColor: false,
       wrap: true
     }
   },
