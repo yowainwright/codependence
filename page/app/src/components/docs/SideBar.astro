@@ -28,20 +28,26 @@ const pathname = new URL(Astro.request.url).pathname;
             <h2 class="menu-title flex items-center gap-4 px-1.5">
               {navItem.title}
             </h2>
-            <ul>
-              {navItem.items.map((navItem) => (
-                <li class="flex flex-col">
-                  <a
-                    href={navItem.href}
-                    class={`hover:text-primary hover:bg-primary/5 transition flex ${pathname === navItem.href ? "text-primary bg-primary/5" : ""}`}
-                  >
-                    {navItem.title}
-                    {navItem.label && (
-                      <div class="badge badge-primary badge-sm">New</div>
-                    )}
-                  </a>
-                </li>
-              ))}
+            <ul class="border-l border-base-content/10 ml-3">
+              {navItem.items.map((item) => {
+                const isActive = pathname === item.href;
+                const baseClass = "block py-1.5 pl-[20px] -ml-[10px] -mr-[16px] transition text-sm";
+                const activeClass = "text-primary border-l-2 border-primary";
+                const inactiveClass = "hover:text-primary border-l-2 border-transparent hover:border-base-content/30";
+                return (
+                  <li>
+                    <a
+                      href={item.href}
+                      class={`${baseClass} ${isActive ? activeClass : inactiveClass}`}
+                    >
+                      {item.title}
+                      {item.label && (
+                        <span class="badge badge-primary badge-sm ml-2">New</span>
+                      )}
+                    </a>
+                  </li>
+                );
+              })}
             </ul>
           </li>
         ))

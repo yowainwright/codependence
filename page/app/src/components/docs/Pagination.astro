@@ -1,5 +1,6 @@
 ---
 import SIDEBAR from "../../constants/sidebar";
+import { ChevronLeftIcon, ChevronRightIcon } from "../common/Icons";
 
 let currentPath = Astro.url.pathname;
 let prevItem, nextItem;
@@ -44,12 +45,7 @@ if (currentSectionIndex !== undefined) {
     prevItem?.href && (
       <a class="mr-auto flex" href={prevItem?.href}>
         <button class="btn btn-ghost rounded-full border-none hover:bg-base-200">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
-            <path
-              fill="currentColor"
-              d="M16.707 19.293 9.414 12l7.293-7.293-1.414-1.414L6.586 12l8.707 8.707 1.414-1.414z"
-            />
-          </svg>
+          <ChevronLeftIcon client:load className="w-5 h-5" />
           <span class="text-xs md:text-sm font-medium">{prevItem?.title}</span>
         </button>
       </a>
@@ -61,13 +57,7 @@ if (currentSectionIndex !== undefined) {
       <a class="ml-auto flex" href={nextItem?.href}>
         <button class="btn btn-ghost rounded-full border-none hover:bg-base-200">
           <span class="text-xs md:text-sm font-medium">{nextItem?.title}</span>
-
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
-            <path
-              fill="currentColor"
-              d="M7.293 4.707 14.586 12l-7.293 7.293 1.414 1.414L17.414 12 8.707 3.293 7.293 4.707z"
-            />
-          </svg>
+          <ChevronRightIcon client:load className="w-5 h-5" />
         </button>
       </a>
     )

@@ -1,42 +1,42 @@
-import { 
-  FiZap, 
-  FiPackage, 
-  FiGitBranch, 
-  FiTerminal, 
-  FiRefreshCw, 
-  FiAlertCircle 
-} from 'react-icons/fi';
+import {
+  Gauge,
+  Package,
+  GitBranch,
+  Terminal,
+  RefreshCw,
+  Search
+} from 'lucide-react';
 
 const features = [
   {
-    title: "Lightning Fast",
-    description: "Quickly scan your entire project for dependency issues in seconds. Optimized for performance even in large monorepos.",
-    icon: FiZap,
+    title: "Efficient Scanning",
+    description: "Scan your entire project for dependency issues in seconds. Optimized for performance even in large monorepos.",
+    icon: Gauge,
   },
   {
-    title: "Dependency Management",
-    description: "Automatically detect outdated, unused, or mismatched dependencies across multiple package.json files in your project.",
-    icon: FiPackage,
+    title: "Dependency Control",
+    description: "Detect outdated, unused, or mismatched dependencies across multiple package.json files in your project.",
+    icon: Package,
   },
   {
-    title: "Monorepo Support",
-    description: "Built for modern development workflows. Works seamlessly with monorepos, ensuring consistency across all packages.",
-    icon: FiGitBranch,
+    title: "Monorepo Ready",
+    description: "Built for modern development workflows. Works with monorepos, ensuring consistency across all packages.",
+    icon: GitBranch,
   },
   {
     title: "CLI & API",
-    description: "Use codependence from the command line or integrate it into your build process with our flexible Node.js API.",
-    icon: FiTerminal,
+    description: "Use codependence from the command line or integrate it into your build process with the Node.js API.",
+    icon: Terminal,
   },
   {
     title: "CI/CD Integration",
-    description: "Easily integrate with GitHub Actions, GitLab CI, or any CI/CD pipeline to ensure dependency integrity on every commit.",
-    icon: FiRefreshCw,
+    description: "Integrate with GitHub Actions, GitLab CI, or any CI/CD pipeline to ensure dependency integrity on every commit.",
+    icon: RefreshCw,
   },
   {
-    title: "Smart Detection",
-    description: "Intelligently identifies circular dependencies, version conflicts, and unused packages that could impact your project.",
-    icon: FiAlertCircle,
+    title: "Version Detection",
+    description: "Identifies version conflicts, outdated packages, and dependency mismatches that could impact your project.",
+    icon: Search,
   },
 ];
 
@@ -46,9 +46,9 @@ export default function Features() {
       {features.map((feature) => {
         const Icon = feature.icon;
         return (
-          <div key={feature.title} className="card max-w-2xl bg-transparent border border-base-content/20 hover:shadow-lg transition rounded-lg">
+          <div key={feature.title} className="card max-w-2xl bg-base-200 border border-base-content/10 hover:shadow-lg transition rounded-lg">
             <div className="card-body font-outfit">
-              <div className="h-16 w-16 bg-transparent rounded-full flex items-center justify-center">
+              <div className="h-16 w-16 bg-base-300 rounded-full flex items-center justify-center">
                 <Icon className="w-8 h-8 text-primary" />
               </div>
               <h2 className="card-title">{feature.title}</h2>
