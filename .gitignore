@@ -115,3 +115,4 @@ page/app/dist
 .claude/settings.json
 tmp
 .husky/
+.claude
