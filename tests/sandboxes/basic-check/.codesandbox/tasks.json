@@ -1,0 +1,29 @@
+{
+  "tasks": {
+    "install": {
+      "name": "Install Dependencies",
+      "command": "npm install",
+      "runAtStart": true
+    },
+    "check": {
+      "name": "Check Dependencies",
+      "command": "npm run check",
+      "runAtStart": false
+    },
+    "check-verbose": {
+      "name": "Check (Verbose)",
+      "command": "npm run check:verbose",
+      "runAtStart": false
+    },
+    "generate-report": {
+      "name": "Generate Report",
+      "command": "npm run check:markdown",
+      "runAtStart": false
+    },
+    "dry-run": {
+      "name": "Preview Updates",
+      "command": "npm run dry-run",
+      "runAtStart": false
+    }
+  }
+}

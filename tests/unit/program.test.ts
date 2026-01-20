@@ -292,7 +292,7 @@ describe("Action Function Tests (Fast)", () => {
       .spyOn(config, "loadConfig")
       .mockReturnValue({ config: {}, configPath: null });
     const errorSpy = jest
-      .spyOn(logger.logger, "error")
+      .spyOn(logger, "error")
       .mockImplementation(() => {});
 
     await action({
@@ -301,8 +301,6 @@ describe("Action Function Tests (Fast)", () => {
 
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining("codependencies"),
-      undefined,
-      "cli:error",
     );
     errorSpy.mockRestore();
     configSpy.mockRestore();
@@ -315,15 +313,13 @@ describe("Action Function Tests (Fast)", () => {
       .spyOn(config, "loadConfig")
       .mockReturnValue({ config: {}, configPath: null });
     const errorSpy = jest
-      .spyOn(logger.logger, "error")
+      .spyOn(logger, "error")
       .mockImplementation(() => {});
 
     await action({});
 
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining("codependencies"),
-      undefined,
-      "cli:error",
     );
     errorSpy.mockRestore();
     configSpy.mockRestore();
@@ -383,7 +379,7 @@ describe("initAction", () => {
   test("should handle existing .codependencerc", async () => {
     const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(true);
     const warnSpy = jest
-      .spyOn(logger.logger, "warn")
+      .spyOn(logger, "warn")
       .mockImplementation(() => {});
 
     await initAction("rc");
@@ -396,7 +392,7 @@ describe("initAction", () => {
   test("should handle missing package.json", async () => {
     const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(false);
     const errorSpy = jest
-      .spyOn(logger.logger, "error")
+      .spyOn(logger, "error")
       .mockImplementation(() => {});
 
     await initAction("rc");
@@ -416,7 +412,7 @@ describe("initAction", () => {
       .spyOn(fs, "readFileSync")
       .mockReturnValue("invalid json{");
     const errorSpy = jest
-      .spyOn(logger.logger, "error")
+      .spyOn(logger, "error")
       .mockImplementation(() => {});
 
     await initAction("rc");
@@ -437,7 +433,7 @@ describe("initAction", () => {
       .spyOn(fs, "readFileSync")
       .mockReturnValue(JSON.stringify({}));
     const errorSpy = jest
-      .spyOn(logger.logger, "error")
+      .spyOn(logger, "error")
       .mockImplementation(() => {});
 
     await initAction("rc");
@@ -552,7 +548,7 @@ describe("run", () => {
       return true;
     });
     const warnSpy = jest
-      .spyOn(logger.logger, "warn")
+      .spyOn(logger, "warn")
       .mockImplementation(() => {});
 
     await run(["node", "script.js", "init", "rc"]);

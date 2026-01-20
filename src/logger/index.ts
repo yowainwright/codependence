@@ -1,289 +1,105 @@
 import { cyan, red, yellow, gray, bold } from "../utils/colors";
+import type { LogLevel, LoggerConfig, Logger } from "./types";
+import { ICONS, LEVELS } from "./constants";
 
-import type {
-  LogLevel,
-  LoggerConfig,
-  LogEntry,
-  DependencyIssue,
-  LoggerParams,
-} from "./types";
-
-/**
- * Enhanced logging system for Codependence with branded styling and multiple output formats
- */
-class CodependenceLogger {
-  private config: LoggerConfig = {
+export const createLogger = (options: Partial<LoggerConfig> = {}): Logger => {
+  const config: LoggerConfig = {
     level: "info",
     silent: false,
     structured: false,
+    ...options,
   };
 
-  private levels: Record<LogLevel, number> = {
-    error: 0,
-    warn: 1,
-    info: 2,
-    debug: 3,
-    verbose: 4,
+  const shouldLog = (level: LogLevel): boolean => {
+    if (config.silent) return false;
+    return LEVELS[level] <= LEVELS[config.level];
   };
 
-  private colors = {
-    error: red,
-    warn: yellow,
-    info: (text: string) => bold(cyan(text)),
-    debug: gray,
-    verbose: gray,
-  };
-
-  private emojis = {
-    error: "❌",
-    warn: "⚠️",
-    info: "🤼‍♀️",
-    debug: "🔍",
-    verbose: "📝",
-  };
-
-  /**
-   * Configure logger settings
-   * @param config - Partial configuration object to merge with existing settings
-   */
-  configure(config: Partial<LoggerConfig>): void {
-    this.config = { ...this.config, ...config };
-  }
-
-  /**
-   * Get current logger configuration
-   * @returns Current logger configuration
-   */
-  getConfig(): LoggerConfig {
-    return { ...this.config };
-  }
-
-  /**
-   * Determine if a log level should be output based on current configuration
-   * @param level - Log level to check
-   * @returns Whether the log should be output
-   */
-  private shouldLog(level: LogLevel): boolean {
-    if (this.config.silent) return false;
-    return this.levels[level] <= this.levels[this.config.level];
-  }
-
-  /**
-   * Format a log entry into a styled console message
-   * @param entry - Log entry to format
-   * @returns Formatted string ready for console output
-   */
-  private formatMessage(entry: LogEntry): string {
-    const { level, section, message, error } = entry;
-    const emoji = this.emojis[level];
-    const colorFunction = this.colors[level];
-
-    const sectionPrefix = section ? `codependence:${section}` : "codependence";
-    const coloredHeader = colorFunction(`${sectionPrefix}`);
-
-    const formattedContent = message ? `\n  ${emoji}  ${message}` : "";
-
-    const formattedError = error ? `\n     ${error.toString()}` : "";
-
-    return `${coloredHeader}${formattedContent}${formattedError}`;
-  }
-
-  /**
-   * Output a log entry to the appropriate console method
-   * @param entry - Log entry to output
-   */
-  private output(entry: LogEntry): void {
-    const shouldOutputLog = this.shouldLog(entry.level);
-    if (!shouldOutputLog) return;
-
-    if (this.config.structured) {
-      const structuredLogEntry = {
-        ...entry,
-        timestamp: new Date(),
-        tool: "codependence",
-      };
-      console.log(JSON.stringify(structuredLogEntry));
-      return;
-    }
-
-    const formattedMessage = this.formatMessage(entry);
-
-    switch (entry.level) {
-      case "error":
-        console.error(formattedMessage);
-        break;
-      case "warn":
-        console.warn(formattedMessage);
-        break;
-      case "debug":
-      case "verbose":
-        console.debug(formattedMessage);
-        break;
-      default:
-        console.log(formattedMessage);
-    }
-  }
-
-  /**
-   * Log an error message with optional error details
-   * @param message - Error message to display
-   * @param error - Optional error object or string
-   * @param section - Optional section name for context
-   */
-  error(message: string, error?: string | Error, section?: string): void {
-    this.output({ level: "error", message, error, section });
-  }
-
-  /**
-   * Log a warning message
-   * @param message - Warning message to display
-   * @param section - Optional section name for context
-   */
-  warn(message: string, section?: string): void {
-    this.output({ level: "warn", message, section });
-  }
-
-  /**
-   * Log an informational message
-   * @param message - Info message to display
-   * @param section - Optional section name for context
-   */
-  info(message: string, section?: string): void {
-    this.output({ level: "info", message, section });
-  }
-
-  /**
-   * Log a debug message with optional data
-   * @param message - Debug message to display
-   * @param data - Optional data object for debugging
-   * @param section - Optional section name for context
-   */
-  debug(message: string, data?: unknown, section?: string): void {
-    this.output({ level: "debug", message, data, section });
-  }
-
-  /**
-   * Log a verbose message with optional data
-   * @param message - Verbose message to display
-   * @param data - Optional data object for verbose output
-   * @param section - Optional section name for context
-   */
-  verbose(message: string, data?: unknown, section?: string): void {
-    this.output({ level: "verbose", message, data, section });
-  }
-
-  /**
-   * Log dependency version mismatches in a structured format
-   * @param packageName - Name of the package being checked
-   * @param issues - Array of dependency issues with expected and actual versions
-   */
-  dependencyIssues(packageName: string, issues: Array<DependencyIssue>): void {
-    const hasNoIssues = !issues.length;
-    const cannotLog = !this.shouldLog("info");
-    const shouldSkipLogging = hasNoIssues || cannotLog;
-
-    if (shouldSkipLogging) return;
-
-    const issueCount = issues.length;
-    const pluralizedIssues = issueCount > 1 ? "s" : "";
-    this.info(
-      `Found ${issueCount} dependency issue${pluralizedIssues}`,
-      packageName,
-    );
-
-    issues.forEach(({ name, expected, actual }) => {
-      const versionMismatchMessage = `${name}: found ${actual}, expected ${expected}`;
-      console.log(`     🔄  ${versionMismatchMessage}`);
+  const formatStructured = (level: LogLevel, message: string, extra?: unknown) => {
+    return JSON.stringify({
+      level,
+      message,
+      data: typeof extra === "object" ? extra : undefined,
+      timestamp: new Date().toISOString(),
     });
+  };
 
-    console.log();
-  }
+  const formatPlain = (icon: string, color: (text: string) => string, message: string, extra?: string | unknown) => {
+    const prefix = color("codependence");
+    const content = `${prefix}\n  ${icon}  ${message}`;
+    const extraString = typeof extra === "string" ? extra : typeof extra === "object" ? JSON.stringify(extra, null, 2) : undefined;
+    return extraString ? `${content}\n     ${extraString}` : content;
+  };
 
-  /**
-   * Add vertical spacing to console output for better readability
-   */
-  space(): void {
-    const shouldAddSpacing = !this.config.silent && !this.config.structured;
-    if (shouldAddSpacing) {
-      console.log();
-    }
-  }
+  const output = (level: LogLevel, message: string) => {
+    const isError = level === "error";
+    const isWarn = level === "warn";
+    const isDebugVerbose = level === "debug" || level === "verbose";
 
-  /**
-   * Add a visual separator line to console output
-   */
-  separator(): void {
-    const shouldShowSeparator = !this.config.silent && !this.config.structured;
-    if (shouldShowSeparator) {
-      const separatorLine = bold(cyan("  ─".repeat(50)));
-      console.log(separatorLine);
-    }
-  }
-}
+    if (isError) console.error(message);
+    else if (isWarn) console.warn(message);
+    else if (isDebugVerbose) console.debug(message);
+    else console.log(message);
+  };
 
-/**
- * Singleton logger instance for consistent usage across the application
- */
-export const logger = new CodependenceLogger();
+  const log = (level: LogLevel, icon: string, color: (text: string) => string, message: string, extra?: string | unknown) => {
+    if (!shouldLog(level)) return;
 
-/**
- * Legacy logger function for backward compatibility with existing code
- * @param params - Legacy logger parameters
- * @deprecated Use the new logger methods instead
- */
-export const legacyLogger = ({
-  type,
-  section = "",
-  message,
-  err = "",
-  isDebugging = false,
-}: LoggerParams): void => {
-  const normalizedLevel = type === "log" ? "info" : (type as LogLevel);
-  const shouldUseDebugMode = isDebugging && normalizedLevel !== "debug";
-  const messageContent = message || "";
+    const formatted = config.structured
+      ? formatStructured(level, message, extra)
+      : formatPlain(icon, color, message, extra);
 
-  if (shouldUseDebugMode) {
-    logger.debug(messageContent, err, section);
-    return;
-  }
+    output(level, formatted);
+  };
 
-  switch (normalizedLevel) {
-    case "error":
-      logger.error(messageContent, err, section);
-      break;
-    case "warn":
-      logger.warn(messageContent, section);
-      break;
-    case "debug":
-      logger.debug(messageContent, err, section);
-      break;
-    default:
-      logger.info(messageContent, section);
-  }
+  return {
+    error: (message: string, error?: Error | string) => {
+      const errorMessage = error instanceof Error ? error.message : error;
+      log("error", ICONS.error, red, message, errorMessage);
+    },
+
+    warn: (message: string) => {
+      log("warn", ICONS.warn, yellow, message);
+    },
+
+    info: (message: string) => {
+      log("info", ICONS.info, (text) => bold(cyan(text)), message);
+    },
+
+    debug: (message: string, data?: unknown) => {
+      log("debug", ICONS.debug, gray, message, data);
+    },
+
+    verbose: (message: string, data?: unknown) => {
+      log("verbose", ICONS.verbose, gray, message, data);
+    },
+
+    print: (message: string) => {
+      if (!config.silent) console.log(message);
+    },
+
+    line: (message: string) => {
+      if (!config.silent) console.log("\n" + message);
+    },
+
+    indent: (message: string, spaces: number = 2) => {
+      if (!config.silent) console.log(" ".repeat(spaces) + message);
+    },
+
+    item: (n: number, message: string) => {
+      if (!config.silent) console.log(`  ${n}. ${message}`);
+    },
+
+    space: () => {
+      if (!config.silent) console.log();
+    },
+
+    separator: () => {
+      if (!config.silent) console.log("─".repeat(50));
+    },
+  };
 };
 
-/**
- * Write console messages for dependency issues
- * @param packageName - Name of the package with issues
- * @param depList - Array of dependency objects with version information
- * @deprecated Use logger.dependencyIssues() instead
- */
-export const writeConsoleMsgs = (
-  packageName: string,
-  depList: Array<Record<string, string>>,
-): void => {
-  const transformedIssues = depList.map(({ name, expected, actual }) => ({
-    name,
-    expected,
-    actual,
-  }));
-  logger.dependencyIssues(packageName, transformedIssues);
-};
+export const logger = createLogger();
 
-export type {
-  LogLevel,
-  LoggerConfig,
-  LogEntry,
-  DependencyIssue,
-  LoggerParams,
-} from "./types";
+export type { LogLevel, LoggerConfig, Logger } from "./types";

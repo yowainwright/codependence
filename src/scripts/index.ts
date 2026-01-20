@@ -2,7 +2,8 @@ import { readFileSync, writeFileSync } from "fs";
 import { validatePackageName } from "../utils/validate-package";
 import { exec } from "../utils/exec";
 import { glob } from "../utils/glob";
-import { logger, writeConsoleMsgs } from "../logger";
+import { logger } from "../logger";
+import { defaultOutput, item } from "../dx";
 import { versionCache, requestDeduplicator } from "../utils/cache";
 import { formatEnhancedError } from "../utils/suggestions";
 import { collectAllDiffs, displayVersionDiffs } from "../utils/version-diff";
@@ -364,13 +365,29 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
       "checkDependenciesForVersion",
     );
   }
-  if (!depList.length && !devDepList.length && !peerDepList.length) {
+  const hasNoDependencyIssues = !depList.length && !devDepList.length && !peerDepList.length;
+  if (hasNoDependencyIssues) {
     return false;
   }
-  if (!isSilent)
-    Array.from([depList, devDepList, peerDepList], (list) =>
-      writeConsoleMsgs(name, list),
-    );
+
+  const shouldLogIssues = !isSilent;
+  if (shouldLogIssues) {
+    const allLists = [depList, devDepList, peerDepList];
+    allLists.forEach((list) => {
+      if (!list.length) return;
+
+      const issueCount = list.length;
+      const pluralizedIssues = issueCount > 1 ? "s" : "";
+      logger.info(`Found ${issueCount} dependency issue${pluralizedIssues}`);
+
+      list.forEach(({ name: depName, expected, actual }, index) => {
+        const versionMessage = `${depName}: found ${actual}, expected ${expected}`;
+        defaultOutput.writeLine(item(index + 1, versionMessage, 4));
+      });
+
+      logger.space();
+    });
+  }
   if (isUpdating) {
     const updatedJson = constructJson(
       json,

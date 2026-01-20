@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
-import { logger } from "./logger";
+import { createLogger, logger } from "./logger";
 import { script } from "./scripts";
 import { createSpinner } from "./utils/spinner";
 import { cyan, bold, green, gray, red } from "./utils/colors";
@@ -45,16 +45,23 @@ export const mergeConfigs = (
 };
 
 export async function action(options: Options = {}): Promise<void | Options> {
+  const isVerbose = options.verbose;
+  const isDebug = options.debug;
+  const isQuiet = options.quiet || false;
+
+  let logLevel: "verbose" | "debug" | "info" = "info";
+  if (isVerbose) {
+    logLevel = "verbose";
+  } else if (isDebug) {
+    logLevel = "debug";
+  }
+
   const loggerConfig = {
-    level: options.verbose
-      ? ("verbose" as const)
-      : options.debug
-        ? ("debug" as const)
-        : ("info" as const),
-    silent: options.quiet || false,
+    level: logLevel,
+    silent: isQuiet,
     structured: false,
   };
-  logger.configure(loggerConfig);
+  const logger = createLogger(loggerConfig);
 
   const result = loadConfig(undefined, options?.searchPath);
   const configFileResult = options?.config ? loadConfig(options.config) : null;
@@ -147,7 +154,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
       }
     }
   } catch (err) {
-    logger.error((err as string).toString(), undefined, "cli:error");
+    logger.error((err as string).toString());
   }
 }
 
@@ -226,10 +233,7 @@ export async function initAction(
 
     if (hasConfig || hasPackageJsonConfig) {
       spinner.stop();
-      logger.warn(
-        "Codependence configuration already exists. Skipping initialization.",
-        "init",
-      );
+      logger.warn("Codependence configuration already exists. Skipping initialization.");
       return;
     }
 
@@ -297,12 +301,17 @@ export async function initAction(
           "   All other dependencies will be updated to their latest versions.\n",
         );
 
+        const depChoices = Object.keys(allDeps).map((dep) => {
+          const currentVersion = allDeps[dep];
+          return {
+            name: `${dep} (currently: ${currentVersion})`,
+            value: dep,
+          };
+        });
+
         const userPinnedDeps = await prompt.checkbox(
           "Select dependencies to PIN at their current versions (others will update to latest):",
-          Object.keys(allDeps).map((dep) => ({
-            name: `${dep} (currently: ${allDeps[dep]})`,
-            value: dep,
-          })),
+          depChoices,
         );
         pinnedDeps = userPinnedDeps;
 
@@ -338,7 +347,7 @@ export async function initAction(
 
     const hasNoDepsAndNotPermissive = pinnedDeps.length === 0 && !usePermissive;
     if (hasNoDepsAndNotPermissive) {
-      logger.info("No dependencies selected. Skipping initialization.", "init");
+      logger.info("No dependencies selected. Skipping initialization.");
       return;
     }
 
@@ -390,11 +399,7 @@ export async function initAction(
     }
   } catch (err) {
     spinner.stop();
-    logger.error(
-      (err as Error).message || (err as string).toString(),
-      undefined,
-      "cli:error",
-    );
+    logger.error((err as Error).message || (err as string).toString());
   }
 }
 

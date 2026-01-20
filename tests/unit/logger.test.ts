@@ -1,13 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from "bun:test";
-import { logger, legacyLogger, writeConsoleMsgs } from "../../src/logger";
+import { createLogger } from "../../src/logger";
 import type { LogLevel } from "../../src/logger";
 
-describe("CodependenceLogger", () => {
+describe("Logger", () => {
   let consoleSpy: {
     log: jest.Mock<any>;
     error: jest.Mock<any>;
     warn: jest.Mock<any>;
     debug: jest.Mock<any>;
+  };
+
+  const stripAnsi = (str: string): string => {
+    return str.replace(/\x1b\[[0-9;]*m/g, "");
   };
 
   beforeEach(() => {
@@ -17,35 +21,15 @@ describe("CodependenceLogger", () => {
       warn: jest.spyOn(console, "warn").mockImplementation(() => {}),
       debug: jest.spyOn(console, "debug").mockImplementation(() => {}),
     };
-
-    logger.configure({ level: "info", silent: false, structured: false });
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  describe("configuration", () => {
-    it("should have default configuration", () => {
-      const config = logger.getConfig();
-      expect(config).toEqual({
-        level: "info",
-        silent: false,
-        structured: false,
-      });
-    });
-
-    it("should update configuration", () => {
-      logger.configure({ level: "debug", silent: true });
-      const config = logger.getConfig();
-      expect(config.level).toBe("debug");
-      expect(config.silent).toBe(true);
-      expect(config.structured).toBe(false);
-    });
-  });
-
   describe("log levels", () => {
     it("should log error messages", () => {
+      const logger = createLogger();
       logger.error("Test error");
       expect(consoleSpy.error).toHaveBeenCalledWith(
         expect.stringContaining("codependence"),
@@ -56,6 +40,7 @@ describe("CodependenceLogger", () => {
     });
 
     it("should log warning messages", () => {
+      const logger = createLogger();
       logger.warn("Test warning");
       expect(consoleSpy.warn).toHaveBeenCalledWith(
         expect.stringContaining("codependence"),
@@ -66,17 +51,16 @@ describe("CodependenceLogger", () => {
     });
 
     it("should log info messages", () => {
+      const logger = createLogger();
       logger.info("Test info");
-      expect(consoleSpy.log).toHaveBeenCalledWith(
-        expect.stringContaining("codependence"),
-      );
-      expect(consoleSpy.log).toHaveBeenCalledWith(
-        expect.stringContaining("Test info"),
-      );
+      expect(consoleSpy.log).toHaveBeenCalled();
+      const call = stripAnsi(consoleSpy.log.mock.calls[0][0]);
+      expect(call).toContain("codependence");
+      expect(call).toContain("Test info");
     });
 
     it("should log debug messages when level is debug", () => {
-      logger.configure({ level: "debug" });
+      const logger = createLogger({ level: "debug" });
       logger.debug("Test debug");
       expect(consoleSpy.debug).toHaveBeenCalledWith(
         expect.stringContaining("codependence"),
@@ -87,7 +71,7 @@ describe("CodependenceLogger", () => {
     });
 
     it("should log verbose messages when level is verbose", () => {
-      logger.configure({ level: "verbose" });
+      const logger = createLogger({ level: "verbose" });
       logger.verbose("Test verbose");
       expect(consoleSpy.debug).toHaveBeenCalledWith(
         expect.stringContaining("codependence"),
@@ -99,10 +83,8 @@ describe("CodependenceLogger", () => {
   });
 
   describe("log level filtering", () => {
-    const levels: LogLevel[] = ["error", "warn", "info", "debug", "verbose"];
-
     it("should respect log level hierarchy", () => {
-      logger.configure({ level: "warn" });
+      const logger = createLogger({ level: "warn" });
 
       logger.error("error message");
       logger.warn("warn message");
@@ -116,11 +98,13 @@ describe("CodependenceLogger", () => {
     });
 
     it("should not log anything when silent is true", () => {
-      logger.configure({ silent: true });
+      const logger = createLogger({ silent: true });
 
-      levels.forEach((level) => {
-        logger[level]("test message");
-      });
+      logger.error("test");
+      logger.warn("test");
+      logger.info("test");
+      logger.debug("test");
+      logger.verbose("test");
 
       expect(consoleSpy.log).not.toHaveBeenCalled();
       expect(consoleSpy.error).not.toHaveBeenCalled();
@@ -130,14 +114,8 @@ describe("CodependenceLogger", () => {
   });
 
   describe("message formatting", () => {
-    it("should include section in header when provided", () => {
-      logger.info("Test message", "test-section");
-      expect(consoleSpy.log).toHaveBeenCalledWith(
-        expect.stringContaining("codependence:test-section"),
-      );
-    });
-
     it("should format error messages with error details", () => {
+      const logger = createLogger();
       const error = new Error("Test error details");
       logger.error("Error occurred", error);
       expect(consoleSpy.error).toHaveBeenCalledWith(
@@ -149,17 +127,97 @@ describe("CodependenceLogger", () => {
     });
 
     it("should handle string errors", () => {
+      const logger = createLogger();
       logger.error("Error occurred", "String error");
       expect(consoleSpy.error).toHaveBeenCalledWith(
         expect.stringContaining("String error"),
       );
     });
+
+    it("should handle debug with data", () => {
+      const logger = createLogger({ level: "debug" });
+      logger.debug("Debug message", { foo: "bar" });
+      expect(consoleSpy.debug).toHaveBeenCalledWith(
+        expect.stringContaining("Debug message"),
+      );
+      expect(consoleSpy.debug).toHaveBeenCalledWith(
+        expect.stringContaining('"foo": "bar"'),
+      );
+    });
+
+    it("should handle verbose with data", () => {
+      const logger = createLogger({ level: "verbose" });
+      logger.verbose("Verbose message", { baz: "qux" });
+      expect(consoleSpy.debug).toHaveBeenCalledWith(
+        expect.stringContaining("Verbose message"),
+      );
+      expect(consoleSpy.debug).toHaveBeenCalledWith(
+        expect.stringContaining('"baz": "qux"'),
+      );
+    });
   });
 
-  describe("structured logging", () => {
+  describe("utility methods", () => {
+    it("should print plain messages", () => {
+      const logger = createLogger();
+      logger.print("Plain message");
+      expect(consoleSpy.log).toHaveBeenCalledWith("Plain message");
+    });
+
+    it("should print lines with newline prefix", () => {
+      const logger = createLogger();
+      logger.line("Line message");
+      expect(consoleSpy.log).toHaveBeenCalledWith("\nLine message");
+    });
+
+    it("should indent messages", () => {
+      const logger = createLogger();
+      logger.indent("Indented", 4);
+      expect(consoleSpy.log).toHaveBeenCalledWith("    Indented");
+    });
+
+    it("should indent with default 2 spaces", () => {
+      const logger = createLogger();
+      logger.indent("Default indent");
+      expect(consoleSpy.log).toHaveBeenCalledWith("  Default indent");
+    });
+
+    it("should format numbered items", () => {
+      const logger = createLogger();
+      logger.item(1, "First item");
+      expect(consoleSpy.log).toHaveBeenCalledWith("  1. First item");
+    });
+
+    it("should add spacing", () => {
+      const logger = createLogger();
+      logger.space();
+      expect(consoleSpy.log).toHaveBeenCalledWith();
+    });
+
+    it("should add separator", () => {
+      const logger = createLogger();
+      logger.separator();
+      expect(consoleSpy.log).toHaveBeenCalledWith("─".repeat(50));
+    });
+
+    it("should not output utilities when silent", () => {
+      const logger = createLogger({ silent: true });
+
+      logger.print("test");
+      logger.line("test");
+      logger.indent("test");
+      logger.item(1, "test");
+      logger.space();
+      logger.separator();
+
+      expect(consoleSpy.log).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("structured mode", () => {
     it("should output JSON when structured mode is enabled", () => {
-      logger.configure({ structured: true });
-      logger.info("Test message", "test-section");
+      const logger = createLogger({ structured: true });
+      logger.info("Test message");
 
       expect(consoleSpy.log).toHaveBeenCalledWith(
         expect.stringMatching(/^\{.*\}$/),
@@ -169,147 +227,32 @@ describe("CodependenceLogger", () => {
       const parsedLog = JSON.parse(logCall as string);
       expect(parsedLog.level).toBe("info");
       expect(parsedLog.message).toBe("Test message");
-      expect(parsedLog.section).toBe("test-section");
-      expect(parsedLog.tool).toBe("codependence");
       expect(parsedLog.timestamp).toBeDefined();
     });
-  });
 
-  describe("dependency issues", () => {
-    it("should log dependency issues with proper formatting", () => {
-      const issues = [
-        { name: "lodash", expected: "^4.17.21", actual: "4.17.20" },
-        { name: "express", expected: "^4.18.0", actual: "4.17.1" },
-      ];
+    it("should include data in structured output", () => {
+      const logger = createLogger({ structured: true, level: "debug" });
+      logger.debug("Debug test", { key: "value" });
 
-      logger.dependencyIssues("test-package", issues);
-
-      expect(consoleSpy.log).toHaveBeenCalledWith(
-        expect.stringContaining("Found 2 dependency issues"),
-      );
-      expect(consoleSpy.log).toHaveBeenCalledWith(
-        expect.stringContaining("lodash: found 4.17.20, expected ^4.17.21"),
-      );
-      expect(consoleSpy.log).toHaveBeenCalledWith(
-        expect.stringContaining("express: found 4.17.1, expected ^4.18.0"),
-      );
-    });
-
-    it("should handle single dependency issue", () => {
-      const issues = [
-        { name: "lodash", expected: "^4.17.21", actual: "4.17.20" },
-      ];
-
-      logger.dependencyIssues("test-package", issues);
-
-      expect(consoleSpy.log).toHaveBeenCalledWith(
-        expect.stringContaining("Found 1 dependency issue"),
-      );
-    });
-
-    it("should not log when no issues", () => {
-      logger.dependencyIssues("test-package", []);
-      expect(consoleSpy.log).not.toHaveBeenCalled();
-    });
-
-    it("should not log dependency issues when log level is too low", () => {
-      logger.configure({ level: "error" });
-      const issues = [
-        { name: "lodash", expected: "^4.17.21", actual: "4.17.20" },
-      ];
-
-      logger.dependencyIssues("test-package", issues);
-      expect(consoleSpy.log).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("utility methods", () => {
-    it("should add spacing when not silent and not structured", () => {
-      logger.space();
-      expect(consoleSpy.log).toHaveBeenCalledWith();
-    });
-
-    it("should not add spacing when silent", () => {
-      logger.configure({ silent: true });
-      logger.space();
-      expect(consoleSpy.log).not.toHaveBeenCalled();
-    });
-
-    it("should not add spacing when structured", () => {
-      logger.configure({ structured: true });
-      logger.space();
-      expect(consoleSpy.log).not.toHaveBeenCalled();
-    });
-
-    it("should add separator when not silent and not structured", () => {
-      logger.separator();
-      expect(consoleSpy.log).toHaveBeenCalledWith(expect.stringContaining("─"));
-    });
-
-    it("should not add separator when silent", () => {
-      logger.configure({ silent: true });
-      logger.separator();
-      expect(consoleSpy.log).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("legacy compatibility", () => {
-    it("should handle legacy logger calls", () => {
-      legacyLogger({
-        type: "error",
-        message: "Legacy error",
-        section: "legacy",
-      });
-      expect(consoleSpy.error).toHaveBeenCalledWith(
-        expect.stringContaining("Legacy error"),
-      );
-    });
-
-    it("should convert log type to info", () => {
-      legacyLogger({ type: "log", message: "Legacy log" });
-      expect(consoleSpy.log).toHaveBeenCalledWith(
-        expect.stringContaining("Legacy log"),
-      );
-    });
-
-    it("should handle debugging mode", () => {
-      logger.configure({ level: "debug" });
-      legacyLogger({ type: "info", message: "Debug test", isDebugging: true });
-      expect(consoleSpy.debug).toHaveBeenCalledWith(
-        expect.stringContaining("Debug test"),
-      );
-    });
-
-    it("should handle writeConsoleMsgs", () => {
-      const depList = [
-        { name: "lodash", expected: "^4.17.21", actual: "4.17.20" },
-      ];
-
-      writeConsoleMsgs("test-package", depList);
-      expect(consoleSpy.log).toHaveBeenCalledWith(
-        expect.stringContaining("Found 1 dependency issue"),
-      );
+      const logCall = consoleSpy.debug.mock.calls[0][0];
+      const parsedLog = JSON.parse(logCall as string);
+      expect(parsedLog.data).toEqual({ key: "value" });
     });
   });
 
   describe("edge cases", () => {
     it("should handle empty messages", () => {
+      const logger = createLogger();
       logger.info("");
-      expect(consoleSpy.log).toHaveBeenCalledWith(
-        expect.stringContaining("codependence"),
-      );
+      expect(consoleSpy.log).toHaveBeenCalled();
+      const call = stripAnsi(consoleSpy.log.mock.calls[0][0]);
+      expect(call).toContain("codependence");
     });
 
-    it("should handle undefined error in legacy logger", () => {
-      legacyLogger({ type: "error", message: "Test" });
+    it("should handle undefined error", () => {
+      const logger = createLogger();
+      logger.error("Test");
       expect(consoleSpy.error).toHaveBeenCalled();
-    });
-
-    it("should handle empty section", () => {
-      logger.info("Test message", "");
-      expect(consoleSpy.log).toHaveBeenCalledWith(
-        expect.stringContaining("codependence"),
-      );
     });
   });
 });

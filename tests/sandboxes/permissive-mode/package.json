@@ -1,0 +1,28 @@
+{
+  "name": "codependence-permissive-mode-sandbox",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Permissive mode demo - update all except specified deps",
+  "scripts": {
+    "start": "echo 'Use npm run commands below to test permissive mode'",
+    "check": "codependence",
+    "permissive:pin-react": "codependence --permissive --codependencies react react-dom --update --dry-run",
+    "permissive:pin-lodash": "codependence --permissive --codependencies lodash --update --dry-run",
+    "permissive:interactive": "codependence --permissive --update --interactive",
+    "permissive:update-all-except": "codependence --permissive --update"
+  },
+  "dependencies": {
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "react-router": "5.3.3",
+    "lodash": "4.17.19",
+    "axios": "0.21.1",
+    "express": "4.17.1",
+    "moment": "2.29.1"
+  },
+  "devDependencies": {
+    "webpack": "5.50.0",
+    "typescript": "4.5.0",
+    "@babel/core": "7.15.0"
+  }
+}

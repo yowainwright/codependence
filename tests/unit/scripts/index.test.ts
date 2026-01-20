@@ -664,21 +664,6 @@ test("checkFiles => with updates", async () => {
   logCheckFilesWithUpdates.mockRestore();
 });
 
-test("checkFiles => with no codeps", async () => {
-  const { logger } = await import("../../../src/logger");
-  const originalConfig = logger.getConfig();
-  logger.configure({ level: "debug" });
-
-  const logCheckFilesWithNoCoDeps = jest.spyOn(console, "debug");
-  const codependencies = null;
-  const rootDir = "./tests/unit/fixtures/";
-  const files = ["test-fail-package.json"];
-  await checkFiles({ codependencies, rootDir, files, debug: true } as any);
-  expect(logCheckFilesWithNoCoDeps).toHaveBeenCalled();
-  logCheckFilesWithNoCoDeps.mockRestore();
-
-  logger.configure(originalConfig);
-});
 
 test("checkFiles => with permissive mode only", async () => {
   const logCheckFilesPermissive = jest.spyOn(console, "error");
