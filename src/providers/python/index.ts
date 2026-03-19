@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "fs";
 import { exec } from "../../utils/exec";
+import { logger } from "../../logger";
 import {
   PYTHON_PATTERNS,
   type PythonManifestType,
@@ -11,7 +12,7 @@ import type {
   ProviderOptions,
 } from "../types";
 
-const parseRequirementLine = (line: string): [string, string] | null => {
+export const parseRequirementLine = (line: string): [string, string] | null => {
   const trimmed = line.trim();
 
   if (!trimmed || PYTHON_PATTERNS.COMMENT.test(trimmed)) {
@@ -24,7 +25,7 @@ const parseRequirementLine = (line: string): [string, string] | null => {
   return [match[1], `${match[2]}${match[3]}`];
 };
 
-const parsePoetryLine = (line: string): [string, string] | null => {
+export const parsePoetryLine = (line: string): [string, string] | null => {
   const trimmed = line.trim();
   const match = trimmed.match(PYTHON_PATTERNS.POETRY_LINE);
 
@@ -84,7 +85,7 @@ export class PythonProvider implements DependencyProvider {
       return firstVersion ? firstVersion.trim() : "";
     } catch (error) {
       if (this.options.debug) {
-        console.error(`Failed to get pip version for ${packageName}:`, error);
+        logger.error(`Failed to get pip version for ${packageName}`, error as Error);
       }
       return "";
     }
@@ -101,7 +102,7 @@ export class PythonProvider implements DependencyProvider {
       return latestPackage?.version || "";
     } catch (error) {
       if (this.options.debug) {
-        console.error(`Failed to get conda version for ${packageName}:`, error);
+        logger.error(`Failed to get conda version for ${packageName}`, error as Error);
       }
       return "";
     }
@@ -122,7 +123,7 @@ export class PythonProvider implements DependencyProvider {
       return firstVersion ? firstVersion.trim() : "";
     } catch (error) {
       if (this.options.debug) {
-        console.error(`Failed to get uv version for ${packageName}:`, error);
+        logger.error(`Failed to get uv version for ${packageName}`, error as Error);
       }
       return "";
     }

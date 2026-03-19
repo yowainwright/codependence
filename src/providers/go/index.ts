@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "fs";
 import { dirname } from "path";
 import { exec } from "../../utils/exec";
+import { logger } from "../../logger";
 import { GO_PATTERNS } from "./constants";
 import type {
   DependencyProvider,
@@ -8,7 +9,7 @@ import type {
   ProviderOptions,
 } from "../types";
 
-const parseRequireBlock = (content: string): Record<string, string> => {
+export const parseRequireBlock = (content: string): Record<string, string> => {
   const dependencies: Record<string, string> = {};
   const requireBlock = content.match(GO_PATTERNS.REQUIRE_BLOCK);
 
@@ -24,7 +25,7 @@ const parseRequireBlock = (content: string): Record<string, string> => {
   return dependencies;
 };
 
-const parseSingleRequires = (content: string): Record<string, string> => {
+export const parseSingleRequires = (content: string): Record<string, string> => {
   const dependencies: Record<string, string> = {};
   const singleRequireMatches = content.matchAll(GO_PATTERNS.REQUIRE_LINE);
 
@@ -35,7 +36,7 @@ const parseSingleRequires = (content: string): Record<string, string> => {
   return dependencies;
 };
 
-const buildRequireBlock = (dependencies: Record<string, string>): string => {
+export const buildRequireBlock = (dependencies: Record<string, string>): string => {
   const requireEntries = Object.entries(dependencies)
     .map(([name, version]) => `\t${name} ${version}`)
     .join("\n");
@@ -129,7 +130,7 @@ export class GoProvider implements DependencyProvider {
       await exec("go", ["mod", "tidy"], { cwd: dirname(filePath) });
     } catch (error) {
       if (this.options.debug) {
-        console.error("Failed to run go mod tidy:", error);
+        logger.error("Failed to run go mod tidy", error as Error);
       }
     }
   }
