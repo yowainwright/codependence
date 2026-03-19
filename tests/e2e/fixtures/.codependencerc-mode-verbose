@@ -1,0 +1,4 @@
+{
+  "codependencies": ["lodash"],
+  "mode": "verbose"
+}

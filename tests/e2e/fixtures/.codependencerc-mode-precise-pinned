@@ -1,0 +1,4 @@
+{
+  "mode": "precise",
+  "codependencies": ["lodash"]
+}

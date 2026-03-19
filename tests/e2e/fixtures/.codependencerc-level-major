@@ -1,0 +1,4 @@
+{
+  "codependencies": ["lodash", "express"],
+  "level": "major"
+}
