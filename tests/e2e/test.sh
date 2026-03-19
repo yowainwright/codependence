@@ -73,26 +73,44 @@ case "${1:-test}" in
         print_success "Build completed!"
         ;;
     
+    "level-mode")
+        print_status "Running level and mode feature tests..."
+        docker build --target test -t codependence-level-mode-test -f e2e/Dockerfile.level-mode . && docker run --rm codependence-level-mode-test:latest
+        print_success "Level and mode tests completed!"
+        ;;
+
+    "all")
+        print_status "Running all e2e test suites..."
+        docker build --target test -t codependence-test -f e2e/Dockerfile . && docker run --rm codependence-test:latest
+        print_success "Init tests completed!"
+        docker build --target test -t codependence-level-mode-test -f e2e/Dockerfile.level-mode . && docker run --rm codependence-level-mode-test:latest
+        print_success "Level and mode tests completed!"
+        print_success "All e2e test suites completed!"
+        ;;
+
     "clean")
         print_status "Cleaning up Docker resources..."
-        docker rmi codependence-test codependence-builder 2>/dev/null || true
+        docker rmi codependence-test codependence-builder codependence-level-mode-test 2>/dev/null || true
         docker system prune -f
         print_success "Cleanup completed!"
         ;;
-    
+
     "help"|"--help"|"-h")
         echo "Usage: $0 [command]"
         echo ""
         echo "Commands:"
-        echo "  test    Run automated tests (default)"
-        echo "  dev     Start interactive development environment"
-        echo "  build   Build the project in Docker"
-        echo "  clean   Clean up Docker resources"
-        echo "  help    Show this help message"
+        echo "  test       Run init tests (default)"
+        echo "  level-mode Run level and mode feature tests"
+        echo "  all        Run all e2e test suites"
+        echo "  dev        Start interactive development environment"
+        echo "  build      Build the project in Docker"
+        echo "  clean      Clean up Docker resources"
+        echo "  help       Show this help message"
         echo ""
         echo "Examples:"
-        echo "  $0                    # Run tests"
-        echo "  $0 test              # Run tests"
+        echo "  $0                    # Run init tests"
+        echo "  $0 level-mode        # Run level/mode tests"
+        echo "  $0 all               # Run all tests"
         echo "  $0 dev               # Interactive testing"
         echo "  $0 build             # Build project"
         echo "  $0 clean             # Clean up"
