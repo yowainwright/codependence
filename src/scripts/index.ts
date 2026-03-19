@@ -39,7 +39,7 @@ export const validateStringDep = (
   const isValidString = hasLength && hasNoSpace;
 
   if (!isValidString) {
-    throw "invalid item type";
+    throw new Error("invalid item type");
   }
 
   const validateFn = validate || validatePackageName;
@@ -125,7 +125,7 @@ const handleVersionMapError = (
   }
 
   if (isTesting) return {};
-  process.exit(1);
+  throw err;
 };
 
 export const constructVersionMap = async ({
@@ -476,6 +476,7 @@ export const checkMatches = ({
   if (isOutOfDate && !isUpdating) {
     logger.error("Dependencies are not correct.");
     if (isCLI) process.exit(1);
+    else throw new Error("Dependencies are not correct.");
   } else if (isOutOfDate) {
     logger.info("Dependencies were not correct but should be updated! Check your git status.");
   } else {
@@ -498,6 +499,21 @@ const collectAllDepNames = (
 ): string[] => {
   const allNames = files.flatMap((file) => extractDepNamesFromFile(rootDir, file));
   return Array.from(new Set(allNames));
+};
+
+export const detectStaleCodependencies = (
+  codependencies: import("../types").CodeDependencies,
+  files: string[],
+  rootDir: string,
+): string[] => {
+  const pinnedNames = codependencies
+    .map((dep) => (typeof dep === "string" ? dep : Object.keys(dep)[0]))
+    .filter(Boolean);
+
+  if (pinnedNames.length === 0) return [];
+
+  const allDepNames = new Set(collectAllDepNames(files, rootDir));
+  return pinnedNames.filter((name) => !allDepNames.has(name));
 };
 
 const promptForSelection = async (
@@ -561,21 +577,22 @@ const resolvePreciseModeDeps = async (
   rootDir: string,
   versionMap: Record<string, string>,
   options: { debug: boolean; yarnConfig: boolean; isTesting: boolean; noCache: boolean; onProgress?: CheckFiles["onProgress"] },
-): Promise<void> => {
+): Promise<Record<string, string>> => {
   const allDepNames = collectAllDepNames(files, rootDir);
   const unresolvedDeps = allDepNames.filter((name) => !versionMap[name]);
 
-  if (unresolvedDeps.length > 0) {
-    const additionalMap = await constructVersionMap({
-      codependencies: unresolvedDeps,
-      debug: options.debug,
-      yarnConfig: options.yarnConfig,
-      isTesting: options.isTesting,
-      noCache: options.noCache,
-      onProgress: options.onProgress,
-    });
-    Object.assign(versionMap, additionalMap);
-  }
+  if (unresolvedDeps.length === 0) return versionMap;
+
+  const additionalMap = await constructVersionMap({
+    codependencies: unresolvedDeps,
+    debug: options.debug,
+    yarnConfig: options.yarnConfig,
+    isTesting: options.isTesting,
+    noCache: options.noCache,
+    onProgress: options.onProgress,
+  });
+
+  return { ...versionMap, ...additionalMap };
 };
 
 export const checkFiles = async ({
@@ -591,7 +608,7 @@ export const checkFiles = async ({
   isCLI = false,
   yarnConfig = false,
   isTesting = false,
-  permissive = false,
+  permissive = true,
   dryRun = false,
   interactive = false,
   noCache = false,
@@ -602,7 +619,7 @@ export const checkFiles = async ({
 }: CheckFiles): Promise<VersionDiff[] | void> => {
   try {
     const files = await glob(matchers, { cwd: rootDir, ignore });
-    const isPreciseMode = mode === "precise" || permissive;
+    const isPreciseMode = mode === "precise" || (permissive && mode !== "verbose");
 
     const hasNoDepsAndNotPrecise = !codependencies && !isPreciseMode;
     if (hasNoDepsAndNotPrecise) {
@@ -613,6 +630,16 @@ export const checkFiles = async ({
     let depNames: string[] = [];
 
     const hasDependencies = codependencies && codependencies.length > 0;
+
+    if (hasDependencies && !silent && !quiet) {
+      const stale = detectStaleCodependencies(codependencies, files, rootDir);
+      if (stale.length > 0) {
+        const label = stale.length === 1 ? "codependency" : "codependencies";
+        logger.warn(`${stale.length} stale ${label} not found in any package.json:`);
+        stale.forEach((name) => logger.warn(`  - ${name}`));
+      }
+    }
+
     if (hasDependencies) {
       versionMap = await constructVersionMap({
         codependencies,
@@ -628,7 +655,7 @@ export const checkFiles = async ({
     }
 
     if (isPreciseMode) {
-      await resolvePreciseModeDeps(files, rootDir, versionMap, { debug, yarnConfig, isTesting, noCache, onProgress });
+      versionMap = await resolvePreciseModeDeps(files, rootDir, versionMap, { debug, yarnConfig, isTesting, noCache, onProgress });
     }
 
     const hasOutputChanges = (update || dryRun) && !silent && !quiet;
@@ -676,10 +703,9 @@ export const checkFiles = async ({
     if (debug) {
       logger.debug((err as string).toString());
     }
+    throw err;
   }
 };
 
-export const script = checkFiles;
 export const codependence = checkFiles;
-export const core = codependence;
-export default core;
+export default checkFiles;

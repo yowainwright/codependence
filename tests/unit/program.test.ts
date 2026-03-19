@@ -25,7 +25,7 @@ describe("Action Function Tests (Fast)", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue(undefined);
+    scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -303,25 +303,18 @@ describe("Action Function Tests (Fast)", () => {
     expect(errorCalls).toContain("codependencies");
     errorSpy.mockRestore();
     configSpy.mockRestore();
-    scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue(undefined);
+    scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue(undefined);
   });
 
-  test("should handle error with permissive mode not set", async () => {
-    scriptSpy.mockRestore();
+  test("should run in permissive mode when no options provided", async () => {
     const configSpy = jest
       .spyOn(config, "loadConfig")
       .mockReturnValue({ config: {}, configPath: null });
-    const errorSpy = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
 
     await action({});
 
-    const errorCalls = errorSpy.mock.calls.flat().join(" ");
-    expect(errorCalls).toContain("codependencies");
-    errorSpy.mockRestore();
+    expect(scriptSpy).toHaveBeenCalled();
     configSpy.mockRestore();
-    scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue(undefined);
   });
 
   test("should execute script with dry-run mode", async () => {
@@ -524,7 +517,7 @@ describe("run", () => {
   let scriptSpy: ReturnType<typeof jest.spyOn>;
 
   beforeEach(() => {
-    scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue(undefined);
+    scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -946,7 +939,7 @@ describe("Format Integration Tests", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue([
+    scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue([
       {
         package: "react",
         current: "17.0.0",

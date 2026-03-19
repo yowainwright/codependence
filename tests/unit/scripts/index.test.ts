@@ -16,6 +16,7 @@ const {
   checkDependenciesForVersion,
   checkMatches,
   checkFiles,
+  detectStaleCodependencies,
 } = scripts;
 
 test("constructVersionMap => pass", async () => {
@@ -626,6 +627,35 @@ test("checkDependenciesForVersion => with devDependencies and peerDependencies",
   expect(result).toEqual(true);
 });
 
+test("detectStaleCodependencies => no stale entries", () => {
+  const codependencies = ["lodash", "fs-extra"];
+  const rootDir = "./tests/unit/fixtures/";
+  const files = ["test-pass-package.json"];
+  const result = detectStaleCodependencies(codependencies, files, rootDir);
+  expect(result).toEqual([]);
+});
+
+test("detectStaleCodependencies => stale entries found", () => {
+  const codependencies = ["lodash", "fs-extra", "removed-package", "also-gone"];
+  const rootDir = "./tests/unit/fixtures/";
+  const files = ["test-pass-package.json"];
+  const result = detectStaleCodependencies(codependencies, files, rootDir);
+  expect(result).toEqual(["removed-package", "also-gone"]);
+});
+
+test("detectStaleCodependencies => handles object-style codependencies", () => {
+  const codependencies = [{ lodash: "4.17.21" }, "stale-pkg"];
+  const rootDir = "./tests/unit/fixtures/";
+  const files = ["test-pass-package.json"];
+  const result = detectStaleCodependencies(codependencies, files, rootDir);
+  expect(result).toEqual(["stale-pkg"]);
+});
+
+test("detectStaleCodependencies => empty codependencies returns empty", () => {
+  const result = detectStaleCodependencies([], ["test-pass-package.json"], "./tests/unit/fixtures/");
+  expect(result).toEqual([]);
+});
+
 test("checkMatches => no updates", () => {
   const logCheckMatchesNoUpdates = jest.spyOn(console, "log");
   const versionMap = {
@@ -649,7 +679,7 @@ test("checkMatches => with error", () => {
   const rootDir = "./tests/unit/fixtures/";
   const isTesting = true;
   const files = ["test-fail-package.json"];
-  checkMatches({ versionMap, files, isTesting, rootDir });
+  expect(() => checkMatches({ versionMap, files, isTesting, rootDir })).toThrow("Dependencies are not correct.");
   expect(logCheckMatchesWithError).toHaveBeenCalled();
   logCheckMatchesWithError.mockRestore();
 });
@@ -659,28 +689,39 @@ test("checkFiles => with no updates", async () => {
   const codependencies = ["lodash", "fs-extra"];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-pass-package.json"];
-  await checkFiles({ codependencies, rootDir, files });
+  try {
+    await checkFiles({ codependencies, rootDir, files });
+  } catch {
+    // out-of-date deps throw in non-CLI mode
+  }
   expect(logCheckFilesNoUpdates).toHaveBeenCalled();
   logCheckFilesNoUpdates.mockRestore();
 });
 
-test("checkFiles => with updates", async () => {
+test("checkFiles => with updates (verbose mode)", async () => {
   const logCheckFilesWithUpdates = jest.spyOn(console, "error");
   const codependencies = ["lodash", "fs-extra"];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
-  await checkFiles({ codependencies, rootDir, files });
+  try {
+    await checkFiles({ codependencies, rootDir, files, permissive: false });
+  } catch {
+    // out-of-date deps throw in non-CLI mode
+  }
   expect(logCheckFilesWithUpdates).toHaveBeenCalled();
   logCheckFilesWithUpdates.mockRestore();
 });
-
 
 test("checkFiles => with permissive mode only", async () => {
   const logCheckFilesPermissive = jest.spyOn(console, "error");
   const codependencies = null;
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
-  await checkFiles({ codependencies, rootDir, files, permissive: true } as any);
+  try {
+    await checkFiles({ codependencies, rootDir, files, permissive: true } as any);
+  } catch {
+    // out-of-date deps throw in non-CLI mode
+  }
   expect(logCheckFilesPermissive).toHaveBeenCalled();
   logCheckFilesPermissive.mockRestore();
 });
@@ -693,7 +734,11 @@ test("checkFiles => with permissive mode and codependencies", async () => {
   const codependencies = ["lodash"];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
-  await checkFiles({ codependencies, rootDir, files, permissive: true });
+  try {
+    await checkFiles({ codependencies, rootDir, files, permissive: true });
+  } catch {
+    // out-of-date deps throw in non-CLI mode
+  }
   expect(logCheckFilesPermissiveWithCodependencies).toHaveBeenCalled();
   logCheckFilesPermissiveWithCodependencies.mockRestore();
 });

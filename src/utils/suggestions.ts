@@ -93,8 +93,11 @@ export const getSuggestionForPackage = (packageName: string): string | null => {
   return suggestions.length > 0 ? suggestions[0] : null;
 };
 
-export const isPrivatePackage = (packageName: string): boolean =>
-  packageName.startsWith("@") && packageName.includes("/");
+export const isPrivatePackage = (err: Error | string): boolean => {
+  const errorStr = typeof err === "string" ? err : err.message;
+  const lower = errorStr.toLowerCase();
+  return lower.includes("e401") || lower.includes("unauthorized") || lower.includes("private package");
+};
 
 export const hasRegistryInError = (err: Error | string): boolean => {
   const errorStr = typeof err === "string" ? err : err.message;
@@ -215,7 +218,7 @@ export const formatGenericError = (packageName: string, errorStr: string): strin
 
   lines.push("", `> Suggestion: Run \`npm view ${packageName}\` to verify package exists`);
 
-  const isNotSpecialCase = errorStr && !isPrivatePackage(packageName) && !hasRegistryInError(errorStr);
+  const isNotSpecialCase = errorStr && !hasRegistryInError(errorStr);
   if (isNotSpecialCase) {
     lines.push("", `Error: ${errorStr}`);
   }
@@ -236,7 +239,7 @@ export const formatEnhancedError = (context: ErrorContext): string => {
   } = context;
 
   const errorStr = typeof err === "string" ? err : err.message;
-  const detectedPrivate = isPrivate ?? isPrivatePackage(packageName);
+  const detectedPrivate = isPrivate ?? isPrivatePackage(err);
   const detectedRegistryMismatch = isRegistryMismatch ?? hasRegistryInError(err);
   const detectedTimeout = !isNetworkError && (timeout ?? isTimeout(err));
 
