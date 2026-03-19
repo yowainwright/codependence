@@ -1,0 +1,29 @@
+{
+  "name": "codependence-basic-check-sandbox",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Basic codependence check example",
+  "scripts": {
+    "check": "codependence",
+    "check:verbose": "codependence --verbose",
+    "check:json": "codependence --format json --output-file dependency-report.json",
+    "check:markdown": "codependence --format markdown --output-file dependency-report.md",
+    "update": "codependence --update",
+    "dry-run": "codependence --update --dry-run"
+  },
+  "dependencies": {
+    "lodash": "^4.17.19",
+    "express": "^4.17.1"
+  },
+  "devDependencies": {
+    "typescript": "^4.9.0",
+    "eslint": "^8.0.0"
+  },
+  "codependence": {
+    "codependencies": [
+      "lodash",
+      "express",
+      "typescript"
+    ]
+  }
+}

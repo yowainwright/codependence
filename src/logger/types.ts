@@ -6,26 +6,16 @@ export interface LoggerConfig {
   structured: boolean;
 }
 
-export interface LogEntry {
-  level: LogLevel;
-  section?: string;
-  message?: string;
-  error?: string | Error;
-  data?: unknown;
-  timestamp?: Date;
-}
-
-export interface DependencyIssue {
-  name: string;
-  expected: string;
-  actual: string;
-}
-
-export interface LoggerParams {
-  type: "info" | "warn" | "error" | "log" | string;
-  section?: string;
-  message?: string;
-  err?: string;
-  isDebugging?: boolean;
-  obj?: unknown;
+export interface Logger {
+  error: (message: string, error?: Error | string) => void;
+  warn: (message: string) => void;
+  info: (message: string) => void;
+  debug: (message: string, data?: unknown) => void;
+  verbose: (message: string, data?: unknown) => void;
+  print: (message: string) => void;
+  line: (message: string) => void;
+  indent: (message: string, spaces?: number) => void;
+  item: (n: number, message: string) => void;
+  space: () => void;
+  separator: () => void;
 }

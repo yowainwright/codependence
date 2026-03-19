@@ -30,3 +30,14 @@ export interface Spinner {
   info: (text?: string) => Spinner;
   warn: (text?: string) => Spinner;
 }
+
+export interface ErrorContext {
+  packageName: string;
+  error: Error | string;
+  isNetworkError?: boolean;
+  isValidationError?: boolean;
+  isPrivatePackage?: boolean;
+  isRegistryMismatch?: boolean;
+  isTimeout?: boolean;
+  retryCount?: number;
+}

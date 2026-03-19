@@ -3,7 +3,7 @@ import {
   buildVersionDiff,
   displayVersionDiffs,
   collectAllDiffs,
-} from "../../../src/utils/version-diff";
+} from "../../../src/utils/diff";
 import type { VersionDiff } from "../../../src/types";
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";

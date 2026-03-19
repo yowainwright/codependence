@@ -1,6 +1,9 @@
 export type CodeDependenciesItem = string | Record<string, string>;
 export type CodeDependencies = Array<CodeDependenciesItem>;
 
+export type Level = "patch" | "minor" | "major";
+export type Mode = "verbose" | "precise";
+
 export type Options = {
   isTestingCLI?: boolean;
   isTestingAction?: boolean;
@@ -25,6 +28,8 @@ export type Options = {
   noCache?: boolean;
   format?: "json" | "markdown" | "table";
   outputFile?: string;
+  level?: Level;
+  mode?: Mode;
 };
 
 export type CheckFiles = {
@@ -46,6 +51,8 @@ export type CheckFiles = {
   noCache?: boolean;
   format?: "json" | "markdown" | "table";
   onProgress?: (current: number, total: number, packageName: string) => void;
+  level?: Level;
+  mode?: Mode;
 };
 
 export type CheckDependenciesForVersionOptions = {
@@ -56,6 +63,7 @@ export type CheckDependenciesForVersionOptions = {
   isQuiet?: boolean;
   isTesting?: boolean;
   permissive?: boolean;
+  level?: Level;
 };
 
 export type CheckMatches = {
@@ -69,11 +77,14 @@ export type CheckMatches = {
   isQuiet?: boolean;
   isCLI?: boolean;
   isTesting?: boolean;
+  level?: Level;
 };
 
 export type CodependenceConfig = {
   codependencies?: CodeDependencies;
   permissive?: boolean;
+  level?: Level;
+  mode?: Mode;
 };
 
 export type PackageJSON = {
@@ -143,4 +154,10 @@ export type DependencyInfo = {
   current: string;
   latest: string;
   isPinned?: boolean;
+};
+
+export type InteractiveResult = {
+  shouldUpdate: boolean;
+  depNames: string[];
+  versionMap: Record<string, string>;
 };

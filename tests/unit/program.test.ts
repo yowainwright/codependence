@@ -16,7 +16,7 @@ import {
 } from "../../src/program";
 import type { Options } from "../../src/types";
 import * as fs from "fs";
-import * as logger from "../../src/logger";
+import { logger } from "../../src/logger";
 import * as scripts from "../../src/scripts";
 import * as config from "../../src/config";
 
@@ -292,18 +292,15 @@ describe("Action Function Tests (Fast)", () => {
       .spyOn(config, "loadConfig")
       .mockReturnValue({ config: {}, configPath: null });
     const errorSpy = jest
-      .spyOn(logger.logger, "error")
+      .spyOn(console, "error")
       .mockImplementation(() => {});
 
     await action({
       permissive: false,
     });
 
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("codependencies"),
-      undefined,
-      "cli:error",
-    );
+    const errorCalls = errorSpy.mock.calls.flat().join(" ");
+    expect(errorCalls).toContain("codependencies");
     errorSpy.mockRestore();
     configSpy.mockRestore();
     scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue(undefined);
@@ -315,16 +312,13 @@ describe("Action Function Tests (Fast)", () => {
       .spyOn(config, "loadConfig")
       .mockReturnValue({ config: {}, configPath: null });
     const errorSpy = jest
-      .spyOn(logger.logger, "error")
+      .spyOn(console, "error")
       .mockImplementation(() => {});
 
     await action({});
 
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("codependencies"),
-      undefined,
-      "cli:error",
-    );
+    const errorCalls = errorSpy.mock.calls.flat().join(" ");
+    expect(errorCalls).toContain("codependencies");
     errorSpy.mockRestore();
     configSpy.mockRestore();
     scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue(undefined);
@@ -383,7 +377,7 @@ describe("initAction", () => {
   test("should handle existing .codependencerc", async () => {
     const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(true);
     const warnSpy = jest
-      .spyOn(logger.logger, "warn")
+      .spyOn(logger, "warn")
       .mockImplementation(() => {});
 
     await initAction("rc");
@@ -396,7 +390,7 @@ describe("initAction", () => {
   test("should handle missing package.json", async () => {
     const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(false);
     const errorSpy = jest
-      .spyOn(logger.logger, "error")
+      .spyOn(logger, "error")
       .mockImplementation(() => {});
 
     await initAction("rc");
@@ -416,7 +410,7 @@ describe("initAction", () => {
       .spyOn(fs, "readFileSync")
       .mockReturnValue("invalid json{");
     const errorSpy = jest
-      .spyOn(logger.logger, "error")
+      .spyOn(logger, "error")
       .mockImplementation(() => {});
 
     await initAction("rc");
@@ -437,7 +431,7 @@ describe("initAction", () => {
       .spyOn(fs, "readFileSync")
       .mockReturnValue(JSON.stringify({}));
     const errorSpy = jest
-      .spyOn(logger.logger, "error")
+      .spyOn(logger, "error")
       .mockImplementation(() => {});
 
     await initAction("rc");
@@ -552,7 +546,7 @@ describe("run", () => {
       return true;
     });
     const warnSpy = jest
-      .spyOn(logger.logger, "warn")
+      .spyOn(logger, "warn")
       .mockImplementation(() => {});
 
     await run(["node", "script.js", "init", "rc"]);
@@ -797,11 +791,12 @@ describe("formatPerformanceMetrics", () => {
     const hitRate = 83.33;
 
     const result = formatPerformanceMetrics(duration, stats, hitRate);
+    const joined = result.join("\n");
 
-    expect(result).toContain("\n⚡ Performance:");
-    expect(result).toContain("  ⏱️  Completed in 1500ms");
-    expect(result).toContain("  📦 Cache: 10 hits, 2 misses (83.3% hit rate)");
-    expect(result).toContain("  💾 12 packages cached\n");
+    expect(joined).toContain("Performance:");
+    expect(joined).toContain("Completed in 1500ms");
+    expect(joined).toContain("Cache: 10 hits, 2 misses (83.3% hit rate)");
+    expect(joined).toContain("12 packages cached");
   });
 
   test("should format metrics with no cache", () => {
@@ -810,11 +805,12 @@ describe("formatPerformanceMetrics", () => {
     const hitRate = 0;
 
     const result = formatPerformanceMetrics(duration, stats, hitRate);
+    const joined = result.join("\n");
 
-    expect(result).toContain("\n⚡ Performance:");
-    expect(result).toContain("  ⏱️  Completed in 3000ms");
-    expect(result).toContain("  📦 No cache hits (first run)\n");
-    expect(result).not.toContain("% hit rate");
+    expect(joined).toContain("Performance:");
+    expect(joined).toContain("Completed in 3000ms");
+    expect(joined).toContain("No cache hits (first run)");
+    expect(joined).not.toContain("% hit rate");
   });
 
   test("should format hit rate with one decimal place", () => {

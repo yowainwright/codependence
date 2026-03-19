@@ -7,6 +7,9 @@ import {
 } from "../../../src/utils/formatters";
 import type { DependencyInfo } from "../../../src/types";
 
+const stripAnsi = (str: string): string =>
+  str.replace(/\x1b\[[0-9;]*m/g, "");
+
 describe("formatAsJSON", () => {
   it("should format dependencies as JSON with outdated status", () => {
     const dependencies: DependencyInfo[] = [
@@ -186,10 +189,10 @@ describe("formatAsMarkdown", () => {
     const result = formatAsMarkdown(dependencies);
 
     expect(result).toContain("# Dependency Status");
-    expect(result).toContain("## ⚠️ Outdated Dependencies (1)");
+    expect(result).toContain("## ▲ Outdated Dependencies (1)");
     expect(result).toContain("| Package | Current | Latest | Severity |");
-    expect(result).toContain("| react | 17.0.0 | 18.0.0 | 🔴 major |");
-    expect(result).toContain("## ✅ Up-to-date Dependencies (1)");
+    expect(result).toContain("| react | 17.0.0 | 18.0.0 | ● major |");
+    expect(result).toContain("## ✓ Up-to-date Dependencies (1)");
     expect(result).toContain("- lodash @ 4.17.21");
   });
 
@@ -201,8 +204,8 @@ describe("formatAsMarkdown", () => {
     const result = formatAsMarkdown(dependencies);
 
     expect(result).toContain("# Dependency Status");
-    expect(result).toContain("## ✅ Up-to-date Dependencies (1)");
-    expect(result).not.toContain("⚠️ Outdated Dependencies");
+    expect(result).toContain("## ✓ Up-to-date Dependencies (1)");
+    expect(result).not.toContain("▲ Outdated Dependencies");
   });
 
   it("should include summary section", () => {
@@ -246,7 +249,7 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    expect(result).toContain("🔴 major");
+    expect(result).toContain("● major");
   });
 
   it("should use correct severity emojis for minor", () => {
@@ -256,7 +259,7 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    expect(result).toContain("🟡 minor");
+    expect(result).toContain("● minor");
   });
 
   it("should use correct severity emojis for patch", () => {
@@ -266,7 +269,7 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    expect(result).toContain("🟢 patch");
+    expect(result).toContain("● patch");
   });
 
   it("should handle empty dependencies array", () => {
@@ -288,10 +291,10 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    expect(result).toContain("## ⚠️ Outdated Dependencies (3)");
-    expect(result).toContain("| react | 17.0.0 | 18.0.0 | 🔴 major |");
-    expect(result).toContain("| vue | 2.6.0 | 3.0.0 | 🔴 major |");
-    expect(result).toContain("| angular | 12.0.0 | 13.0.0 | 🔴 major |");
+    expect(result).toContain("## ▲ Outdated Dependencies (3)");
+    expect(result).toContain("| react | 17.0.0 | 18.0.0 | ● major |");
+    expect(result).toContain("| vue | 2.6.0 | 3.0.0 | ● major |");
+    expect(result).toContain("| angular | 12.0.0 | 13.0.0 | ● major |");
   });
 });
 
@@ -302,9 +305,9 @@ describe("formatAsTable", () => {
       { name: "lodash", current: "4.17.21", latest: "4.17.21", isPinned: false },
     ];
 
-    const result = formatAsTable(dependencies);
+    const result = stripAnsi(formatAsTable(dependencies));
 
-    expect(result).toContain("⚠️  Outdated Dependencies:");
+    expect(result).toContain("▲  Outdated Dependencies:");
     expect(result).toContain("Package");
     expect(result).toContain("Current");
     expect(result).toContain("Latest");
@@ -312,7 +315,7 @@ describe("formatAsTable", () => {
     expect(result).toContain("react");
     expect(result).toContain("17.0.0");
     expect(result).toContain("18.0.0");
-    expect(result).toContain("🔴 major");
+    expect(result).toContain("● major");
     expect(result).toContain("1 outdated of 2 total");
   });
 
@@ -322,17 +325,17 @@ describe("formatAsTable", () => {
       { name: "lodash", current: "4.17.21", latest: "4.17.21", isPinned: false },
     ];
 
-    const result = formatAsTable(dependencies);
+    const result = stripAnsi(formatAsTable(dependencies));
 
-    expect(result).toBe("✅ All dependencies are up-to-date!\n");
+    expect(result).toContain("All dependencies are up-to-date!");
   });
 
   it("should handle empty dependencies array", () => {
     const dependencies: DependencyInfo[] = [];
 
-    const result = formatAsTable(dependencies);
+    const result = stripAnsi(formatAsTable(dependencies));
 
-    expect(result).toBe("✅ All dependencies are up-to-date!\n");
+    expect(result).toContain("All dependencies are up-to-date!");
   });
 
   it("should use correct severity indicators for major", () => {
@@ -340,9 +343,9 @@ describe("formatAsTable", () => {
       { name: "react", current: "17.0.0", latest: "18.0.0", isPinned: false },
     ];
 
-    const result = formatAsTable(dependencies);
+    const result = stripAnsi(formatAsTable(dependencies));
 
-    expect(result).toContain("🔴 major");
+    expect(result).toContain("● major");
   });
 
   it("should use correct severity indicators for minor", () => {
@@ -350,9 +353,9 @@ describe("formatAsTable", () => {
       { name: "react", current: "18.0.0", latest: "18.1.0", isPinned: false },
     ];
 
-    const result = formatAsTable(dependencies);
+    const result = stripAnsi(formatAsTable(dependencies));
 
-    expect(result).toContain("🟡 minor");
+    expect(result).toContain("● minor");
   });
 
   it("should use correct severity indicators for patch", () => {
@@ -360,9 +363,9 @@ describe("formatAsTable", () => {
       { name: "react", current: "18.0.0", latest: "18.0.1", isPinned: false },
     ];
 
-    const result = formatAsTable(dependencies);
+    const result = stripAnsi(formatAsTable(dependencies));
 
-    expect(result).toContain("🟢 patch");
+    expect(result).toContain("● patch");
   });
 
   it("should align columns correctly with varying lengths", () => {
@@ -371,7 +374,7 @@ describe("formatAsTable", () => {
       { name: "very-long-package-name", current: "1.2.3", latest: "2.0.0", isPinned: false },
     ];
 
-    const result = formatAsTable(dependencies);
+    const result = stripAnsi(formatAsTable(dependencies));
 
     expect(result).toContain("very-long-package-name");
     expect(result).toContain("react");
@@ -385,7 +388,7 @@ describe("formatAsTable", () => {
       { name: "lodash", current: "4.17.21", latest: "4.17.21", isPinned: false },
     ];
 
-    const result = formatAsTable(dependencies);
+    const result = stripAnsi(formatAsTable(dependencies));
 
     expect(result).toContain("2 outdated of 3 total");
   });
@@ -412,16 +415,16 @@ describe("format", () => {
   });
 
   it("should format as table when type is table", () => {
-    const result = format(dependencies, "table");
+    const result = stripAnsi(format(dependencies, "table"));
 
-    expect(result).toContain("⚠️  Outdated Dependencies:");
+    expect(result).toContain("▲  Outdated Dependencies:");
     expect(result).toContain("Package");
   });
 
   it("should default to table format", () => {
-    const result = format(dependencies);
+    const result = stripAnsi(format(dependencies));
 
-    expect(result).toContain("⚠️  Outdated Dependencies:");
+    expect(result).toContain("▲  Outdated Dependencies:");
     expect(result).toContain("Package");
   });
 
@@ -454,6 +457,6 @@ describe("format", () => {
 
     expect(JSON.parse(jsonResult).status).toBe("up-to-date");
     expect(markdownResult).toContain("# Dependency Status");
-    expect(tableResult).toContain("✅ All dependencies are up-to-date!");
+    expect(stripAnsi(tableResult)).toContain("✓ All dependencies are up-to-date!");
   });
 });

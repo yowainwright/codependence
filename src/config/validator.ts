@@ -1,4 +1,5 @@
 import { error } from "../utils/colors";
+import { VALID_LANGUAGES, VALID_LEVELS, VALID_MODES, KNOWN_FIELDS } from "./constants";
 import type { ValidationError, ValidationResult } from "./types";
 
 const isString = (value: unknown): value is string => typeof value === "string";
@@ -14,50 +15,53 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 const concat = <T>(...arrays: T[][]): T[] =>
   arrays.reduce((acc, arr) => [...acc, ...arr], []);
 
+const validateStringItem = (item: string): ValidationError | null => {
+  const hasLength = item.length > 0;
+  return hasLength
+    ? null
+    : {
+        field: "codependencies",
+        message: "Package name cannot be empty string",
+        suggestion: "Remove empty strings from the codependencies array",
+      };
+};
+
+const validateObjectItem = (item: Record<string, unknown>): ValidationError | null => {
+  const keys = Object.keys(item);
+  const hasOneKey = keys.length === 1;
+
+  if (!hasOneKey) {
+    const suggestion =
+      keys.length === 0
+        ? "Remove empty objects from codependencies array"
+        : `Split into multiple objects: ${keys.map((k) => `{"${k}": "${item[k]}"}`).join(", ")}`;
+
+    return {
+      field: "codependencies",
+      message: `Object in codependencies must have exactly one key, found ${keys.length}`,
+      suggestion,
+    };
+  }
+
+  const key = keys[0];
+  const value = item[key];
+
+  if (!isString(value)) {
+    return {
+      field: `codependencies.${key}`,
+      message: "Version value must be a string",
+      suggestion: `Change {"${key}": ${JSON.stringify(value)}} to {"${key}": "${value}"}`,
+    };
+  }
+
+  return null;
+};
+
 const validateCodeDependenciesItem = (
   item: unknown,
 ): ValidationError | null => {
-  if (isString(item)) {
-    const hasLength = item.length > 0;
-    return hasLength
-      ? null
-      : {
-          field: "codependencies",
-          message: "Package name cannot be empty string",
-          suggestion: "Remove empty strings from the codependencies array",
-        };
-  }
-
-  if (isObject(item)) {
-    const keys = Object.keys(item);
-    const hasOneKey = keys.length === 1;
-
-    if (!hasOneKey) {
-      const suggestion =
-        keys.length === 0
-          ? "Remove empty objects from codependencies array"
-          : `Split into multiple objects: ${keys.map((k) => `{"${k}": "${item[k]}"}`).join(", ")}`;
-
-      return {
-        field: "codependencies",
-        message: `Object in codependencies must have exactly one key, found ${keys.length}`,
-        suggestion,
-      };
-    }
-
-    const key = keys[0];
-    const value = item[key];
-
-    if (!isString(value)) {
-      return {
-        field: `codependencies.${key}`,
-        message: "Version value must be a string",
-        suggestion: `Change {"${key}": ${JSON.stringify(value)}} to {"${key}": "${value}"}`,
-      };
-    }
-
-    return null;
-  }
+  if (isString(item)) return validateStringItem(item);
+  if (isObject(item)) return validateObjectItem(item);
 
   return {
     field: "codependencies",
@@ -83,16 +87,17 @@ const validateRequiredFields = (
 ): ValidationError[] => {
   const hasCodependencies = "codependencies" in config;
   const hasPermissive = "permissive" in config;
-  const hasNeitherRequired = !hasCodependencies && !hasPermissive;
+  const hasMode = "mode" in config;
+  const hasNeitherRequired = !hasCodependencies && !hasPermissive && !hasMode;
 
   return hasNeitherRequired
     ? [
         {
           field: "root",
           message:
-            'Configuration must have either "codependencies" or "permissive" field',
+            'Configuration must have either "codependencies", "permissive", or "mode" field',
           suggestion:
-            'Add {"codependencies": ["package-name"]} or {"permissive": true}',
+            'Add {"codependencies": ["package-name"]}, {"permissive": true}, or {"mode": "precise"}',
         },
       ]
     : [];
@@ -101,9 +106,7 @@ const validateRequiredFields = (
 const validateCodependencies = (
   config: Record<string, unknown>,
 ): ValidationError[] => {
-  if (!("codependencies" in config)) {
-    return [];
-  }
+  if (!("codependencies" in config)) return [];
 
   const codependencies = config.codependencies;
 
@@ -129,9 +132,7 @@ const validateCodependencies = (
 const validatePermissive = (
   config: Record<string, unknown>,
 ): ValidationError[] => {
-  if (!("permissive" in config)) {
-    return [];
-  }
+  if (!("permissive" in config)) return [];
 
   const permissive = config.permissive;
 
@@ -147,112 +148,80 @@ const validatePermissive = (
       ];
 };
 
-const validateLanguage = (
-  config: Record<string, unknown>,
-): ValidationError[] => {
-  if (!("language" in config)) {
-    return [];
-  }
+export const createEnumValidator = (
+  field: string,
+  validValues: readonly string[],
+) => (config: Record<string, unknown>): ValidationError[] => {
+  if (!(field in config)) return [];
 
-  const language = config.language;
-  const validLanguages = ["nodejs", "python", "go"];
+  const value = config[field];
+  const valueList = validValues.join(", ");
 
-  if (!isString(language)) {
+  if (!isString(value)) {
     return [
       {
-        field: "language",
-        message: `"language" must be a string, got ${typeof language}`,
-        suggestion: `Use one of: ${validLanguages.join(", ")}`,
+        field,
+        message: `"${field}" must be a string, got ${typeof value}`,
+        suggestion: `Use one of: ${valueList}`,
       },
     ];
   }
 
-  return validLanguages.includes(language)
+  const isValid = (validValues as readonly string[]).includes(value);
+  return isValid
     ? []
     : [
         {
-          field: "language",
-          message: `Invalid language "${language}"`,
-          suggestion: `Must be one of: ${validLanguages.join(", ")}`,
+          field,
+          message: `Invalid ${field} "${value}"`,
+          suggestion: `Must be one of: ${valueList}`,
         },
       ];
 };
 
-const validateFiles = (config: Record<string, unknown>): ValidationError[] => {
-  if (!("files" in config)) {
-    return [];
-  }
+export const createArrayValidator = (
+  field: string,
+  itemLabel: string,
+  arraySuggestion: string,
+) => (config: Record<string, unknown>): ValidationError[] => {
+  if (!(field in config)) return [];
 
-  const files = config.files;
+  const value = config[field];
 
-  if (!isArray(files)) {
+  if (!isArray(value)) {
     return [
       {
-        field: "files",
-        message: `"files" must be an array, got ${typeof files}`,
-        suggestion: 'Use array format: {"files": ["**/package.json"]}',
+        field,
+        message: `"${field}" must be an array, got ${typeof value}`,
+        suggestion: `Use array format: ${arraySuggestion}`,
       },
     ];
   }
 
-  const hasInvalidFiles = files.some((f) => !isString(f));
+  const hasInvalidItems = value.some((item) => !isString(item));
 
-  return hasInvalidFiles
+  return hasInvalidItems
     ? [
         {
-          field: "files",
-          message: "All file patterns must be strings",
-          suggestion: "Remove non-string values from files array",
+          field,
+          message: `All ${itemLabel} patterns must be strings`,
+          suggestion: `Remove non-string values from ${field} array`,
         },
       ]
     : [];
 };
 
-const validateIgnore = (
-  config: Record<string, unknown>,
-): ValidationError[] => {
-  if (!("ignore" in config)) {
-    return [];
-  }
-
-  const ignore = config.ignore;
-
-  if (!isArray(ignore)) {
-    return [
-      {
-        field: "ignore",
-        message: `"ignore" must be an array, got ${typeof ignore}`,
-        suggestion: 'Use array format: {"ignore": ["**/node_modules/**"]}',
-      },
-    ];
-  }
-
-  const hasInvalidIgnore = ignore.some((i) => !isString(i));
-
-  return hasInvalidIgnore
-    ? [
-        {
-          field: "ignore",
-          message: "All ignore patterns must be strings",
-          suggestion: "Remove non-string values from ignore array",
-        },
-      ]
-    : [];
-};
+const validateLanguage = createEnumValidator("language", VALID_LANGUAGES);
+const validateLevel = createEnumValidator("level", VALID_LEVELS);
+const validateMode = createEnumValidator("mode", VALID_MODES);
+const validateFiles = createArrayValidator("files", "file", '{"files": ["**/package.json"]}');
+const validateIgnore = createArrayValidator("ignore", "ignore", '{"ignore": ["**/node_modules/**"]}');
 
 const validateUnknownFields = (
   config: Record<string, unknown>,
 ): ValidationError[] => {
-  const knownFields = [
-    "codependencies",
-    "permissive",
-    "language",
-    "files",
-    "ignore",
-  ];
-
   const unknownFields = Object.keys(config).filter(
-    (key) => !knownFields.includes(key),
+    (key) => !(KNOWN_FIELDS as readonly string[]).includes(key),
   );
 
   return unknownFields.length > 0
@@ -260,7 +229,7 @@ const validateUnknownFields = (
         {
           field: "root",
           message: `Unknown field(s): ${unknownFields.join(", ")}`,
-          suggestion: `Remove unknown fields. Valid fields are: ${knownFields.join(", ")}`,
+          suggestion: `Remove unknown fields. Valid fields are: ${KNOWN_FIELDS.join(", ")}`,
         },
       ]
     : [];
@@ -270,10 +239,7 @@ export const validateConfig = (config: unknown): ValidationResult => {
   const rootErrors = validateRootObject(config);
 
   if (rootErrors.length > 0) {
-    return {
-      valid: false,
-      errors: rootErrors,
-    };
+    return { valid: false, errors: rootErrors };
   }
 
   const typedConfig = config as Record<string, unknown>;
@@ -283,27 +249,26 @@ export const validateConfig = (config: unknown): ValidationResult => {
     validateCodependencies(typedConfig),
     validatePermissive(typedConfig),
     validateLanguage(typedConfig),
+    validateLevel(typedConfig),
+    validateMode(typedConfig),
     validateFiles(typedConfig),
     validateIgnore(typedConfig),
     validateUnknownFields(typedConfig),
   );
 
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
+  return { valid: errors.length === 0, errors };
 };
 
 export const formatValidationErrors = (errors: ValidationError[]): string => {
   const errorLines = errors.flatMap((validationError, index) => {
     const mainLine = `${index + 1}. ${validationError.field}: ${validationError.message}`;
     const suggestionLine = validationError.suggestion
-      ? `   💡 ${validationError.suggestion}`
+      ? `   > ${validationError.suggestion}`
       : null;
     return [mainLine, suggestionLine, ""].filter(
       (line): line is string => line !== null,
     );
   });
 
-  return [`${error("✗")} Invalid configuration:\n`, ...errorLines].join("\n");
+  return [`${error("x")} Invalid configuration:\n`, ...errorLines].join("\n");
 };

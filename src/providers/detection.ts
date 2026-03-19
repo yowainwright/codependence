@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import type { Language, LanguageDetectionResult } from "./types";
 
-const detectNodePackageManager = (rootDir: string): string => {
+export const detectNodePackageManager = (rootDir: string): string => {
   const hasYarnLock = existsSync(join(rootDir, "yarn.lock"));
   const hasPnpmLock = existsSync(join(rootDir, "pnpm-lock.yaml"));
   const hasBunLock = existsSync(join(rootDir, "bun.lockb"));
@@ -13,7 +13,7 @@ const detectNodePackageManager = (rootDir: string): string => {
   return "npm";
 };
 
-const detectPythonPackageManager = (rootDir: string): string => {
+export const detectPythonPackageManager = (rootDir: string): string => {
   const hasEnvironmentYml =
     existsSync(join(rootDir, "environment.yml")) ||
     existsSync(join(rootDir, "environment.yaml"));
