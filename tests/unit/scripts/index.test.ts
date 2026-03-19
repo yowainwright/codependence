@@ -1,5 +1,12 @@
-import { expect, test, jest } from "bun:test";
+import { expect, test, jest, beforeEach } from "bun:test";
+import { versionCache, requestDeduplicator } from "../../../src/utils/cache";
 import * as scripts from "../../../src/scripts";
+
+beforeEach(() => {
+  versionCache.clear();
+  requestDeduplicator.clear();
+});
+
 const {
   constructVersionMap,
   constructVersionTypes,
