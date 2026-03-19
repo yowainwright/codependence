@@ -4,7 +4,7 @@ import { script } from "./scripts";
 import { logger } from "./logger";
 
 run().catch((err) => {
-  logger.error(err.message || err.toString(), undefined, "cli:error");
+  logger.error(err.message || err.toString());
   process.exit(1);
 });
 

@@ -16,7 +16,7 @@ import {
 } from "../../src/program";
 import type { Options } from "../../src/types";
 import * as fs from "fs";
-import * as logger from "../../src/logger";
+import { logger } from "../../src/logger";
 import * as scripts from "../../src/scripts";
 import * as config from "../../src/config";
 
@@ -292,16 +292,15 @@ describe("Action Function Tests (Fast)", () => {
       .spyOn(config, "loadConfig")
       .mockReturnValue({ config: {}, configPath: null });
     const errorSpy = jest
-      .spyOn(logger, "error")
+      .spyOn(console, "error")
       .mockImplementation(() => {});
 
     await action({
       permissive: false,
     });
 
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("codependencies"),
-    );
+    const errorCalls = errorSpy.mock.calls.flat().join(" ");
+    expect(errorCalls).toContain("codependencies");
     errorSpy.mockRestore();
     configSpy.mockRestore();
     scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue(undefined);
@@ -313,14 +312,13 @@ describe("Action Function Tests (Fast)", () => {
       .spyOn(config, "loadConfig")
       .mockReturnValue({ config: {}, configPath: null });
     const errorSpy = jest
-      .spyOn(logger, "error")
+      .spyOn(console, "error")
       .mockImplementation(() => {});
 
     await action({});
 
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("codependencies"),
-    );
+    const errorCalls = errorSpy.mock.calls.flat().join(" ");
+    expect(errorCalls).toContain("codependencies");
     errorSpy.mockRestore();
     configSpy.mockRestore();
     scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue(undefined);

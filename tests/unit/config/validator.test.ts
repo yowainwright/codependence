@@ -62,6 +62,8 @@ describe("validateConfig", () => {
         language: "nodejs",
         files: ["**/package.json"],
         ignore: ["**/node_modules/**"],
+        level: "minor",
+        mode: "verbose",
       };
 
       const result = validateConfig(config);
@@ -140,7 +142,7 @@ describe("validateConfig", () => {
       const requiredError = result.errors.find((e) => e.message.includes("either"));
       expect(requiredError).toBeDefined();
       expect(requiredError?.field).toBe("root");
-      expect(requiredError?.suggestion).toBe('Add {"codependencies": ["package-name"]} or {"permissive": true}');
+      expect(requiredError?.suggestion).toBe('Add {"codependencies": ["package-name"]}, {"permissive": true}, or {"mode": "precise"}');
     });
 
     it("should reject empty object config", () => {
@@ -422,6 +424,66 @@ describe("validateConfig", () => {
     });
   });
 
+  describe("level validation", () => {
+    it("should validate valid level values", () => {
+      const levels = ["patch", "minor", "major"];
+      levels.forEach((level) => {
+        const config = { codependencies: ["react"], level };
+        const result = validateConfig(config);
+        expect(result.valid).toBe(true);
+      });
+    });
+
+    it("should reject non-string level", () => {
+      const config = { codependencies: ["react"], level: 123 };
+      const result = validateConfig(config);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].field).toBe("level");
+      expect(result.errors[0].message).toBe('"level" must be a string, got number');
+    });
+
+    it("should reject invalid level value", () => {
+      const config = { codependencies: ["react"], level: "huge" };
+      const result = validateConfig(config);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].field).toBe("level");
+      expect(result.errors[0].message).toBe('Invalid level "huge"');
+    });
+  });
+
+  describe("mode validation", () => {
+    it("should validate valid mode values", () => {
+      const modes = ["verbose", "precise"];
+      modes.forEach((mode) => {
+        const config = { codependencies: ["react"], mode };
+        const result = validateConfig(config);
+        expect(result.valid).toBe(true);
+      });
+    });
+
+    it("should accept mode=precise as sufficient config", () => {
+      const config = { mode: "precise" };
+      const result = validateConfig(config);
+      expect(result.valid).toBe(true);
+    });
+
+    it("should reject non-string mode", () => {
+      const config = { codependencies: ["react"], mode: true };
+      const result = validateConfig(config);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].field).toBe("mode");
+      expect(result.errors[0].message).toBe('"mode" must be a string, got boolean');
+    });
+
+    it("should reject invalid mode value", () => {
+      const config = { codependencies: ["react"], mode: "strict" };
+      const result = validateConfig(config);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].field).toBe("mode");
+      expect(result.errors[0].message).toBe('Invalid mode "strict"');
+    });
+  });
+
   describe("unknown fields validation", () => {
     it("should reject unknown fields", () => {
       const config = {
@@ -435,7 +497,7 @@ describe("validateConfig", () => {
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].field).toBe("root");
       expect(result.errors[0].message).toBe("Unknown field(s): unknown");
-      expect(result.errors[0].suggestion).toBe("Remove unknown fields. Valid fields are: codependencies, permissive, language, files, ignore");
+      expect(result.errors[0].suggestion).toBe("Remove unknown fields. Valid fields are: codependencies, permissive, language, files, ignore, level, mode");
     });
 
     it("should reject multiple unknown fields", () => {
@@ -533,6 +595,8 @@ describe("validateConfig", () => {
         language: "nodejs",
         files: ["packages/**/package.json"],
         ignore: ["**/node_modules/**", "**/dist/**"],
+        level: "major",
+        mode: "precise",
       };
 
       const result = validateConfig(config);
@@ -555,10 +619,10 @@ describe("formatValidationErrors", () => {
 
     const formatted = formatValidationErrors(errors);
 
-    expect(formatted).toContain("✗");
+    expect(formatted).toContain("x");
     expect(formatted).toContain("Invalid configuration:");
     expect(formatted).toContain("1. codependencies: Must be an array");
-    expect(formatted).toContain("💡 Use array format");
+    expect(formatted).toContain("> Use array format");
   });
 
   it("should format multiple errors", () => {
@@ -579,8 +643,8 @@ describe("formatValidationErrors", () => {
 
     expect(formatted).toContain("1. codependencies: Must be an array");
     expect(formatted).toContain("2. permissive: Must be a boolean");
-    expect(formatted).toContain("💡 Use array format");
-    expect(formatted).toContain("💡 Use true or false");
+    expect(formatted).toContain("> Use array format");
+    expect(formatted).toContain("> Use true or false");
   });
 
   it("should format error without suggestion", () => {

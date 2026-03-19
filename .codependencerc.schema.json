@@ -53,6 +53,18 @@
         "type": "string"
       },
       "description": "Glob patterns for files to ignore"
+    },
+    "level": {
+      "type": "string",
+      "enum": ["patch", "minor", "major"],
+      "default": "major",
+      "description": "Update level constraint: patch (same minor), minor (same major), or major (any)"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["verbose", "precise"],
+      "default": "verbose",
+      "description": "Listing mode: verbose (list all) or precise (only list exceptions, update all others)"
     }
   },
   "additionalProperties": false,
@@ -65,6 +77,14 @@
       "properties": {
         "permissive": {
           "const": true
+        }
+      }
+    },
+    {
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "const": "precise"
         }
       }
     }

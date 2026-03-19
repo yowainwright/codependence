@@ -24,6 +24,8 @@ export const OPTION_DEFINITIONS: OptionDefinition[] = [
   { flags: ["--no-cache"], hasValue: false },
   { flags: ["--format"], hasValue: true },
   { flags: ["--output-file"], hasValue: true },
+  { flags: ["--level"], hasValue: true },
+  { flags: ["-m", "--mode"], hasValue: true },
 ];
 
 export const HELP_TEXT = `
@@ -50,7 +52,8 @@ Options:
   -c, --config <config>            Path to a config file
   -s, --searchPath <searchPath>    Path to do a config file search
   -y, --yarnConfig                  Enable yarn config support
-  --permissive                      Update all deps to latest except those in codependencies
+  --level <level>                   Update level: patch, minor, or major (default: major)
+  -m, --mode <mode>                Listing mode: verbose or precise (default: verbose)
   -l, --language <lang>            Target language (nodejs, go, python)
   -h, --help                        Show this help message
   --dry-run                         Show what would change without modifying files
@@ -70,10 +73,14 @@ Examples:
   codependence --update                       Update all dependencies to latest
   codependence --update --dry-run             Preview changes without modifying files
 
-  # Permissive mode (update all except pinned)
-  codependence --permissive --update          Update all deps except those in config
-  codependence --permissive --codependencies react lodash --update
+  # Precise mode (update all except listed)
+  codependence --mode precise --update        Update all deps except those in config
+  codependence --mode precise --codependencies react lodash --update
                                               Pin react & lodash, update everything else
+
+  # Update level control
+  codependence --level minor --update         Only update within same major version
+  codependence --level patch --update         Only update within same minor version
 
   # Selective updates
   codependence --codependencies react vue --update

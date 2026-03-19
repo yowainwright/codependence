@@ -1,3 +1,7 @@
+import type { ErrorContext } from "./types";
+
+export type { ErrorContext } from "./types";
+
 const levenshteinDistance = (a: string, b: string): number => {
   const matrix: number[][] = [];
 
@@ -89,36 +93,140 @@ export const getSuggestionForPackage = (packageName: string): string | null => {
   return suggestions.length > 0 ? suggestions[0] : null;
 };
 
-const isPrivatePackage = (packageName: string): boolean => {
-  return packageName.startsWith("@") && packageName.includes("/");
-};
+export const isPrivatePackage = (packageName: string): boolean =>
+  packageName.startsWith("@") && packageName.includes("/");
 
-const hasRegistryInError = (error: Error | string): boolean => {
-  const errorStr = typeof error === "string" ? error : error.message;
+export const hasRegistryInError = (err: Error | string): boolean => {
+  const errorStr = typeof err === "string" ? err : err.message;
   return errorStr.toLowerCase().includes("registry");
 };
 
-const isTimeout = (error: Error | string): boolean => {
-  const errorStr = typeof error === "string" ? error : error.message;
+export const isTimeout = (err: Error | string): boolean => {
+  const errorStr = typeof err === "string" ? err : err.message;
   const lowerError = errorStr.toLowerCase();
   return lowerError.includes("timeout") || lowerError.includes("timed out") || lowerError.includes("etimedout");
 };
 
-export interface ErrorContext {
-  packageName: string;
-  error: Error | string;
-  isNetworkError?: boolean;
-  isValidationError?: boolean;
-  isPrivatePackage?: boolean;
-  isRegistryMismatch?: boolean;
-  isTimeout?: boolean;
-  retryCount?: number;
-}
+export const formatValidationError = (packageName: string): string => {
+  const lines = [
+    `[x] Failed to fetch version for "${packageName}"`,
+    "",
+    "Possible issues:",
+    "  - Invalid package name format",
+    "  - Package name contains invalid characters",
+    "",
+    "> Suggestion: Check the package name spelling",
+  ];
+  return lines.join("\n");
+};
+
+export const formatPrivatePackageError = (packageName: string): string => {
+  const lines = [
+    `[x] Failed to fetch version for "${packageName}"`,
+    "",
+    "This looks like a PRIVATE PACKAGE.",
+    "",
+    "To fix:",
+    "  Option 1: Add .npmrc with auth token",
+    "    echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' > .npmrc",
+    "",
+    "  Option 2: Configure custom registry",
+    "    npm config set registry https://your-registry.com",
+    "",
+    "  Option 3: Exclude from codependencies",
+    `    Remove "${packageName}" from your config`,
+  ];
+  return lines.join("\n");
+};
+
+export const formatRegistryError = (packageName: string): string => {
+  const lines = [
+    `[x] Failed to fetch version for "${packageName}"`,
+    "",
+    "Package found in npm but not your registry.",
+    "",
+    "Your npm config may be set to a custom registry.",
+    "",
+    "To fix:",
+    "  - Add package to your internal registry, OR",
+    "  - Use public npm: npm config set registry https://registry.npmjs.org",
+    "  - Use flag: codependence --registry https://registry.npmjs.org",
+  ];
+  return lines.join("\n");
+};
+
+export const formatTimeoutError = (packageName: string, retryCount: number): string => {
+  const retryMsg = retryCount > 0 ? ` (Attempt ${retryCount}/3)` : "";
+  const lines = [
+    `[x] Failed to fetch version for "${packageName}"`,
+    "",
+    `[!] Network timeout${retryMsg}`,
+    "",
+    "Suggestions:",
+    "  - Check internet connection",
+    "  - If behind proxy, configure npm config",
+    "  - Increase timeout: --timeout 30000",
+    "  - Retry with: npm cache clean && codependence",
+  ];
+
+  if (retryCount === 0) {
+    lines.push("", "Retrying automatically...");
+  }
+
+  return lines.join("\n");
+};
+
+export const formatNetworkError = (packageName: string): string => {
+  const lines = [
+    `[x] Failed to fetch version for "${packageName}"`,
+    "",
+    "Possible issues:",
+    "  - Network connection issue",
+    "  - npm registry is unreachable",
+    "  - Firewall or proxy blocking request",
+    "",
+    "> Suggestion: Check your internet connection and try again",
+  ];
+  return lines.join("\n");
+};
+
+export const formatGenericError = (packageName: string, errorStr: string): string => {
+  const suggestion = getSuggestionForPackage(packageName);
+  const lines = [
+    `[x] Failed to fetch version for "${packageName}"`,
+    "",
+  ];
+
+  if (suggestion) {
+    lines.push(
+      "Possible issues:",
+      `  - Package name typo? Did you mean "${suggestion}"?`,
+      "  - Private package? (see suggestions above)",
+      "  - Package doesn't exist on npm registry",
+    );
+  } else {
+    lines.push(
+      "Possible issues:",
+      "  - Private package? (configure .npmrc)",
+      "  - Package doesn't exist on npm registry",
+      "  - Network issue? Check your connection",
+    );
+  }
+
+  lines.push("", `> Suggestion: Run \`npm view ${packageName}\` to verify package exists`);
+
+  const isNotSpecialCase = errorStr && !isPrivatePackage(packageName) && !hasRegistryInError(errorStr);
+  if (isNotSpecialCase) {
+    lines.push("", `Error: ${errorStr}`);
+  }
+
+  return lines.join("\n");
+};
 
 export const formatEnhancedError = (context: ErrorContext): string => {
   const {
     packageName,
-    error,
+    error: err,
     isNetworkError,
     isValidationError,
     isPrivatePackage: isPrivate,
@@ -127,101 +235,16 @@ export const formatEnhancedError = (context: ErrorContext): string => {
     retryCount = 0,
   } = context;
 
-  const lines: string[] = [];
-  const errorStr = typeof error === "string" ? error : error.message;
-
-  lines.push(`❌ Failed to fetch version for "${packageName}"`);
-  lines.push("");
-
+  const errorStr = typeof err === "string" ? err : err.message;
   const detectedPrivate = isPrivate ?? isPrivatePackage(packageName);
-  const detectedRegistryMismatch = isRegistryMismatch ?? hasRegistryInError(error);
-  const detectedTimeout = !isNetworkError && (timeout ?? isTimeout(error));
+  const detectedRegistryMismatch = isRegistryMismatch ?? hasRegistryInError(err);
+  const detectedTimeout = !isNetworkError && (timeout ?? isTimeout(err));
 
-  if (isValidationError) {
-    lines.push("Possible issues:");
-    lines.push("  • Invalid package name format");
-    lines.push("  • Package name contains invalid characters");
-    lines.push("");
-    lines.push("💡 Suggestion: Check the package name spelling");
-    return lines.join("\n");
-  }
+  if (isValidationError) return formatValidationError(packageName);
+  if (detectedPrivate) return formatPrivatePackageError(packageName);
+  if (detectedRegistryMismatch) return formatRegistryError(packageName);
+  if (detectedTimeout) return formatTimeoutError(packageName, retryCount);
+  if (isNetworkError) return formatNetworkError(packageName);
 
-  if (detectedPrivate) {
-    lines.push("This looks like a PRIVATE PACKAGE.");
-    lines.push("");
-    lines.push("To fix:");
-    lines.push("  Option 1: Add .npmrc with auth token");
-    lines.push("    echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' > .npmrc");
-    lines.push("");
-    lines.push("  Option 2: Configure custom registry");
-    lines.push("    npm config set registry https://your-registry.com");
-    lines.push("");
-    lines.push("  Option 3: Exclude from codependencies");
-    lines.push(`    Remove "${packageName}" from your config`);
-    return lines.join("\n");
-  }
-
-  if (detectedRegistryMismatch) {
-    lines.push("Package found in npm but not your registry.");
-    lines.push("");
-    lines.push(`Your npm config may be set to a custom registry.`);
-    lines.push("");
-    lines.push("To fix:");
-    lines.push("  • Add package to your internal registry, OR");
-    lines.push("  • Use public npm: npm config set registry https://registry.npmjs.org");
-    lines.push(`  • Use flag: codependence --registry https://registry.npmjs.org`);
-    return lines.join("\n");
-  }
-
-  if (detectedTimeout) {
-    const retryMsg = retryCount > 0 ? ` (Attempt ${retryCount}/3)` : "";
-    lines.push(`⚠️  Network timeout${retryMsg}`);
-    lines.push("");
-    lines.push("Suggestions:");
-    lines.push("  • Check internet connection");
-    lines.push("  • If behind proxy, configure npm config");
-    lines.push("  • Increase timeout: --timeout 30000");
-    lines.push("  • Retry with: npm cache clean && codependence");
-
-    if (retryCount === 0) {
-      lines.push("");
-      lines.push("Retrying automatically...");
-    }
-    return lines.join("\n");
-  }
-
-  if (isNetworkError) {
-    lines.push("Possible issues:");
-    lines.push("  • Network connection issue");
-    lines.push("  • npm registry is unreachable");
-    lines.push("  • Firewall or proxy blocking request");
-    lines.push("");
-    lines.push("💡 Suggestion: Check your internet connection and try again");
-    return lines.join("\n");
-  }
-
-  const suggestion = getSuggestionForPackage(packageName);
-  if (suggestion) {
-    lines.push("Possible issues:");
-    lines.push(`  • Package name typo? Did you mean "${suggestion}"?`);
-    lines.push("  • Private package? (see suggestions above)");
-    lines.push("  • Package doesn't exist on npm registry");
-  } else {
-    lines.push("Possible issues:");
-    lines.push("  • Private package? (configure .npmrc)");
-    lines.push("  • Package doesn't exist on npm registry");
-    lines.push("  • Network issue? Check your connection");
-  }
-
-  lines.push("");
-  lines.push(
-    `💡 Suggestion: Run \`npm view ${packageName}\` to verify package exists`,
-  );
-
-  if (errorStr && !isPrivate && !detectedRegistryMismatch) {
-    lines.push("");
-    lines.push(`Error: ${errorStr}`);
-  }
-
-  return lines.join("\n");
+  return formatGenericError(packageName, errorStr);
 };

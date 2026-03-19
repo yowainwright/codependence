@@ -6,8 +6,10 @@ import { logger } from "../logger";
 import { defaultOutput, item } from "../dx";
 import { versionCache, requestDeduplicator } from "../utils/cache";
 import { formatEnhancedError } from "../utils/suggestions";
-import { collectAllDiffs, displayVersionDiffs } from "../utils/version-diff";
+import { collectAllDiffs, displayVersionDiffs } from "../utils/diff";
 import { Prompt } from "../utils/prompts";
+import { isWithinLevel } from "../utils/semver";
+import { DEP_SECTIONS } from "./constants";
 import {
   CheckFiles,
   ConstructVersionMapOptions,
@@ -17,16 +19,115 @@ import {
   DepToUpdateItem,
   DepsToUpdate,
   VersionDiff,
+  Level,
+  InteractiveResult,
 } from "../types";
 
-/**
- * constructVersionMap
- * @description constructs a map of each item in a codependencies array
- * @param {codependencies} array
- * @param {exec} fn
- * @param {isDebugging} boolean
- * @returns {object}
- */
+export const resolveObjectDep = (
+  dep: Record<string, string>,
+): Record<string, string> | null => {
+  const hasOneKey = Object.keys(dep).length === 1;
+  return hasOneKey ? dep : null;
+};
+
+export const validateStringDep = (
+  dep: string,
+  validate: ConstructVersionMapOptions["validate"],
+): void => {
+  const hasLength = dep.length > 1;
+  const hasNoSpace = !dep.includes(" ");
+  const isValidString = hasLength && hasNoSpace;
+
+  if (!isValidString) {
+    throw "invalid item type";
+  }
+
+  const validateFn = validate || validatePackageName;
+  const { validForNewPackages, validForOldPackages, errors } = validateFn(dep);
+  const isValid = validForNewPackages || validForOldPackages;
+
+  if (!isValid) {
+    const errorContext = {
+      packageName: dep,
+      error: errors?.join(", ") || "Invalid package name",
+      isValidationError: true,
+    };
+    throw new Error(formatEnhancedError(errorContext));
+  }
+};
+
+export const resolveFromCache = (
+  cacheKey: string,
+  noCache: boolean,
+): string | null => {
+  const shouldUseCache = !noCache;
+  if (!shouldUseCache) return null;
+
+  const cachedVersion = versionCache.get(cacheKey);
+  return cachedVersion || null;
+};
+
+export const resolveFromRegistry = async (
+  dep: string,
+  yarnConfig: boolean,
+  execFn: ConstructVersionMapOptions["exec"],
+): Promise<string> => {
+  const runner = !yarnConfig ? "npm" : "yarn";
+  const cmd = !yarnConfig
+    ? ["view", dep, "version", "latest"]
+    : ["npm", "info", dep, "--fields", "version", "--json"];
+
+  const execRunner = execFn || exec;
+  const { stdout = "" } = await execRunner(runner, cmd);
+
+  const parsedVersion = !yarnConfig
+    ? stdout.replace("\n", "")
+    : JSON.parse(stdout.replace("\n", ""))?.version;
+
+  if (!parsedVersion) {
+    throw new Error(`No version found for ${dep}`);
+  }
+
+  return parsedVersion;
+};
+
+const handleVersionMapError = (
+  err: unknown,
+  dep: string | Record<string, string>,
+  debug: boolean,
+  isTesting: boolean,
+): Record<string, string> => {
+  if (debug) {
+    logger.debug((err as Error).message || (err as string).toString());
+  }
+
+  const isNetworkError =
+    err instanceof Error &&
+    (err.message.includes("ENOTFOUND") ||
+      err.message.includes("ETIMEDOUT") ||
+      err.message.includes("EAI_AGAIN"));
+
+  const isValidationError =
+    err instanceof Error && err.message.includes("Invalid package");
+
+  const packageName = typeof dep === "string" ? dep : "unknown";
+
+  if (!isValidationError) {
+    const errorContext = {
+      packageName,
+      error: err as Error,
+      isNetworkError,
+      isValidationError: false,
+    };
+    logger.error(formatEnhancedError(errorContext));
+  } else {
+    logger.error((err as Error).message);
+  }
+
+  if (isTesting) return {};
+  process.exit(1);
+};
+
 export const constructVersionMap = async ({
   codependencies,
   exec: execFn = exec,
@@ -41,116 +142,48 @@ export const constructVersionMap = async ({
   let current = 0;
 
   const updatedCodeDependencies = await Promise.all(
-    codependencies.map(async (item) => {
+    codependencies.map(async (dep) => {
       try {
-        const isObjectType = typeof item === "object";
-        const hasOneKey = isObjectType && Object.keys(item).length === 1;
-        if (hasOneKey) {
-          return item;
+        const isObjectType = typeof dep === "object";
+        if (isObjectType) {
+          const resolved = resolveObjectDep(dep as Record<string, string>);
+          if (resolved) return resolved;
         }
 
-        const isStringType = typeof item === "string";
-        const hasLength = isStringType && item.length > 1;
-        const hasNoSpace = isStringType && !item.includes(" ");
-        const isValidString = hasLength && hasNoSpace;
+        const stringDep = dep as string;
+        validateStringDep(stringDep, validate);
 
-        if (!isValidString) {
-          throw "invalid item type";
+        const cacheKey = `${yarnConfig ? "yarn" : "npm"}:${stringDep}`;
+        const cached = resolveFromCache(cacheKey, noCache);
+
+        if (cached) {
+          current++;
+          if (onProgress) onProgress(current, total, stringDep);
+          return { [stringDep]: cached };
         }
 
-        const { validForNewPackages, validForOldPackages, errors } =
-          validate(item);
-        const isValid = validForNewPackages || validForOldPackages;
-        if (!isValid) {
-          const errorContext = {
-            packageName: item,
-            error: errors?.join(", ") || "Invalid package name",
-            isValidationError: true,
-          };
-          throw new Error(formatEnhancedError(errorContext));
-        }
+        const version = await requestDeduplicator.dedupe(cacheKey, async () =>
+          resolveFromRegistry(stringDep, yarnConfig, execFn),
+        );
 
-        const cacheKey = `${yarnConfig ? "yarn" : "npm"}:${item}`;
-        const shouldUseCache = !noCache;
-
-        if (shouldUseCache) {
-          const cachedVersion = versionCache.get(cacheKey);
-          if (cachedVersion) {
-            current++;
-            if (onProgress) onProgress(current, total, item);
-            return { [item]: cachedVersion };
-          }
-        }
-
-        const version = await requestDeduplicator.dedupe(cacheKey, async () => {
-          const runner = !yarnConfig ? "npm" : "yarn";
-          const cmd = !yarnConfig
-            ? ["view", item, "version", "latest"]
-            : ["npm", "info", item, "--fields", "version", "--json"];
-
-          const { stdout = "" } = await execFn(runner, cmd);
-
-          const parsedVersion = !yarnConfig
-            ? stdout.replace("\n", "")
-            : JSON.parse(stdout.replace("\n", ""))?.version;
-
-          if (!parsedVersion) {
-            throw new Error(`No version found for ${item}`);
-          }
-
-          return parsedVersion;
-        });
-
-        if (shouldUseCache) {
+        if (!noCache) {
           versionCache.set(cacheKey, version);
         }
 
         current++;
-        if (onProgress) onProgress(current, total, item);
+        if (onProgress) onProgress(current, total, stringDep);
 
-        return { [item]: version };
+        return { [stringDep]: version };
       } catch (err) {
-        if (debug) {
-          logger.debug(
-            (err as Error).message || (err as string).toString(),
-            undefined,
-            "constructVersionMap",
-          );
-        }
-
-        const isNetworkError =
-          err instanceof Error &&
-          (err.message.includes("ENOTFOUND") ||
-            err.message.includes("ETIMEDOUT") ||
-            err.message.includes("EAI_AGAIN"));
-
-        const isValidationError =
-          err instanceof Error && err.message.includes("Invalid package");
-
-        const packageName = typeof item === "string" ? item : "unknown";
-
-        if (!isValidationError) {
-          const errorContext = {
-            packageName,
-            error: err as Error,
-            isNetworkError,
-            isValidationError: false,
-          };
-          console.error("\n" + formatEnhancedError(errorContext) + "\n");
-        } else {
-          console.error("\n" + (err as Error).message + "\n");
-        }
-
-        if (isTesting) return {};
-        process.exit(1);
+        return handleVersionMapError(err, dep, debug, isTesting);
       }
     }),
   );
 
   const versionMap = updatedCodeDependencies.reduce(
-    (acc: Record<string, string> = {}, item: Record<string, string>) => {
-      const [name] = Object.keys(item);
-      const version = item?.[name];
+    (acc: Record<string, string> = {}, entry: Record<string, string>) => {
+      const [name] = Object.keys(entry);
+      const version = entry?.[name];
       return { ...acc, ...(name && version ? { [name]: version } : {}) };
     },
     {},
@@ -159,86 +192,87 @@ export const constructVersionMap = async ({
   return versionMap;
 };
 
-/**
- * constructVersionTypes
- * @description constructs an object with a bumpVersion and exactVersion
- * @param {version} string
- * @returns {object}
- */
 export const constructVersionTypes = (
   version: string,
 ): Record<string, string> => {
-  // Check if the version starts with a special character
   const hasSpecialPrefix = version.startsWith("^") || version.startsWith("~");
 
   if (!hasSpecialPrefix) {
-    return {
-      bumpCharacter: "",
-      bumpVersion: version,
-      exactVersion: version,
-    };
+    return { bumpCharacter: "", bumpVersion: version, exactVersion: version };
   }
 
-  // Extract the first special character as the bump character
   const bumpCharacter = version[0];
-
-  // Get the version number by removing all leading special characters
   const exactVersion = version.replace(/^[~^]+/, "");
 
-  return {
-    bumpCharacter,
-    bumpVersion: version,
-    exactVersion,
-  };
+  return { bumpCharacter, bumpVersion: version, exactVersion };
 };
 
-/**
- * constructPermissiveDepsToUpdateList
- * @description returns an array of deps to update for permissive mode (latest for all except codependencies)
- * @param {dep} object - dependencies from package.json
- * @param {codependencies} array - dependencies to exclude from updates
- * @returns {array} example [{ name: 'foo', action: '1.0.0', expected: 'latest' }]
- */
+const isUpdatablePermissiveDep = (
+  name: string,
+  exactVersion: string,
+  versionMap: Record<string, string>,
+  level: Level,
+): boolean => {
+  const latestVersion = versionMap[name];
+  if (!latestVersion) return false;
+  const isDifferent = exactVersion !== latestVersion;
+  const isAllowed = isWithinLevel(exactVersion, latestVersion, level);
+  return isDifferent && isAllowed;
+};
+
 export const constructPermissiveDepsToUpdateList = (
   dep = {} as Record<string, string>,
   codependencies: Array<string> = [],
+  versionMap: Record<string, string> = {},
+  level: Level = "major",
 ): Array<DepToUpdateItem> => {
   if (!Object.keys(dep).length) return [];
 
   return Object.entries(dep)
     .filter(([name]) => !codependencies.includes(name))
     .map(([name, version]) => {
-      return {
-        name,
-        actual: version,
-        exact: "latest",
-        expected: "latest",
-      };
-    });
+      const { exactVersion, bumpCharacter } = constructVersionTypes(version);
+      return { name, version, exactVersion, bumpCharacter };
+    })
+    .filter(({ name, exactVersion }) =>
+      isUpdatablePermissiveDep(name, exactVersion, versionMap, level),
+    )
+    .map(({ name, version, bumpCharacter }) => ({
+      name,
+      actual: version,
+      exact: versionMap[name],
+      expected: `${bumpCharacter}${versionMap[name]}`,
+    }));
 };
 
-/**
- * constructDepsToUpdateList
- * @description returns an array of deps to update
- * @param {dep} object
- * @param {versionMap} object
- * @returns {array} example [{ name: 'foo', action: '1.0.0', expected: '1.1.0' }]
- */
+const isUpdatableDep = (
+  name: string,
+  exactVersion: string,
+  versionMap: Record<string, string>,
+  level: Level,
+): boolean => {
+  const latestVersion = versionMap[name];
+  if (!latestVersion) return false;
+  const isDifferent = latestVersion !== exactVersion;
+  const isAllowed = isWithinLevel(exactVersion, latestVersion, level);
+  return isDifferent && isAllowed;
+};
+
 export const constructDepsToUpdateList = (
   dep = {} as Record<string, string>,
   versionMap: Record<string, string>,
+  level: Level = "major",
 ): Array<DepToUpdateItem> => {
   if (!Object.keys(dep).length) return [];
-  const versionList = Object.keys(versionMap);
+
   return Object.entries(dep)
     .map(([name, version]) => {
       const { exactVersion, bumpCharacter, bumpVersion } =
         constructVersionTypes(version);
       return { name, exactVersion, bumpCharacter, bumpVersion };
     })
-    .filter(
-      ({ name, exactVersion }) =>
-        versionList.includes(name) && versionMap[name] !== exactVersion,
+    .filter(({ name, exactVersion }) =>
+      isUpdatableDep(name, exactVersion, versionMap, level),
     )
     .map(({ name, bumpVersion, bumpCharacter }) => ({
       name,
@@ -248,14 +282,6 @@ export const constructDepsToUpdateList = (
     }));
 };
 
-/**
- * constructDeps
- * @description constructed deps with updates
- * @param {json} object
- * @param {depName} string
- * @param {depList} array
- * @returns {object}
- */
 export const constructDeps = <T extends PackageJSON>(
   json: T,
   depName: string,
@@ -280,14 +306,6 @@ export const constructDeps = <T extends PackageJSON>(
       )
     : json[depName as keyof PackageJSON];
 
-/**
- * constructJson
- * @description constructs json with updates
- * @param {json} object
- * @param {depsToUpdate} array
- * @param {isDebugging} boolean
- * @returns {object}}
- */
 export const constructJson = <T extends PackageJSON>(
   json: T,
   depsToUpdate: DepsToUpdate,
@@ -298,15 +316,7 @@ export const constructJson = <T extends PackageJSON>(
   const devDependencies = constructDeps(json, "devDependencies", devDepList);
   const peerDependencies = constructDeps(json, "peerDependencies", peerDepList);
   if (isDebugging) {
-    logger.debug(
-      "constructJson debug info",
-      {
-        dependencies,
-        devDependencies,
-        peerDependencies,
-      },
-      "constructJson",
-    );
+    logger.debug("constructJson debug info", { dependencies, devDependencies, peerDependencies });
   }
   return {
     ...json,
@@ -316,108 +326,123 @@ export const constructJson = <T extends PackageJSON>(
   };
 };
 
-/**
- * checkDependenciesForVersion
- * @description checks dependencies for a mismatched version
- * @param {versionMap} object
- * @param {json} object
- * @param {isUpdating} boolean
- * @returns {boolean}
- */
+export const buildUpdateLists = <T extends PackageJSON>(
+  versionMap: Record<string, string>,
+  json: T,
+  options: CheckDependenciesForVersionOptions,
+  codependencies?: Array<string>,
+): DepsToUpdate => {
+  const { dependencies, devDependencies, peerDependencies } = json;
+  const { permissive, level = "major" } = options;
+
+  if (permissive) {
+    const coDeps = codependencies || [];
+    return {
+      depList: constructPermissiveDepsToUpdateList(dependencies, coDeps, versionMap, level),
+      devDepList: constructPermissiveDepsToUpdateList(devDependencies, coDeps, versionMap, level),
+      peerDepList: constructPermissiveDepsToUpdateList(peerDependencies, coDeps, versionMap, level),
+    };
+  }
+
+  return {
+    depList: constructDepsToUpdateList(dependencies, versionMap, level),
+    devDepList: constructDepsToUpdateList(devDependencies, versionMap, level),
+    peerDepList: constructDepsToUpdateList(peerDependencies, versionMap, level),
+  };
+};
+
+const logDependencyIssues = (
+  depsToUpdate: DepsToUpdate,
+): void => {
+  const allLists = [depsToUpdate.depList, depsToUpdate.devDepList, depsToUpdate.peerDepList];
+  allLists.forEach((list) => {
+    if (!list.length) return;
+
+    const issueCount = list.length;
+    const pluralizedIssues = issueCount > 1 ? "s" : "";
+    logger.info(`Found ${issueCount} dependency issue${pluralizedIssues}`);
+
+    list.forEach(({ name: depName, expected, actual }, index) => {
+      const versionMessage = `${depName}: found ${actual}, expected ${expected}`;
+      defaultOutput.writeLine(item(index + 1, versionMessage, 4));
+    });
+
+    logger.space();
+  });
+};
+
+const applyUpdates = <T extends PackageJSON>(
+  json: T,
+  depsToUpdate: DepsToUpdate,
+  isDebugging: boolean,
+  isTesting: boolean,
+): void => {
+  const updatedJson = constructJson(json, depsToUpdate, isDebugging);
+  const { path, ...newJson } = updatedJson;
+  if (!isTesting) {
+    writeFileSync(path, JSON.stringify(newJson, null, 2).concat("\n"));
+  } else {
+    logger.info(`test-writeFileSync: ${path}`);
+  }
+};
+
 export const checkDependenciesForVersion = <T extends PackageJSON>(
   versionMap: Record<string, string>,
   json: T,
   options: CheckDependenciesForVersionOptions,
   codependencies?: Array<string>,
 ): boolean => {
-  const { name, dependencies, devDependencies, peerDependencies } = json;
-  const { isUpdating, isDebugging, isSilent, isTesting, permissive } = options;
-  if (!dependencies && !devDependencies && !peerDependencies) return false;
+  const { dependencies, devDependencies, peerDependencies } = json;
+  const { isUpdating, isDebugging, isSilent, isTesting } = options;
 
-  let depList, devDepList, peerDepList;
+  const hasNoDeps = !dependencies && !devDependencies && !peerDependencies;
+  if (hasNoDeps) return false;
 
-  if (permissive) {
-    depList = constructPermissiveDepsToUpdateList(
-      dependencies,
-      codependencies || [],
-    );
-    devDepList = constructPermissiveDepsToUpdateList(
-      devDependencies,
-      codependencies || [],
-    );
-    peerDepList = constructPermissiveDepsToUpdateList(
-      peerDependencies,
-      codependencies || [],
-    );
-  } else {
-    depList = constructDepsToUpdateList(dependencies, versionMap);
-    devDepList = constructDepsToUpdateList(devDependencies, versionMap);
-    peerDepList = constructDepsToUpdateList(peerDependencies, versionMap);
-  }
+  const depsToUpdate = buildUpdateLists(versionMap, json, options, codependencies);
+
   if (isDebugging) {
-    logger.debug(
-      "checkDependenciesForVersion debug info",
-      {
-        depList,
-        devDepList,
-        peerDepList,
-      },
-      "checkDependenciesForVersion",
-    );
-  }
-  const hasNoDependencyIssues = !depList.length && !devDepList.length && !peerDepList.length;
-  if (hasNoDependencyIssues) {
-    return false;
+    logger.debug("checkDependenciesForVersion debug info", depsToUpdate);
   }
 
-  const shouldLogIssues = !isSilent;
-  if (shouldLogIssues) {
-    const allLists = [depList, devDepList, peerDepList];
-    allLists.forEach((list) => {
-      if (!list.length) return;
+  const hasNoDependencyIssues =
+    !depsToUpdate.depList.length && !depsToUpdate.devDepList.length && !depsToUpdate.peerDepList.length;
+  if (hasNoDependencyIssues) return false;
 
-      const issueCount = list.length;
-      const pluralizedIssues = issueCount > 1 ? "s" : "";
-      logger.info(`Found ${issueCount} dependency issue${pluralizedIssues}`);
-
-      list.forEach(({ name: depName, expected, actual }, index) => {
-        const versionMessage = `${depName}: found ${actual}, expected ${expected}`;
-        defaultOutput.writeLine(item(index + 1, versionMessage, 4));
-      });
-
-      logger.space();
-    });
+  if (!isSilent) {
+    logDependencyIssues(depsToUpdate);
   }
+
   if (isUpdating) {
-    const updatedJson = constructJson(
-      json,
-      { depList, devDepList, peerDepList },
-      isDebugging,
-    );
-    const { path, ...newJson } = updatedJson;
-    if (!isTesting) {
-      writeFileSync(path, JSON.stringify(newJson, null, 2).concat("\n"));
-    } else {
-      logger.info(`test-writeFileSync: ${path}`, "checkDependenciesForVersion");
-    }
+    applyUpdates(json, depsToUpdate, isDebugging || false, isTesting || false);
   }
+
   return true;
 };
 
-/**
- * checkMatches
- * @description checks a glob of json files for dependency discrepancies
- * @param {options.files} array
- * @param {options.cwd} string
- * @param {options.isUpdating} boolean
- * @param {options.versionMap} object
- * @param {options.rootDir} string
- * @param {options.isDebugging} boolean
- * @param {options.isSilent} boolean
- * @param {options.isCLI} boolean
- * @param {options.isTesting} boolean
- * @returns {void}
- */
+const processMatchedFile = (
+  file: string,
+  rootDir: string,
+  versionMap: Record<string, string>,
+  options: {
+    isUpdating: boolean;
+    isDebugging: boolean;
+    isSilent: boolean;
+    isVerbose: boolean;
+    isQuiet: boolean;
+    isTesting: boolean;
+    permissive: boolean;
+    level: Level;
+  },
+  codependencies?: Array<string>,
+): boolean => {
+  const path = `${rootDir}${file}`;
+  const packageJson = readFileSync(path, "utf8");
+  const json = JSON.parse(packageJson);
+  const jsonWithPath = { ...json, path };
+
+  return checkDependenciesForVersion(versionMap, jsonWithPath, options, codependencies);
+};
+
 export const checkMatches = ({
   versionMap,
   rootDir,
@@ -431,66 +456,128 @@ export const checkMatches = ({
   isTesting = false,
   permissive = false,
   codependencies,
+  level = "major",
 }: CheckMatches & {
   permissive?: boolean;
   codependencies?: Array<string>;
+  level?: Level;
 }): void => {
-  const packagesNeedingUpdate = files
-    .map((file) => {
-      const path = `${rootDir}${file}`;
-      const packageJson = readFileSync(path, "utf8");
-      const json = JSON.parse(packageJson);
-      return { ...json, path };
-    })
-    .filter((json) =>
-      checkDependenciesForVersion(
-        versionMap,
-        json,
-        {
-          isUpdating,
-          isDebugging,
-          isSilent,
-          isVerbose,
-          isQuiet,
-          isTesting,
-          permissive,
-        },
-        codependencies,
-      ),
-    );
+  const options = { isUpdating, isDebugging, isSilent, isVerbose, isQuiet, isTesting, permissive, level };
+
+  const packagesNeedingUpdate = files.filter((file) =>
+    processMatchedFile(file, rootDir, versionMap, options, codependencies),
+  );
 
   if (isDebugging) {
-    logger.debug("see updates", { packagesNeedingUpdate }, "checkMatches");
+    logger.debug("see updates", { packagesNeedingUpdate });
   }
 
   const isOutOfDate = packagesNeedingUpdate.length > 0;
   if (isOutOfDate && !isUpdating) {
-    logger.error("Dependencies are not correct. 😞");
+    logger.error("Dependencies are not correct.");
     if (isCLI) process.exit(1);
   } else if (isOutOfDate) {
-    logger.info(
-      "Dependencies were not correct but should be updated! Check your git status. 😃",
-    );
+    logger.info("Dependencies were not correct but should be updated! Check your git status.");
   } else {
-    logger.info("No dependency issues found! 👌");
+    logger.info("No dependency issues found!");
   }
 };
 
-/**
- * checkFiles
- * @description checks a glob of json files for dependency discrepancies
- * @param {options.codependencies} array
- * @param {options.rootDir} string
- * @param {options.ignore} array
- * @param {options.update} boolean
- * @param {options.files} array
- * @param {options.rootDir} string
- * @param {options.debug} boolean
- * @param {options.silent} boolean
- * @param {options.isCLI} boolean
- * @param {options.isTesting} boolean
- * @returns {void}
- */
+const extractDepNamesFromFile = (rootDir: string, file: string): string[] => {
+  const path = `${rootDir}${file}`;
+  const json = JSON.parse(readFileSync(path, "utf8"));
+  return DEP_SECTIONS
+    .map((section) => json[section])
+    .filter(Boolean)
+    .flatMap((section: Record<string, string>) => Object.keys(section));
+};
+
+const collectAllDepNames = (
+  files: string[],
+  rootDir: string,
+): string[] => {
+  const allNames = files.flatMap((file) => extractDepNamesFromFile(rootDir, file));
+  return Array.from(new Set(allNames));
+};
+
+const promptForSelection = async (
+  allDiffs: VersionDiff[],
+): Promise<string[]> => {
+  const diffsNeedingUpdate = allDiffs.filter((d) => d.current !== d.latest);
+
+  if (diffsNeedingUpdate.length === 0) return [];
+
+  const prompt = new Prompt();
+  const choices = diffsNeedingUpdate.map((diff) => ({
+    name: `${diff.package} (${diff.current} -> ${diff.latest})`,
+    value: diff.package,
+  }));
+  const selected = await prompt.checkbox("Select packages to update:", choices);
+  prompt.close();
+
+  return selected;
+};
+
+export const filterSelectedDeps = (
+  selected: string[],
+  depNames: string[],
+  versionMap: Record<string, string>,
+): InteractiveResult => {
+  if (selected.length === 0) {
+    logger.info("No packages selected. Skipping update.");
+    return { shouldUpdate: false, depNames, versionMap };
+  }
+
+  const filteredDepNames = depNames.filter((dep) => selected.includes(dep));
+  const filteredVersionMap = filteredDepNames.reduce(
+    (acc: Record<string, string>, dep) => {
+      const version = versionMap[dep];
+      if (version) acc[dep] = version;
+      return acc;
+    },
+    {},
+  );
+
+  return { shouldUpdate: true, depNames: filteredDepNames, versionMap: filteredVersionMap };
+};
+
+const applyInteractiveSelection = async (
+  allDiffs: VersionDiff[],
+  depNames: string[],
+  versionMap: Record<string, string>,
+): Promise<InteractiveResult> => {
+  const diffsNeedingUpdate = allDiffs.filter((d) => d.current !== d.latest);
+
+  if (diffsNeedingUpdate.length === 0) {
+    return { shouldUpdate: true, depNames, versionMap };
+  }
+
+  const selected = await promptForSelection(allDiffs);
+  return filterSelectedDeps(selected, depNames, versionMap);
+};
+
+const resolvePreciseModeDeps = async (
+  files: string[],
+  rootDir: string,
+  versionMap: Record<string, string>,
+  options: { debug: boolean; yarnConfig: boolean; isTesting: boolean; noCache: boolean; onProgress?: CheckFiles["onProgress"] },
+): Promise<void> => {
+  const allDepNames = collectAllDepNames(files, rootDir);
+  const unresolvedDeps = allDepNames.filter((name) => !versionMap[name]);
+
+  if (unresolvedDeps.length > 0) {
+    const additionalMap = await constructVersionMap({
+      codependencies: unresolvedDeps,
+      debug: options.debug,
+      yarnConfig: options.yarnConfig,
+      isTesting: options.isTesting,
+      noCache: options.noCache,
+      onProgress: options.onProgress,
+    });
+    Object.assign(versionMap, additionalMap);
+  }
+};
+
 export const checkFiles = async ({
   codependencies,
   files: matchers = ["package.json"],
@@ -510,13 +597,16 @@ export const checkFiles = async ({
   noCache = false,
   format,
   onProgress,
+  level = "major",
+  mode,
 }: CheckFiles): Promise<VersionDiff[] | void> => {
   try {
     const files = await glob(matchers, { cwd: rootDir, ignore });
+    const isPreciseMode = mode === "precise" || permissive;
 
-    const hasNoDepsAndNotPermissive = !codependencies && !permissive;
-    if (hasNoDepsAndNotPermissive) {
-      throw '"codependencies" are required (unless using permissive mode)';
+    const hasNoDepsAndNotPrecise = !codependencies && !isPreciseMode;
+    if (hasNoDepsAndNotPrecise) {
+      throw '"codependencies" are required (unless using precise mode)';
     }
 
     let versionMap: Record<string, string> = {};
@@ -533,52 +623,33 @@ export const checkFiles = async ({
         onProgress,
       });
       depNames = codependencies
-        .map((item) => (typeof item === "string" ? item : Object.keys(item)[0]))
+        .map((dep) => (typeof dep === "string" ? dep : Object.keys(dep)[0]))
         .filter(Boolean);
     }
 
-    const shouldCollectDiffs = format !== undefined || ((update || dryRun) && !silent && !quiet);
+    if (isPreciseMode) {
+      await resolvePreciseModeDeps(files, rootDir, versionMap, { debug, yarnConfig, isTesting, noCache, onProgress });
+    }
+
+    const hasOutputChanges = (update || dryRun) && !silent && !quiet;
+    const shouldCollectDiffs = format !== undefined || hasOutputChanges;
     const allDiffs = shouldCollectDiffs
-      ? collectAllDiffs(versionMap, files, rootDir, depNames, permissive)
+      ? collectAllDiffs(versionMap, files, rootDir, depNames, isPreciseMode, level)
       : [];
 
-    const shouldShowDiffs = (update || dryRun) && !silent && !quiet && format === undefined;
+    const shouldShowDiffs = hasOutputChanges && format === undefined;
     if (shouldShowDiffs && allDiffs.length > 0) {
       displayVersionDiffs(allDiffs, dryRun);
     }
 
     let shouldUpdate = update && !dryRun;
 
-    if (interactive && update && !dryRun && !isTesting) {
-      const diffsNeedingUpdate = allDiffs.filter((d) => d.current !== d.latest);
-
-      if (diffsNeedingUpdate.length > 0) {
-        const prompt = new Prompt();
-        const selected = await prompt.checkbox(
-          "Select packages to update:",
-          diffsNeedingUpdate.map((diff) => ({
-            name: `${diff.package} (${diff.current} → ${diff.latest})`,
-            value: diff.package,
-          })),
-        );
-        prompt.close();
-
-        if (selected.length === 0) {
-          console.log("\n❌ No packages selected. Skipping update.\n");
-          shouldUpdate = false;
-        } else {
-          const selectedDeps = depNames.filter((dep) => selected.includes(dep));
-          depNames = selectedDeps;
-
-          const filteredVersionMap: Record<string, string> = {};
-          for (const dep of selectedDeps) {
-            if (versionMap[dep]) {
-              filteredVersionMap[dep] = versionMap[dep];
-            }
-          }
-          versionMap = filteredVersionMap;
-        }
-      }
+    const isInteractiveUpdate = interactive && update && !dryRun && !isTesting;
+    if (isInteractiveUpdate) {
+      const result = await applyInteractiveSelection(allDiffs, depNames, versionMap);
+      shouldUpdate = result.shouldUpdate;
+      depNames = result.depNames;
+      versionMap = result.versionMap;
     }
 
     const shouldCheckMatches = format === undefined;
@@ -594,15 +665,16 @@ export const checkFiles = async ({
         isUpdating: shouldUpdate,
         isDebugging: debug,
         isTesting,
-        permissive,
+        permissive: isPreciseMode,
         codependencies: depNames,
+        level,
       });
     }
 
     return allDiffs;
   } catch (err) {
     if (debug) {
-      logger.debug((err as string).toString(), undefined, "checkFiles");
+      logger.debug((err as string).toString());
     }
   }
 };

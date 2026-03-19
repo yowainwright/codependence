@@ -200,51 +200,54 @@ test("constructDepsToUpdateList => handles mixed special characters correctly", 
   ]);
 });
 
-test("constructPermissiveDepsToUpdateList => updates all deps except codependencies to latest", () => {
+test("constructPermissiveDepsToUpdateList => updates all deps except codependencies with resolved versions", () => {
   const deps = { lodash: "^4.0.0", express: "~4.18.0", react: "18.0.0" };
   const codependencies = ["react"];
+  const versionMap = { lodash: "4.17.21", express: "4.19.0", react: "18.3.0" };
   const result = scripts.constructPermissiveDepsToUpdateList(
     deps,
     codependencies,
+    versionMap,
   );
 
   expect(result).toEqual([
     {
       name: "lodash",
       actual: "^4.0.0",
-      exact: "latest",
-      expected: "latest",
+      exact: "4.17.21",
+      expected: "^4.17.21",
     },
     {
       name: "express",
       actual: "~4.18.0",
-      exact: "latest",
-      expected: "latest",
+      exact: "4.19.0",
+      expected: "~4.19.0",
     },
   ]);
 });
 
 test("constructPermissiveDepsToUpdateList => handles empty dependencies", () => {
-  const result = scripts.constructPermissiveDepsToUpdateList({}, ["react"]);
+  const result = scripts.constructPermissiveDepsToUpdateList({}, ["react"], {});
   expect(result).toEqual([]);
 });
 
 test("constructPermissiveDepsToUpdateList => handles no codependencies", () => {
   const deps = { lodash: "^4.0.0", express: "4.18.0" };
-  const result = scripts.constructPermissiveDepsToUpdateList(deps, []);
+  const versionMap = { lodash: "4.17.21", express: "4.19.0" };
+  const result = scripts.constructPermissiveDepsToUpdateList(deps, [], versionMap);
 
   expect(result).toEqual([
     {
       name: "lodash",
       actual: "^4.0.0",
-      exact: "latest",
-      expected: "latest",
+      exact: "4.17.21",
+      expected: "^4.17.21",
     },
     {
       name: "express",
       actual: "4.18.0",
-      exact: "latest",
-      expected: "latest",
+      exact: "4.19.0",
+      expected: "4.19.0",
     },
   ]);
 });
@@ -689,7 +692,7 @@ test("checkFiles => with permissive mode and codependencies", async () => {
 });
 
 test("checkDependenciesForVersion => with permissive mode", () => {
-  const versionMap = {}; // Empty version map for permissive mode
+  const versionMap = { lodash: "4.17.21", express: "4.19.0" };
   const json = {
     name: "test-package",
     version: "1.0.0",
@@ -704,14 +707,14 @@ test("checkDependenciesForVersion => with permissive mode", () => {
 });
 
 test("checkDependenciesForVersion => with permissive mode and codependencies", () => {
-  const versionMap = {}; // Empty version map for permissive mode
+  const versionMap = { lodash: "4.17.21", express: "4.19.0", react: "18.3.0" };
   const json = {
     name: "test-package",
     version: "1.0.0",
     dependencies: { lodash: "^4.0.0", express: "~4.18.0", react: "^18.0.0" },
     path: "./test",
   };
-  const codependencies = ["react"]; // Pin react, update others
+  const codependencies = ["react"];
   const result = checkDependenciesForVersion(
     versionMap,
     json,
@@ -724,6 +727,72 @@ test("checkDependenciesForVersion => with permissive mode and codependencies", (
   expect(result).toEqual(true);
 });
 
+test("constructDepsToUpdateList => respects level=minor constraint", () => {
+  const dep = { foo: "^1.0.0", bar: "^1.0.0" };
+  const versionMap = { foo: "1.5.0", bar: "2.0.0" };
+  const result = constructDepsToUpdateList(dep, versionMap, "minor");
+  expect(result).toEqual([
+    {
+      name: "foo",
+      actual: "^1.0.0",
+      exact: "1.5.0",
+      expected: "^1.5.0",
+    },
+  ]);
+});
+
+test("constructDepsToUpdateList => respects level=patch constraint", () => {
+  const dep = { foo: "^1.0.0", bar: "^1.0.0" };
+  const versionMap = { foo: "1.0.5", bar: "1.1.0" };
+  const result = constructDepsToUpdateList(dep, versionMap, "patch");
+  expect(result).toEqual([
+    {
+      name: "foo",
+      actual: "^1.0.0",
+      exact: "1.0.5",
+      expected: "^1.0.5",
+    },
+  ]);
+});
+
+test("constructPermissiveDepsToUpdateList => respects level=minor constraint", () => {
+  const deps = { lodash: "^4.0.0", express: "^3.0.0" };
+  const codependencies: string[] = [];
+  const versionMap = { lodash: "4.17.21", express: "5.0.0" };
+  const result = scripts.constructPermissiveDepsToUpdateList(
+    deps,
+    codependencies,
+    versionMap,
+    "minor",
+  );
+  expect(result).toEqual([
+    {
+      name: "lodash",
+      actual: "^4.0.0",
+      exact: "4.17.21",
+      expected: "^4.17.21",
+    },
+  ]);
+});
+
+test("constructPermissiveDepsToUpdateList => skips deps not in versionMap", () => {
+  const deps = { lodash: "^4.0.0", unknown: "^1.0.0" };
+  const versionMap = { lodash: "4.17.21" };
+  const result = scripts.constructPermissiveDepsToUpdateList(
+    deps,
+    [],
+    versionMap,
+  );
+  expect(result).toEqual([
+    {
+      name: "lodash",
+      actual: "^4.0.0",
+      exact: "4.17.21",
+      expected: "^4.17.21",
+    },
+  ]);
+});
+
 test("constructPermissiveDepsToUpdateList => with mixed dependency types", () => {
   const deps = {
     "@types/node": "^18.0.0",
@@ -732,23 +801,30 @@ test("constructPermissiveDepsToUpdateList => with mixed dependency types", () =>
     react: "^18.2.0",
   };
   const codependencies = ["react", "typescript"];
+  const versionMap = {
+    "@types/node": "20.10.0",
+    typescript: "5.3.0",
+    lodash: "4.17.22",
+    react: "18.3.0",
+  };
   const result = scripts.constructPermissiveDepsToUpdateList(
     deps,
     codependencies,
+    versionMap,
   );
 
   expect(result).toEqual([
     {
       name: "@types/node",
       actual: "^18.0.0",
-      exact: "latest",
-      expected: "latest",
+      exact: "20.10.0",
+      expected: "^20.10.0",
     },
     {
       name: "lodash",
       actual: "4.17.21",
-      exact: "latest",
-      expected: "latest",
+      exact: "4.17.22",
+      expected: "4.17.22",
     },
   ]);
 });

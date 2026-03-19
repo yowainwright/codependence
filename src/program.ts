@@ -85,10 +85,16 @@ export async function action(options: Options = {}): Promise<void | Options> {
   if (isTestingAction) return updatedOptions;
 
   try {
-    const hasNoDepsAndNotPermissive =
-      !updatedOptions.codependencies && !updatedOptions.permissive;
-    if (hasNoDepsAndNotPermissive) {
-      throw '"codependencies" is required (unless using permissive mode)';
+    const hasPermissiveWithoutMode = updatedOptions.permissive && !updatedOptions.mode;
+    if (hasPermissiveWithoutMode) {
+      updatedOptions.mode = "precise";
+    }
+
+    const hasDeps = Boolean(updatedOptions.codependencies);
+    const isPrecise = updatedOptions.permissive || updatedOptions.mode === "precise";
+    const hasNoDepsAndNotPrecise = !hasDeps && !isPrecise;
+    if (hasNoDepsAndNotPrecise) {
+      throw '"codependencies" is required (unless using precise mode)';
     }
 
     const isDryRun = updatedOptions.dryRun === true;
