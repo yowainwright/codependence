@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import type { Level, VersionDiff } from "../types";
 import { formatVersionTable } from "./table";
 import { isWithinLevel } from "./semver";
+import { SYMBOLS } from "./symbols";
 
 const DEP_SECTIONS = [
   "dependencies",
@@ -75,13 +76,13 @@ export const displayVersionDiffs = (
   const diffsToShow = diffs.filter((d) => d.current !== d.latest);
 
   if (diffsToShow.length === 0) {
-    console.log("\n✅ All dependencies are up-to-date!\n");
+    console.log(`\n${SYMBOLS.success} All dependencies are up-to-date!\n`);
     return;
   }
 
   const header = isDryRun
-    ? "\n📊 Dependencies that would be updated:"
-    : "\n📦 Dependency Updates Available:";
+    ? `\n${SYMBOLS.info} Dependencies that would be updated:`
+    : `\n${SYMBOLS.info} Dependency Updates Available:`;
 
   console.log(header);
   console.log(formatVersionTable(diffsToShow));

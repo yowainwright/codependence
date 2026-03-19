@@ -1,4 +1,5 @@
 import type { DependencyInfo } from "../types";
+import { SYMBOLS, RAW_SYMBOLS } from "./symbols";
 
 export interface FormattedOutput {
   status: "outdated" | "up-to-date";
@@ -72,16 +73,16 @@ export const formatAsMarkdown = (
   lines.push("# Dependency Status\n");
 
   if (hasOutdated) {
-    lines.push(`## ⚠️ Outdated Dependencies (${outdatedDeps.length})\n`);
+    lines.push(`## ${RAW_SYMBOLS.warning} Outdated Dependencies (${outdatedDeps.length})\n`);
     lines.push("| Package | Current | Latest | Severity |");
     lines.push("|---------|---------|--------|----------|");
 
     outdatedDeps.forEach((dep) => {
       const severity = getSeverity(dep.current, dep.latest);
-      const severityEmoji =
-        severity === "major" ? "🔴" : severity === "minor" ? "🟡" : "🟢";
+      const severityIcon =
+        severity === "major" ? RAW_SYMBOLS.severityMajor : severity === "minor" ? RAW_SYMBOLS.severityMinor : RAW_SYMBOLS.severityPatch;
       lines.push(
-        `| ${dep.name} | ${dep.current} | ${dep.latest} | ${severityEmoji} ${severity} |`,
+        `| ${dep.name} | ${dep.current} | ${dep.latest} | ${severityIcon} ${severity} |`,
       );
     });
 
@@ -94,7 +95,7 @@ export const formatAsMarkdown = (
   const hasUpToDate = upToDateDeps.length > 0;
 
   if (hasUpToDate) {
-    lines.push(`## ✅ Up-to-date Dependencies (${upToDateDeps.length})\n`);
+    lines.push(`## ${RAW_SYMBOLS.success} Up-to-date Dependencies (${upToDateDeps.length})\n`);
     upToDateDeps.forEach((dep) => {
       lines.push(`- ${dep.name} @ ${dep.current}`);
     });
@@ -117,11 +118,11 @@ export const formatAsTable = (dependencies: DependencyInfo[]): string => {
   const hasOutdated = outdatedDeps.length > 0;
 
   if (!hasOutdated) {
-    return "✅ All dependencies are up-to-date!\n";
+    return `${SYMBOLS.success} All dependencies are up-to-date!\n`;
   }
 
   const lines: string[] = [];
-  lines.push("\n⚠️  Outdated Dependencies:\n");
+  lines.push(`\n${SYMBOLS.warning}  Outdated Dependencies:\n`);
 
   const maxNameLength = Math.max(
     ...outdatedDeps.map((dep) => dep.name.length),
@@ -143,7 +144,7 @@ export const formatAsTable = (dependencies: DependencyInfo[]): string => {
   outdatedDeps.forEach((dep) => {
     const severity = getSeverity(dep.current, dep.latest);
     const severityDisplay =
-      severity === "major" ? "🔴 major" : severity === "minor" ? "🟡 minor" : "🟢 patch";
+      severity === "major" ? `${SYMBOLS.severityMajor} major` : severity === "minor" ? `${SYMBOLS.severityMinor} minor` : `${SYMBOLS.severityPatch} patch`;
     lines.push(
       `  ${dep.name.padEnd(maxNameLength)}  ${dep.current.padEnd(maxCurrentLength)}  ${dep.latest.padEnd(maxLatestLength)}  ${severityDisplay}`,
     );

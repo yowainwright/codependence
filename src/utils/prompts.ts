@@ -63,7 +63,7 @@ export class Prompt {
 
           if (isNaN(num) || num < 1 || num > choices.length) {
             console.log(
-              `⚠️  Invalid choice. Please enter a number between 1 and ${choices.length}`,
+              `▲  Invalid choice. Please enter a number between 1 and ${choices.length}`,
             );
             askForChoice();
           } else {
@@ -106,7 +106,7 @@ export class Prompt {
 
             if (!isValid) {
               console.log(
-                `⚠️  Invalid input. Please enter numbers between 1 and ${choices.length}, separated by commas.`,
+                `▲  Invalid input. Please enter numbers between 1 and ${choices.length}, separated by commas.`,
               );
               askForChoices();
             } else {

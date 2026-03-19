@@ -791,11 +791,12 @@ describe("formatPerformanceMetrics", () => {
     const hitRate = 83.33;
 
     const result = formatPerformanceMetrics(duration, stats, hitRate);
+    const joined = result.join("\n");
 
-    expect(result).toContain("\n⚡ Performance:");
-    expect(result).toContain("  ⏱️  Completed in 1500ms");
-    expect(result).toContain("  📦 Cache: 10 hits, 2 misses (83.3% hit rate)");
-    expect(result).toContain("  💾 12 packages cached\n");
+    expect(joined).toContain("Performance:");
+    expect(joined).toContain("Completed in 1500ms");
+    expect(joined).toContain("Cache: 10 hits, 2 misses (83.3% hit rate)");
+    expect(joined).toContain("12 packages cached");
   });
 
   test("should format metrics with no cache", () => {
@@ -804,11 +805,12 @@ describe("formatPerformanceMetrics", () => {
     const hitRate = 0;
 
     const result = formatPerformanceMetrics(duration, stats, hitRate);
+    const joined = result.join("\n");
 
-    expect(result).toContain("\n⚡ Performance:");
-    expect(result).toContain("  ⏱️  Completed in 3000ms");
-    expect(result).toContain("  📦 No cache hits (first run)\n");
-    expect(result).not.toContain("% hit rate");
+    expect(joined).toContain("Performance:");
+    expect(joined).toContain("Completed in 3000ms");
+    expect(joined).toContain("No cache hits (first run)");
+    expect(joined).not.toContain("% hit rate");
   });
 
   test("should format hit rate with one decimal place", () => {

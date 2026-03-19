@@ -1,9 +1,9 @@
 export const ICONS = {
-  error: "✖",
-  warn: "⚠",
+  error: "✗",
+  warn: "▲",
   info: "🤼‍♀️",
-  debug: "ℹ",
-  verbose: "ℹ",
+  debug: "·",
+  verbose: "·",
 } as const;
 
 export const LEVELS = {

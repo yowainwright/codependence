@@ -1,4 +1,5 @@
 import { cyan, green, yellow, gray } from "./colors";
+import { SYMBOLS } from "./symbols";
 
 export interface TableColumn {
   header: string;
@@ -85,7 +86,7 @@ export const formatVersionTable = (diffs: VersionDiff[]): string => {
   ];
 
   const rows = diffs.map((diff) => {
-    const action = diff.isPinned ? yellow("Pinned 📌") : green("Update ✓");
+    const action = diff.isPinned ? yellow(`Pinned ${SYMBOLS.pinned}`) : green(`Update ${SYMBOLS.success}`);
 
     return {
       Package: diff.package,
