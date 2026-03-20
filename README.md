@@ -329,10 +329,10 @@ An **optional** string constraining how far updates are allowed to reach.
 
 ### `mode`: `"verbose" | "precise"`
 
-An **optional** string controlling the listing mode.
+An **optional** string controlling which packages are checked.
 
-- `"verbose"` — list all codependencies (default)
-- `"precise"` — only list exceptions; update all other dependencies to latest (similar to `permissive`)
+- `"verbose"` — only check/update the packages listed in `codependencies` (opt out of permissive default)
+- `"precise"` — update all dependencies except those listed in `codependencies` (same as default permissive behavior)
 
 ---
 

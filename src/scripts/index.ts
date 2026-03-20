@@ -293,7 +293,8 @@ export const constructDeps = <T extends PackageJSON>(
           newJson: PackageJSON[
             | "dependencies"
             | "devDependencies"
-            | "peerDependencies"],
+            | "peerDependencies"
+            | "optionalDependencies"],
           { name, expected: version }: DepToUpdateItem,
         ) => {
           return {
@@ -311,18 +312,20 @@ export const constructJson = <T extends PackageJSON>(
   depsToUpdate: DepsToUpdate,
   isDebugging = false,
 ) => {
-  const { depList, devDepList, peerDepList } = depsToUpdate;
+  const { depList, devDepList, peerDepList, optionalDepList } = depsToUpdate;
   const dependencies = constructDeps(json, "dependencies", depList);
   const devDependencies = constructDeps(json, "devDependencies", devDepList);
   const peerDependencies = constructDeps(json, "peerDependencies", peerDepList);
+  const optionalDependencies = constructDeps(json, "optionalDependencies", optionalDepList);
   if (isDebugging) {
-    logger.debug("constructJson debug info", { dependencies, devDependencies, peerDependencies });
+    logger.debug("constructJson debug info", { dependencies, devDependencies, peerDependencies, optionalDependencies });
   }
   return {
     ...json,
     ...(dependencies ? { dependencies } : {}),
     ...(devDependencies ? { devDependencies } : {}),
     ...(peerDependencies ? { peerDependencies } : {}),
+    ...(optionalDependencies ? { optionalDependencies } : {}),
   };
 };
 
@@ -332,7 +335,7 @@ export const buildUpdateLists = <T extends PackageJSON>(
   options: CheckDependenciesForVersionOptions,
   codependencies?: Array<string>,
 ): DepsToUpdate => {
-  const { dependencies, devDependencies, peerDependencies } = json;
+  const { dependencies, devDependencies, peerDependencies, optionalDependencies } = json;
   const { permissive, level = "major" } = options;
 
   if (permissive) {
@@ -341,6 +344,7 @@ export const buildUpdateLists = <T extends PackageJSON>(
       depList: constructPermissiveDepsToUpdateList(dependencies, coDeps, versionMap, level),
       devDepList: constructPermissiveDepsToUpdateList(devDependencies, coDeps, versionMap, level),
       peerDepList: constructPermissiveDepsToUpdateList(peerDependencies, coDeps, versionMap, level),
+      optionalDepList: constructPermissiveDepsToUpdateList(optionalDependencies, coDeps, versionMap, level),
     };
   }
 
@@ -348,13 +352,14 @@ export const buildUpdateLists = <T extends PackageJSON>(
     depList: constructDepsToUpdateList(dependencies, versionMap, level),
     devDepList: constructDepsToUpdateList(devDependencies, versionMap, level),
     peerDepList: constructDepsToUpdateList(peerDependencies, versionMap, level),
+    optionalDepList: constructDepsToUpdateList(optionalDependencies, versionMap, level),
   };
 };
 
 const logDependencyIssues = (
   depsToUpdate: DepsToUpdate,
 ): void => {
-  const allLists = [depsToUpdate.depList, depsToUpdate.devDepList, depsToUpdate.peerDepList];
+  const allLists = [depsToUpdate.depList, depsToUpdate.devDepList, depsToUpdate.peerDepList, depsToUpdate.optionalDepList];
   allLists.forEach((list) => {
     if (!list.length) return;
 
@@ -392,10 +397,10 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
   options: CheckDependenciesForVersionOptions,
   codependencies?: Array<string>,
 ): boolean => {
-  const { dependencies, devDependencies, peerDependencies } = json;
+  const { dependencies, devDependencies, peerDependencies, optionalDependencies } = json;
   const { isUpdating, isDebugging, isSilent, isTesting } = options;
 
-  const hasNoDeps = !dependencies && !devDependencies && !peerDependencies;
+  const hasNoDeps = !dependencies && !devDependencies && !peerDependencies && !optionalDependencies;
   if (hasNoDeps) return false;
 
   const depsToUpdate = buildUpdateLists(versionMap, json, options, codependencies);
@@ -405,7 +410,10 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
   }
 
   const hasNoDependencyIssues =
-    !depsToUpdate.depList.length && !depsToUpdate.devDepList.length && !depsToUpdate.peerDepList.length;
+    !depsToUpdate.depList.length &&
+    !depsToUpdate.devDepList.length &&
+    !depsToUpdate.peerDepList.length &&
+    !depsToUpdate.optionalDepList.length;
   if (hasNoDependencyIssues) return false;
 
   if (!isSilent) {

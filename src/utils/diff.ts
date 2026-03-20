@@ -1,14 +1,9 @@
 import { readFileSync } from "fs";
 import type { Level, VersionDiff } from "../types";
+import { DEP_SECTIONS } from "../scripts/constants";
 import { formatVersionTable } from "./table";
 import { isWithinLevel } from "./semver";
 import { SYMBOLS } from "./symbols";
-
-const DEP_SECTIONS = [
-  "dependencies",
-  "devDependencies",
-  "peerDependencies",
-] as const;
 
 const extractDepsFromSection = (
   packageJson: Record<string, unknown>,

@@ -93,6 +93,7 @@ export type PackageJSON = {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
   name: string;
   version: string;
 };
@@ -108,6 +109,7 @@ export type DepsToUpdate = {
   depList: DepToUpdateItem[];
   devDepList: DepToUpdateItem[];
   peerDepList: DepToUpdateItem[];
+  optionalDepList: DepToUpdateItem[];
 };
 
 export type ExecFunction = (

@@ -63,8 +63,7 @@
     "mode": {
       "type": "string",
       "enum": ["verbose", "precise"],
-      "default": "verbose",
-      "description": "Listing mode: verbose (list all) or precise (only list exceptions, update all others)"
+      "description": "verbose: only check listed packages; precise: update all except listed (default behavior)"
     },
     "update": {
       "type": "boolean",
