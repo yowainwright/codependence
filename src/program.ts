@@ -93,13 +93,6 @@ export async function action(options: Options = {}): Promise<void | Options> {
       updatedOptions.mode = "precise";
     }
 
-    const hasDeps = Boolean(updatedOptions.codependencies);
-    const isPrecise = effectivePermissive || updatedOptions.mode === "precise";
-    const hasNoDepsAndNotPrecise = !hasDeps && !isPrecise;
-    if (hasNoDepsAndNotPrecise) {
-      throw '"codependencies" is required (unless using precise mode)';
-    }
-
     const isDryRun = updatedOptions.dryRun === true;
     const isWatchMode = updatedOptions.watch === true;
 
@@ -164,6 +157,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
     }
   } catch (err) {
     logger.error((err as string).toString());
+    process.exit(1);
   }
 }
 

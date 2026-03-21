@@ -494,11 +494,15 @@ export const checkMatches = ({
 
 const extractDepNamesFromFile = (rootDir: string, file: string): string[] => {
   const path = `${rootDir}${file}`;
-  const json = JSON.parse(readFileSync(path, "utf8"));
-  return DEP_SECTIONS
-    .map((section) => json[section])
-    .filter(Boolean)
-    .flatMap((section: Record<string, string>) => Object.keys(section));
+  try {
+    const json = JSON.parse(readFileSync(path, "utf8"));
+    return DEP_SECTIONS
+      .map((section) => json[section])
+      .filter(Boolean)
+      .flatMap((section: Record<string, string>) => Object.keys(section));
+  } catch {
+    return [];
+  }
 };
 
 const collectAllDepNames = (

@@ -294,6 +294,9 @@ describe("Action Function Tests (Fast)", () => {
     const errorSpy = jest
       .spyOn(console, "error")
       .mockImplementation(() => {});
+    const exitSpy = jest
+      .spyOn(process, "exit")
+      .mockImplementation((() => {}) as () => never);
 
     await action({
       permissive: false,
@@ -301,7 +304,9 @@ describe("Action Function Tests (Fast)", () => {
 
     const errorCalls = errorSpy.mock.calls.flat().join(" ");
     expect(errorCalls).toContain("codependencies");
+    expect(exitSpy).toHaveBeenCalledWith(1);
     errorSpy.mockRestore();
+    exitSpy.mockRestore();
     configSpy.mockRestore();
     scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue(undefined);
   });
