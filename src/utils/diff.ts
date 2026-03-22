@@ -1,14 +1,9 @@
 import { readFileSync } from "fs";
 import type { Level, VersionDiff } from "../types";
+import { DEP_SECTIONS } from "../scripts/constants";
 import { formatVersionTable } from "./table";
 import { isWithinLevel } from "./semver";
 import { SYMBOLS } from "./symbols";
-
-const DEP_SECTIONS = [
-  "dependencies",
-  "devDependencies",
-  "peerDependencies",
-] as const;
 
 const extractDepsFromSection = (
   packageJson: Record<string, unknown>,
@@ -98,14 +93,12 @@ const readPackageDiffs = (
   level: Level,
 ): VersionDiff[] => {
   const path = `${rootDir}${file}`;
-  const packageJson = JSON.parse(readFileSync(path, "utf8"));
-  return buildVersionDiff(
-    versionMap,
-    packageJson,
-    codependencies,
-    permissive,
-    level,
-  );
+  try {
+    const packageJson = JSON.parse(readFileSync(path, "utf8"));
+    return buildVersionDiff(versionMap, packageJson, codependencies, permissive, level);
+  } catch {
+    return [];
+  }
 };
 
 const deduplicateByPackage = (diffs: VersionDiff[]): VersionDiff[] => {

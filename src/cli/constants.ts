@@ -53,8 +53,8 @@ Options:
   -s, --searchPath <searchPath>    Path to do a config file search
   -y, --yarnConfig                  Enable yarn config support
   --level <level>                   Update level: patch, minor, or major (default: major)
-  -m, --mode <mode>                Listing mode: verbose or precise (default: verbose)
-  -l, --language <lang>            Target language (nodejs, go, python)
+  -m, --mode <mode>                verbose: only listed packages; precise: all except listed
+  -l, --language <lang>            Target language (nodejs, go, python) (experimental)
   -h, --help                        Show this help message
   --dry-run                         Show what would change without modifying files
   --interactive                     Choose which packages to update interactively
@@ -73,10 +73,13 @@ Examples:
   codependence --update                       Update all dependencies to latest
   codependence --update --dry-run             Preview changes without modifying files
 
-  # Precise mode (update all except listed)
-  codependence --mode precise --update        Update all deps except those in config
-  codependence --mode precise --codependencies react lodash --update
+  # Pin specific packages, update everything else (default behavior)
+  codependence --codependencies react lodash --update
                                               Pin react & lodash, update everything else
+
+  # Opt out: only check/update listed packages
+  codependence --mode verbose --codependencies react lodash --update
+                                              Only update react and lodash
 
   # Update level control
   codependence --level minor --update         Only update within same major version

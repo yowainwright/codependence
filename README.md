@@ -37,10 +37,10 @@ npm install codependence --save-dev
 
 #### Quick setup
 
-Pure CLI quick run
+Pin specific packages, update everything else:
 
 ```sh
-codependence --condependencies 'fs-extra' 'lodash'
+codependence --codependencies 'react' 'lodash' --update
 ```
 
 Or use it with a config in the root `package.json` file
@@ -48,7 +48,7 @@ Or use it with a config in the root `package.json` file
 ```ts
 {
   "codependence": {
-    "condependencies": ["fs-extra", "lodash"]
+    "codependencies": ["react", "lodash"]
   },
   "scripts": {
     "update-codependencies": "codependence --update",
@@ -56,6 +56,8 @@ Or use it with a config in the root `package.json` file
   }
 }
 ```
+
+> By default, `codependence` runs in **permissive mode** — it updates all dependencies to their latest versions _except_ those listed in `codependencies`. Your pinned list is what you want to **hold back**; everything else follows latest.
 
 #### Initialize Codependence
 
@@ -107,21 +109,35 @@ It is recommendeded to install and setup **Codependence** as a `devDependency` w
 Furthermore, you can add a `codependence.codependencies` array to child packages' `package.json` in your monorepo to ensure specific dependencies are pinned to a specific versions within your monorepo packages.
 
 ```sh
-Usage: program [options]
+Usage: codependence [command] [options]
 
-Codependency, for code dependency. Checks `codependencies` in package.json files to ensure dependencies are up-to-date
+Commands:
+  init [type]                       Initialize codependence configuration
+                                    Types: rc, package, default
 
 Options:
-  -f, --files [files...]                      file glob pattern
-  -u, --update                                update dependencies based on check
-  -r, --rootDir <rootDir>                     root directory to start search
-  -i, --ignore [ignore...]                    ignore glob pattern
-  --debug                                     enable debugging
-  --silent                                    enable mainly silent logging
-  -cds, --codependencies [codependencies...]  a path to a file with a codependenies object
-  -c, --config <config>                       accepts a path to a config file
-  -s, --searchPath <searchPath>               a search path string for locationing config files
-  -h, --help                                  display help for command
+  -f, --files [files...]           File glob pattern
+  -u, --update                      Update dependencies based on check
+  -r, --rootDir <rootDir>          Root directory to start search
+  -i, --ignore [ignore...]         Ignore glob pattern
+  --debug                           Enable debugging
+  --silent                          Enable mainly silent logging
+  -v, --verbose                     Enable verbose logging (shows debug info)
+  -q, --quiet                       Suppress all output except errors
+  --cds, --codependencies [deps...] Dependencies to check
+  -c, --config <config>            Path to a config file
+  -s, --searchPath <searchPath>    Path to do a config file search
+  -y, --yarnConfig                  Enable yarn config support
+  --level <level>                   Update level: patch, minor, or major (default: major)
+  -m, --mode <mode>                Listing mode: verbose or precise (default: verbose)
+  -l, --language <lang>            Target language (nodejs, go, python) (experimental)
+  -h, --help                        Show this help message
+  --dry-run                         Show what would change without modifying files
+  --interactive                     Choose which packages to update interactively
+  --watch                           Watch for changes and re-check continuously
+  --no-cache                        Disable version caching for fresh results
+  --format <type>                   Output format: json, markdown, or table (default: table)
+  --output-file <path>              Write output to file instead of stdout
 ```
 
 ## Codependence in Node
@@ -129,28 +145,25 @@ Options:
 Although, **Codependence** is built to primarily be a CLI utility, it can be used as a node utility.
 
 ```ts
-import codependence from "codependence";
+import { checkFiles, codependence } from "codependence";
 
-const checkForUpdate = async () => {
-  const isLatest = await codependence({
-    codependencies: ["fs-extra", "lodash"],
-  });
-  if (!isLatest) {
-    console.log("This repo is update-to-date");
-  } else {
-    console.error("This repo is not update-to-date");
+const checkForOutdated = async () => {
+  try {
+    await checkFiles({ codependencies: ["fs-extra", "lodash"] });
+    console.log("All dependencies are up-to-date");
+  } catch (err) {
+    console.error("Dependencies are out of date:", (err as Error).message);
   }
 };
 
 const updateAllExceptSpecific = async () => {
   await codependence({
     codependencies: ["react", "lodash"],
-    permissive: true,
     update: true,
   });
 };
 
-checkForUpdate();
+checkForOutdated();
 ```
 
 ## Configuration Options
@@ -294,10 +307,91 @@ An **optional** boolean value used to enable \***yarn config** checking
 
 ### `permissive`: `boolean`
 
-An **optional** boolean value used to update all dependencies to their latest versions except those specified in the `codependencies` array.
+Controls whether all dependencies are updated to latest except those listed in `codependencies`.
+
+- The default value is `true`
+- When `true` (default), all dependencies NOT listed in `codependencies` are updated to latest — your `codependencies` list is what you want to **pin**
+- To opt out, use `--mode verbose` (CLI) or `mode: "verbose"` (config) — only the listed packages will be checked/updated
+
+---
+
+### `level`: `"patch" | "minor" | "major"`
+
+An **optional** string constraining how far updates are allowed to reach.
+
+- `"patch"` — only update within the same minor version (e.g. `1.2.x`)
+- `"minor"` — only update within the same major version (e.g. `1.x.x`)
+- `"major"` — allow any update (default)
+
+---
+
+### `mode`: `"verbose" | "precise"`
+
+An **optional** string controlling which packages are checked.
+
+- `"verbose"` — only check/update the packages listed in `codependencies` (opt out of permissive default)
+- `"precise"` — update all dependencies except those listed in `codependencies` (same as default permissive behavior)
+
+---
+
+### `dryRun`: `boolean`
+
+An **optional** boolean that previews what would change without modifying any files.
 
 - The default value is `false`
-- When set to `true`, all dependencies not listed in `codependencies` will be updated to their latest versions
+
+---
+
+### `interactive`: `boolean`
+
+An **optional** boolean that prompts you to select which packages to update when combined with `--update`.
+
+- The default value is `false`
+
+---
+
+### `watch`: `boolean`
+
+An **optional** boolean that enables continuous checking, re-running every 30 seconds.
+
+- The default value is `false`
+
+---
+
+### `noCache`: `boolean`
+
+An **optional** boolean that bypasses the version cache for fresh registry results.
+
+- The default value is `false`
+
+---
+
+### `format`: `"json" | "markdown" | "table"`
+
+An **optional** string specifying the output format. When set, disables the spinner and outputs structured data instead.
+
+- `"json"` — machine-readable JSON
+- `"markdown"` — Markdown table (useful for PR comments)
+- `"table"` — formatted table (default when flag is used)
+
+---
+
+### `outputFile`: `string`
+
+An **optional** path to write formatted output to a file instead of stdout. Requires `format` to be set.
+
+---
+
+### Multi-language support (experimental)
+
+Codependence includes experimental support for Python and Go dependency manifests via the `--language` flag:
+
+```sh
+codependence --language python    # Check requirements.txt / pyproject.toml
+codependence --language go        # Check go.mod dependencies
+```
+
+This feature is under active development. For stable usage, omit `--language` (defaults to Node.js).
 
 ---
 
@@ -319,10 +413,12 @@ codependence --codependencies 'lodash' '{ \"fs-extra\": \"10.0.1\" }'
 codependence --codependencies '@foo/*' --update
 ```
 
-### Want to update all dependencies to latest except specific ones? Use permissive mode!
+### Want to update all dependencies to latest except specific ones?
+
+This is the default behavior — just list what you want to pin:
 
 ```sh
-codependence --codependencies 'react' 'lodash' --permissive --update
+codependence --codependencies 'react' 'lodash' --update
 ```
 
 ---

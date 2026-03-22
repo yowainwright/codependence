@@ -39,7 +39,7 @@ export const validateStringDep = (
   const isValidString = hasLength && hasNoSpace;
 
   if (!isValidString) {
-    throw "invalid item type";
+    throw new Error("invalid item type");
   }
 
   const validateFn = validate || validatePackageName;
@@ -125,7 +125,7 @@ const handleVersionMapError = (
   }
 
   if (isTesting) return {};
-  process.exit(1);
+  throw err;
 };
 
 export const constructVersionMap = async ({
@@ -293,7 +293,8 @@ export const constructDeps = <T extends PackageJSON>(
           newJson: PackageJSON[
             | "dependencies"
             | "devDependencies"
-            | "peerDependencies"],
+            | "peerDependencies"
+            | "optionalDependencies"],
           { name, expected: version }: DepToUpdateItem,
         ) => {
           return {
@@ -311,18 +312,20 @@ export const constructJson = <T extends PackageJSON>(
   depsToUpdate: DepsToUpdate,
   isDebugging = false,
 ) => {
-  const { depList, devDepList, peerDepList } = depsToUpdate;
+  const { depList, devDepList, peerDepList, optionalDepList } = depsToUpdate;
   const dependencies = constructDeps(json, "dependencies", depList);
   const devDependencies = constructDeps(json, "devDependencies", devDepList);
   const peerDependencies = constructDeps(json, "peerDependencies", peerDepList);
+  const optionalDependencies = constructDeps(json, "optionalDependencies", optionalDepList);
   if (isDebugging) {
-    logger.debug("constructJson debug info", { dependencies, devDependencies, peerDependencies });
+    logger.debug("constructJson debug info", { dependencies, devDependencies, peerDependencies, optionalDependencies });
   }
   return {
     ...json,
     ...(dependencies ? { dependencies } : {}),
     ...(devDependencies ? { devDependencies } : {}),
     ...(peerDependencies ? { peerDependencies } : {}),
+    ...(optionalDependencies ? { optionalDependencies } : {}),
   };
 };
 
@@ -332,7 +335,7 @@ export const buildUpdateLists = <T extends PackageJSON>(
   options: CheckDependenciesForVersionOptions,
   codependencies?: Array<string>,
 ): DepsToUpdate => {
-  const { dependencies, devDependencies, peerDependencies } = json;
+  const { dependencies, devDependencies, peerDependencies, optionalDependencies } = json;
   const { permissive, level = "major" } = options;
 
   if (permissive) {
@@ -341,6 +344,7 @@ export const buildUpdateLists = <T extends PackageJSON>(
       depList: constructPermissiveDepsToUpdateList(dependencies, coDeps, versionMap, level),
       devDepList: constructPermissiveDepsToUpdateList(devDependencies, coDeps, versionMap, level),
       peerDepList: constructPermissiveDepsToUpdateList(peerDependencies, coDeps, versionMap, level),
+      optionalDepList: constructPermissiveDepsToUpdateList(optionalDependencies, coDeps, versionMap, level),
     };
   }
 
@@ -348,13 +352,14 @@ export const buildUpdateLists = <T extends PackageJSON>(
     depList: constructDepsToUpdateList(dependencies, versionMap, level),
     devDepList: constructDepsToUpdateList(devDependencies, versionMap, level),
     peerDepList: constructDepsToUpdateList(peerDependencies, versionMap, level),
+    optionalDepList: constructDepsToUpdateList(optionalDependencies, versionMap, level),
   };
 };
 
 const logDependencyIssues = (
   depsToUpdate: DepsToUpdate,
 ): void => {
-  const allLists = [depsToUpdate.depList, depsToUpdate.devDepList, depsToUpdate.peerDepList];
+  const allLists = [depsToUpdate.depList, depsToUpdate.devDepList, depsToUpdate.peerDepList, depsToUpdate.optionalDepList];
   allLists.forEach((list) => {
     if (!list.length) return;
 
@@ -392,10 +397,10 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
   options: CheckDependenciesForVersionOptions,
   codependencies?: Array<string>,
 ): boolean => {
-  const { dependencies, devDependencies, peerDependencies } = json;
+  const { dependencies, devDependencies, peerDependencies, optionalDependencies } = json;
   const { isUpdating, isDebugging, isSilent, isTesting } = options;
 
-  const hasNoDeps = !dependencies && !devDependencies && !peerDependencies;
+  const hasNoDeps = !dependencies && !devDependencies && !peerDependencies && !optionalDependencies;
   if (hasNoDeps) return false;
 
   const depsToUpdate = buildUpdateLists(versionMap, json, options, codependencies);
@@ -405,7 +410,10 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
   }
 
   const hasNoDependencyIssues =
-    !depsToUpdate.depList.length && !depsToUpdate.devDepList.length && !depsToUpdate.peerDepList.length;
+    !depsToUpdate.depList.length &&
+    !depsToUpdate.devDepList.length &&
+    !depsToUpdate.peerDepList.length &&
+    !depsToUpdate.optionalDepList.length;
   if (hasNoDependencyIssues) return false;
 
   if (!isSilent) {
@@ -476,6 +484,7 @@ export const checkMatches = ({
   if (isOutOfDate && !isUpdating) {
     logger.error("Dependencies are not correct.");
     if (isCLI) process.exit(1);
+    else throw new Error("Dependencies are not correct.");
   } else if (isOutOfDate) {
     logger.info("Dependencies were not correct but should be updated! Check your git status.");
   } else {
@@ -485,11 +494,15 @@ export const checkMatches = ({
 
 const extractDepNamesFromFile = (rootDir: string, file: string): string[] => {
   const path = `${rootDir}${file}`;
-  const json = JSON.parse(readFileSync(path, "utf8"));
-  return DEP_SECTIONS
-    .map((section) => json[section])
-    .filter(Boolean)
-    .flatMap((section: Record<string, string>) => Object.keys(section));
+  try {
+    const json = JSON.parse(readFileSync(path, "utf8"));
+    return DEP_SECTIONS
+      .map((section) => json[section])
+      .filter(Boolean)
+      .flatMap((section: Record<string, string>) => Object.keys(section));
+  } catch {
+    return [];
+  }
 };
 
 const collectAllDepNames = (
@@ -498,6 +511,21 @@ const collectAllDepNames = (
 ): string[] => {
   const allNames = files.flatMap((file) => extractDepNamesFromFile(rootDir, file));
   return Array.from(new Set(allNames));
+};
+
+export const detectStaleCodependencies = (
+  codependencies: import("../types").CodeDependencies,
+  files: string[],
+  rootDir: string,
+): string[] => {
+  const pinnedNames = codependencies
+    .map((dep) => (typeof dep === "string" ? dep : Object.keys(dep)[0]))
+    .filter(Boolean);
+
+  if (pinnedNames.length === 0) return [];
+
+  const allDepNames = new Set(collectAllDepNames(files, rootDir));
+  return pinnedNames.filter((name) => !allDepNames.has(name));
 };
 
 const promptForSelection = async (
@@ -561,21 +589,22 @@ const resolvePreciseModeDeps = async (
   rootDir: string,
   versionMap: Record<string, string>,
   options: { debug: boolean; yarnConfig: boolean; isTesting: boolean; noCache: boolean; onProgress?: CheckFiles["onProgress"] },
-): Promise<void> => {
+): Promise<Record<string, string>> => {
   const allDepNames = collectAllDepNames(files, rootDir);
   const unresolvedDeps = allDepNames.filter((name) => !versionMap[name]);
 
-  if (unresolvedDeps.length > 0) {
-    const additionalMap = await constructVersionMap({
-      codependencies: unresolvedDeps,
-      debug: options.debug,
-      yarnConfig: options.yarnConfig,
-      isTesting: options.isTesting,
-      noCache: options.noCache,
-      onProgress: options.onProgress,
-    });
-    Object.assign(versionMap, additionalMap);
-  }
+  if (unresolvedDeps.length === 0) return versionMap;
+
+  const additionalMap = await constructVersionMap({
+    codependencies: unresolvedDeps,
+    debug: options.debug,
+    yarnConfig: options.yarnConfig,
+    isTesting: options.isTesting,
+    noCache: options.noCache,
+    onProgress: options.onProgress,
+  });
+
+  return { ...versionMap, ...additionalMap };
 };
 
 export const checkFiles = async ({
@@ -591,7 +620,7 @@ export const checkFiles = async ({
   isCLI = false,
   yarnConfig = false,
   isTesting = false,
-  permissive = false,
+  permissive = true,
   dryRun = false,
   interactive = false,
   noCache = false,
@@ -602,7 +631,7 @@ export const checkFiles = async ({
 }: CheckFiles): Promise<VersionDiff[] | void> => {
   try {
     const files = await glob(matchers, { cwd: rootDir, ignore });
-    const isPreciseMode = mode === "precise" || permissive;
+    const isPreciseMode = mode === "precise" || (permissive && mode !== "verbose");
 
     const hasNoDepsAndNotPrecise = !codependencies && !isPreciseMode;
     if (hasNoDepsAndNotPrecise) {
@@ -613,6 +642,16 @@ export const checkFiles = async ({
     let depNames: string[] = [];
 
     const hasDependencies = codependencies && codependencies.length > 0;
+
+    if (hasDependencies && !silent && !quiet) {
+      const stale = detectStaleCodependencies(codependencies, files, rootDir);
+      if (stale.length > 0) {
+        const label = stale.length === 1 ? "codependency" : "codependencies";
+        logger.warn(`${stale.length} stale ${label} not found in any package.json:`);
+        stale.forEach((name) => logger.warn(`  - ${name}`));
+      }
+    }
+
     if (hasDependencies) {
       versionMap = await constructVersionMap({
         codependencies,
@@ -628,7 +667,7 @@ export const checkFiles = async ({
     }
 
     if (isPreciseMode) {
-      await resolvePreciseModeDeps(files, rootDir, versionMap, { debug, yarnConfig, isTesting, noCache, onProgress });
+      versionMap = await resolvePreciseModeDeps(files, rootDir, versionMap, { debug, yarnConfig, isTesting, noCache, onProgress });
     }
 
     const hasOutputChanges = (update || dryRun) && !silent && !quiet;
@@ -676,10 +715,9 @@ export const checkFiles = async ({
     if (debug) {
       logger.debug((err as string).toString());
     }
+    throw err;
   }
 };
 
-export const script = checkFiles;
 export const codependence = checkFiles;
-export const core = codependence;
-export default core;
+export default checkFiles;

@@ -1,10 +1,10 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
-import type { ExecResult } from "./types";
+import type { ExecResult, ExecFileFn, SleepFn } from "./types";
 
-const execFileAsync = promisify(execFile);
+const execFileAsync = promisify(execFile) as ExecFileFn;
 
-const sleep = (ms: number): Promise<void> =>
+const sleep: SleepFn = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 const isRetryableError = (error: unknown): boolean => {
@@ -26,9 +26,11 @@ const executeWithRetry = async (
   attempt: number,
   maxRetries: number,
   retryDelay: number,
+  execFileFn: ExecFileFn,
+  sleepFn: SleepFn,
 ): Promise<ExecResult> => {
   try {
-    const { stdout, stderr } = await execFileAsync(command, args, {
+    const { stdout, stderr } = await execFileFn(command, args, {
       cwd,
       encoding: "utf8",
     });
@@ -45,7 +47,7 @@ const executeWithRetry = async (
     }
 
     const backoffDelay = retryDelay * Math.pow(2, attempt);
-    await sleep(backoffDelay);
+    await sleepFn(backoffDelay);
 
     return executeWithRetry(
       command,
@@ -54,6 +56,8 @@ const executeWithRetry = async (
       attempt + 1,
       maxRetries,
       retryDelay,
+      execFileFn,
+      sleepFn,
     );
   }
 };
@@ -61,9 +65,21 @@ const executeWithRetry = async (
 export const exec = async (
   command: string,
   args: string[],
-  options: { cwd?: string; maxRetries?: number; retryDelay?: number } = {},
+  options: {
+    cwd?: string;
+    maxRetries?: number;
+    retryDelay?: number;
+    execFileFn?: ExecFileFn;
+    sleepFn?: SleepFn;
+  } = {},
 ): Promise<ExecResult> => {
-  const { cwd, maxRetries = 3, retryDelay = 1000 } = options;
+  const {
+    cwd,
+    maxRetries = 3,
+    retryDelay = 1000,
+    execFileFn: execFileFnOpt = execFileAsync,
+    sleepFn: sleepFnOpt = sleep,
+  } = options;
 
-  return executeWithRetry(command, args, cwd, 0, maxRetries, retryDelay);
+  return executeWithRetry(command, args, cwd, 0, maxRetries, retryDelay, execFileFnOpt, sleepFnOpt);
 };

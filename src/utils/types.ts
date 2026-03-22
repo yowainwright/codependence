@@ -3,6 +3,14 @@ export interface ExecResult {
   stderr: string;
 }
 
+export type ExecFileFn = (
+  command: string,
+  args: string[],
+  options: { cwd?: string; encoding: string },
+) => Promise<{ stdout: string; stderr: string }>;
+
+export type SleepFn = (ms: number) => Promise<void>;
+
 export interface GlobOptions {
   cwd?: string;
   ignore?: string[];

@@ -259,10 +259,10 @@ describe("formatEnhancedError", () => {
   });
 
   describe("private package detection", () => {
-    test("should detect scoped private package", () => {
+    test("should detect private package via unauthorized error", () => {
       const context: ErrorContext = {
         packageName: "@myorg/private-package",
-        error: new Error("404 Not Found"),
+        error: new Error("E401 unauthorized"),
       };
 
       const result = formatEnhancedError(context);
@@ -534,10 +534,11 @@ describe("formatEnhancedError", () => {
       expect(result).toContain("Network timeout");
     });
 
-    test("should not show error message for private packages", () => {
+    test("should not show error message for private packages with explicit flag", () => {
       const context: ErrorContext = {
         packageName: "@org/package",
         error: new Error("Some detailed error message"),
+        isPrivatePackage: true,
       };
 
       const result = formatEnhancedError(context);

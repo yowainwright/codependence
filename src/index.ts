@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { run } from "./program";
-import { script } from "./scripts";
+import { checkFiles, codependence } from "./scripts";
 import { logger } from "./logger";
 
 run().catch((err) => {
@@ -8,4 +8,4 @@ run().catch((err) => {
   process.exit(1);
 });
 
-export { script };
+export { checkFiles, codependence };

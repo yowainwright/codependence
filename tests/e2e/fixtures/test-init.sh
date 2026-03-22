@@ -122,8 +122,7 @@ fi
 # Test 9: Test non-permissive mode still requires codependencies
 echo "\n9. Testing non-permissive mode requires codependencies..."
 rm -f .codependencerc
-# Create empty config (no permissive, no codependencies)
-echo '{}' > .codependencerc
+echo '{ "permissive": false }' > .codependencerc
 if node dist/index.js --silent 2>&1 | grep -q 'codependencies.*required'; then
   echo "✓ Non-permissive mode codependencies requirement test passed"
 else

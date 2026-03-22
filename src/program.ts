@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { createLogger, logger } from "./logger";
-import { script } from "./scripts";
+import { checkFiles } from "./scripts";
+import { versionCache } from "./utils/cache";
 import { createSpinner } from "./utils/spinner";
 import { cyan, bold, green, gray, red } from "./utils/colors";
 import { SYMBOLS } from "./utils/symbols";
@@ -85,17 +86,13 @@ export async function action(options: Options = {}): Promise<void | Options> {
   // capture action unit test options
   if (isTestingAction) return updatedOptions;
 
+  let spinner: ReturnType<typeof createSpinner> | null = null;
+
   try {
-    const hasPermissiveWithoutMode = updatedOptions.permissive && !updatedOptions.mode;
+    const effectivePermissive = updatedOptions.permissive ?? (updatedOptions.mode !== "verbose");
+    const hasPermissiveWithoutMode = effectivePermissive && !updatedOptions.mode;
     if (hasPermissiveWithoutMode) {
       updatedOptions.mode = "precise";
-    }
-
-    const hasDeps = Boolean(updatedOptions.codependencies);
-    const isPrecise = updatedOptions.permissive || updatedOptions.mode === "precise";
-    const hasNoDepsAndNotPrecise = !hasDeps && !isPrecise;
-    if (hasNoDepsAndNotPrecise) {
-      throw '"codependencies" is required (unless using precise mode)';
     }
 
     const isDryRun = updatedOptions.dryRun === true;
@@ -114,7 +111,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
     const formatType = updatedOptions.format || "table";
     const shouldUseFormatter = updatedOptions.format !== undefined;
 
-    const spinner = !shouldUseFormatter
+    spinner = !shouldUseFormatter
       ? createSpinner(`🤼‍♀️ ${gradient(`codependence`)} wrestling...\n`).start()
       : null;
 
@@ -127,7 +124,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
       },
     };
 
-    const diffs = await script(optionsWithProgress);
+    const diffs = await checkFiles(optionsWithProgress);
     const duration = Date.now() - startTime;
 
     if (shouldUseFormatter && diffs) {
@@ -161,7 +158,9 @@ export async function action(options: Options = {}): Promise<void | Options> {
       }
     }
   } catch (err) {
+    spinner?.stop();
     logger.error((err as string).toString());
+    process.exit(1);
   }
 }
 
@@ -188,7 +187,6 @@ export const formatPerformanceMetrics = (
 };
 
 const showPerformanceMetrics = (duration: number): void => {
-  const { versionCache } = require("./utils/cache");
   const stats = versionCache.getStats();
   const hitRate = versionCache.getHitRate();
   const lines = formatPerformanceMetrics(duration, stats, hitRate);
@@ -204,7 +202,7 @@ const runWatchMode = async (options: Options): Promise<void> => {
     console.log(gray(`\n[${now}] Checking dependencies...`));
 
     try {
-      await script(options);
+      await checkFiles(options);
       console.log(green(`${SYMBOLS.success} All dependencies checked (${now})`));
     } catch (err) {
       console.error(red(`${SYMBOLS.error} Check failed: ${(err as Error).message}`));

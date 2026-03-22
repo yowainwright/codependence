@@ -33,12 +33,12 @@
     "permissive": {
       "type": "boolean",
       "description": "When true, updates all dependencies to latest except those in codependencies",
-      "default": false
+      "default": true
     },
     "language": {
       "type": "string",
       "enum": ["nodejs", "python", "go"],
-      "description": "Target programming language for dependency management"
+      "description": "Target programming language for dependency management (experimental)"
     },
     "files": {
       "type": "array",
@@ -63,11 +63,73 @@
     "mode": {
       "type": "string",
       "enum": ["verbose", "precise"],
-      "default": "verbose",
-      "description": "Listing mode: verbose (list all) or precise (only list exceptions, update all others)"
+      "description": "verbose: only check listed packages; precise: update all except listed (default behavior)"
+    },
+    "update": {
+      "type": "boolean",
+      "description": "Update dependencies based on check",
+      "default": false
+    },
+    "debug": {
+      "type": "boolean",
+      "description": "Enable debugging output",
+      "default": false
+    },
+    "silent": {
+      "type": "boolean",
+      "description": "Enable mainly silent logging",
+      "default": false
+    },
+    "verbose": {
+      "type": "boolean",
+      "description": "Enable verbose logging (shows debug info)",
+      "default": false
+    },
+    "quiet": {
+      "type": "boolean",
+      "description": "Suppress all output except errors",
+      "default": false
+    },
+    "yarnConfig": {
+      "type": "boolean",
+      "description": "Enable yarn config support for version lookups",
+      "default": false
+    },
+    "rootDir": {
+      "type": "string",
+      "description": "Root directory to start search",
+      "default": "./"
+    },
+    "dryRun": {
+      "type": "boolean",
+      "description": "Show what would change without modifying files",
+      "default": false
+    },
+    "interactive": {
+      "type": "boolean",
+      "description": "Choose which packages to update interactively",
+      "default": false
+    },
+    "watch": {
+      "type": "boolean",
+      "description": "Watch for changes and re-check continuously",
+      "default": false
+    },
+    "noCache": {
+      "type": "boolean",
+      "description": "Disable version caching for fresh results",
+      "default": false
+    },
+    "format": {
+      "type": "string",
+      "enum": ["json", "markdown", "table"],
+      "description": "Output format type"
+    },
+    "outputFile": {
+      "type": "string",
+      "description": "Write output to file instead of stdout"
     }
   },
-  "additionalProperties": false,
   "anyOf": [
     {
       "required": ["codependencies"]

@@ -19,13 +19,14 @@ import * as fs from "fs";
 import { logger } from "../../src/logger";
 import * as scripts from "../../src/scripts";
 import * as config from "../../src/config";
+import { Prompt } from "../../src/utils/prompts";
 
 describe("Action Function Tests (Fast)", () => {
   let scriptSpy: ReturnType<typeof jest.spyOn>;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue(undefined);
+    scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -294,6 +295,9 @@ describe("Action Function Tests (Fast)", () => {
     const errorSpy = jest
       .spyOn(console, "error")
       .mockImplementation(() => {});
+    const exitSpy = jest
+      .spyOn(process, "exit")
+      .mockImplementation((() => {}) as () => never);
 
     await action({
       permissive: false,
@@ -301,27 +305,22 @@ describe("Action Function Tests (Fast)", () => {
 
     const errorCalls = errorSpy.mock.calls.flat().join(" ");
     expect(errorCalls).toContain("codependencies");
+    expect(exitSpy).toHaveBeenCalledWith(1);
     errorSpy.mockRestore();
+    exitSpy.mockRestore();
     configSpy.mockRestore();
-    scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue(undefined);
+    scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue(undefined);
   });
 
-  test("should handle error with permissive mode not set", async () => {
-    scriptSpy.mockRestore();
+  test("should run in permissive mode when no options provided", async () => {
     const configSpy = jest
       .spyOn(config, "loadConfig")
       .mockReturnValue({ config: {}, configPath: null });
-    const errorSpy = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
 
     await action({});
 
-    const errorCalls = errorSpy.mock.calls.flat().join(" ");
-    expect(errorCalls).toContain("codependencies");
-    errorSpy.mockRestore();
+    expect(scriptSpy).toHaveBeenCalled();
     configSpy.mockRestore();
-    scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue(undefined);
   });
 
   test("should execute script with dry-run mode", async () => {
@@ -358,14 +357,26 @@ describe("Action Function Tests (Fast)", () => {
     expect(scriptSpy).toHaveBeenCalled();
   });
 
-  test("should pass onProgress callback to script", async () => {
-    await action({
-      codependencies: ["lodash"],
-    });
+  test("should pass and invoke onProgress callback", async () => {
+    await action({ codependencies: ["lodash"] });
 
-    expect(scriptSpy).toHaveBeenCalled();
     const callArgs = scriptSpy.mock.calls[0][0];
     expect(callArgs.onProgress).toBeDefined();
+    callArgs.onProgress(1, 5, "lodash");
+  });
+
+  test("should run in watch mode", async () => {
+    const setIntervalSpy = jest
+      .spyOn(globalThis, "setInterval")
+      .mockImplementation((() => 0) as typeof setInterval);
+    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+
+    await action({ codependencies: ["lodash"], watch: true });
+
+    expect(scriptSpy).toHaveBeenCalled();
+    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 30000);
+    setIntervalSpy.mockRestore();
+    consoleSpy.mockRestore();
   });
 });
 
@@ -518,13 +529,85 @@ describe("initAction", () => {
     readFileSyncSpy.mockRestore();
     writeFileSyncSpy.mockRestore();
   });
+
+  const mockFsForInteractive = () => {
+    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+      if (path === ".codependencerc") return false;
+      if (path === "package.json") return true;
+      return false;
+    });
+    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(
+      JSON.stringify({ dependencies: { lodash: "4.17.21", react: "18.0.0" } }),
+    );
+    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    return { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy };
+  };
+
+  test("should handle interactive mode - permissive with selected deps", async () => {
+    const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
+    const listSpy = jest.spyOn(Prompt.prototype, "list")
+      .mockResolvedValueOnce("permissive")
+      .mockResolvedValueOnce("rc");
+    const checkboxSpy = jest.spyOn(Prompt.prototype, "checkbox").mockResolvedValue(["lodash"]);
+    const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
+
+    await initAction();
+
+    expect(writeFileSyncSpy).toHaveBeenCalled();
+    existsSyncSpy.mockRestore();
+    readFileSyncSpy.mockRestore();
+    writeFileSyncSpy.mockRestore();
+    consoleSpy.mockRestore();
+    listSpy.mockRestore();
+    checkboxSpy.mockRestore();
+    closeSpy.mockRestore();
+  });
+
+  test("should handle interactive mode - permissive with no deps selected", async () => {
+    const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
+    const listSpy = jest.spyOn(Prompt.prototype, "list")
+      .mockResolvedValueOnce("permissive")
+      .mockResolvedValueOnce("rc");
+    const checkboxSpy = jest.spyOn(Prompt.prototype, "checkbox").mockResolvedValue([]);
+    const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
+
+    await initAction();
+
+    expect(writeFileSyncSpy).toHaveBeenCalled();
+    existsSyncSpy.mockRestore();
+    readFileSyncSpy.mockRestore();
+    writeFileSyncSpy.mockRestore();
+    consoleSpy.mockRestore();
+    listSpy.mockRestore();
+    checkboxSpy.mockRestore();
+    closeSpy.mockRestore();
+  });
+
+  test("should handle interactive mode - pin all deps", async () => {
+    const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
+    const listSpy = jest.spyOn(Prompt.prototype, "list")
+      .mockResolvedValueOnce("all")
+      .mockResolvedValueOnce("rc");
+    const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
+
+    await initAction();
+
+    expect(writeFileSyncSpy).toHaveBeenCalled();
+    existsSyncSpy.mockRestore();
+    readFileSyncSpy.mockRestore();
+    writeFileSyncSpy.mockRestore();
+    consoleSpy.mockRestore();
+    listSpy.mockRestore();
+    closeSpy.mockRestore();
+  });
 });
 
 describe("run", () => {
   let scriptSpy: ReturnType<typeof jest.spyOn>;
 
   beforeEach(() => {
-    scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue(undefined);
+    scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -946,7 +1029,7 @@ describe("Format Integration Tests", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    scriptSpy = jest.spyOn(scripts, "script").mockResolvedValue([
+    scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue([
       {
         package: "react",
         current: "17.0.0",

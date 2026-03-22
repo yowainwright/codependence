@@ -12,23 +12,23 @@ import {
 } from "../../../src/utils/suggestions";
 
 describe("isPrivatePackage", () => {
-  test("returns true for scoped package with slash", () => {
-    expect(isPrivatePackage("@myorg/package")).toBe(true);
+  test("returns true for 401 unauthorized error", () => {
+    expect(isPrivatePackage(new Error("E401 unauthorized"))).toBe(true);
   });
 
-  test("returns false for scoped package without slash", () => {
-    expect(isPrivatePackage("@scoped")).toBe(false);
+  test("returns true for unauthorized error string", () => {
+    expect(isPrivatePackage("unauthorized access")).toBe(true);
   });
 
-  test("returns false for regular package", () => {
-    expect(isPrivatePackage("lodash")).toBe(false);
+  test("returns true for private package error message", () => {
+    expect(isPrivatePackage(new Error("private package not accessible"))).toBe(true);
   });
 
-  test("returns false for package with slash but no @", () => {
-    expect(isPrivatePackage("some/path")).toBe(false);
+  test("returns false for network error", () => {
+    expect(isPrivatePackage(new Error("ENOTFOUND registry.npmjs.org"))).toBe(false);
   });
 
-  test("returns false for empty string", () => {
+  test("returns false for empty error", () => {
     expect(isPrivatePackage("")).toBe(false);
   });
 });
@@ -231,8 +231,8 @@ describe("formatGenericError", () => {
     expect(result).toContain("Error: Some error detail");
   });
 
-  test("omits error string for private packages", () => {
-    const result = formatGenericError("@org/pkg", "Some error");
-    expect(result).not.toContain("Error: Some error");
+  test("omits error string when error contains registry mention", () => {
+    const result = formatGenericError("some-pkg", "Package not found in registry");
+    expect(result).not.toContain("Error: Package not found in registry");
   });
 });

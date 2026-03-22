@@ -66,7 +66,7 @@ export class ResponseCache {
 export const versionCache = new ResponseCache(5);
 
 export class RequestDeduplicator {
-  private pending = new Map<string, Promise<string>>();
+  private pending = new Map<string, Promise<unknown>>();
 
   async dedupe<T>(key: string, fn: () => Promise<T>): Promise<T> {
     const existingRequest = this.pending.get(key);
@@ -75,7 +75,7 @@ export class RequestDeduplicator {
     }
 
     const promise = fn();
-    this.pending.set(key, promise as Promise<string>);
+    this.pending.set(key, promise);
 
     try {
       const result = await promise;

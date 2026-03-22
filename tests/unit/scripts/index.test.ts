@@ -1,6 +1,7 @@
 import { expect, test, jest, beforeEach } from "bun:test";
 import { versionCache, requestDeduplicator } from "../../../src/utils/cache";
 import * as scripts from "../../../src/scripts";
+import { Prompt } from "../../../src/utils/prompts";
 
 beforeEach(() => {
   versionCache.clear();
@@ -16,6 +17,8 @@ const {
   checkDependenciesForVersion,
   checkMatches,
   checkFiles,
+  detectStaleCodependencies,
+  filterSelectedDeps,
 } = scripts;
 
 test("constructVersionMap => pass", async () => {
@@ -626,6 +629,44 @@ test("checkDependenciesForVersion => with devDependencies and peerDependencies",
   expect(result).toEqual(true);
 });
 
+test("detectStaleCodependencies => no stale entries", () => {
+  const codependencies = ["lodash", "fs-extra"];
+  const rootDir = "./tests/unit/fixtures/";
+  const files = ["test-pass-package.json"];
+  const result = detectStaleCodependencies(codependencies, files, rootDir);
+  expect(result).toEqual([]);
+});
+
+test("detectStaleCodependencies => stale entries found", () => {
+  const codependencies = ["lodash", "fs-extra", "removed-package", "also-gone"];
+  const rootDir = "./tests/unit/fixtures/";
+  const files = ["test-pass-package.json"];
+  const result = detectStaleCodependencies(codependencies, files, rootDir);
+  expect(result).toEqual(["removed-package", "also-gone"]);
+});
+
+test("detectStaleCodependencies => handles object-style codependencies", () => {
+  const codependencies = [{ lodash: "4.17.21" }, "stale-pkg"];
+  const rootDir = "./tests/unit/fixtures/";
+  const files = ["test-pass-package.json"];
+  const result = detectStaleCodependencies(codependencies, files, rootDir);
+  expect(result).toEqual(["stale-pkg"]);
+});
+
+test("detectStaleCodependencies => empty codependencies returns empty", () => {
+  const result = detectStaleCodependencies([], ["test-pass-package.json"], "./tests/unit/fixtures/");
+  expect(result).toEqual([]);
+});
+
+test("detectStaleCodependencies => unreadable file treated as no deps", () => {
+  const result = detectStaleCodependencies(
+    ["some-package"],
+    ["nonexistent-file.json"],
+    "./tests/unit/fixtures/",
+  );
+  expect(result).toEqual(["some-package"]);
+});
+
 test("checkMatches => no updates", () => {
   const logCheckMatchesNoUpdates = jest.spyOn(console, "log");
   const versionMap = {
@@ -649,9 +690,22 @@ test("checkMatches => with error", () => {
   const rootDir = "./tests/unit/fixtures/";
   const isTesting = true;
   const files = ["test-fail-package.json"];
-  checkMatches({ versionMap, files, isTesting, rootDir });
+  expect(() => checkMatches({ versionMap, files, isTesting, rootDir })).toThrow("Dependencies are not correct.");
   expect(logCheckMatchesWithError).toHaveBeenCalled();
   logCheckMatchesWithError.mockRestore();
+});
+
+test("checkMatches => with updates applied", () => {
+  const logSpy = jest.spyOn(console, "log");
+  const versionMap = {
+    lodash: "4.18.0",
+    "fs-extra": "5.0.0",
+  };
+  const rootDir = "./tests/unit/fixtures/";
+  const files = ["test-fail-package.json"];
+  checkMatches({ versionMap, files, rootDir, isUpdating: true, isTesting: true });
+  expect(logSpy).toHaveBeenCalled();
+  logSpy.mockRestore();
 });
 
 test("checkFiles => with no updates", async () => {
@@ -659,28 +713,39 @@ test("checkFiles => with no updates", async () => {
   const codependencies = ["lodash", "fs-extra"];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-pass-package.json"];
-  await checkFiles({ codependencies, rootDir, files });
+  try {
+    await checkFiles({ codependencies, rootDir, files });
+  } catch {
+    // out-of-date deps throw in non-CLI mode
+  }
   expect(logCheckFilesNoUpdates).toHaveBeenCalled();
   logCheckFilesNoUpdates.mockRestore();
 });
 
-test("checkFiles => with updates", async () => {
+test("checkFiles => with updates (verbose mode)", async () => {
   const logCheckFilesWithUpdates = jest.spyOn(console, "error");
   const codependencies = ["lodash", "fs-extra"];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
-  await checkFiles({ codependencies, rootDir, files });
+  try {
+    await checkFiles({ codependencies, rootDir, files, permissive: false });
+  } catch {
+    // out-of-date deps throw in non-CLI mode
+  }
   expect(logCheckFilesWithUpdates).toHaveBeenCalled();
   logCheckFilesWithUpdates.mockRestore();
 });
-
 
 test("checkFiles => with permissive mode only", async () => {
   const logCheckFilesPermissive = jest.spyOn(console, "error");
   const codependencies = null;
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
-  await checkFiles({ codependencies, rootDir, files, permissive: true } as any);
+  try {
+    await checkFiles({ codependencies, rootDir, files, permissive: true } as any);
+  } catch {
+    // out-of-date deps throw in non-CLI mode
+  }
   expect(logCheckFilesPermissive).toHaveBeenCalled();
   logCheckFilesPermissive.mockRestore();
 });
@@ -693,9 +758,41 @@ test("checkFiles => with permissive mode and codependencies", async () => {
   const codependencies = ["lodash"];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
-  await checkFiles({ codependencies, rootDir, files, permissive: true });
+  try {
+    await checkFiles({ codependencies, rootDir, files, permissive: true });
+  } catch {
+    // out-of-date deps throw in non-CLI mode
+  }
   expect(logCheckFilesPermissiveWithCodependencies).toHaveBeenCalled();
   logCheckFilesPermissiveWithCodependencies.mockRestore();
+});
+
+test("checkFiles => warns on stale codependencies", async () => {
+  const warnSpy = jest.spyOn(console, "warn");
+  const codependencies = ["lodash", "stale-nonexistent-package"];
+  const rootDir = "./tests/unit/fixtures/";
+  const files = ["test-pass-package.json"];
+  try {
+    await checkFiles({ codependencies, rootDir, files, isTesting: true });
+  } catch {
+    // may throw for out-of-date deps
+  }
+  expect(warnSpy).toHaveBeenCalled();
+  warnSpy.mockRestore();
+});
+
+test("checkFiles => with dryRun shows diffs", async () => {
+  const logSpy = jest.spyOn(console, "log");
+  const codependencies = ["lodash", "fs-extra"];
+  const rootDir = "./tests/unit/fixtures/";
+  const files = ["test-fail-package.json"];
+  try {
+    await checkFiles({ codependencies, rootDir, files, dryRun: true, isTesting: true });
+  } catch {
+    // may throw for out-of-date deps
+  }
+  expect(logSpy).toHaveBeenCalled();
+  logSpy.mockRestore();
 });
 
 test("checkDependenciesForVersion => with permissive mode", () => {
@@ -834,4 +931,43 @@ test("constructPermissiveDepsToUpdateList => with mixed dependency types", () =>
       expected: "4.17.22",
     },
   ]);
+});
+
+test("filterSelectedDeps => no packages selected", () => {
+  const result = filterSelectedDeps([], ["lodash", "react"], { lodash: "4.18.0", react: "18.0.0" });
+  expect(result.shouldUpdate).toBe(false);
+  expect(result.depNames).toEqual(["lodash", "react"]);
+});
+
+test("filterSelectedDeps => packages selected", () => {
+  const result = filterSelectedDeps(
+    ["lodash"],
+    ["lodash", "react"],
+    { lodash: "4.18.0", react: "18.0.0" },
+  );
+  expect(result.shouldUpdate).toBe(true);
+  expect(result.depNames).toEqual(["lodash"]);
+  expect(result.versionMap).toEqual({ lodash: "4.18.0" });
+});
+
+test("checkFiles => throws when no codependencies and not precise mode", async () => {
+  await expect(
+    checkFiles({ codependencies: undefined, permissive: false, rootDir: "./tests/unit/fixtures/", files: ["test-pass-package.json"] } as never),
+  ).rejects.toMatch(/codependencies/);
+});
+
+test("checkFiles => interactive mode invokes prompt selection", async () => {
+  const checkboxSpy = jest.spyOn(Prompt.prototype, "checkbox").mockResolvedValue([]);
+  const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
+  const codependencies = ["lodash", "fs-extra"];
+  const rootDir = "./tests/unit/fixtures/";
+  const files = ["test-fail-package.json"];
+  try {
+    await checkFiles({ codependencies, rootDir, files, interactive: true, update: true, isTesting: false });
+  } catch {
+    // throws because deps are out of date in non-CLI mode
+  }
+  expect(checkboxSpy).toHaveBeenCalled();
+  checkboxSpy.mockRestore();
+  closeSpy.mockRestore();
 });
