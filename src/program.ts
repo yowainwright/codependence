@@ -86,6 +86,8 @@ export async function action(options: Options = {}): Promise<void | Options> {
   // capture action unit test options
   if (isTestingAction) return updatedOptions;
 
+  let spinner: ReturnType<typeof createSpinner> | null = null;
+
   try {
     const effectivePermissive = updatedOptions.permissive ?? (updatedOptions.mode !== "verbose");
     const hasPermissiveWithoutMode = effectivePermissive && !updatedOptions.mode;
@@ -109,7 +111,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
     const formatType = updatedOptions.format || "table";
     const shouldUseFormatter = updatedOptions.format !== undefined;
 
-    const spinner = !shouldUseFormatter
+    spinner = !shouldUseFormatter
       ? createSpinner(`🤼‍♀️ ${gradient(`codependence`)} wrestling...\n`).start()
       : null;
 
@@ -156,6 +158,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
       }
     }
   } catch (err) {
+    spinner?.stop();
     logger.error((err as string).toString());
     process.exit(1);
   }

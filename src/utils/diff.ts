@@ -93,14 +93,12 @@ const readPackageDiffs = (
   level: Level,
 ): VersionDiff[] => {
   const path = `${rootDir}${file}`;
-  const packageJson = JSON.parse(readFileSync(path, "utf8"));
-  return buildVersionDiff(
-    versionMap,
-    packageJson,
-    codependencies,
-    permissive,
-    level,
-  );
+  try {
+    const packageJson = JSON.parse(readFileSync(path, "utf8"));
+    return buildVersionDiff(versionMap, packageJson, codependencies, permissive, level);
+  } catch {
+    return [];
+  }
 };
 
 const deduplicateByPackage = (diffs: VersionDiff[]): VersionDiff[] => {
