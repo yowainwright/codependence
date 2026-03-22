@@ -342,10 +342,10 @@ describe("showHelp", () => {
     showHelp();
 
     const callArg = consoleSpy.mock.calls[0][0] as string;
-    expect(callArg).toContain("--dry-run");
+    expect(callArg).toContain("--dryRun");
     expect(callArg).toContain("--interactive");
     expect(callArg).toContain("--watch");
-    expect(callArg).toContain("--no-cache");
+    expect(callArg).toContain("--noCache");
 
     consoleSpy.mockRestore();
   });

@@ -132,12 +132,12 @@ Options:
   -m, --mode <mode>                Listing mode: verbose or precise (default: verbose)
   -l, --language <lang>            Target language (nodejs, go, python) (experimental)
   -h, --help                        Show this help message
-  --dry-run                         Show what would change without modifying files
+  --dryRun                          Show what would change without modifying files
   --interactive                     Choose which packages to update interactively
   --watch                           Watch for changes and re-check continuously
-  --no-cache                        Disable version caching for fresh results
+  --noCache                         Disable version caching for fresh results
   --format <type>                   Output format: json, markdown, or table (default: table)
-  --output-file <path>              Write output to file instead of stdout
+  --outputFile <path>               Write output to file instead of stdout
 ```
 
 ## Codependence in Node
