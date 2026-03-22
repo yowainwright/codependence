@@ -129,7 +129,7 @@ Options:
   -s, --searchPath <searchPath>    Path to do a config file search
   -y, --yarnConfig                  Enable yarn config support
   --level <level>                   Update level: patch, minor, or major (default: major)
-  -m, --mode <mode>                Listing mode: verbose or precise (default: verbose)
+  -m, --mode <mode>                Listing mode: verbose or precise (default: precise)
   -l, --language <lang>            Target language (nodejs, go, python) (experimental)
   -h, --help                        Show this help message
   --dryRun                          Show what would change without modifying files
