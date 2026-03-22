@@ -18,12 +18,12 @@ export const OPTION_DEFINITIONS: OptionDefinition[] = [
   { flags: ["--permissive"], hasValue: false },
   { flags: ["-l", "--language"], hasValue: true },
   { flags: ["-h", "--help"], hasValue: false },
-  { flags: ["--dry-run"], hasValue: false },
+  { flags: ["--dryRun", "--dry-run"], hasValue: false },
   { flags: ["--interactive"], hasValue: false },
   { flags: ["--watch"], hasValue: false },
-  { flags: ["--no-cache"], hasValue: false },
+  { flags: ["--noCache", "--no-cache"], hasValue: false },
   { flags: ["--format"], hasValue: true },
-  { flags: ["--output-file"], hasValue: true },
+  { flags: ["--outputFile", "--output-file"], hasValue: true },
   { flags: ["--level"], hasValue: true },
   { flags: ["-m", "--mode"], hasValue: true },
 ];
@@ -56,12 +56,12 @@ Options:
   -m, --mode <mode>                verbose: only listed packages; precise: all except listed
   -l, --language <lang>            Target language (nodejs, go, python) (experimental)
   -h, --help                        Show this help message
-  --dry-run                         Show what would change without modifying files
+  --dryRun                          Show what would change without modifying files
   --interactive                     Choose which packages to update interactively
   --watch                           Watch for changes and re-check continuously
-  --no-cache                        Disable version caching for fresh results
+  --noCache                         Disable version caching for fresh results
   --format <type>                   Output format: json, markdown, or table (default: table)
-  --output-file <path>              Write output to file instead of stdout
+  --outputFile <path>               Write output to file instead of stdout
 
 Examples:
   # Get started
@@ -71,7 +71,7 @@ Examples:
   # Check and update
   codependence                                Check for outdated dependencies
   codependence --update                       Update all dependencies to latest
-  codependence --update --dry-run             Preview changes without modifying files
+  codependence --update --dryRun              Preview changes without modifying files
 
   # Pin specific packages, update everything else (default behavior)
   codependence --codependencies react lodash --update
@@ -98,12 +98,12 @@ Examples:
   # Development
   codependence --watch                        Watch mode - check every 30 seconds
   codependence --verbose                      Show performance metrics and cache stats
-  codependence --no-cache                     Bypass cache for fresh results
+  codependence --noCache                      Bypass cache for fresh results
 
   # Output formats (useful for CI/CD)
   codependence --format json                  Output as JSON for programmatic use
   codependence --format markdown              Output as Markdown for PR comments
-  codependence --format json --output-file deps.json
+  codependence --format json --outputFile deps.json
                                               Save JSON output to file
 `;
 

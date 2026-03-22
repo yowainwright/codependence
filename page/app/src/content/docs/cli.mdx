@@ -16,30 +16,36 @@ For monorepos, add `codependence.codependencies` arrays to child packages for pa
 ## Command Line Usage
 
 ```bash
-Usage: index [options] [command]
-
-Codedependency, for code dependency. Checks `coDependencies` in package.json files to ensure dependencies are up-to-date
-
-Options:
-  -t, --isTestingCLI                           enable CLI only testing
-  --isTesting                                  enable running fn tests w/o overwriting
-  -f, --files [files...]                       file glob pattern
-  -u, --update                                 update dependencies based on check
-  -r, --rootDir <rootDir>                      root directory to start search
-  -i, --ignore [ignore...]                     ignore glob pattern
-  --debug                                      enable debugging
-  --silent                                     enable mainly silent logging
-  -v, --verbose                                enable verbose logging (shows debug info)
-  -q, --quiet                                  suppress all output except errors
-  --cds, --codependencies [codependencies...]  deps to check
-  -c, --config <config>                        path to a config file
-  -s, --searchPath <searchPath>                path to do a config file search
-  -y, --yarnConfig                             enable yarn config support
-  --permissive                                 update all deps to latest except those in codependencies
-  -h, --help                                   display help for command
+Usage: codependence [command] [options]
 
 Commands:
-  init [type]                                  Initialize codependence configuration interactively
+  init [type]                       Initialize codependence configuration
+                                    Types: rc, package, default
+
+Options:
+  -f, --files [files...]           File glob pattern
+  -u, --update                      Update dependencies based on check
+  -r, --rootDir <rootDir>          Root directory to start search
+  -i, --ignore [ignore...]         Ignore glob pattern
+  --debug                           Enable debugging
+  --silent                          Enable mainly silent logging
+  -v, --verbose                     Enable verbose logging (shows debug info)
+  -q, --quiet                       Suppress all output except errors
+  --cds, --codependencies [deps...] Dependencies to check
+  -c, --config <config>            Path to a config file
+  -s, --searchPath <searchPath>    Path to do a config file search
+  -y, --yarnConfig                  Enable yarn config support
+  --permissive                      Update all deps except those in codependencies
+  --level <level>                   Update level: patch, minor, or major (default: major)
+  -m, --mode <mode>                verbose: only listed packages; precise: all except listed
+  -l, --language <lang>            Target language (nodejs, go, python) (experimental)
+  -h, --help                        Show this help message
+  --dryRun                          Show what would change without modifying files
+  --interactive                     Choose which packages to update interactively
+  --watch                           Watch for changes and re-check continuously
+  --noCache                         Disable version caching for fresh results
+  --format <type>                   Output format: json, markdown, or table (default: table)
+  --outputFile <path>               Write output to file instead of stdout
 ```
 
 ## Commands
@@ -63,10 +69,14 @@ codependence init
 ### Update Options
 - `-u, --update` - Automatically update dependencies based on check results
 - `--permissive` - Update all dependencies to latest except those specified in codependencies
+- `--dryRun` - Preview what would change without modifying files
+- `--interactive` - Choose which packages to update interactively
+- `--level <level>` - Update level: `patch`, `minor`, or `major` (default: `major`)
+- `-m, --mode <mode>` - `verbose`: only listed packages; `precise`: all except listed
 
 ### Configuration Options
 - `-c, --config <config>` - Path to a configuration file
-- `--cds, --codependencies [codependencies...]` - Specify dependencies to check inline
+- `--cds, --codependencies [deps...]` - Specify dependencies to check inline
 - `-y, --yarnConfig` - Enable yarn configuration support
 
 ### Output Options
@@ -74,6 +84,15 @@ codependence init
 - `--silent` - Enable mainly silent logging
 - `-v, --verbose` - Enable verbose logging (shows debug info)
 - `-q, --quiet` - Suppress all output except errors
+- `--format <type>` - Output format: `json`, `markdown`, or `table` (default: `table`)
+- `--outputFile <path>` - Write output to a file instead of stdout
+
+### Performance Options
+- `--noCache` - Disable version caching for fresh results
+- `--watch` - Watch for changes and re-check continuously
+
+### Language Options
+- `-l, --language <lang>` - Target language: `nodejs`, `go`, or `python` (experimental)
 
 ### Testing Options
 - `-t, --isTestingCLI` - Enable CLI only testing

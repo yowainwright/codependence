@@ -90,7 +90,34 @@ Search path for config files. Default: `undefined`
 Enable yarn config checking. Default: `false`
 
 ### `permissive`: `boolean`
-**Recommended mode.** Update all dependencies to latest except those in `codependencies`. Default: `false`
+**Recommended mode.** Update all dependencies to latest except those in `codependencies`. Default: `true`
+
+### `mode`: `string`
+Controls which packages are checked. `verbose`: only listed packages; `precise`: all except listed. Default: `precise`
+
+### `level`: `string`
+Update level constraint: `patch`, `minor`, or `major`. Default: `major`
+
+### `dryRun`: `boolean`
+Preview what would change without modifying any files. Default: `false`
+
+### `interactive`: `boolean`
+Interactively choose which packages to update. Default: `false`
+
+### `watch`: `boolean`
+Watch for changes and re-check continuously. Default: `false`
+
+### `noCache`: `boolean`
+Disable version caching to always fetch fresh results. Default: `false`
+
+### `format`: `string`
+Output format: `json`, `markdown`, or `table`. Default: `table`
+
+### `outputFile`: `string`
+Write output to a file instead of stdout. Default: `undefined`
+
+### `language`: `string`
+Target language for dependency checking: `nodejs`, `go`, or `python`. Default: `nodejs` (experimental)
 
 ---
 
