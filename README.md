@@ -148,13 +148,11 @@ Although, **Codependence** is built to primarily be a CLI utility, it can be use
 import { checkFiles, codependence } from "codependence";
 
 const checkForOutdated = async () => {
-  const diffs = await checkFiles({
-    codependencies: ["fs-extra", "lodash"],
-  });
-  if (diffs && diffs.length > 0) {
-    console.error("Dependencies are out of date:", diffs);
-  } else {
+  try {
+    await checkFiles({ codependencies: ["fs-extra", "lodash"] });
     console.log("All dependencies are up-to-date");
+  } catch (err) {
+    console.error("Dependencies are out of date:", (err as Error).message);
   }
 };
 
