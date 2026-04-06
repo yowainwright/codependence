@@ -159,7 +159,8 @@ export async function action(options: Options = {}): Promise<void | Options> {
     }
   } catch (err) {
     spinner?.stop();
-    logger.error((err as string).toString());
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error(message);
     process.exit(1);
   }
 }

@@ -2,3 +2,6 @@
 coverage = true
 coverageThreshold = { line = 80 }
 coverageReporter = ["text", "lcov"]
+
+[install.security]
+scanner = "@acme/bun-security-scanner"

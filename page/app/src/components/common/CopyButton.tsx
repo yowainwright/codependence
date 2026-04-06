@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Copy, Check } from "lucide-react";
+import { logger } from "../../utils/logger";
 
 export const CopyButton = () => {
   const [isClicked, setIsClicked] = useState(false);
@@ -9,7 +10,7 @@ export const CopyButton = () => {
     const codeElement = target.closest("div")?.querySelector("code");
 
     if (!codeElement) {
-      console.log("Code not found");
+      logger.warn("CopyButton: code element not found");
       return;
     }
 
@@ -27,10 +28,11 @@ export const CopyButton = () => {
           }, 800);
         })
         .catch((error) => {
-          console.error("Failed to save text to clipboard:", error);
+          logger.error("CopyButton: clipboard write failed", error);
+          target.disabled = false;
         });
     } else {
-      console.error("Clipboard API is not supported");
+      logger.warn("CopyButton: clipboard API not supported");
     }
   };
 

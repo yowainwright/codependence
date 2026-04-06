@@ -3,8 +3,9 @@ import type { Level } from "../types";
 export const parseSemver = (
   version: string,
 ): [number, number, number] => {
-  const cleaned = version.replace(/^[~^]+/, "");
-  const parts = cleaned.split(".").map(Number);
+  const stripped = version.replace(/^[~^]+/, "");
+  const release = stripped.split(/[-+]/)[0];
+  const parts = release.split(".").map(Number);
   return [parts[0] || 0, parts[1] || 0, parts[2] || 0];
 };
 

@@ -11,6 +11,12 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.4",
+    "@radix-ui/react-slot": "^1.1.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "tailwind-merge": "^3.2.0",
     "@astrojs/check": "^0.9.4",
     "@astrojs/mdx": "^4.1.0",
     "@astrojs/react": "^4.2.1",

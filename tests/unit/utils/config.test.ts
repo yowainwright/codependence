@@ -52,13 +52,11 @@ describe("Config Loading", () => {
       expect(result).toBeNull();
     });
 
-    test("should return null on JSON parse error", () => {
+    test("should throw on malformed JSON", () => {
       const badPath = join(tmpDir, "bad.json");
       writeFileSync(badPath, "{ invalid json");
 
-      const result = loadConfig(badPath);
-
-      expect(result).toBeNull();
+      expect(() => loadConfig(badPath)).toThrow("Invalid JSON");
     });
 
     test("should search for config if no path provided", () => {
@@ -194,12 +192,10 @@ describe("Config Loading", () => {
       expect(result?.filepath).toBe(join(tmpDir, ".codependencerc"));
     });
 
-    test("should handle malformed package.json gracefully", () => {
+    test("should throw on malformed package.json", () => {
       writeFileSync(join(tmpDir, "package.json"), "{ invalid json");
 
-      const result = loadConfig(undefined, tmpDir);
-
-      expect(result).toBeNull();
+      expect(() => loadConfig(undefined, tmpDir)).toThrow("Invalid JSON");
     });
   });
 

@@ -45,3 +45,20 @@ test("isWithinLevel => handles prefixed versions", () => {
   expect(isWithinLevel("^1.0.0", "1.5.0", "minor")).toBe(true);
   expect(isWithinLevel("~1.0.0", "2.0.0", "minor")).toBe(false);
 });
+
+test("parseSemver => strips prerelease tag", () => {
+  expect(parseSemver("1.0.0-beta.1")).toEqual([1, 0, 0]);
+});
+
+test("parseSemver => strips build metadata", () => {
+  expect(parseSemver("1.0.0+build.123")).toEqual([1, 0, 0]);
+});
+
+test("parseSemver => strips prefix and prerelease together", () => {
+  expect(parseSemver("^1.2.3-alpha.0")).toEqual([1, 2, 3]);
+});
+
+test("isWithinLevel => handles prerelease versions", () => {
+  expect(isWithinLevel("1.0.0-beta.1", "1.0.0", "patch")).toBe(true);
+  expect(isWithinLevel("1.0.0-beta.1", "2.0.0", "minor")).toBe(false);
+});
