@@ -16,9 +16,11 @@ export class NodeJSProvider implements DependencyProvider {
   }
 
   async getLatestVersion(packageName: string): Promise<string> {
-    const isYarnConfig = this.options.yarnConfig || false;
+    const packageManager = this.options.packageManager;
+    const shouldUseYarn =
+      packageManager === "yarn" || this.options.yarnConfig === true;
 
-    if (isYarnConfig) {
+    if (shouldUseYarn) {
       return this.getYarnVersion(packageName);
     }
 
@@ -69,6 +71,7 @@ export class NodeJSProvider implements DependencyProvider {
       dependencies: json.dependencies || {},
       devDependencies: json.devDependencies || {},
       peerDependencies: json.peerDependencies || {},
+      optionalDependencies: json.optionalDependencies || {},
     };
   }
 
@@ -82,6 +85,7 @@ export class NodeJSProvider implements DependencyProvider {
     json.dependencies = manifest.dependencies;
     json.devDependencies = manifest.devDependencies;
     json.peerDependencies = manifest.peerDependencies;
+    json.optionalDependencies = manifest.optionalDependencies;
 
     writeFileSync(filePath, JSON.stringify(json, null, 2) + "\n");
   }

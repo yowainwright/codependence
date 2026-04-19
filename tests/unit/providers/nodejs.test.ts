@@ -330,5 +330,10 @@ describe("NodeJSProvider", () => {
       const provider = new NodeJSProvider({ debug: true });
       expect(provider).toBeDefined();
     });
+
+    test("should accept packageManager option", () => {
+      const provider = new NodeJSProvider({ packageManager: "pnpm" });
+      expect(provider).toBeDefined();
+    });
   });
 });

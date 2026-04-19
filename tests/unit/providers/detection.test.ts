@@ -57,6 +57,26 @@ describe("Language Detection", () => {
       expect(result[0].packageManager).toBe("bun");
     });
 
+    test("should detect Node.js with current bun.lock", () => {
+      writeFileSync(join(tmpDir, "package.json"), "{}");
+      writeFileSync(join(tmpDir, "bun.lock"), "");
+
+      const result = detectLanguage(tmpDir);
+
+      expect(result[0].packageManager).toBe("bun");
+    });
+
+    test("should detect Node.js from packageManager field", () => {
+      writeFileSync(
+        join(tmpDir, "package.json"),
+        JSON.stringify({ packageManager: "pnpm@9.0.0" }),
+      );
+
+      const result = detectLanguage(tmpDir);
+
+      expect(result[0].packageManager).toBe("pnpm");
+    });
+
     test("should prioritize bun over pnpm over yarn over npm", () => {
       writeFileSync(join(tmpDir, "package.json"), "{}");
       writeFileSync(join(tmpDir, "yarn.lock"), "");

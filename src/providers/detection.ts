@@ -2,14 +2,53 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import type { Language, LanguageDetectionResult } from "./types";
 
+const readNodePackageManagerField = (rootDir: string): string | null => {
+  const packageJsonPath = join(rootDir, "package.json");
+  if (!existsSync(packageJsonPath)) return null;
+
+  try {
+    const content = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
+      packageManager?: unknown;
+    };
+    const packageManager = content.packageManager;
+    if (typeof packageManager !== "string" || packageManager.length === 0) {
+      return null;
+    }
+
+    const managerName = packageManager.split("@")[0];
+    if (["npm", "yarn", "pnpm", "bun"].includes(managerName)) {
+      return managerName;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+};
+
 export const detectNodePackageManager = (rootDir: string): string => {
-  const hasYarnLock = existsSync(join(rootDir, "yarn.lock"));
-  const hasPnpmLock = existsSync(join(rootDir, "pnpm-lock.yaml"));
-  const hasBunLock = existsSync(join(rootDir, "bun.lockb"));
+  const packageManagerField = readNodePackageManagerField(rootDir);
+  if (packageManagerField) return packageManagerField;
+
+  const hasYarnLock =
+    existsSync(join(rootDir, "yarn.lock")) ||
+    existsSync(join(rootDir, ".yarnrc")) ||
+    existsSync(join(rootDir, ".yarnrc.yml"));
+  const hasPnpmLock =
+    existsSync(join(rootDir, "pnpm-lock.yaml")) ||
+    existsSync(join(rootDir, "pnpm-workspace.yaml"));
+  const hasBunLock =
+    existsSync(join(rootDir, "bun.lock")) ||
+    existsSync(join(rootDir, "bun.lockb")) ||
+    existsSync(join(rootDir, "bunfig.toml"));
+  const hasNpmLock =
+    existsSync(join(rootDir, "package-lock.json")) ||
+    existsSync(join(rootDir, "npm-shrinkwrap.json"));
 
   if (hasBunLock) return "bun";
   if (hasPnpmLock) return "pnpm";
   if (hasYarnLock) return "yarn";
+  if (hasNpmLock) return "npm";
   return "npm";
 };
 

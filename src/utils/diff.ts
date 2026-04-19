@@ -1,4 +1,6 @@
 import { readFileSync } from "fs";
+import { resolve } from "path";
+import type { DependencyManifest } from "../providers/types";
 import type { Level, VersionDiff } from "../types";
 import { DEP_SECTIONS } from "../scripts/constants";
 import { formatVersionTable } from "./table";
@@ -6,16 +8,25 @@ import { isWithinLevel } from "./semver";
 import { SYMBOLS } from "./symbols";
 
 const extractDepsFromSection = (
-  packageJson: Record<string, unknown>,
-  section: string,
+  packageJson: Pick<
+    DependencyManifest,
+    "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies"
+  >,
+  section: keyof Pick<
+    DependencyManifest,
+    "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies"
+  >,
 ): [string, string][] => {
-  const deps = packageJson[section] as Record<string, string> | undefined;
+  const deps = packageJson[section];
   if (!deps) return [];
   return Object.entries(deps);
 };
 
 const extractAllDeps = (
-  packageJson: Record<string, unknown>,
+  packageJson: Pick<
+    DependencyManifest,
+    "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies"
+  >,
 ): [string, string][] =>
   DEP_SECTIONS.flatMap((section) =>
     extractDepsFromSection(packageJson, section),
@@ -46,7 +57,10 @@ const toVersionDiff = (
 
 export const buildVersionDiff = (
   versionMap: Record<string, string>,
-  packageJson: Record<string, unknown> & { path?: string },
+  packageJson: Pick<
+    DependencyManifest,
+    "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies"
+  > & { path?: string },
   codependencies: string[],
   permissive: boolean,
   level: Level = "major",
@@ -92,7 +106,7 @@ const readPackageDiffs = (
   permissive: boolean,
   level: Level,
 ): VersionDiff[] => {
-  const path = `${rootDir}${file}`;
+  const path = resolve(rootDir, file);
   try {
     const packageJson = JSON.parse(readFileSync(path, "utf8"));
     return buildVersionDiff(versionMap, packageJson, codependencies, permissive, level);
@@ -101,13 +115,26 @@ const readPackageDiffs = (
   }
 };
 
-const deduplicateByPackage = (diffs: VersionDiff[]): VersionDiff[] => {
+export const deduplicateVersionDiffs = (diffs: VersionDiff[]): VersionDiff[] => {
   const seen = new Set<string>();
   return diffs.filter((diff) => {
     const isDuplicate = seen.has(diff.package);
     seen.add(diff.package);
     return !isDuplicate;
   });
+};
+
+export const collectDiffsFromManifests = (
+  versionMap: Record<string, string>,
+  manifests: DependencyManifest[],
+  codependencies: string[],
+  permissive: boolean,
+  level: Level = "major",
+): VersionDiff[] => {
+  const allDiffs = manifests.flatMap((manifest) =>
+    buildVersionDiff(versionMap, manifest, codependencies, permissive, level),
+  );
+  return deduplicateVersionDiffs(allDiffs);
 };
 
 export const collectAllDiffs = (
@@ -121,5 +148,5 @@ export const collectAllDiffs = (
   const allDiffs = files.flatMap((file) =>
     readPackageDiffs(versionMap, file, rootDir, codependencies, permissive, level),
   );
-  return deduplicateByPackage(allDiffs);
+  return deduplicateVersionDiffs(allDiffs);
 };
