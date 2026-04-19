@@ -36,6 +36,21 @@ describe("detectNodePackageManager", () => {
     expect(detectNodePackageManager(tmpDir)).toBe("bun");
   });
 
+  test("returns bun when bun.lock exists", () => {
+    writeFileSync(join(tmpDir, "bun.lock"), "");
+
+    expect(detectNodePackageManager(tmpDir)).toBe("bun");
+  });
+
+  test("uses package.json packageManager field when no lock files exist", () => {
+    writeFileSync(
+      join(tmpDir, "package.json"),
+      JSON.stringify({ packageManager: "pnpm@9.0.0" }),
+    );
+
+    expect(detectNodePackageManager(tmpDir)).toBe("pnpm");
+  });
+
   test("prioritizes bun over yarn", () => {
     writeFileSync(join(tmpDir, "yarn.lock"), "");
     writeFileSync(join(tmpDir, "bun.lockb"), "");

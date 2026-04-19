@@ -3,6 +3,7 @@ export type CodeDependencies = Array<CodeDependenciesItem>;
 
 export type Level = "patch" | "minor" | "major";
 export type Mode = "verbose" | "precise";
+export type SupportedLanguage = "nodejs" | "go" | "python";
 
 export type Options = {
   isTestingCLI?: boolean;
@@ -22,6 +23,7 @@ export type Options = {
   searchPath?: string;
   yarnConfig?: boolean;
   permissive?: boolean;
+  language?: SupportedLanguage;
   dryRun?: boolean;
   interactive?: boolean;
   watch?: boolean;
@@ -46,6 +48,7 @@ export type CheckFiles = {
   isTesting?: boolean;
   yarnConfig?: boolean;
   permissive?: boolean;
+  language?: SupportedLanguage;
   dryRun?: boolean;
   interactive?: boolean;
   noCache?: boolean;
@@ -83,6 +86,7 @@ export type CheckMatches = {
 export type CodependenceConfig = {
   codependencies?: CodeDependencies;
   permissive?: boolean;
+  language?: SupportedLanguage;
   level?: Level;
   mode?: Mode;
 };
@@ -133,6 +137,8 @@ export type ConstructVersionMapOptions = {
   validate?: ValidateFunction;
   noCache?: boolean;
   onProgress?: (current: number, total: number, packageName: string) => void;
+  resolveVersion?: (packageName: string) => Promise<string>;
+  cachePrefix?: string;
 };
 
 export type PerformanceMetrics = {

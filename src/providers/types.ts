@@ -13,6 +13,7 @@ export interface DependencyManifest {
   dependencies: Record<string, string>;
   devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
 }
 
 export interface DependencyProvider {
@@ -28,5 +29,6 @@ export interface DependencyProvider {
 export interface ProviderOptions {
   debug?: boolean;
   yarnConfig?: boolean;
+  packageManager?: string;
   isTesting?: boolean;
 }

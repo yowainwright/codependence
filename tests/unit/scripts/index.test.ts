@@ -1,4 +1,6 @@
 import { expect, test, jest, beforeEach } from "bun:test";
+import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { join } from "path";
 import { versionCache, requestDeduplicator } from "../../../src/utils/cache";
 import * as scripts from "../../../src/scripts";
 import { Prompt } from "../../../src/utils/prompts";
@@ -963,11 +965,109 @@ test("checkFiles => interactive mode invokes prompt selection", async () => {
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
   try {
-    await checkFiles({ codependencies, rootDir, files, interactive: true, update: true, isTesting: false });
+    await checkFiles({
+      codependencies,
+      rootDir,
+      files,
+      interactive: true,
+      update: true,
+      isTesting: false,
+      permissive: false,
+    });
   } catch {
     // throws because deps are out of date in non-CLI mode
   }
   expect(checkboxSpy).toHaveBeenCalled();
   checkboxSpy.mockRestore();
   closeSpy.mockRestore();
+});
+
+test("checkFiles => handles rootDir without trailing slash", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-root-dir-no-slash");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(
+    join(tempDir, "package.json"),
+    JSON.stringify(
+      {
+        name: "root-dir-test",
+        version: "1.0.0",
+        dependencies: {
+          lodash: "4.17.21",
+        },
+      },
+      null,
+      2,
+    ),
+  );
+
+  const logSpy = jest.spyOn(console, "log");
+  try {
+    await checkFiles({
+      codependencies: [{ lodash: "4.17.21" }],
+      rootDir: tempDir,
+      permissive: false,
+      isTesting: true,
+    });
+  } finally {
+    expect(logSpy).toHaveBeenCalled();
+    logSpy.mockRestore();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => auto-detects python manifests", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-python-detect");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(
+    join(tempDir, "requirements.txt"),
+    "requests==2.28.0\nflask==2.0.0\n",
+  );
+
+  const logSpy = jest.spyOn(console, "log");
+  try {
+    await checkFiles({
+      codependencies: [{ requests: "==2.28.0" }],
+      rootDir: tempDir,
+      permissive: false,
+      isTesting: true,
+    });
+  } finally {
+    expect(logSpy).toHaveBeenCalled();
+    logSpy.mockRestore();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => respects explicit go language", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-go-language");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(
+    join(tempDir, "go.mod"),
+    `module github.com/example/test
+
+go 1.21
+
+require (
+\tgithub.com/gin-gonic/gin v1.9.0
+)
+`,
+  );
+
+  const logSpy = jest.spyOn(console, "log");
+  try {
+    await checkFiles({
+      codependencies: [{ "github.com/gin-gonic/gin": "v1.9.0" }],
+      rootDir: tempDir,
+      language: "go",
+      permissive: false,
+      isTesting: true,
+    });
+  } finally {
+    expect(logSpy).toHaveBeenCalled();
+    logSpy.mockRestore();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 });

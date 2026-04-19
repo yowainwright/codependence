@@ -196,8 +196,15 @@ const showPerformanceMetrics = (duration: number): void => {
 const runWatchMode = async (options: Options): Promise<void> => {
   console.log(cyan(`\n${SYMBOLS.info} Watch mode enabled - checking every 30 seconds...\n`));
   console.log(gray("Press Ctrl+C to stop\n"));
+  let isChecking = false;
 
   const checkDependencies = async () => {
+    if (isChecking) {
+      console.log(gray("Previous check still running, skipping this interval."));
+      return;
+    }
+
+    isChecking = true;
     const now = new Date().toLocaleTimeString();
     console.log(gray(`\n[${now}] Checking dependencies...`));
 
@@ -206,6 +213,8 @@ const runWatchMode = async (options: Options): Promise<void> => {
       console.log(green(`${SYMBOLS.success} All dependencies checked (${now})`));
     } catch (err) {
       console.error(red(`${SYMBOLS.error} Check failed: ${(err as Error).message}`));
+    } finally {
+      isChecking = false;
     }
   };
 
