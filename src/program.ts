@@ -359,12 +359,6 @@ export async function initAction(
       prompt.close();
     }
 
-    const hasNoDepsAndNotPermissive = pinnedDeps.length === 0 && !usePermissive;
-    if (hasNoDepsAndNotPermissive) {
-      logger.info("No dependencies selected. Skipping initialization.");
-      return;
-    }
-
     const hasPinnedDeps = pinnedDeps.length > 0;
     const codependenciesConfig = hasPinnedDeps
       ? { codependencies: pinnedDeps }

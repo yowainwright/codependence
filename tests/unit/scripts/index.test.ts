@@ -1321,6 +1321,54 @@ test("checkFiles => applies provider-backed manifest updates", async () => {
   }
 });
 
+test("checkFiles => logs manifest writes in testing update mode", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-provider-update-testing");
+  const packageJsonPath = join(tempDir, "package.json");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(
+    packageJsonPath,
+    JSON.stringify(
+      {
+        name: "provider-update-testing",
+        version: "1.0.0",
+        dependencies: {
+          lodash: "4.17.0",
+        },
+      },
+      null,
+      2,
+    ),
+  );
+
+  const infoSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
+
+  try {
+    await checkFiles({
+      codependencies: [{ lodash: "4.17.21" }],
+      rootDir: tempDir,
+      files: ["package.json"],
+      update: true,
+      permissive: false,
+      isTesting: true,
+    });
+
+    expect(infoSpy).toHaveBeenCalledWith(
+      `test-writeFileSync: ${packageJsonPath}`,
+    );
+    expect(JSON.parse(fs.readFileSync(packageJsonPath, "utf8"))).toEqual({
+      name: "provider-update-testing",
+      version: "1.0.0",
+      dependencies: {
+        lodash: "4.17.0",
+      },
+    });
+  } finally {
+    infoSpy.mockRestore();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("checkFiles => auto-detects python manifests", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-python-detect");
   rmSync(tempDir, { recursive: true, force: true });
