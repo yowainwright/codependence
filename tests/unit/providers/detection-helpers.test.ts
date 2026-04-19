@@ -51,6 +51,32 @@ describe("detectNodePackageManager", () => {
     expect(detectNodePackageManager(tmpDir)).toBe("pnpm");
   });
 
+  test("prefers packageManager field over stale npm lock files", () => {
+    writeFileSync(
+      join(tmpDir, "package.json"),
+      JSON.stringify({ packageManager: "pnpm@9.0.0" }),
+    );
+    writeFileSync(join(tmpDir, "package-lock.json"), "");
+
+    expect(detectNodePackageManager(tmpDir)).toBe("pnpm");
+  });
+
+  test("ignores unsupported packageManager field values", () => {
+    writeFileSync(
+      join(tmpDir, "package.json"),
+      JSON.stringify({ packageManager: "corepack@1.0.0" }),
+    );
+
+    expect(detectNodePackageManager(tmpDir)).toBe("npm");
+  });
+
+  test("falls back to lock files when package.json is invalid", () => {
+    writeFileSync(join(tmpDir, "package.json"), "{ invalid json");
+    writeFileSync(join(tmpDir, "pnpm-lock.yaml"), "");
+
+    expect(detectNodePackageManager(tmpDir)).toBe("pnpm");
+  });
+
   test("prioritizes bun over yarn", () => {
     writeFileSync(join(tmpDir, "yarn.lock"), "");
     writeFileSync(join(tmpDir, "bun.lockb"), "");

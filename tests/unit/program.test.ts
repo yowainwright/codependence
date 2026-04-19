@@ -378,6 +378,72 @@ describe("Action Function Tests (Fast)", () => {
     setIntervalSpy.mockRestore();
     consoleSpy.mockRestore();
   });
+
+  test("should skip overlapping watch mode intervals", async () => {
+    let intervalCallback: (() => Promise<void>) | undefined;
+    const setIntervalSpy = jest
+      .spyOn(globalThis, "setInterval")
+      .mockImplementation((((callback: TimerHandler) => {
+        intervalCallback = callback as () => Promise<void>;
+        return 0;
+      }) as unknown) as typeof setInterval);
+    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+
+    let resolveSecondRun: (() => void) | undefined;
+    const secondRun = new Promise<void>((resolve) => {
+      resolveSecondRun = resolve;
+    });
+
+    scriptSpy
+      .mockResolvedValueOnce(undefined)
+      .mockImplementationOnce(() => secondRun as Promise<void>);
+
+    await action({ codependencies: ["lodash"], watch: true });
+
+    const inFlightCheck = intervalCallback?.();
+    await Promise.resolve();
+    await intervalCallback?.();
+
+    expect(scriptSpy).toHaveBeenCalledTimes(2);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Previous check still running"),
+    );
+
+    resolveSecondRun?.();
+    await inFlightCheck;
+
+    setIntervalSpy.mockRestore();
+    consoleSpy.mockRestore();
+  });
+
+  test("should log watch mode failures", async () => {
+    let intervalCallback: (() => Promise<void>) | undefined;
+    const setIntervalSpy = jest
+      .spyOn(globalThis, "setInterval")
+      .mockImplementation((((callback: TimerHandler) => {
+        intervalCallback = callback as () => Promise<void>;
+        return 0;
+      }) as unknown) as typeof setInterval);
+    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    scriptSpy
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("watch mode failure"));
+
+    await action({ codependencies: ["lodash"], watch: true });
+    await intervalCallback?.();
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Check failed: watch mode failure"),
+    );
+
+    setIntervalSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
 });
 
 describe("initAction", () => {

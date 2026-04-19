@@ -28,6 +28,8 @@ const readNodePackageManagerField = (rootDir: string): string | null => {
 
 export const detectNodePackageManager = (rootDir: string): string => {
   const packageManagerField = readNodePackageManagerField(rootDir);
+  if (packageManagerField) return packageManagerField;
+
   const hasYarnLock =
     existsSync(join(rootDir, "yarn.lock")) ||
     existsSync(join(rootDir, ".yarnrc")) ||
@@ -47,7 +49,6 @@ export const detectNodePackageManager = (rootDir: string): string => {
   if (hasPnpmLock) return "pnpm";
   if (hasYarnLock) return "yarn";
   if (hasNpmLock) return "npm";
-  if (packageManagerField) return packageManagerField;
   return "npm";
 };
 

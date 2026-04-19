@@ -1,6 +1,9 @@
 import { expect, test, jest, beforeEach } from "bun:test";
+import * as fs from "fs";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
+import { logger } from "../../../src/logger";
+import { NodeJSProvider } from "../../../src/providers/nodejs";
 import { versionCache, requestDeduplicator } from "../../../src/utils/cache";
 import * as scripts from "../../../src/scripts";
 import { Prompt } from "../../../src/utils/prompts";
@@ -115,6 +118,81 @@ test("constructVersionMap => with invalid item type", async () => {
     validate,
   });
   expect(result).toEqual({});
+});
+
+test("constructVersionMap => returns cached versions and reports progress", async () => {
+  versionCache.set("npm:lodash", "4.17.21");
+
+  const exec = jest.fn();
+  const validate = jest.fn(() => ({
+    validForNewPackages: true,
+    validForOldPackages: true,
+    errors: [],
+  }));
+  const onProgress = jest.fn();
+
+  const result = await constructVersionMap({
+    codependencies: ["lodash"],
+    exec,
+    validate,
+    onProgress,
+  });
+
+  expect(result).toEqual({ lodash: "4.17.21" });
+  expect(exec).not.toHaveBeenCalled();
+  expect(onProgress).toHaveBeenCalledWith(1, 1, "lodash");
+});
+
+test("constructVersionMap => logs resolver errors in debug mode", async () => {
+  const debugSpy = jest.spyOn(logger, "debug").mockImplementation(() => {});
+  const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
+  const validate = jest.fn(() => ({
+    validForNewPackages: true,
+    validForOldPackages: true,
+    errors: [],
+  }));
+
+  const result = await constructVersionMap({
+    codependencies: ["lodash"],
+    debug: true,
+    isTesting: true,
+    noCache: true,
+    validate,
+    resolveVersion: async () => {
+      throw new Error("ENOTFOUND registry.npmjs.org");
+    },
+  });
+
+  expect(result).toEqual({});
+  expect(debugSpy).toHaveBeenCalledWith("ENOTFOUND registry.npmjs.org");
+  expect(errorSpy).toHaveBeenCalled();
+
+  debugSpy.mockRestore();
+  errorSpy.mockRestore();
+});
+
+test("constructVersionMap => logs validation-style resolver errors directly", async () => {
+  const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
+  const validate = jest.fn(() => ({
+    validForNewPackages: true,
+    validForOldPackages: true,
+    errors: [],
+  }));
+
+  const result = await constructVersionMap({
+    codependencies: ["lodash"],
+    isTesting: true,
+    noCache: true,
+    validate,
+    resolveVersion: async () => {
+      throw new Error("Invalid package metadata");
+    },
+  });
+
+  expect(result).toEqual({});
+  expect(errorSpy).toHaveBeenCalledWith("Invalid package metadata");
+
+  errorSpy.mockRestore();
 });
 
 test("constructVersionTypes => with ^", () => {
@@ -597,6 +675,49 @@ test("checkDependenciesForVersion => with isUpdating=true", () => {
   expect(result).toEqual(true);
 });
 
+test("checkDependenciesForVersion => writes updates and logs debug info", () => {
+  const debugSpy = jest.spyOn(logger, "debug").mockImplementation(() => {});
+  const writeSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+  const versionMap = {
+    foo: "2.0.0",
+    optional: "2.0.0",
+  };
+  const json = {
+    name: "biz",
+    version: "1.0.0",
+    dependencies: { foo: "1.0.0" },
+    optionalDependencies: { optional: "1.0.0" },
+    path: "./debug-test.json",
+  };
+
+  const result = checkDependenciesForVersion(versionMap, json, {
+    isDebugging: true,
+    isUpdating: true,
+    isTesting: false,
+  });
+
+  expect(result).toEqual(true);
+  expect(debugSpy).toHaveBeenCalledWith(
+    "checkDependenciesForVersion debug info",
+    expect.any(Object),
+  );
+  expect(debugSpy).toHaveBeenCalledWith(
+    "constructJson debug info",
+    expect.any(Object),
+  );
+  expect(writeSpy).toHaveBeenCalledWith(
+    "./debug-test.json",
+    expect.stringContaining(`"foo": "2.0.0"`),
+  );
+  expect(writeSpy).toHaveBeenCalledWith(
+    "./debug-test.json",
+    expect.stringContaining(`"optional": "2.0.0"`),
+  );
+
+  debugSpy.mockRestore();
+  writeSpy.mockRestore();
+});
+
 test("checkDependenciesForVersion => with no dependencies", () => {
   const versionMap = {
     foo: "2.0.0",
@@ -710,9 +831,31 @@ test("checkMatches => with updates applied", () => {
   logSpy.mockRestore();
 });
 
+test("checkMatches => logs debug output", () => {
+  const debugSpy = jest.spyOn(logger, "debug").mockImplementation(() => {});
+  const versionMap = {
+    foo: "1.0.0",
+    bar: "1.0.0",
+  };
+
+  checkMatches({
+    versionMap,
+    files: ["test-pass-package.json"],
+    isDebugging: true,
+    isTesting: true,
+    rootDir: "./tests/unit/fixtures/",
+  });
+
+  expect(debugSpy).toHaveBeenCalledWith("see updates", {
+    packagesNeedingUpdate: [],
+  });
+
+  debugSpy.mockRestore();
+});
+
 test("checkFiles => with no updates", async () => {
   const logCheckFilesNoUpdates = jest.spyOn(console, "log");
-  const codependencies = ["lodash", "fs-extra"];
+  const codependencies = [{ lodash: "4.17.21" }, { "fs-extra": "10.1.0" }];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-pass-package.json"];
   try {
@@ -726,7 +869,7 @@ test("checkFiles => with no updates", async () => {
 
 test("checkFiles => with updates (verbose mode)", async () => {
   const logCheckFilesWithUpdates = jest.spyOn(console, "error");
-  const codependencies = ["lodash", "fs-extra"];
+  const codependencies = [{ lodash: "4.18.0" }, { "fs-extra": "5.0.0" }];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
   try {
@@ -741,6 +884,11 @@ test("checkFiles => with updates (verbose mode)", async () => {
 test("checkFiles => with permissive mode only", async () => {
   const logCheckFilesPermissive = jest.spyOn(console, "error");
   const codependencies = null;
+  const getLatestVersionSpy = jest
+    .spyOn(NodeJSProvider.prototype, "getLatestVersion")
+    .mockImplementation(async (packageName: string) =>
+      packageName === "lodash" ? "4.18.0" : "10.1.0",
+    );
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
   try {
@@ -749,6 +897,7 @@ test("checkFiles => with permissive mode only", async () => {
     // out-of-date deps throw in non-CLI mode
   }
   expect(logCheckFilesPermissive).toHaveBeenCalled();
+  getLatestVersionSpy.mockRestore();
   logCheckFilesPermissive.mockRestore();
 });
 
@@ -757,7 +906,12 @@ test("checkFiles => with permissive mode and codependencies", async () => {
     console,
     "error",
   );
-  const codependencies = ["lodash"];
+  const codependencies = [{ lodash: "4.17.21" }];
+  const getLatestVersionSpy = jest
+    .spyOn(NodeJSProvider.prototype, "getLatestVersion")
+    .mockImplementation(async (packageName: string) =>
+      packageName === "fs-extra" ? "10.1.0" : "4.17.21",
+    );
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
   try {
@@ -766,16 +920,26 @@ test("checkFiles => with permissive mode and codependencies", async () => {
     // out-of-date deps throw in non-CLI mode
   }
   expect(logCheckFilesPermissiveWithCodependencies).toHaveBeenCalled();
+  getLatestVersionSpy.mockRestore();
   logCheckFilesPermissiveWithCodependencies.mockRestore();
 });
 
 test("checkFiles => warns on stale codependencies", async () => {
   const warnSpy = jest.spyOn(console, "warn");
-  const codependencies = ["lodash", "stale-nonexistent-package"];
+  const codependencies = [
+    { lodash: "4.17.21" },
+    { "stale-nonexistent-package": "1.0.0" },
+  ];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-pass-package.json"];
   try {
-    await checkFiles({ codependencies, rootDir, files, isTesting: true });
+    await checkFiles({
+      codependencies,
+      rootDir,
+      files,
+      isTesting: true,
+      permissive: false,
+    });
   } catch {
     // may throw for out-of-date deps
   }
@@ -785,7 +949,7 @@ test("checkFiles => warns on stale codependencies", async () => {
 
 test("checkFiles => with dryRun shows diffs", async () => {
   const logSpy = jest.spyOn(console, "log");
-  const codependencies = ["lodash", "fs-extra"];
+  const codependencies = [{ lodash: "4.18.0" }, { "fs-extra": "5.0.0" }];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
   try {
@@ -961,7 +1125,7 @@ test("checkFiles => throws when no codependencies and not precise mode", async (
 test("checkFiles => interactive mode invokes prompt selection", async () => {
   const checkboxSpy = jest.spyOn(Prompt.prototype, "checkbox").mockResolvedValue([]);
   const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
-  const codependencies = ["lodash", "fs-extra"];
+  const codependencies = [{ lodash: "4.18.0" }, { "fs-extra": "5.0.0" }];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
   try {
@@ -980,6 +1144,94 @@ test("checkFiles => interactive mode invokes prompt selection", async () => {
   expect(checkboxSpy).toHaveBeenCalled();
   checkboxSpy.mockRestore();
   closeSpy.mockRestore();
+});
+
+test("checkFiles => skips interactive prompt when nothing needs updating", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-interactive-no-diffs");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(
+    join(tempDir, "package.json"),
+    JSON.stringify(
+      {
+        name: "interactive-no-diffs",
+        version: "1.0.0",
+        dependencies: {
+          lodash: "1.0.0",
+        },
+      },
+      null,
+      2,
+    ),
+  );
+
+  const checkboxSpy = jest
+    .spyOn(Prompt.prototype, "checkbox")
+    .mockResolvedValue(["lodash"]);
+  const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: [{ lodash: "2.0.0" }],
+        rootDir: tempDir,
+        files: ["package.json"],
+        interactive: true,
+        update: true,
+        permissive: false,
+        isTesting: false,
+        level: "patch",
+      }),
+    ).resolves.toEqual([
+      {
+        current: "1.0.0",
+        isPinned: true,
+        latest: "2.0.0",
+        package: "lodash",
+        willUpdate: false,
+      },
+    ]);
+    expect(checkboxSpy).not.toHaveBeenCalled();
+  } finally {
+    checkboxSpy.mockRestore();
+    closeSpy.mockRestore();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => falls back to explicit language provider when no manifests match", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-provider-fallback");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(
+    join(tempDir, "package.json"),
+    JSON.stringify(
+      {
+        name: "provider-fallback",
+        version: "1.0.0",
+        dependencies: {
+          lodash: "4.17.21",
+        },
+      },
+      null,
+      2,
+    ),
+  );
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: [{ lodash: "4.17.21" }],
+        rootDir: tempDir,
+        files: ["missing-package.json"],
+        language: "nodejs",
+        permissive: false,
+        isTesting: true,
+      }),
+    ).resolves.toEqual([]);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("checkFiles => handles rootDir without trailing slash", async () => {
@@ -1012,6 +1264,59 @@ test("checkFiles => handles rootDir without trailing slash", async () => {
   } finally {
     expect(logSpy).toHaveBeenCalled();
     logSpy.mockRestore();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => applies provider-backed manifest updates", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-provider-update");
+  const packageJsonPath = join(tempDir, "package.json");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(
+    packageJsonPath,
+    JSON.stringify(
+      {
+        name: "provider-update",
+        version: "1.0.0",
+        dependencies: {
+          lodash: "4.17.0",
+        },
+      },
+      null,
+      2,
+    ),
+  );
+
+  const debugSpy = jest.spyOn(logger, "debug").mockImplementation(() => {});
+
+  try {
+    await checkFiles({
+      codependencies: [{ lodash: "4.17.21" }],
+      rootDir: tempDir,
+      files: ["package.json"],
+      update: true,
+      debug: true,
+      permissive: false,
+      isTesting: false,
+    });
+
+    const updatedPackageJson = JSON.parse(
+      fs.readFileSync(packageJsonPath, "utf8"),
+    ) as {
+      dependencies: Record<string, string>;
+    };
+
+    expect(updatedPackageJson.dependencies.lodash).toBe("4.17.21");
+    expect(debugSpy).toHaveBeenCalledWith(
+      "checkManifestDependenciesForVersion debug info",
+      expect.any(Object),
+    );
+    expect(debugSpy).toHaveBeenCalledWith("see updates", {
+      packagesNeedingUpdate: ["package.json"],
+    });
+  } finally {
+    debugSpy.mockRestore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
