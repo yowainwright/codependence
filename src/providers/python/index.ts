@@ -373,7 +373,19 @@ export class PythonProvider implements DependencyProvider {
             `dependencies = [${updatedBody}\n]`,
           ),
         );
+        return;
       }
+
+      const depEntries = Object.entries(manifest.dependencies)
+        .map(([name, version]) => `\n  "${name}${version}"`)
+        .join(",");
+      writeFileSync(
+        filePath,
+        content.replace(
+          PYTHON_PATTERNS.PEP621_DEPS,
+          `dependencies = [${depEntries}\n]`,
+        ),
+      );
     }
   }
 
