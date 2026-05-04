@@ -34,6 +34,29 @@ export const parsePoetryLine = (line: string): [string, string] | null => {
   return [match[1], match[2]];
 };
 
+const preserveFinalNewline = (original: string, updated: string): string =>
+  original.endsWith("\n") ? `${updated.replace(/\n?$/, "")}\n` : updated;
+
+const updateTomlDependencyLine = (
+  line: string,
+  dependencies: Record<string, string>,
+  parseLine: (line: string) => [string, string] | null,
+): { line: string; updated: boolean } => {
+  const parsed = parseLine(line);
+  if (!parsed) return { line, updated: false };
+
+  const [name] = parsed;
+  const version = dependencies[name];
+  if (!version) return { line, updated: false };
+
+  return {
+    line: line.replace(/(=\s*")[^"]+(")/, (_match, prefix, suffix) => {
+      return `${prefix}${version}${suffix}`;
+    }),
+    updated: true,
+  };
+};
+
 export class PythonProvider implements DependencyProvider {
   readonly language = "python" as const;
   private options: ProviderOptions;
@@ -85,7 +108,10 @@ export class PythonProvider implements DependencyProvider {
       return firstVersion ? firstVersion.trim() : "";
     } catch (error) {
       if (this.options.debug) {
-        logger.error(`Failed to get pip version for ${packageName}`, error as Error);
+        logger.error(
+          `Failed to get pip version for ${packageName}`,
+          error as Error,
+        );
       }
       return "";
     }
@@ -102,7 +128,10 @@ export class PythonProvider implements DependencyProvider {
       return latestPackage?.version || "";
     } catch (error) {
       if (this.options.debug) {
-        logger.error(`Failed to get conda version for ${packageName}`, error as Error);
+        logger.error(
+          `Failed to get conda version for ${packageName}`,
+          error as Error,
+        );
       }
       return "";
     }
@@ -123,14 +152,22 @@ export class PythonProvider implements DependencyProvider {
       return firstVersion ? firstVersion.trim() : "";
     } catch (error) {
       if (this.options.debug) {
-        logger.error(`Failed to get uv version for ${packageName}`, error as Error);
+        logger.error(
+          `Failed to get uv version for ${packageName}`,
+          error as Error,
+        );
       }
       return "";
     }
   }
 
   async getAllVersions(packageName: string): Promise<string[]> {
-    const { stdout } = await exec("pip", ["index", "versions", packageName]);
+    const cmd = this.packageManager === "uv" ? "uv" : "pip";
+    const args =
+      this.packageManager === "uv"
+        ? ["pip", "index", "versions", packageName]
+        : ["index", "versions", packageName];
+    const { stdout } = await exec(cmd, args);
     const match = stdout.match(PYTHON_PATTERNS.PIP_VERSIONS);
     if (!match) return [];
 
@@ -166,15 +203,23 @@ export class PythonProvider implements DependencyProvider {
     const content = readFileSync(filePath, "utf8");
     const dependencies: Record<string, string> = {};
 
-    const depSection = content.match(PYTHON_PATTERNS.POETRY_DEPS);
-    if (!depSection) return { filePath, dependencies };
+    const poetrySection = content.match(PYTHON_PATTERNS.POETRY_DEPS);
+    if (poetrySection) {
+      poetrySection[1].split("\n").forEach((line) => {
+        const parsed = parsePoetryLine(line);
+        if (parsed) dependencies[parsed[0]] = parsed[1];
+      });
+      return { filePath, dependencies };
+    }
 
-    const lines = depSection[1].split("\n");
-    lines.forEach((line) => {
-      const parsed = parsePoetryLine(line);
-      if (!parsed) return;
-      dependencies[parsed[0]] = parsed[1];
-    });
+    const pep621Section = content.match(PYTHON_PATTERNS.PEP621_DEPS);
+    if (pep621Section) {
+      pep621Section[1].split("\n").forEach((line) => {
+        const stripped = line.trim().replace(/^"/, "").replace(/",?$/, "");
+        const parsed = parseRequirementLine(stripped);
+        if (parsed) dependencies[parsed[0]] = parsed[1];
+      });
+    }
 
     return { filePath, dependencies };
   }
@@ -217,10 +262,37 @@ export class PythonProvider implements DependencyProvider {
     filePath: string,
     manifest: DependencyManifest,
   ): void {
-    const lines = Object.entries(manifest.dependencies)
+    const content = readFileSync(filePath, "utf8");
+    const lines = content.split("\n");
+    let updatedCount = 0;
+
+    const updatedLines = lines.map((line) => {
+      const parsed = parseRequirementLine(line);
+      if (!parsed) return line;
+
+      const [name] = parsed;
+      const version = manifest.dependencies[name];
+      if (!version) return line;
+
+      updatedCount++;
+      return line.replace(
+        PYTHON_PATTERNS.REQUIREMENT_LINE,
+        `${name}${version}`,
+      );
+    });
+
+    if (updatedCount > 0) {
+      writeFileSync(
+        filePath,
+        preserveFinalNewline(content, updatedLines.join("\n")),
+      );
+      return;
+    }
+
+    const fallbackLines = Object.entries(manifest.dependencies)
       .map(([name, version]) => `${name}${version}`)
       .join("\n");
-    writeFileSync(filePath, lines + "\n");
+    writeFileSync(filePath, fallbackLines + "\n");
   }
 
   private writePyprojectToml(
@@ -228,18 +300,119 @@ export class PythonProvider implements DependencyProvider {
     manifest: DependencyManifest,
   ): void {
     const content = readFileSync(filePath, "utf8");
-    const depEntries = Object.entries(manifest.dependencies)
-      .map(([name, version]) => `${name} = "${version}"`)
-      .join("\n");
+    const existingPoetrySection = content.match(PYTHON_PATTERNS.POETRY_DEPS);
+    let updatedCount = 0;
 
-    const replacement = `[tool.poetry.dependencies]\npython = "^3.8"\n${depEntries}\n\n`;
-    const updated = content.replace(PYTHON_PATTERNS.POETRY_DEPS, replacement);
+    if (existingPoetrySection) {
+      const updatedSectionBody = existingPoetrySection[1]
+        .split("\n")
+        .map((line) => {
+          const result = updateTomlDependencyLine(
+            line,
+            manifest.dependencies,
+            parsePoetryLine,
+          );
+          if (result.updated) updatedCount++;
+          return result.line;
+        })
+        .join("\n");
 
-    writeFileSync(filePath, updated);
+      if (updatedCount > 0) {
+        writeFileSync(
+          filePath,
+          content.replace(
+            PYTHON_PATTERNS.POETRY_DEPS,
+            `[tool.poetry.dependencies]${updatedSectionBody}`,
+          ),
+        );
+        return;
+      }
+
+      const preservedLines = existingPoetrySection[1]
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.startsWith("python = "));
+      const depEntries = Object.entries(manifest.dependencies)
+        .map(([name, version]) => `${name} = "${version}"`)
+        .join("\n");
+      const sectionLines = [
+        "[tool.poetry.dependencies]",
+        ...preservedLines,
+        ...(depEntries ? [depEntries] : []),
+        "",
+        "",
+      ];
+      writeFileSync(
+        filePath,
+        content.replace(PYTHON_PATTERNS.POETRY_DEPS, sectionLines.join("\n")),
+      );
+      return;
+    }
+
+    const existingPep621Section = content.match(PYTHON_PATTERNS.PEP621_DEPS);
+    if (existingPep621Section) {
+      const updatedBody = existingPep621Section[1]
+        .split("\n")
+        .map((line) => {
+          const stripped = line.trim().replace(/^"/, "").replace(/",?$/, "");
+          const parsed = parseRequirementLine(stripped);
+          if (!parsed) return line;
+          const [name] = parsed;
+          const newVersion = manifest.dependencies[name];
+          if (!newVersion) return line;
+          updatedCount++;
+          return line.replace(stripped, `${name}${newVersion}`);
+        })
+        .join("\n");
+
+      if (updatedCount > 0) {
+        writeFileSync(
+          filePath,
+          content.replace(
+            PYTHON_PATTERNS.PEP621_DEPS,
+            `dependencies = [${updatedBody}]`,
+          ),
+        );
+      }
+    }
   }
 
   private writePipfile(filePath: string, manifest: DependencyManifest): void {
     const content = readFileSync(filePath, "utf8");
+    const existingSection = content.match(PYTHON_PATTERNS.PIPFILE_PACKAGES);
+    let updatedCount = 0;
+
+    if (existingSection) {
+      const updatedSectionBody = existingSection[1]
+        .split("\n")
+        .map((line) => {
+          const result = updateTomlDependencyLine(
+            line,
+            manifest.dependencies,
+            (pipfileLine) => {
+              const match = pipfileLine
+                .trim()
+                .match(PYTHON_PATTERNS.PIPFILE_LINE);
+              return match ? [match[1], match[2]] : null;
+            },
+          );
+          if (result.updated) updatedCount++;
+          return result.line;
+        })
+        .join("\n");
+
+      if (updatedCount > 0) {
+        writeFileSync(
+          filePath,
+          content.replace(
+            PYTHON_PATTERNS.PIPFILE_PACKAGES,
+            `[packages]${updatedSectionBody}`,
+          ),
+        );
+        return;
+      }
+    }
+
     const depEntries = Object.entries(manifest.dependencies)
       .map(([name, version]) => `${name} = "${version}"`)
       .join("\n");

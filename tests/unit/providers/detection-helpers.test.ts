@@ -1,7 +1,9 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import {
   detectNodePackageManager,
   detectPythonPackageManager,
+  detectPythonPackageManagerForManifest,
+  isPoetryPyproject,
 } from "../../../src/providers/detection";
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
@@ -119,19 +121,27 @@ describe("detectPythonPackageManager", () => {
     expect(detectPythonPackageManager(tmpDir)).toBe("pip");
   });
 
-  test("returns conda when environment.yml exists", () => {
+  test("returns pip when only environment.yml exists", () => {
     writeFileSync(join(tmpDir, "environment.yml"), "");
 
-    expect(detectPythonPackageManager(tmpDir)).toBe("conda");
+    expect(detectPythonPackageManager(tmpDir)).toBe("pip");
   });
 
-  test("returns conda when environment.yaml exists", () => {
+  test("returns pip when only environment.yaml exists", () => {
     writeFileSync(join(tmpDir, "environment.yaml"), "");
 
-    expect(detectPythonPackageManager(tmpDir)).toBe("conda");
+    expect(detectPythonPackageManager(tmpDir)).toBe("pip");
   });
 
-  test("returns uv when uv.lock exists", () => {
+  test("returns uv when uv.lock exists with requirements.txt", () => {
+    writeFileSync(join(tmpDir, "requirements.txt"), "");
+    writeFileSync(join(tmpDir, "uv.lock"), "");
+
+    expect(detectPythonPackageManager(tmpDir)).toBe("uv");
+  });
+
+  test("returns uv when uv.lock exists with non-poetry pyproject.toml", () => {
+    writeFileSync(join(tmpDir, "pyproject.toml"), "[project]\nname = 'test'\n");
     writeFileSync(join(tmpDir, "uv.lock"), "");
 
     expect(detectPythonPackageManager(tmpDir)).toBe("uv");
@@ -161,14 +171,16 @@ describe("detectPythonPackageManager", () => {
     expect(detectPythonPackageManager(tmpDir)).toBe("pip");
   });
 
-  test("prioritizes conda over uv", () => {
+  test("ignores environment.yml when uv-managed requirements are present", () => {
     writeFileSync(join(tmpDir, "environment.yml"), "");
+    writeFileSync(join(tmpDir, "requirements.txt"), "");
     writeFileSync(join(tmpDir, "uv.lock"), "");
 
-    expect(detectPythonPackageManager(tmpDir)).toBe("conda");
+    expect(detectPythonPackageManager(tmpDir)).toBe("uv");
   });
 
   test("prioritizes uv over pipenv", () => {
+    writeFileSync(join(tmpDir, "requirements.txt"), "");
     writeFileSync(join(tmpDir, "uv.lock"), "");
     writeFileSync(join(tmpDir, "Pipfile"), "");
 
@@ -183,5 +195,82 @@ describe("detectPythonPackageManager", () => {
     );
 
     expect(detectPythonPackageManager(tmpDir)).toBe("pipenv");
+  });
+});
+
+describe("isPoetryPyproject", () => {
+  const tmpDir = join(__dirname, ".tmp-poetry-pyproject-test");
+
+  beforeEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+    mkdirSync(tmpDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test("returns false when file does not exist", () => {
+    expect(isPoetryPyproject(join(tmpDir, "pyproject.toml"))).toBe(false);
+  });
+
+  test("returns true when file contains [tool.poetry]", () => {
+    writeFileSync(join(tmpDir, "pyproject.toml"), "[tool.poetry]\nname = 'test'\n");
+    expect(isPoetryPyproject(join(tmpDir, "pyproject.toml"))).toBe(true);
+  });
+
+  test("returns true when file contains [tool.poetry.dependencies]", () => {
+    writeFileSync(join(tmpDir, "pyproject.toml"), "[tool.poetry.dependencies]\npython = '^3.8'\n");
+    expect(isPoetryPyproject(join(tmpDir, "pyproject.toml"))).toBe(true);
+  });
+
+  test("returns false for PEP-517 pyproject.toml without poetry", () => {
+    writeFileSync(join(tmpDir, "pyproject.toml"), "[project]\nname = 'test'\n[build-system]\nrequires = ['setuptools']\n");
+    expect(isPoetryPyproject(join(tmpDir, "pyproject.toml"))).toBe(false);
+  });
+
+  test("returns false for empty file", () => {
+    writeFileSync(join(tmpDir, "pyproject.toml"), "");
+    expect(isPoetryPyproject(join(tmpDir, "pyproject.toml"))).toBe(false);
+  });
+});
+
+describe("detectPythonPackageManagerForManifest", () => {
+  const tmpDir = join(__dirname, ".tmp-manifest-pm-test");
+
+  beforeEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+    mkdirSync(tmpDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test("returns pipenv for Pipfile", () => {
+    writeFileSync(join(tmpDir, "Pipfile"), "[packages]\n");
+    expect(detectPythonPackageManagerForManifest(join(tmpDir, "Pipfile"))).toBe("pipenv");
+  });
+
+  test("returns poetry for poetry pyproject.toml", () => {
+    writeFileSync(join(tmpDir, "pyproject.toml"), "[tool.poetry]\nname = 'test'\n");
+    expect(detectPythonPackageManagerForManifest(join(tmpDir, "pyproject.toml"))).toBe("poetry");
+  });
+
+  test("returns uv for non-poetry pyproject.toml when uv.lock exists", () => {
+    writeFileSync(join(tmpDir, "pyproject.toml"), "[project]\nname = 'test'\n");
+    writeFileSync(join(tmpDir, "uv.lock"), "");
+    expect(detectPythonPackageManagerForManifest(join(tmpDir, "pyproject.toml"))).toBe("uv");
+  });
+
+  test("returns uv for requirements.txt when uv.lock exists", () => {
+    writeFileSync(join(tmpDir, "requirements.txt"), "requests\n");
+    writeFileSync(join(tmpDir, "uv.lock"), "");
+    expect(detectPythonPackageManagerForManifest(join(tmpDir, "requirements.txt"))).toBe("uv");
+  });
+
+  test("returns pip for requirements.txt without uv.lock", () => {
+    writeFileSync(join(tmpDir, "requirements.txt"), "requests\n");
+    expect(detectPythonPackageManagerForManifest(join(tmpDir, "requirements.txt"))).toBe("pip");
   });
 });

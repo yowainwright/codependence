@@ -1,6 +1,21 @@
-import { expect, test, describe, beforeEach, afterEach, jest, mock } from "bun:test";
+import {
+  expect,
+  test,
+  describe,
+  beforeEach,
+  afterEach,
+  jest,
+  mock,
+} from "bun:test";
 import { PythonProvider } from "../../../src/providers/python";
-import { writeFileSync, readFileSync, mkdirSync, rmSync } from "fs";
+import {
+  writeFileSync,
+  readFileSync,
+  mkdirSync,
+  rmSync,
+  mkdtempSync,
+} from "fs";
+import { tmpdir } from "os";
 import { join } from "path";
 
 describe("PythonProvider", () => {
@@ -92,10 +107,7 @@ describe("PythonProvider", () => {
         stderr: "",
       })) as any;
 
-      const provider = new PythonProvider(
-        "environment.yml",
-        "conda",
-      );
+      const provider = new PythonProvider("environment.yml", "conda");
       mock.module("../../../src/utils/exec", () => ({
         exec: execMock,
       }));
@@ -441,6 +453,46 @@ python_version = "3.11"
 
       expect(content).toBe("\n");
     });
+
+    test("should update existing requirements in place", async () => {
+      const preserveDir = mkdtempSync(
+        join(tmpdir(), "codependence-python-requirements-"),
+      );
+
+      try {
+        const reqPath = join(preserveDir, "requirements.txt");
+        writeFileSync(
+          reqPath,
+          [
+            "# Main dependencies",
+            "requests==2.30.0 # keep this comment",
+            "--extra-index-url https://example.test/simple",
+            "flask>=2.0.0",
+            "",
+          ].join("\n"),
+        );
+
+        const provider = new PythonProvider(reqPath, "pip");
+        await provider.writeManifest(reqPath, {
+          filePath: reqPath,
+          dependencies: {
+            requests: "==2.31.0",
+            flask: ">=2.1.0",
+          },
+        });
+
+        const content = readFileSync(reqPath, "utf8");
+
+        expect(content).toContain("# Main dependencies");
+        expect(content).toContain("requests==2.31.0 # keep this comment");
+        expect(content).toContain(
+          "--extra-index-url https://example.test/simple",
+        );
+        expect(content).toContain("flask>=2.1.0");
+      } finally {
+        rmSync(preserveDir, { recursive: true, force: true });
+      }
+    });
   });
 
   describe("writeManifest - pyproject.toml", () => {
@@ -477,12 +529,51 @@ pytest = "^7.0.0"
 
       const content = readFileSync(pyprojectPath, "utf8");
 
-      expect(content).toContain('[tool.poetry.dependencies]');
+      expect(content).toContain("[tool.poetry.dependencies]");
       expect(content).toContain('python = "^3.8"');
       expect(content).toContain('requests = "^2.31.0"');
       expect(content).toContain('flask = "~2.0.0"');
       expect(content).not.toContain("old-package");
-      expect(content).toContain('[tool.poetry.dev-dependencies]');
+      expect(content).toContain("[tool.poetry.dev-dependencies]");
+    });
+
+    test("should update existing pyproject dependencies in place", async () => {
+      const preserveDir = mkdtempSync(
+        join(tmpdir(), "codependence-python-pyproject-"),
+      );
+
+      try {
+        const pyprojectPath = join(preserveDir, "pyproject.toml");
+        const original = `[tool.poetry]
+name = "myproject"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+requests = "^2.30.0" # keep this comment
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.0.0"
+`;
+
+        writeFileSync(pyprojectPath, original);
+
+        const provider = new PythonProvider(pyprojectPath, "poetry");
+        await provider.writeManifest(pyprojectPath, {
+          filePath: pyprojectPath,
+          dependencies: {
+            requests: "^2.31.0",
+          },
+        });
+
+        const content = readFileSync(pyprojectPath, "utf8");
+
+        expect(content).toContain('python = "^3.8"');
+        expect(content).toContain('requests = "^2.31.0" # keep this comment');
+        expect(content).toContain("[tool.poetry.dev-dependencies]");
+        expect(content).toContain('pytest = "^7.0.0"');
+      } finally {
+        rmSync(preserveDir, { recursive: true, force: true });
+      }
     });
   });
 
@@ -516,11 +607,45 @@ pytest = "==7.4.0"
 
       const content = readFileSync(pipfilePath, "utf8");
 
-      expect(content).toContain('[packages]');
+      expect(content).toContain("[packages]");
       expect(content).toContain('requests = "==2.31.0"');
       expect(content).toContain('flask = ">=2.0.0"');
       expect(content).not.toContain("old-package");
-      expect(content).toContain('[dev-packages]');
+      expect(content).toContain("[dev-packages]");
+    });
+
+    test("should update existing Pipfile packages in place", async () => {
+      const preserveDir = mkdtempSync(
+        join(tmpdir(), "codependence-python-pipfile-"),
+      );
+
+      try {
+        const pipfilePath = join(preserveDir, "Pipfile");
+        const original = `[packages]
+requests = "==2.30.0" # keep this comment
+
+[dev-packages]
+pytest = "==7.4.0"
+`;
+
+        writeFileSync(pipfilePath, original);
+
+        const provider = new PythonProvider(pipfilePath, "pipenv");
+        await provider.writeManifest(pipfilePath, {
+          filePath: pipfilePath,
+          dependencies: {
+            requests: "==2.31.0",
+          },
+        });
+
+        const content = readFileSync(pipfilePath, "utf8");
+
+        expect(content).toContain('requests = "==2.31.0" # keep this comment');
+        expect(content).toContain("[dev-packages]");
+        expect(content).toContain('pytest = "==7.4.0"');
+      } finally {
+        rmSync(preserveDir, { recursive: true, force: true });
+      }
     });
   });
 

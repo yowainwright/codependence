@@ -17,7 +17,7 @@
 
 Codependence updates `package.json`'s dependencies based on a "codependencies" array of dependency names.
 The difference from `{npm,pnpm} update` or `yarn upgrade` is Codependence _allows you to pin what you want and update the rest_!
-Furthermore, Codependence works with monorepos and is package manager agnostic.
+Furthermore, Codependence works with monorepos and can be scoped to a single supported language per run.
 
 #### \*yes, dependencies can be pinned to `~` or `^` versions in `package.json` files!
 
@@ -130,7 +130,7 @@ Options:
   -y, --yarnConfig                  Enable yarn config support
   --level <level>                   Update level: patch, minor, or major (default: major)
   -m, --mode <mode>                Listing mode: verbose or precise (default: precise)
-  -l, --language <lang>            Target language (nodejs, go, python) (experimental)
+  -l, --language <lang>            Target language for this run (nodejs, go, python)
   -h, --help                        Show this help message
   --dryRun                          Show what would change without modifying files
   --interactive                     Choose which packages to update interactively
@@ -382,16 +382,23 @@ An **optional** path to write formatted output to a file instead of stdout. Requ
 
 ---
 
-### Multi-language support (experimental)
+### Language-scoped runs
 
-Codependence includes experimental support for Python and Go dependency manifests via the `--language` flag:
+Codependence supports one language per run. In mixed-language repositories, rerun it separately with `--language` or narrower `--files` patterns.
+
+Supported language targets:
+
+- `nodejs`: `package.json` manifests. Updating is currently supported for npm-managed projects.
+- `python`: `requirements.txt`, `Pipfile`, and Poetry `pyproject.toml`.
+- `go`: `go.mod`.
+
+Examples:
 
 ```sh
-codependence --language python    # Check requirements.txt / pyproject.toml
+codependence --language python    # Check supported Python manifests
 codependence --language go        # Check go.mod dependencies
+codependence --language nodejs    # Check package.json manifests
 ```
-
-This feature is under active development. For stable usage, omit `--language` (defaults to Node.js).
 
 ---
 

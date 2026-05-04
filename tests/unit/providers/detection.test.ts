@@ -152,36 +152,45 @@ describe("Language Detection", () => {
       expect(result[0].manifestFiles).toContain("Pipfile");
     });
 
-    test("should detect Python with conda", () => {
-      writeFileSync(join(tmpDir, "environment.yml"), "dependencies:");
-
-      const result = detectLanguage(tmpDir);
-
-      expect(result[0].packageManager).toBe("conda");
-      expect(result[0].manifestFiles).toContain("environment.yml");
-    });
-
-    test("should detect Python with conda using .yaml extension", () => {
-      writeFileSync(join(tmpDir, "environment.yaml"), "dependencies:");
-
-      const result = detectLanguage(tmpDir);
-
-      expect(result[0].packageManager).toBe("conda");
-      expect(result[0].manifestFiles).toContain("environment.yaml");
-    });
-
-    test("should detect Python with uv", () => {
+    test("should detect Python with uv (requirements.txt + uv.lock)", () => {
       writeFileSync(join(tmpDir, "requirements.txt"), "");
       writeFileSync(join(tmpDir, "uv.lock"), "");
 
       const result = detectLanguage(tmpDir);
 
       expect(result[0].packageManager).toBe("uv");
+      expect(result[0].manifestFiles).toContain("requirements.txt");
+    });
+
+    test("should detect Python with uv (non-poetry pyproject.toml + uv.lock)", () => {
+      writeFileSync(join(tmpDir, "pyproject.toml"), "[project]\nname = 'test'\n");
+      writeFileSync(join(tmpDir, "uv.lock"), "");
+
+      const result = detectLanguage(tmpDir);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].language).toBe("python");
+      expect(result[0].packageManager).toBe("uv");
+      expect(result[0].manifestFiles).toContain("pyproject.toml");
+    });
+
+    test("should detect Python with uv (uv.lock only)", () => {
+      writeFileSync(join(tmpDir, "uv.lock"), "");
+
+      const result = detectLanguage(tmpDir);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].language).toBe("python");
+      expect(result[0].packageManager).toBe("uv");
+      expect(result[0].manifestFiles).toContain("uv.lock");
     });
 
     test("should include all Python manifest files found", () => {
       writeFileSync(join(tmpDir, "requirements.txt"), "");
-      writeFileSync(join(tmpDir, "pyproject.toml"), "");
+      writeFileSync(
+        join(tmpDir, "pyproject.toml"),
+        "[tool.poetry.dependencies]\npython = '^3.8'\n",
+      );
 
       const result = detectLanguage(tmpDir);
 
@@ -189,12 +198,20 @@ describe("Language Detection", () => {
       expect(result[0].manifestFiles).toContain("pyproject.toml");
     });
 
-    test("should detect pyproject.toml without poetry as pip", () => {
+    test("should ignore pyproject.toml without poetry metadata", () => {
       writeFileSync(join(tmpDir, "pyproject.toml"), "[build-system]");
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("pip");
+      expect(result).toEqual([]);
+    });
+
+    test("should ignore unsupported conda environment manifests", () => {
+      writeFileSync(join(tmpDir, "environment.yml"), "dependencies:");
+
+      const result = detectLanguage(tmpDir);
+
+      expect(result).toEqual([]);
     });
   });
 
@@ -312,14 +329,14 @@ describe("Language Detection", () => {
   });
 
   describe("Package Manager Priority", () => {
-    test("should prioritize conda for Python when environment.yml exists", () => {
+    test("should ignore environment.yml when supported Python manifests exist", () => {
       writeFileSync(join(tmpDir, "requirements.txt"), "");
       writeFileSync(join(tmpDir, "environment.yml"), "");
       writeFileSync(join(tmpDir, "Pipfile"), "");
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("conda");
+      expect(result[0].packageManager).toBe("pipenv");
     });
 
     test("should prioritize uv over pipenv for Python", () => {

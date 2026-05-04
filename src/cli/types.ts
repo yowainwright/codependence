@@ -3,6 +3,7 @@ export interface OptionDefinition {
   hasValue?: boolean;
   isArray?: boolean;
   defaultValue?: unknown;
+  validValues?: readonly string[];
 }
 
 export interface ParsedFlag {
@@ -17,5 +18,6 @@ export interface CollectedValue {
 
 export interface ParsedArgs {
   command?: string;
+  positionals: string[];
   options: Record<string, unknown>;
 }

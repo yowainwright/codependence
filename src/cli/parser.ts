@@ -48,23 +48,68 @@ const collectArrayValue = (
 const collectSingleValue = (
   args: string[],
   startIndex: number,
+  flag: string,
 ): CollectedValue => {
   const nextArg = args[startIndex + 1];
   const hasNextValue = nextArg && !isFlag(nextArg);
 
-  return hasNextValue
-    ? { value: nextArg, consumed: 1 }
-    : { value: true, consumed: 0 };
+  if (!hasNextValue) {
+    throw new Error(`Option ${flag} requires a value`);
+  }
+
+  return { value: nextArg, consumed: 1 };
 };
 
 const collectValue = (
   args: string[],
   index: number,
   def: OptionDefinition,
+  flag: string,
 ): CollectedValue =>
   def.isArray
     ? collectArrayValue(args, index)
-    : collectSingleValue(args, index);
+    : collectSingleValue(args, index, flag);
+
+const validateValue = (
+  def: OptionDefinition,
+  value: unknown,
+  flag: string,
+): void => {
+  if (!def.validValues || value === undefined) return;
+
+  const isValid = typeof value === "string" && def.validValues.includes(value);
+  if (isValid) return;
+
+  throw new Error(
+    `Invalid value for ${flag}: ${String(value)}. Expected one of: ${def.validValues.join(", ")}`,
+  );
+};
+
+const parseCodependencyValue = (
+  value: string,
+): string | Record<string, string> => {
+  const trimmed = value.trim();
+  const shouldParseJsonObject = trimmed.startsWith("{");
+  if (!shouldParseJsonObject) return value;
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    const isObject =
+      typeof parsed === "object" && parsed !== null && !Array.isArray(parsed);
+    if (isObject) return parsed as Record<string, string>;
+  } catch {
+    throw new Error(`Invalid codependency object: ${value}`);
+  }
+
+  throw new Error(`Invalid codependency object: ${value}`);
+};
+
+const normalizeValue = (key: string, value: unknown): unknown => {
+  if (key !== "codependencies" || !Array.isArray(value)) return value;
+  return value.map((item) =>
+    typeof item === "string" ? parseCodependencyValue(item) : item,
+  );
+};
 
 const applyDefaults = (
   options: Record<string, unknown>,
@@ -80,17 +125,21 @@ const applyDefaults = (
 const processArgument = (
   args: string[],
   index: number,
-  state: { options: Record<string, unknown>; command?: string },
+  state: { options: Record<string, unknown>; positionals: string[] },
 ): {
   nextIndex: number;
   options: Record<string, unknown>;
-  command?: string;
+  positionals: string[];
 } => {
   const arg = args[index];
   const isNotFlag = !isFlag(arg);
 
   if (isNotFlag) {
-    return { nextIndex: index + 1, options: state.options, command: arg };
+    return {
+      nextIndex: index + 1,
+      options: state.options,
+      positionals: [...state.positionals, arg],
+    };
   }
 
   const { flag, value: inlineValue } = parseFlag(arg);
@@ -98,22 +147,21 @@ const processArgument = (
   const isUnknownFlag = !def;
 
   if (isUnknownFlag) {
-    return {
-      nextIndex: index + 1,
-      options: state.options,
-      command: state.command,
-    };
+    throw new Error(`Unknown option: ${flag}`);
   }
 
   const key = getOptionKey(def);
   const hasInlineValue = inlineValue !== undefined;
 
   if (hasInlineValue) {
-    const updatedOptions = { ...state.options, [key]: inlineValue };
+    const rawValue = def.isArray ? [inlineValue] : inlineValue;
+    validateValue(def, rawValue, flag);
+    const normalizedValue = normalizeValue(key, rawValue);
+    const updatedOptions = { ...state.options, [key]: normalizedValue };
     return {
       nextIndex: index + 1,
       options: updatedOptions,
-      command: state.command,
+      positionals: state.positionals,
     };
   }
 
@@ -124,34 +172,40 @@ const processArgument = (
     return {
       nextIndex: index + 1,
       options: updatedOptions,
-      command: state.command,
+      positionals: state.positionals,
     };
   }
 
-  const { value, consumed } = collectValue(args, index, def);
-  const updatedOptions = { ...state.options, [key]: value };
+  const { value, consumed } = collectValue(args, index, def, flag);
+  validateValue(def, value, flag);
+  const normalizedValue = normalizeValue(key, value);
+  const updatedOptions = { ...state.options, [key]: normalizedValue };
 
   return {
     nextIndex: index + consumed + 1,
     options: updatedOptions,
-    command: state.command,
+    positionals: state.positionals,
   };
 };
 
 export const parseArgs = (argv: string[]): ParsedArgs => {
   const args = argv.slice(ARGS_START_INDEX);
   let currentIndex = 0;
-  let state = { options: {}, command: undefined as string | undefined };
+  let state = { options: {}, positionals: [] as string[] };
 
   while (currentIndex < args.length) {
     const result = processArgument(args, currentIndex, state);
     currentIndex = result.nextIndex;
-    state = { options: result.options, command: result.command };
+    state = { options: result.options, positionals: result.positionals };
   }
 
   const optionsWithDefaults = applyDefaults(state.options);
 
-  return { command: state.command, options: optionsWithDefaults };
+  return {
+    command: state.positionals[0],
+    positionals: state.positionals,
+    options: optionsWithDefaults,
+  };
 };
 
 export const showHelp = (): void => {

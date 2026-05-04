@@ -1,4 +1,10 @@
 import type { OptionDefinition } from "./types";
+import {
+  VALID_FORMATS,
+  VALID_LANGUAGES,
+  VALID_LEVELS,
+  VALID_MODES,
+} from "../config/constants";
 
 export const OPTION_DEFINITIONS: OptionDefinition[] = [
   { flags: ["-t", "--isTestingCLI"], hasValue: false },
@@ -11,21 +17,25 @@ export const OPTION_DEFINITIONS: OptionDefinition[] = [
   { flags: ["--silent"], hasValue: false },
   { flags: ["-v", "--verbose"], hasValue: false },
   { flags: ["-q", "--quiet"], hasValue: false },
-  { flags: ["--cds", "--codependencies"], hasValue: true, isArray: true },
+  {
+    flags: ["--codependencies", "--cds", "-cds"],
+    hasValue: true,
+    isArray: true,
+  },
   { flags: ["-c", "--config"], hasValue: true },
   { flags: ["-s", "--searchPath"], hasValue: true },
   { flags: ["-y", "--yarnConfig"], hasValue: false },
   { flags: ["--permissive"], hasValue: false },
-  { flags: ["-l", "--language"], hasValue: true },
+  { flags: ["-l", "--language"], hasValue: true, validValues: VALID_LANGUAGES },
   { flags: ["-h", "--help"], hasValue: false },
   { flags: ["--dryRun", "--dry-run"], hasValue: false },
   { flags: ["--interactive"], hasValue: false },
   { flags: ["--watch"], hasValue: false },
   { flags: ["--noCache", "--no-cache"], hasValue: false },
-  { flags: ["--format"], hasValue: true },
+  { flags: ["--format"], hasValue: true, validValues: VALID_FORMATS },
   { flags: ["--outputFile", "--output-file"], hasValue: true },
-  { flags: ["--level"], hasValue: true },
-  { flags: ["-m", "--mode"], hasValue: true },
+  { flags: ["--level"], hasValue: true, validValues: VALID_LEVELS },
+  { flags: ["-m", "--mode"], hasValue: true, validValues: VALID_MODES },
 ];
 
 export const HELP_TEXT = `
@@ -54,7 +64,7 @@ Options:
   -y, --yarnConfig                  Enable yarn config support
   --level <level>                   Update level: patch, minor, or major (default: major)
   -m, --mode <mode>                verbose: only listed packages; precise: all except listed
-  -l, --language <lang>            Target language (nodejs, go, python) (experimental)
+  -l, --language <lang>            Target language for this run (nodejs, go, python)
   -h, --help                        Show this help message
   --dryRun                          Show what would change without modifying files
   --interactive                     Choose which packages to update interactively
@@ -90,10 +100,10 @@ Examples:
                                               Only update react and vue
   codependence --update --interactive         Choose which packages to update
 
-  # Monorepo & multi-language
-  codependence --files '**/package.json'      Update all package.json files in monorepo
-  codependence --language python              Check Python requirements.txt/pyproject.toml
-  codependence --language go                  Check Go go.mod dependencies
+  # Monorepo & language-scoped runs
+  codependence --files '**/package.json'      Check/update package.json files in one Node.js run
+  codependence --language python              Run against Python manifests only
+  codependence --language go                  Run against go.mod manifests only
 
   # Development
   codependence --watch                        Watch mode - check every 30 seconds

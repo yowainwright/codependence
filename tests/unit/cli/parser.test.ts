@@ -85,11 +85,10 @@ describe("parseArgs", () => {
     expect(result.options.verbose).toBe(true);
   });
 
-  test("should ignore unknown flags", () => {
+  test("should reject unknown flags", () => {
     const args = [...baseArgs, "--unknown-flag"];
-    const result = parseArgs(args);
 
-    expect(result.options.unknownFlag).toBeUndefined();
+    expect(() => parseArgs(args)).toThrow("Unknown option: --unknown-flag");
   });
 
   test("should parse multiple boolean flags", () => {
@@ -172,14 +171,38 @@ describe("parseArgs", () => {
     ];
     const result = parseArgs(args);
 
-    expect(result.options.cds).toEqual(["lodash", "express", "react"]);
+    expect(result.options.codependencies).toEqual([
+      "lodash",
+      "express",
+      "react",
+    ]);
   });
 
   test("should handle --cds shorthand", () => {
     const args = [...baseArgs, "--cds", "lodash"];
     const result = parseArgs(args);
 
-    expect(result.options.cds).toEqual(["lodash"]);
+    expect(result.options.codependencies).toEqual(["lodash"]);
+  });
+
+  test("should handle -cds shorthand", () => {
+    const args = [...baseArgs, "-cds", "lodash"];
+    const result = parseArgs(args);
+
+    expect(result.options.codependencies).toEqual(["lodash"]);
+  });
+
+  test("should parse JSON object codependencies", () => {
+    const args = [...baseArgs, "--codependencies", '{"fs-extra":"10.0.1"}'];
+    const result = parseArgs(args);
+
+    expect(result.options.codependencies).toEqual([{ "fs-extra": "10.0.1" }]);
+  });
+
+  test("should reject invalid JSON object codependencies", () => {
+    const args = [...baseArgs, "--codependencies", '{"fs-extra":'];
+
+    expect(() => parseArgs(args)).toThrow("Invalid codependency object");
   });
 
   test("should handle --ignore with multiple patterns", () => {
@@ -288,7 +311,7 @@ describe("parseArgs", () => {
     expect(result.options.interactive).toBe(true);
     expect(result.options.files).toEqual(["packages/*/package.json"]);
     expect(result.options.ignore).toEqual(["**/node_modules/**"]);
-    expect(result.options.cds).toEqual(["lodash", "express"]);
+    expect(result.options.codependencies).toEqual(["lodash", "express"]);
     expect(result.options.verbose).toBe(true);
   });
 
@@ -296,7 +319,8 @@ describe("parseArgs", () => {
     const args = [...baseArgs, "init", "rc"];
     const result = parseArgs(args);
 
-    expect(result.command).toBe("rc");
+    expect(result.command).toBe("init");
+    expect(result.positionals).toEqual(["init", "rc"]);
   });
 
   test("should handle empty args", () => {
@@ -314,11 +338,16 @@ describe("parseArgs", () => {
     expect(result.options.config).toBe("-some-value");
   });
 
-  test("should parse value flags without value as true", () => {
+  test("should reject value flags without value", () => {
     const args = [...baseArgs, "--config"];
-    const result = parseArgs(args);
 
-    expect(result.options.config).toBe(true);
+    expect(() => parseArgs(args)).toThrow("Option --config requires a value");
+  });
+
+  test("should reject invalid enum values", () => {
+    const args = [...baseArgs, "--language", "ruby"];
+
+    expect(() => parseArgs(args)).toThrow("Invalid value for --language");
   });
 });
 

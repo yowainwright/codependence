@@ -37,9 +37,9 @@ services:
       echo '  - invalid-package.json (malformed JSON)'
       echo ''
       echo 'Example commands:'
-      echo '  cp test-package.json package.json && node dist/index.js init'
-      echo '  cp test-package.json package.json && node dist/index.js init rc'
-      echo '  cp test-package.json package.json && node dist/index.js init package'
+      echo '  cp test-package.json package.json && node dist/cli.js init'
+      echo '  cp test-package.json package.json && node dist/cli.js init rc'
+      echo '  cp test-package.json package.json && node dist/cli.js init package'
       /bin/sh
       "
 

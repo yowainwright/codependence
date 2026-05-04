@@ -1,5 +1,11 @@
 import { error } from "../utils/colors";
-import { VALID_LANGUAGES, VALID_LEVELS, VALID_MODES, KNOWN_FIELDS } from "./constants";
+import {
+  VALID_FORMATS,
+  VALID_LANGUAGES,
+  VALID_LEVELS,
+  VALID_MODES,
+  KNOWN_FIELDS,
+} from "./constants";
 import type { ValidationError, ValidationResult } from "./types";
 
 const isString = (value: unknown): value is string => typeof value === "string";
@@ -26,7 +32,9 @@ const validateStringItem = (item: string): ValidationError | null => {
       };
 };
 
-const validateObjectItem = (item: Record<string, unknown>): ValidationError | null => {
+const validateObjectItem = (
+  item: Record<string, unknown>,
+): ValidationError | null => {
   const keys = Object.keys(item);
   const hasOneKey = keys.length === 1;
 
@@ -124,7 +132,9 @@ const validateCodependencies = (
   return codependencies
     .map((item, index) => {
       const itemError = validateCodeDependenciesItem(item);
-      return itemError ? { ...itemError, field: `codependencies[${index}]` } : null;
+      return itemError
+        ? { ...itemError, field: `codependencies[${index}]` }
+        : null;
     })
     .filter((itemError): itemError is ValidationError => itemError !== null);
 };
@@ -148,74 +158,126 @@ const validatePermissive = (
       ];
 };
 
-export const createEnumValidator = (
-  field: string,
-  validValues: readonly string[],
-) => (config: Record<string, unknown>): ValidationError[] => {
-  if (!(field in config)) return [];
+const createBooleanValidator =
+  (field: string) =>
+  (config: Record<string, unknown>): ValidationError[] => {
+    if (!(field in config)) return [];
 
-  const value = config[field];
-  const valueList = validValues.join(", ");
+    const value = config[field];
+    return isBoolean(value)
+      ? []
+      : [
+          {
+            field,
+            message: `"${field}" must be a boolean, got ${typeof value}`,
+            suggestion: `Change to: {"${field}": true} or {"${field}": false}`,
+          },
+        ];
+  };
 
-  if (!isString(value)) {
-    return [
-      {
-        field,
-        message: `"${field}" must be a string, got ${typeof value}`,
-        suggestion: `Use one of: ${valueList}`,
-      },
-    ];
-  }
+const createStringValidator =
+  (field: string) =>
+  (config: Record<string, unknown>): ValidationError[] => {
+    if (!(field in config)) return [];
 
-  const isValid = (validValues as readonly string[]).includes(value);
-  return isValid
-    ? []
-    : [
+    const value = config[field];
+    return isString(value)
+      ? []
+      : [
+          {
+            field,
+            message: `"${field}" must be a string, got ${typeof value}`,
+            suggestion: `Change "${field}" to a string value`,
+          },
+        ];
+  };
+
+export const createEnumValidator =
+  (field: string, validValues: readonly string[]) =>
+  (config: Record<string, unknown>): ValidationError[] => {
+    if (!(field in config)) return [];
+
+    const value = config[field];
+    const valueList = validValues.join(", ");
+
+    if (!isString(value)) {
+      return [
         {
           field,
-          message: `Invalid ${field} "${value}"`,
-          suggestion: `Must be one of: ${valueList}`,
+          message: `"${field}" must be a string, got ${typeof value}`,
+          suggestion: `Use one of: ${valueList}`,
         },
       ];
-};
+    }
 
-export const createArrayValidator = (
-  field: string,
-  itemLabel: string,
-  arraySuggestion: string,
-) => (config: Record<string, unknown>): ValidationError[] => {
-  if (!(field in config)) return [];
+    const isValid = (validValues as readonly string[]).includes(value);
+    return isValid
+      ? []
+      : [
+          {
+            field,
+            message: `Invalid ${field} "${value}"`,
+            suggestion: `Must be one of: ${valueList}`,
+          },
+        ];
+  };
 
-  const value = config[field];
+export const createArrayValidator =
+  (field: string, itemLabel: string, arraySuggestion: string) =>
+  (config: Record<string, unknown>): ValidationError[] => {
+    if (!(field in config)) return [];
 
-  if (!isArray(value)) {
-    return [
-      {
-        field,
-        message: `"${field}" must be an array, got ${typeof value}`,
-        suggestion: `Use array format: ${arraySuggestion}`,
-      },
-    ];
-  }
+    const value = config[field];
 
-  const hasInvalidItems = value.some((item) => !isString(item));
-
-  return hasInvalidItems
-    ? [
+    if (!isArray(value)) {
+      return [
         {
           field,
-          message: `All ${itemLabel} patterns must be strings`,
-          suggestion: `Remove non-string values from ${field} array`,
+          message: `"${field}" must be an array, got ${typeof value}`,
+          suggestion: `Use array format: ${arraySuggestion}`,
         },
-      ]
-    : [];
-};
+      ];
+    }
+
+    const hasInvalidItems = value.some((item) => !isString(item));
+
+    return hasInvalidItems
+      ? [
+          {
+            field,
+            message: `All ${itemLabel} patterns must be strings`,
+            suggestion: `Remove non-string values from ${field} array`,
+          },
+        ]
+      : [];
+  };
 
 const validateLanguage = createEnumValidator("language", VALID_LANGUAGES);
 const validateLevel = createEnumValidator("level", VALID_LEVELS);
 const validateMode = createEnumValidator("mode", VALID_MODES);
-const validateFiles = createArrayValidator("files", "file", '{"files": ["**/package.json"]}');
-const validateIgnore = createArrayValidator("ignore", "ignore", '{"ignore": ["**/node_modules/**"]}');
+const validateFormat = createEnumValidator("format", VALID_FORMATS);
+const validateFiles = createArrayValidator(
+  "files",
+  "file",
+  '{"files": ["**/package.json"]}',
+);
+const validateIgnore = createArrayValidator(
+  "ignore",
+  "ignore",
+  '{"ignore": ["**/node_modules/**"]}',
+);
+const validateRootDir = createStringValidator("rootDir");
+const validateOutputFile = createStringValidator("outputFile");
+const validateUpdate = createBooleanValidator("update");
+const validateDebug = createBooleanValidator("debug");
+const validateSilent = createBooleanValidator("silent");
+const validateVerbose = createBooleanValidator("verbose");
+const validateQuiet = createBooleanValidator("quiet");
+const validateYarnConfig = createBooleanValidator("yarnConfig");
+const validateDryRun = createBooleanValidator("dryRun");
+const validateInteractive = createBooleanValidator("interactive");
+const validateWatch = createBooleanValidator("watch");
+const validateNoCache = createBooleanValidator("noCache");
 
 const validateUnknownFields = (
   config: Record<string, unknown>,
@@ -251,8 +313,21 @@ export const validateConfig = (config: unknown): ValidationResult => {
     validateLanguage(typedConfig),
     validateLevel(typedConfig),
     validateMode(typedConfig),
+    validateFormat(typedConfig),
     validateFiles(typedConfig),
     validateIgnore(typedConfig),
+    validateRootDir(typedConfig),
+    validateOutputFile(typedConfig),
+    validateUpdate(typedConfig),
+    validateDebug(typedConfig),
+    validateSilent(typedConfig),
+    validateVerbose(typedConfig),
+    validateQuiet(typedConfig),
+    validateYarnConfig(typedConfig),
+    validateDryRun(typedConfig),
+    validateInteractive(typedConfig),
+    validateWatch(typedConfig),
+    validateNoCache(typedConfig),
     validateUnknownFields(typedConfig),
   );
 

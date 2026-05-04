@@ -1,0 +1,73 @@
+name: codependence socket security
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: socket-security-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  socket-security:
+    name: Socket dependency scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    env:
+      GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SOCKET_SECURITY_API_KEY: ${{ secrets.SOCKET_SECURITY_API_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+
+      - name: Verify Socket token
+        shell: bash
+        run: |
+          if [ -n "$SOCKET_SECURITY_API_KEY" ]; then
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "Socket scan skipped because repository secrets are unavailable for external fork pull requests."
+            exit 0
+          fi
+
+          echo "::error::Configure the SOCKET_SECURITY_API_KEY repository or organization secret to run Socket scans."
+          exit 1
+
+      - name: Set up Python
+        if: env.SOCKET_SECURITY_API_KEY != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Socket CLI
+        if: env.SOCKET_SECURITY_API_KEY != ''
+        run: python -m pip install socketsecurity --upgrade
+
+      - name: Run Socket Security scan
+        if: env.SOCKET_SECURITY_API_KEY != ''
+        shell: bash
+        run: |
+          pr_number=0
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pr_number="${{ github.event.pull_request.number }}"
+          fi
+
+          socketcli \
+            --target-path "$GITHUB_WORKSPACE" \
+            --scm github \
+            --pr-number "$pr_number"

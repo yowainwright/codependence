@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "fs";
-import { join } from "path";
+import { basename, dirname, join } from "path";
 import type { Language, LanguageDetectionResult } from "./types";
 
 const readNodePackageManagerField = (rootDir: string): string | null => {
@@ -52,22 +52,42 @@ export const detectNodePackageManager = (rootDir: string): string => {
   return "npm";
 };
 
+export const isPoetryPyproject = (filePath: string): boolean => {
+  if (!existsSync(filePath)) return false;
+
+  try {
+    const content = readFileSync(filePath, "utf8");
+    return content.includes("[tool.poetry");
+  } catch {
+    return false;
+  }
+};
+
+export const detectPythonPackageManagerForManifest = (
+  manifestPath: string,
+): string => {
+  const manifestName = basename(manifestPath);
+  const rootDir = dirname(manifestPath);
+  const hasUvLock = existsSync(join(rootDir, "uv.lock"));
+
+  if (manifestName === "Pipfile") return "pipenv";
+  if (manifestName === "pyproject.toml" && isPoetryPyproject(manifestPath)) {
+    return "poetry";
+  }
+  if (hasUvLock) return "uv";
+  return "pip";
+};
+
 export const detectPythonPackageManager = (rootDir: string): string => {
-  const hasEnvironmentYml =
-    existsSync(join(rootDir, "environment.yml")) ||
-    existsSync(join(rootDir, "environment.yaml"));
   const hasPipfile = existsSync(join(rootDir, "Pipfile"));
   const hasPyprojectToml = existsSync(join(rootDir, "pyproject.toml"));
   const hasUvLock = existsSync(join(rootDir, "uv.lock"));
+  const hasPoetryPyproject =
+    hasPyprojectToml && isPoetryPyproject(join(rootDir, "pyproject.toml"));
 
-  if (hasEnvironmentYml) return "conda";
   if (hasUvLock) return "uv";
   if (hasPipfile) return "pipenv";
-  if (hasPyprojectToml) {
-    const content = readFileSync(join(rootDir, "pyproject.toml"), "utf8");
-    const hasPoetry = content.includes("[tool.poetry");
-    if (hasPoetry) return "poetry";
-  }
+  if (hasPoetryPyproject) return "poetry";
   return "pip";
 };
 
@@ -97,16 +117,21 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
     });
   }
 
-  const pythonManifests = [
-    "requirements.txt",
-    "pyproject.toml",
-    "Pipfile",
-    "environment.yml",
-    "environment.yaml",
-  ];
-  const foundPythonManifests = pythonManifests.filter((f) =>
-    existsSync(join(rootDir, f)),
-  );
+  const foundPythonManifests: string[] = [];
+  if (existsSync(join(rootDir, "requirements.txt"))) {
+    foundPythonManifests.push("requirements.txt");
+  }
+  if (existsSync(join(rootDir, "Pipfile"))) {
+    foundPythonManifests.push("Pipfile");
+  }
+  const hasPyprojectToml = existsSync(join(rootDir, "pyproject.toml"));
+  const hasUvLockForDetect = existsSync(join(rootDir, "uv.lock"));
+  if (hasPyprojectToml && (isPoetryPyproject(join(rootDir, "pyproject.toml")) || hasUvLockForDetect)) {
+    foundPythonManifests.push("pyproject.toml");
+  }
+  if (hasUvLockForDetect && !foundPythonManifests.length) {
+    foundPythonManifests.push("uv.lock");
+  }
   const hasPythonManifests = foundPythonManifests.length > 0;
   if (hasPythonManifests) {
     detections.push({

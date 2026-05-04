@@ -25,7 +25,9 @@ export const parseRequireBlock = (content: string): Record<string, string> => {
   return dependencies;
 };
 
-export const parseSingleRequires = (content: string): Record<string, string> => {
+export const parseSingleRequires = (
+  content: string,
+): Record<string, string> => {
   const dependencies: Record<string, string> = {};
   const singleRequireMatches = content.matchAll(GO_PATTERNS.REQUIRE_LINE);
 
@@ -36,12 +38,51 @@ export const parseSingleRequires = (content: string): Record<string, string> => 
   return dependencies;
 };
 
-export const buildRequireBlock = (dependencies: Record<string, string>): string => {
+export const buildRequireBlock = (
+  dependencies: Record<string, string>,
+): string => {
   const requireEntries = Object.entries(dependencies)
     .map(([name, version]) => `\t${name} ${version}`)
     .join("\n");
 
   return `require (\n${requireEntries}\n)`;
+};
+
+const preserveFinalNewline = (content: string): string =>
+  content.endsWith("\n") ? content : `${content}\n`;
+
+const updateRequireLine = (
+  line: string,
+  dependencies: Record<string, string>,
+): { line: string; updated: boolean } => {
+  const match = line.match(/^(\s*(?:require\s+)?)([^\s(]+)(\s+)([^\s]+)(.*)$/);
+  if (!match) return { line, updated: false };
+
+  const [, prefix, name, spacing, _version, suffix] = match;
+  const nextVersion = dependencies[name];
+  if (!nextVersion) return { line, updated: false };
+
+  return {
+    line: `${prefix}${name}${spacing}${nextVersion}${suffix}`,
+    updated: true,
+  };
+};
+
+const updateExistingRequireLines = (
+  content: string,
+  dependencies: Record<string, string>,
+): { content: string; updatedCount: number } => {
+  let updatedCount = 0;
+  const updatedContent = content
+    .split("\n")
+    .map((line) => {
+      const result = updateRequireLine(line, dependencies);
+      if (result.updated) updatedCount++;
+      return result.line;
+    })
+    .join("\n");
+
+  return { content: preserveFinalNewline(updatedContent), updatedCount };
 };
 
 export class GoProvider implements DependencyProvider {
@@ -101,6 +142,16 @@ export class GoProvider implements DependencyProvider {
     manifest: DependencyManifest,
   ): Promise<void> {
     const content = readFileSync(filePath, "utf8");
+    const existingUpdate = updateExistingRequireLines(
+      content,
+      manifest.dependencies,
+    );
+    if (existingUpdate.updatedCount > 0) {
+      writeFileSync(filePath, existingUpdate.content);
+      await this.runGoModTidy(filePath);
+      return;
+    }
+
     const requireBlock = buildRequireBlock(manifest.dependencies);
 
     const hasMultiLineRequire = GO_PATTERNS.REQUIRE_BLOCK.test(content);

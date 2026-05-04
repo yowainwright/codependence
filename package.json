@@ -18,8 +18,8 @@
     }
   },
   "bin": {
-    "codependence": "dist/index.js",
-    "cdp": "dist/index.js"
+    "codependence": "dist/cli.js",
+    "cdp": "dist/cli.js"
   },
   "codependence": {
     "codependencies": [
@@ -56,16 +56,16 @@
   },
   "scripts": {
     "build": "turbo run build-dist",
-    "build-dist": "bun build src/index.ts --format esm --outfile dist/index.js --target node && bun build src/index.ts --format cjs --outfile dist/index.cjs --target node && bunx tsc --emitDeclarationOnly --declaration --outDir dist --rootDir src",
+    "build-dist": "bun build src/index.ts --format esm --outfile dist/index.js --target node && bun build src/index.ts --format cjs --outfile dist/index.cjs --target node && bun build src/cli.ts --format esm --outfile dist/cli.js --target node && bunx tsc --emitDeclarationOnly --declaration --outDir dist --rootDir src",
     "clean-dist": "rm -rf dist",
     "clean": "turbo run clean-dist && cd page/app && rm -rf dist",
-    "cmd:node:test-fail-run": "node dist/index.js --config './tests/unit/fixtures/test-fail-package.json' --files 'test-fail-package.json' --rootDir './tests/unit/fixtures/' --debug",
-    "cmd:node:test-pass-run": "node dist/index.js --config './tests/unit/fixtures/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './tests/unit/fixtures/' --debug",
-    "cmd:bun:test-search": "bun src/index.ts --rootDir './tests/unit/fixtures/' --debug --searchPath './tests/unit/fixtures/.codependencerc' --isTestingCLI",
-    "cmd:bun:test-fail-run": "bun src/index.ts --config './tests/unit/fixtures/test-fail-package.json' --files 'test-fail-package.json' --rootDir './tests/unit/fixtures/' --debug",
-    "cmd:bun:test-pass-run": "bun src/index.ts --config './tests/unit/fixtures/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './tests/unit/fixtures/' --debug",
-    "cmd:bun:test-update-run": "bun src/index.ts --config './tests/unit/fixtures/test-fail-package.json' --files 'test-fail-package.json' --rootDir './tests/unit/fixtures/' --debug --isTesting",
-    "cmd:bun:test-codependencies-cli": "bun src/index.ts -c './tests/unit/fixtures/test-fail-package.json' --files 'test-fail-package.json' -cds 'lodash' '{ \"fs-extra\": \"10.0.1\" }' --rootDir './tests/unit/fixtures/' --debug --isTesting",
+    "cmd:node:test-fail-run": "node dist/cli.js --config './tests/unit/fixtures/test-fail-package.json' --files 'test-fail-package.json' --rootDir './tests/unit/fixtures/' --debug",
+    "cmd:node:test-pass-run": "node dist/cli.js --config './tests/unit/fixtures/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './tests/unit/fixtures/' --debug",
+    "cmd:bun:test-search": "bun src/cli.ts --rootDir './tests/unit/fixtures/' --debug --searchPath './tests/unit/fixtures/.codependencerc' --isTestingCLI",
+    "cmd:bun:test-fail-run": "bun src/cli.ts --config './tests/unit/fixtures/test-fail-package.json' --files 'test-fail-package.json' --rootDir './tests/unit/fixtures/' --debug",
+    "cmd:bun:test-pass-run": "bun src/cli.ts --config './tests/unit/fixtures/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './tests/unit/fixtures/' --debug",
+    "cmd:bun:test-update-run": "bun src/cli.ts --config './tests/unit/fixtures/test-fail-package.json' --files 'test-fail-package.json' --rootDir './tests/unit/fixtures/' --debug --isTesting",
+    "cmd:bun:test-codependencies-cli": "bun src/cli.ts -c './tests/unit/fixtures/test-fail-package.json' --files 'test-fail-package.json' -cds 'lodash' '{ \"fs-extra\": \"10.0.1\" }' --rootDir './tests/unit/fixtures/' --debug --isTesting",
     "coverage": "bun test --coverage",
     "dev": "turbo run dev",
     "docs:dev": "turbo run dev --filter=@codependence/docs",

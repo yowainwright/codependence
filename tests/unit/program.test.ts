@@ -176,7 +176,7 @@ describe("Action Function Tests (Fast)", () => {
 
   test("processes codependencies from config", async () => {
     const result = await action({
-      config: "./tests/unit/fixtures/.codependencerc",
+      config: "./tests/unit/fixtures/test-pass-package.json",
       isTestingAction: true,
     });
 
@@ -289,12 +289,8 @@ describe("Action Function Tests (Fast)", () => {
 
   test("should handle error when codependencies are missing", async () => {
     scriptSpy.mockRestore();
-    const configSpy = jest
-      .spyOn(config, "loadConfig")
-      .mockReturnValue({ config: {}, configPath: null });
-    const errorSpy = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const configSpy = jest.spyOn(config, "loadConfig").mockReturnValue(null);
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = jest
       .spyOn(process, "exit")
       .mockImplementation((() => {}) as () => never);
@@ -313,9 +309,7 @@ describe("Action Function Tests (Fast)", () => {
   });
 
   test("should run in permissive mode when no options provided", async () => {
-    const configSpy = jest
-      .spyOn(config, "loadConfig")
-      .mockReturnValue({ config: {}, configPath: null });
+    const configSpy = jest.spyOn(config, "loadConfig").mockReturnValue(null);
 
     await action({});
 
@@ -383,10 +377,10 @@ describe("Action Function Tests (Fast)", () => {
     let intervalCallback: (() => Promise<void>) | undefined;
     const setIntervalSpy = jest
       .spyOn(globalThis, "setInterval")
-      .mockImplementation((((callback: TimerHandler) => {
+      .mockImplementation(((callback: TimerHandler) => {
         intervalCallback = callback as () => Promise<void>;
         return 0;
-      }) as unknown) as typeof setInterval);
+      }) as unknown as typeof setInterval);
     const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
 
     let resolveSecondRun: (() => void) | undefined;
@@ -420,11 +414,13 @@ describe("Action Function Tests (Fast)", () => {
     let intervalCallback: (() => Promise<void>) | undefined;
     const setIntervalSpy = jest
       .spyOn(globalThis, "setInterval")
-      .mockImplementation((((callback: TimerHandler) => {
+      .mockImplementation(((callback: TimerHandler) => {
         intervalCallback = callback as () => Promise<void>;
         return 0;
-      }) as unknown) as typeof setInterval);
-    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+      }) as unknown as typeof setInterval);
+    const consoleLogSpy = jest
+      .spyOn(console, "log")
+      .mockImplementation(() => {});
     const consoleErrorSpy = jest
       .spyOn(console, "error")
       .mockImplementation(() => {});
@@ -453,9 +449,7 @@ describe("initAction", () => {
 
   test("should handle existing .codependencerc", async () => {
     const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(true);
-    const warnSpy = jest
-      .spyOn(logger, "warn")
-      .mockImplementation(() => {});
+    const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
 
     await initAction("rc");
 
@@ -466,9 +460,7 @@ describe("initAction", () => {
 
   test("should handle missing package.json", async () => {
     const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(false);
-    const errorSpy = jest
-      .spyOn(logger, "error")
-      .mockImplementation(() => {});
+    const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
 
     await initAction("rc");
 
@@ -478,17 +470,17 @@ describe("initAction", () => {
   });
 
   test("should handle invalid JSON in package.json", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
-      if (path === ".codependencerc") return false;
-      if (path === "package.json") return true;
-      return false;
-    });
+    const existsSyncSpy = jest
+      .spyOn(fs, "existsSync")
+      .mockImplementation((path) => {
+        if (path === ".codependencerc") return false;
+        if (path === "package.json") return true;
+        return false;
+      });
     const readFileSyncSpy = jest
       .spyOn(fs, "readFileSync")
       .mockReturnValue("invalid json{");
-    const errorSpy = jest
-      .spyOn(logger, "error")
-      .mockImplementation(() => {});
+    const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
 
     await initAction("rc");
 
@@ -499,17 +491,17 @@ describe("initAction", () => {
   });
 
   test("should handle no dependencies in package.json", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
-      if (path === ".codependencerc") return false;
-      if (path === "package.json") return true;
-      return false;
-    });
+    const existsSyncSpy = jest
+      .spyOn(fs, "existsSync")
+      .mockImplementation((path) => {
+        if (path === ".codependencerc") return false;
+        if (path === "package.json") return true;
+        return false;
+      });
     const readFileSyncSpy = jest
       .spyOn(fs, "readFileSync")
       .mockReturnValue(JSON.stringify({}));
-    const errorSpy = jest
-      .spyOn(logger, "error")
-      .mockImplementation(() => {});
+    const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
 
     await initAction("rc");
 
@@ -520,11 +512,13 @@ describe("initAction", () => {
   });
 
   test("should create .codependencerc with non-interactive mode", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
-      if (path === ".codependencerc") return false;
-      if (path === "package.json") return true;
-      return false;
-    });
+    const existsSyncSpy = jest
+      .spyOn(fs, "existsSync")
+      .mockImplementation((path) => {
+        if (path === ".codependencerc") return false;
+        if (path === "package.json") return true;
+        return false;
+      });
     const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(
       JSON.stringify({
         dependencies: { lodash: "4.17.21" },
@@ -546,11 +540,13 @@ describe("initAction", () => {
   });
 
   test("should create package.json config with package type", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
-      if (path === ".codependencerc") return false;
-      if (path === "package.json") return true;
-      return false;
-    });
+    const existsSyncSpy = jest
+      .spyOn(fs, "existsSync")
+      .mockImplementation((path) => {
+        if (path === ".codependencerc") return false;
+        if (path === "package.json") return true;
+        return false;
+      });
     const packageJsonContent = JSON.stringify({
       name: "test",
       dependencies: { lodash: "4.17.21" },
@@ -574,11 +570,13 @@ describe("initAction", () => {
   });
 
   test("should handle default type", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
-      if (path === ".codependencerc") return false;
-      if (path === "package.json") return true;
-      return false;
-    });
+    const existsSyncSpy = jest
+      .spyOn(fs, "existsSync")
+      .mockImplementation((path) => {
+        if (path === ".codependencerc") return false;
+        if (path === "package.json") return true;
+        return false;
+      });
     const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(
       JSON.stringify({
         dependencies: { lodash: "4.17.21" },
@@ -597,26 +595,40 @@ describe("initAction", () => {
   });
 
   const mockFsForInteractive = () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
-      if (path === ".codependencerc") return false;
-      if (path === "package.json") return true;
-      return false;
-    });
-    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(
-      JSON.stringify({ dependencies: { lodash: "4.17.21", react: "18.0.0" } }),
-    );
-    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+    const existsSyncSpy = jest
+      .spyOn(fs, "existsSync")
+      .mockImplementation((path) => {
+        if (path === ".codependencerc") return false;
+        if (path === "package.json") return true;
+        return false;
+      });
+    const readFileSyncSpy = jest
+      .spyOn(fs, "readFileSync")
+      .mockReturnValue(
+        JSON.stringify({
+          dependencies: { lodash: "4.17.21", react: "18.0.0" },
+        }),
+      );
+    const writeFileSyncSpy = jest
+      .spyOn(fs, "writeFileSync")
+      .mockImplementation(() => {});
     const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
     return { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy };
   };
 
   test("should handle interactive mode - permissive with selected deps", async () => {
-    const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
-    const listSpy = jest.spyOn(Prompt.prototype, "list")
+    const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } =
+      mockFsForInteractive();
+    const listSpy = jest
+      .spyOn(Prompt.prototype, "list")
       .mockResolvedValueOnce("permissive")
       .mockResolvedValueOnce("rc");
-    const checkboxSpy = jest.spyOn(Prompt.prototype, "checkbox").mockResolvedValue(["lodash"]);
-    const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
+    const checkboxSpy = jest
+      .spyOn(Prompt.prototype, "checkbox")
+      .mockResolvedValue(["lodash"]);
+    const closeSpy = jest
+      .spyOn(Prompt.prototype, "close")
+      .mockImplementation(() => {});
 
     await initAction();
 
@@ -631,12 +643,18 @@ describe("initAction", () => {
   });
 
   test("should handle interactive mode - permissive with no deps selected", async () => {
-    const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
-    const listSpy = jest.spyOn(Prompt.prototype, "list")
+    const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } =
+      mockFsForInteractive();
+    const listSpy = jest
+      .spyOn(Prompt.prototype, "list")
       .mockResolvedValueOnce("permissive")
       .mockResolvedValueOnce("rc");
-    const checkboxSpy = jest.spyOn(Prompt.prototype, "checkbox").mockResolvedValue([]);
-    const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
+    const checkboxSpy = jest
+      .spyOn(Prompt.prototype, "checkbox")
+      .mockResolvedValue([]);
+    const closeSpy = jest
+      .spyOn(Prompt.prototype, "close")
+      .mockImplementation(() => {});
 
     await initAction();
 
@@ -651,11 +669,15 @@ describe("initAction", () => {
   });
 
   test("should handle interactive mode - pin all deps", async () => {
-    const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
-    const listSpy = jest.spyOn(Prompt.prototype, "list")
+    const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } =
+      mockFsForInteractive();
+    const listSpy = jest
+      .spyOn(Prompt.prototype, "list")
       .mockResolvedValueOnce("all")
       .mockResolvedValueOnce("rc");
-    const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
+    const closeSpy = jest
+      .spyOn(Prompt.prototype, "close")
+      .mockImplementation(() => {});
 
     await initAction();
 
@@ -690,13 +712,13 @@ describe("run", () => {
   });
 
   test("should call initAction for init command", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
-      // Config already exists - should warn
-      return true;
-    });
-    const warnSpy = jest
-      .spyOn(logger, "warn")
-      .mockImplementation(() => {});
+    const existsSyncSpy = jest
+      .spyOn(fs, "existsSync")
+      .mockImplementation((path) => {
+        // Config already exists - should warn
+        return true;
+      });
+    const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
 
     await run(["node", "script.js", "init", "rc"]);
 
@@ -712,11 +734,13 @@ describe("run", () => {
   });
 
   test("should handle init command with package type", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
-      if (path === ".codependencerc") return false;
-      if (path === "package.json") return true;
-      return false;
-    });
+    const existsSyncSpy = jest
+      .spyOn(fs, "existsSync")
+      .mockImplementation((path) => {
+        if (path === ".codependencerc") return false;
+        if (path === "package.json") return true;
+        return false;
+      });
     const readFileSyncSpy = jest
       .spyOn(fs, "readFileSync")
       .mockReturnValue(JSON.stringify({ dependencies: { lodash: "4.17.21" } }));
@@ -733,11 +757,13 @@ describe("run", () => {
   });
 
   test("should handle init command with default type", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
-      if (path === ".codependencerc") return false;
-      if (path === "package.json") return true;
-      return false;
-    });
+    const existsSyncSpy = jest
+      .spyOn(fs, "existsSync")
+      .mockImplementation((path) => {
+        if (path === ".codependencerc") return false;
+        if (path === "package.json") return true;
+        return false;
+      });
     const readFileSyncSpy = jest
       .spyOn(fs, "readFileSync")
       .mockReturnValue(JSON.stringify({ dependencies: { lodash: "4.17.21" } }));
@@ -1094,7 +1120,7 @@ describe("Format Integration Tests", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue([
       {
         package: "react",
@@ -1143,7 +1169,7 @@ describe("Format Integration Tests", () => {
 
     expect(writeFileSpy).toHaveBeenCalledWith(
       "/tmp/test-output.json",
-      expect.stringContaining('"status"')
+      expect.stringContaining('"status"'),
     );
   });
 
@@ -1154,7 +1180,7 @@ describe("Format Integration Tests", () => {
     });
 
     const jsonCalls = consoleLogSpy.mock.calls.filter((call) =>
-      call[0]?.includes("# Dependency Status")
+      call[0]?.includes("# Dependency Status"),
     );
     expect(jsonCalls.length).toBeGreaterThan(0);
   });
@@ -1166,7 +1192,7 @@ describe("Format Integration Tests", () => {
     });
 
     const tableCalls = consoleLogSpy.mock.calls.filter((call) =>
-      call[0]?.includes("Outdated")
+      call[0]?.includes("Outdated"),
     );
     expect(tableCalls.length).toBeGreaterThan(0);
   });
@@ -1178,7 +1204,7 @@ describe("Format Integration Tests", () => {
     });
 
     const jsonOutput = consoleLogSpy.mock.calls.find((call) =>
-      call[0]?.includes('"package"')
+      call[0]?.includes('"package"'),
     );
     expect(jsonOutput).toBeDefined();
 
@@ -1191,7 +1217,6 @@ describe("Format Integration Tests", () => {
     }
   });
 
-
   test("should not show spinner when format option is set", async () => {
     await action({
       codependencies: ["react"],
@@ -1199,7 +1224,7 @@ describe("Format Integration Tests", () => {
     });
 
     const spinnerCalls = consoleLogSpy.mock.calls.filter((call) =>
-      call[0]?.includes("wrestling")
+      call[0]?.includes("wrestling"),
     );
     expect(spinnerCalls.length).toBe(0);
   });
@@ -1213,7 +1238,7 @@ describe("Format Integration Tests", () => {
     });
 
     const output = consoleLogSpy.mock.calls.find((call) =>
-      call[0]?.includes("up-to-date")
+      call[0]?.includes("up-to-date"),
     );
     expect(output).toBeDefined();
   });

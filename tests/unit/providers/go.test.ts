@@ -1,6 +1,21 @@
-import { expect, test, describe, beforeEach, afterEach, jest, mock } from "bun:test";
+import {
+  expect,
+  test,
+  describe,
+  beforeEach,
+  afterEach,
+  jest,
+  mock,
+} from "bun:test";
 import { GoProvider } from "../../../src/providers/go";
-import { writeFileSync, readFileSync, mkdirSync, rmSync } from "fs";
+import {
+  writeFileSync,
+  readFileSync,
+  mkdirSync,
+  rmSync,
+  mkdtempSync,
+} from "fs";
+import { tmpdir } from "os";
 import { join } from "path";
 
 describe("GoProvider", () => {
@@ -11,8 +26,7 @@ describe("GoProvider", () => {
   describe("getLatestVersion", () => {
     test("should get latest version from go list output", async () => {
       const execMock = jest.fn(() => ({
-        stdout:
-          "github.com/example/pkg v1.0.0 v1.1.0 v1.2.0 v1.2.1 v2.0.0",
+        stdout: "github.com/example/pkg v1.0.0 v1.1.0 v1.2.0 v1.2.1 v2.0.0",
         stderr: "",
       })) as any;
 
@@ -93,8 +107,7 @@ describe("GoProvider", () => {
         exec: execMock,
       }));
 
-      const versions =
-        await provider.getAllVersions("github.com/example/pkg");
+      const versions = await provider.getAllVersions("github.com/example/pkg");
 
       expect(versions).toEqual(["v1.0.0", "v1.1.0", "v2.0.0"]);
     });
@@ -374,6 +387,42 @@ require (
       const content = readFileSync(goModPath, "utf8");
       expect(content.endsWith("\n")).toBe(true);
     });
+
+    test("should update existing require lines in place", async () => {
+      const preserveDir = mkdtempSync(
+        join(tmpdir(), "codependence-go-preserve-"),
+      );
+
+      try {
+        const goModPath = join(preserveDir, "go.mod");
+        const originalContent = `module github.com/example/app
+
+go 1.21
+
+require (
+\tgithub.com/pkg v1.0.0 // indirect
+)
+`;
+
+        writeFileSync(goModPath, originalContent);
+
+        const provider = new GoProvider({ isTesting: true });
+        await provider.writeManifest(goModPath, {
+          filePath: goModPath,
+          dependencies: {
+            "github.com/pkg": "v1.2.0",
+          },
+        });
+
+        const updated = readFileSync(goModPath, "utf8");
+
+        expect(updated).toContain("\tgithub.com/pkg v1.2.0 // indirect");
+        expect(updated).toContain("module github.com/example/app");
+        expect(updated).toContain("go 1.21");
+      } finally {
+        rmSync(preserveDir, { recursive: true, force: true });
+      }
+    });
   });
 
   describe("validatePackageName", () => {
@@ -383,9 +432,9 @@ require (
       expect(provider.validatePackageName("github.com/user/repo")).toBe(true);
       expect(provider.validatePackageName("golang.org/x/crypto")).toBe(true);
       expect(provider.validatePackageName("gopkg.in/yaml")).toBe(true);
-      expect(
-        provider.validatePackageName("github.com/aws/aws-sdk-go"),
-      ).toBe(true);
+      expect(provider.validatePackageName("github.com/aws/aws-sdk-go")).toBe(
+        true,
+      );
       expect(provider.validatePackageName("example.com/my/package")).toBe(true);
     });
 

@@ -6,10 +6,16 @@ import { createSpinner } from "./utils/spinner";
 import { cyan, bold, green, gray, red } from "./utils/colors";
 import { SYMBOLS } from "./utils/symbols";
 import { Prompt } from "./utils/prompts";
-import { loadConfig } from "./config";
+import { formatValidationErrors, loadConfig, validateConfig } from "./config";
 import { parseArgs, showHelp } from "./cli/parser";
 import { format } from "./utils/formatters";
-import { Options, PackageJSON, CodependenceConfig, DependencyInfo } from "./types";
+import {
+  Options,
+  PackageJSON,
+  CodependenceConfig,
+  DependencyInfo,
+} from "./types";
+import type { ConfigResult } from "./config/types";
 
 const gradient = (text: string) => bold(cyan(text));
 
@@ -46,6 +52,42 @@ export const mergeConfigs = (
   return updatedOptions as Options;
 };
 
+const normalizeConfig = (
+  config: Record<string, unknown>,
+): Record<string, unknown> => {
+  const nestedConfig = config.codependence;
+  const hasNestedConfig =
+    nestedConfig !== undefined &&
+    typeof nestedConfig === "object" &&
+    nestedConfig !== null &&
+    !Array.isArray(nestedConfig);
+
+  return hasNestedConfig ? (nestedConfig as Record<string, unknown>) : config;
+};
+
+const validateConfigResult = (
+  result: ConfigResult | null,
+  requestedPath?: string,
+): Record<string, unknown> => {
+  if (!result) {
+    if (requestedPath) {
+      throw new Error(`Unable to load config file: ${requestedPath}`);
+    }
+    return {};
+  }
+
+  const normalizedConfig = normalizeConfig(result.config);
+  const validation = validateConfig(normalizedConfig);
+
+  if (!validation.valid) {
+    throw new Error(
+      `${result.filepath}\n${formatValidationErrors(validation.errors)}`,
+    );
+  }
+
+  return normalizedConfig;
+};
+
 export async function action(options: Options = {}): Promise<void | Options> {
   const isVerbose = options.verbose;
   const isDebug = options.debug;
@@ -65,32 +107,37 @@ export async function action(options: Options = {}): Promise<void | Options> {
   };
   const logger = createLogger(loggerConfig);
 
-  const result = loadConfig(undefined, options?.searchPath);
-  const configFileResult = options?.config ? loadConfig(options.config) : null;
-  const pathConfig = configFileResult?.config || {};
-  const baseConfig = result?.config || {};
-
-  const updatedOptions = mergeConfigs(options, baseConfig, pathConfig);
-
-  const isTestingCLI =
-    (options as Record<string, unknown>).isTestingCLI === true;
-  const isTestingAction =
-    (options as Record<string, unknown>).isTestingAction === true;
-
-  // capture/test CLI options
-  if (isTestingCLI) {
-    console.info({ updatedOptions });
-    return;
-  }
-
-  // capture action unit test options
-  if (isTestingAction) return updatedOptions;
-
   let spinner: ReturnType<typeof createSpinner> | null = null;
 
   try {
-    const effectivePermissive = updatedOptions.permissive ?? (updatedOptions.mode !== "verbose");
-    const hasPermissiveWithoutMode = effectivePermissive && !updatedOptions.mode;
+    const result = loadConfig(undefined, options?.searchPath);
+    const configFileResult = options?.config
+      ? loadConfig(options.config)
+      : null;
+    const pathConfig = validateConfigResult(configFileResult, options.config);
+    const baseConfig =
+      Object.keys(pathConfig).length > 0 ? {} : validateConfigResult(result);
+
+    const updatedOptions = mergeConfigs(options, baseConfig, pathConfig);
+
+    const isTestingCLI =
+      (options as Record<string, unknown>).isTestingCLI === true;
+    const isTestingAction =
+      (options as Record<string, unknown>).isTestingAction === true;
+
+    // capture/test CLI options
+    if (isTestingCLI) {
+      console.info({ updatedOptions });
+      return;
+    }
+
+    // capture action unit test options
+    if (isTestingAction) return updatedOptions;
+
+    const effectivePermissive =
+      updatedOptions.permissive ?? updatedOptions.mode !== "verbose";
+    const hasPermissiveWithoutMode =
+      effectivePermissive && !updatedOptions.mode;
     if (hasPermissiveWithoutMode) {
       updatedOptions.mode = "precise";
     }
@@ -99,7 +146,9 @@ export async function action(options: Options = {}): Promise<void | Options> {
     const isWatchMode = updatedOptions.watch === true;
 
     if (isDryRun) {
-      console.log(cyan(`\n${SYMBOLS.info} Dry run - no files will be modified\n`));
+      console.log(
+        cyan(`\n${SYMBOLS.info} Dry run - no files will be modified\n`),
+      );
     }
 
     if (isWatchMode) {
@@ -194,13 +243,19 @@ const showPerformanceMetrics = (duration: number): void => {
 };
 
 const runWatchMode = async (options: Options): Promise<void> => {
-  console.log(cyan(`\n${SYMBOLS.info} Watch mode enabled - checking every 30 seconds...\n`));
+  console.log(
+    cyan(
+      `\n${SYMBOLS.info} Watch mode enabled - checking every 30 seconds...\n`,
+    ),
+  );
   console.log(gray("Press Ctrl+C to stop\n"));
   let isChecking = false;
 
   const checkDependencies = async () => {
     if (isChecking) {
-      console.log(gray("Previous check still running, skipping this interval."));
+      console.log(
+        gray("Previous check still running, skipping this interval."),
+      );
       return;
     }
 
@@ -210,9 +265,13 @@ const runWatchMode = async (options: Options): Promise<void> => {
 
     try {
       await checkFiles(options);
-      console.log(green(`${SYMBOLS.success} All dependencies checked (${now})`));
+      console.log(
+        green(`${SYMBOLS.success} All dependencies checked (${now})`),
+      );
     } catch (err) {
-      console.error(red(`${SYMBOLS.error} Check failed: ${(err as Error).message}`));
+      console.error(
+        red(`${SYMBOLS.error} Check failed: ${(err as Error).message}`),
+      );
     } finally {
       isChecking = false;
     }
@@ -247,7 +306,9 @@ export async function initAction(
 
     if (hasConfig || hasPackageJsonConfig) {
       spinner.stop();
-      logger.warn("Codependence configuration already exists. Skipping initialization.");
+      logger.warn(
+        "Codependence configuration already exists. Skipping initialization.",
+      );
       return;
     }
 
@@ -420,13 +481,31 @@ export async function run(args: string[] = process.argv): Promise<void> {
     return;
   }
 
-  const isInitCommand = args.includes("init");
+  const isInitCommand = parsed.command === "init";
   if (isInitCommand) {
-    const initType = args.find(
-      (arg) => arg === "rc" || arg === "package" || arg === "default",
-    ) as "rc" | "package" | "default" | undefined;
+    const initType = parsed.positionals[1] as
+      | "rc"
+      | "package"
+      | "default"
+      | undefined;
+    const hasInvalidInitType =
+      initType !== undefined &&
+      initType !== "rc" &&
+      initType !== "package" &&
+      initType !== "default";
+
+    if (hasInvalidInitType) {
+      throw new Error(
+        `Invalid init type: ${initType}. Expected one of: rc, package, default`,
+      );
+    }
+
     await initAction(initType);
     return;
+  }
+
+  if (parsed.command) {
+    throw new Error(`Unknown command: ${parsed.command}`);
   }
 
   await action(parsed.options as Options);

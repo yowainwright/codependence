@@ -209,6 +209,15 @@ test("constructVersionTypes with no specifier", () => {
   expect(bumpVersion).toEqual(exactVersion);
 });
 
+test("constructVersionTypes => preserves Python comparison operators", () => {
+  const result = constructVersionTypes("==2.31.0");
+  expect(result).toEqual({
+    bumpCharacter: "==",
+    bumpVersion: "==2.31.0",
+    exactVersion: "2.31.0",
+  });
+});
+
 test("constructDepsToUpdateList => returns dep to update list with exact characters", () => {
   const result = constructDepsToUpdateList({ foo: "1.0.0" }, { foo: "2.0.0" });
   expect(result).toEqual([
@@ -286,6 +295,21 @@ test("constructDepsToUpdateList => handles mixed special characters correctly", 
       exact: "2.0.0",
       expected: "^2.0.0", // Should use the first character (^)
       actual: "^~^1.0.0",
+    },
+  ]);
+});
+
+test("constructDepsToUpdateList => preserves Python equality prefixes", () => {
+  const result = constructDepsToUpdateList(
+    { requests: "==2.30.0" },
+    { requests: "2.31.0" },
+  );
+  expect(result).toEqual([
+    {
+      name: "requests",
+      exact: "2.31.0",
+      expected: "==2.31.0",
+      actual: "==2.30.0",
     },
   ]);
 });
@@ -1389,6 +1413,153 @@ test("checkFiles => auto-detects python manifests", async () => {
   } finally {
     expect(logSpy).toHaveBeenCalled();
     logSpy.mockRestore();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => rejects mixed-language runs without explicit scoping", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-mixed-language-run");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(
+    join(tempDir, "package.json"),
+    JSON.stringify({
+      name: "mixed-language-run",
+      version: "1.0.0",
+      dependencies: { lodash: "^4.17.21" },
+    }),
+  );
+  writeFileSync(join(tempDir, "requirements.txt"), "requests==2.31.0\n");
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: ["lodash"],
+        rootDir: tempDir,
+        permissive: false,
+        isTesting: true,
+      }),
+    ).rejects.toThrow("Codependence supports a single language per run");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => rejects explicit language mismatches", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-language-mismatch");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(join(tempDir, "requirements.txt"), "requests==2.31.0\n");
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: ["requests"],
+        rootDir: tempDir,
+        files: ["requirements.txt"],
+        language: "nodejs",
+        permissive: false,
+        isTesting: true,
+      }),
+    ).rejects.toThrow("is a Python manifest");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => accepts uv-managed pyproject.toml when uv.lock exists", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-uv-pyproject-check");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(join(tempDir, "pyproject.toml"), "[project]\nname = 'test'\n");
+  writeFileSync(join(tempDir, "uv.lock"), "");
+
+  const logSpy = jest.spyOn(console, "log");
+  try {
+    await checkFiles({
+      codependencies: [],
+      rootDir: tempDir,
+      files: ["pyproject.toml"],
+      language: "python",
+      permissive: false,
+      isTesting: true,
+    });
+  } finally {
+    logSpy.mockRestore();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => rejects non-poetry pyproject.toml without uv.lock", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-bare-pyproject-check");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(join(tempDir, "pyproject.toml"), "[project]\nname = 'test'\n");
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: ["requests"],
+        rootDir: tempDir,
+        files: ["pyproject.toml"],
+        language: "python",
+        permissive: false,
+        isTesting: true,
+      }),
+    ).rejects.toThrow("not supported for Python runs");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => rejects unsupported python manifests", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-unsupported-python-manifest");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(join(tempDir, "environment.yml"), "dependencies:\n");
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: ["requests"],
+        rootDir: tempDir,
+        files: ["environment.yml"],
+        language: "python",
+        permissive: false,
+        isTesting: true,
+      }),
+    ).rejects.toThrow("Supported Python manifests are requirements.txt, Pipfile, Poetry pyproject.toml, and uv-managed pyproject.toml");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => rejects Node.js updates for non-npm package managers", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-node-update-manager");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(
+    join(tempDir, "package.json"),
+    JSON.stringify({
+      name: "node-update-manager",
+      version: "1.0.0",
+      dependencies: { lodash: "^4.17.0" },
+    }),
+  );
+  writeFileSync(join(tempDir, "yarn.lock"), "");
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: [{ lodash: "4.17.21" }],
+        rootDir: tempDir,
+        files: ["package.json"],
+        update: true,
+        permissive: false,
+        isTesting: true,
+      }),
+    ).rejects.toThrow("Node.js updates currently support npm projects only");
+  } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });

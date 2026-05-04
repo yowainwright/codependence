@@ -1,6 +1,15 @@
-import { readFileSync, writeFileSync } from "fs";
-import { basename, dirname, resolve } from "path";
-import { GoProvider, NodeJSProvider, PythonProvider, detectNodePackageManager, detectPrimaryLanguage, detectPythonPackageManager } from "../providers";
+import { existsSync, readFileSync, writeFileSync } from "fs";
+import { basename, dirname, join, resolve } from "path";
+import {
+  GoProvider,
+  NodeJSProvider,
+  PythonProvider,
+  detectLanguage,
+  detectNodePackageManager,
+  detectPrimaryLanguage,
+  detectPythonPackageManagerForManifest,
+  isPoetryPyproject,
+} from "../providers";
 import type { PythonPackageManager } from "../providers/python/constants";
 import type { DependencyManifest, DependencyProvider } from "../providers/types";
 import { validatePackageName } from "../utils/validate-package";
@@ -31,23 +40,28 @@ import {
 const DEFAULT_FILE_MATCHERS: Record<SupportedLanguage, string[]> = {
   nodejs: ["package.json"],
   go: ["go.mod"],
-  python: [
-    "requirements.txt",
-    "pyproject.toml",
-    "Pipfile",
-    "environment.yml",
-    "environment.yaml",
-  ],
+  python: ["requirements.txt", "pyproject.toml", "Pipfile"],
 };
 
-const PYTHON_MANIFEST_NAMES = new Set(DEFAULT_FILE_MATCHERS.python);
+const UNSUPPORTED_PYTHON_MANIFEST_NAMES = new Set([
+  "environment.yml",
+  "environment.yaml",
+]);
+const SUPPORTED_NODE_UPDATE_PACKAGE_MANAGERS = new Set(["npm"]);
 const VERSION_RESOLUTION_CONCURRENCY = 8;
+
+type MatchedManifest = {
+  file: string;
+  path: string;
+  language: SupportedLanguage;
+};
 
 type LoadedManifest = {
   file: string;
   path: string;
   language: SupportedLanguage;
   packageManager: string;
+  registryClient: string;
   provider: DependencyProvider;
   manifest: DependencyManifest;
 };
@@ -88,14 +102,116 @@ const mapWithConcurrency = async <T, R>(
 const resolveManifestPath = (rootDir: string, file: string): string =>
   resolve(rootDir, file);
 
-const inferLanguageFromFile = (file: string): SupportedLanguage | null => {
+const formatLanguageList = (languages: SupportedLanguage[]): string =>
+  Array.from(new Set(languages)).sort().join(", ");
+
+const getPythonManifestSupportError = (file: string): Error =>
+  new Error(
+    `Matched manifest "${file}" is not supported for Python runs. Supported Python manifests are requirements.txt, Pipfile, Poetry pyproject.toml, and uv-managed pyproject.toml.`,
+  );
+
+const isNodeManifestJson = (path: string): boolean => {
+  if (!path.endsWith(".json")) return false;
+
+  try {
+    const json = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+    return DEP_SECTIONS.some((section) => typeof json[section] === "object");
+  } catch {
+    return false;
+  }
+};
+
+const resolveMatchedManifestLanguage = (
+  file: string,
+  path: string,
+  scopedLanguage?: SupportedLanguage,
+): SupportedLanguage => {
   const manifestName = basename(file);
 
-  if (manifestName === "package.json") return "nodejs";
-  if (manifestName === "go.mod") return "go";
-  if (PYTHON_MANIFEST_NAMES.has(manifestName)) return "python";
+  if (manifestName === "package.json") {
+    if (scopedLanguage && scopedLanguage !== "nodejs") {
+      throw new Error(
+        `Matched manifest "${file}" is a Node.js manifest, but this run is scoped to ${scopedLanguage}. Use --language nodejs or narrower --files patterns.`,
+      );
+    }
+    return "nodejs";
+  }
 
-  return null;
+  if (isNodeManifestJson(path)) {
+    if (scopedLanguage && scopedLanguage !== "nodejs") {
+      throw new Error(
+        `Matched manifest "${file}" is a Node.js manifest, but this run is scoped to ${scopedLanguage}. Use --language nodejs or narrower --files patterns.`,
+      );
+    }
+    return "nodejs";
+  }
+
+  if (manifestName === "go.mod") {
+    if (scopedLanguage && scopedLanguage !== "go") {
+      throw new Error(
+        `Matched manifest "${file}" is a Go manifest, but this run is scoped to ${scopedLanguage}. Use --language go or narrower --files patterns.`,
+      );
+    }
+    return "go";
+  }
+
+  if (manifestName === "requirements.txt" || manifestName === "Pipfile") {
+    if (scopedLanguage && scopedLanguage !== "python") {
+      throw new Error(
+        `Matched manifest "${file}" is a Python manifest, but this run is scoped to ${scopedLanguage}. Use --language python or narrower --files patterns.`,
+      );
+    }
+    return "python";
+  }
+
+  if (manifestName === "pyproject.toml") {
+    const hasUvLock = existsSync(join(dirname(path), "uv.lock"));
+    if (!isPoetryPyproject(path) && !hasUvLock) {
+      throw getPythonManifestSupportError(file);
+    }
+    if (scopedLanguage && scopedLanguage !== "python") {
+      throw new Error(
+        `Matched manifest "${file}" is a Python manifest, but this run is scoped to ${scopedLanguage}. Use --language python or narrower --files patterns.`,
+      );
+    }
+    return "python";
+  }
+
+  if (UNSUPPORTED_PYTHON_MANIFEST_NAMES.has(manifestName)) {
+    throw getPythonManifestSupportError(file);
+  }
+
+  if (scopedLanguage) {
+    throw new Error(
+      `Matched file "${file}" is not a supported ${scopedLanguage} manifest for this run.`,
+    );
+  }
+
+  throw new Error(`Matched file "${file}" is not a supported manifest.`);
+};
+
+const validateMatchedManifests = (
+  files: string[],
+  rootDir: string,
+  scopedLanguage?: SupportedLanguage,
+): MatchedManifest[] => {
+  const matches = files.map((file) => {
+    const path = resolveManifestPath(rootDir, file);
+    return {
+      file,
+      path,
+      language: resolveMatchedManifestLanguage(file, path, scopedLanguage),
+    };
+  });
+
+  const languages = matches.map((match) => match.language);
+  if (new Set(languages).size > 1) {
+    throw new Error(
+      `Multiple languages detected for this run (${formatLanguageList(languages)}). Codependence supports a single language per run. Re-run with --language <lang> or narrower --files patterns.`,
+    );
+  }
+
+  return matches;
 };
 
 const resolveTargetLanguage = (
@@ -128,7 +244,11 @@ const createProvider = (
   language: SupportedLanguage,
   filePath: string,
   options: Pick<CheckFiles, "debug" | "yarnConfig" | "isTesting">,
-): { provider: DependencyProvider; packageManager: string } => {
+): {
+  provider: DependencyProvider;
+  packageManager: string;
+  registryClient: string;
+} => {
   const providerOptions = {
     debug: options.debug,
     yarnConfig: options.yarnConfig,
@@ -137,47 +257,47 @@ const createProvider = (
 
   switch (language) {
     case "nodejs": {
-      const packageManager = options.yarnConfig
-        ? "yarn"
-        : detectNodePackageManager(dirname(filePath));
+      const packageManager = detectNodePackageManager(dirname(filePath));
+      const registryClient = options.yarnConfig ? "yarn" : packageManager;
       return {
         provider: new NodeJSProvider({
           ...providerOptions,
-          packageManager,
+          packageManager: registryClient,
         }),
         packageManager,
+        registryClient,
       };
     }
     case "go":
       return {
         provider: new GoProvider(providerOptions),
         packageManager: "go",
+        registryClient: "go",
       };
     case "python": {
-      const packageManager = detectPythonPackageManager(
-        dirname(filePath),
+      const packageManager = detectPythonPackageManagerForManifest(
+        filePath,
       ) as PythonPackageManager;
       return {
         provider: new PythonProvider(filePath, packageManager, providerOptions),
         packageManager,
+        registryClient: packageManager,
       };
     }
   }
 };
 
 const loadManifests = async (
-  files: string[],
-  rootDir: string,
-  options: Pick<CheckFiles, "language" | "debug" | "yarnConfig" | "isTesting">,
+  matches: MatchedManifest[],
+  options: Pick<CheckFiles, "debug" | "yarnConfig" | "isTesting">,
 ): Promise<LoadedManifest[]> =>
   Promise.all(
-    files.map(async (file) => {
-      const path = resolveManifestPath(rootDir, file);
-      const language =
-        options.language ||
-        inferLanguageFromFile(file) ||
-        resolveTargetLanguage(dirname(path));
-      const { provider, packageManager } = createProvider(language, path, options);
+    matches.map(async ({ file, path, language }) => {
+      const { provider, packageManager, registryClient } = createProvider(
+        language,
+        path,
+        options,
+      );
       const manifest = await provider.readManifest(path);
 
       return {
@@ -185,6 +305,7 @@ const loadManifests = async (
         path,
         language,
         packageManager,
+        registryClient,
         provider,
         manifest,
       };
@@ -219,6 +340,31 @@ const detectStaleCodependenciesFromManifests = (
   return pinnedNames.filter((name) => !allDepNames.has(name));
 };
 
+const assertSupportedNodeUpdateManagers = (
+  manifests: LoadedManifest[],
+  shouldUpdate: boolean,
+): void => {
+  if (!shouldUpdate) return;
+
+  const unsupportedManagers = Array.from(
+    new Set(
+      manifests
+        .filter(
+          (manifest) =>
+            manifest.language === "nodejs" &&
+            !SUPPORTED_NODE_UPDATE_PACKAGE_MANAGERS.has(manifest.packageManager),
+        )
+        .map((manifest) => manifest.packageManager),
+    ),
+  );
+
+  if (unsupportedManagers.length === 0) return;
+
+  throw new Error(
+    `Node.js updates currently support npm projects only. Found ${unsupportedManagers.join(", ")}. Re-run checks without --update, or scope updates to npm-managed package.json manifests.`,
+  );
+};
+
 const createVersionResolver = (
   manifests: LoadedManifest[],
   rootDir: string,
@@ -228,9 +374,10 @@ const createVersionResolver = (
   resolveVersion: (packageName: string) => Promise<string>;
   cachePrefix: string;
 } => {
-  const language = resolveTargetLanguage(rootDir, options.language);
+  const language =
+    manifests[0]?.language || resolveTargetLanguage(rootDir, options.language);
   const existingManifest = manifests.find((manifest) => manifest.language === language);
-  const { provider, packageManager } =
+  const { provider, registryClient } =
     existingManifest ||
     (() => {
       const defaultFile = DEFAULT_FILE_MATCHERS[language][0];
@@ -241,7 +388,7 @@ const createVersionResolver = (
   return {
     provider,
     resolveVersion: (packageName: string) => provider.getLatestVersion(packageName),
-    cachePrefix: `${language}:${packageManager}`,
+    cachePrefix: `${language}:${registryClient}`,
   };
 };
 
@@ -436,19 +583,46 @@ export const constructVersionMap = async ({
   return versionMap;
 };
 
+const VERSION_PREFIXES = ["==", ">=", "<=", "~=", ">", "<", "=", "^", "~"];
+const UNSUPPORTED_VERSION_SPEC_PATTERNS = [
+  /^\*$/,
+  /^latest$/,
+  /^(workspace:|file:|link:|portal:|github:|git\+|https?:)/,
+];
+const VERSION_NUMBER_PATTERN =
+  /^v?\d+(?:\.\d+){0,2}(?:[-+][0-9A-Za-z.-]+)?$/;
+
 export const constructVersionTypes = (
   version: string,
 ): Record<string, string> => {
-  const hasSpecialPrefix = version.startsWith("^") || version.startsWith("~");
+  const matchingPrefix = VERSION_PREFIXES.find((prefix) =>
+    version.startsWith(prefix),
+  );
 
-  if (!hasSpecialPrefix) {
+  if (!matchingPrefix) {
     return { bumpCharacter: "", bumpVersion: version, exactVersion: version };
   }
 
-  const bumpCharacter = version[0];
-  const exactVersion = version.replace(/^[~^]+/, "");
+  const bumpCharacter =
+    matchingPrefix === "^" || matchingPrefix === "~"
+      ? version[0]
+      : matchingPrefix;
+  const exactVersion =
+    matchingPrefix === "^" || matchingPrefix === "~"
+      ? version.replace(/^[~^]+/, "")
+      : version.slice(matchingPrefix.length);
 
   return { bumpCharacter, bumpVersion: version, exactVersion };
+};
+
+const isSupportedVersionSpec = (version: string): boolean => {
+  if (version.length === 0) return false;
+  if (UNSUPPORTED_VERSION_SPEC_PATTERNS.some((pattern) => pattern.test(version))) {
+    return false;
+  }
+
+  const { exactVersion } = constructVersionTypes(version);
+  return VERSION_NUMBER_PATTERN.test(exactVersion);
 };
 
 const isUpdatablePermissiveDep = (
@@ -459,8 +633,9 @@ const isUpdatablePermissiveDep = (
 ): boolean => {
   const latestVersion = versionMap[name];
   if (!latestVersion) return false;
-  const isDifferent = exactVersion !== latestVersion;
-  const isAllowed = isWithinLevel(exactVersion, latestVersion, level);
+  const normalizedLatestVersion = constructVersionTypes(latestVersion).exactVersion;
+  const isDifferent = exactVersion !== normalizedLatestVersion;
+  const isAllowed = isWithinLevel(exactVersion, normalizedLatestVersion, level);
   return isDifferent && isAllowed;
 };
 
@@ -476,16 +651,24 @@ export const constructPermissiveDepsToUpdateList = (
     .filter(([name]) => !codependencies.includes(name))
     .map(([name, version]) => {
       const { exactVersion, bumpCharacter } = constructVersionTypes(version);
-      return { name, version, exactVersion, bumpCharacter };
+      return {
+        name,
+        version,
+        exactVersion,
+        bumpCharacter,
+        isSupported: isSupportedVersionSpec(version),
+      };
     })
-    .filter(({ name, exactVersion }) =>
-      isUpdatablePermissiveDep(name, exactVersion, versionMap, level),
+    .filter(
+      ({ name, exactVersion, isSupported }) =>
+        isSupported &&
+        isUpdatablePermissiveDep(name, exactVersion, versionMap, level),
     )
     .map(({ name, version, bumpCharacter }) => ({
       name,
       actual: version,
-      exact: versionMap[name],
-      expected: `${bumpCharacter}${versionMap[name]}`,
+      exact: constructVersionTypes(versionMap[name]).exactVersion,
+      expected: `${bumpCharacter}${constructVersionTypes(versionMap[name]).exactVersion}`,
     }));
 };
 
@@ -497,8 +680,9 @@ const isUpdatableDep = (
 ): boolean => {
   const latestVersion = versionMap[name];
   if (!latestVersion) return false;
-  const isDifferent = latestVersion !== exactVersion;
-  const isAllowed = isWithinLevel(exactVersion, latestVersion, level);
+  const normalizedLatestVersion = constructVersionTypes(latestVersion).exactVersion;
+  const isDifferent = normalizedLatestVersion !== exactVersion;
+  const isAllowed = isWithinLevel(exactVersion, normalizedLatestVersion, level);
   return isDifferent && isAllowed;
 };
 
@@ -513,16 +697,23 @@ export const constructDepsToUpdateList = (
     .map(([name, version]) => {
       const { exactVersion, bumpCharacter, bumpVersion } =
         constructVersionTypes(version);
-      return { name, exactVersion, bumpCharacter, bumpVersion };
+      return {
+        name,
+        exactVersion,
+        bumpCharacter,
+        bumpVersion,
+        isSupported: isSupportedVersionSpec(version),
+      };
     })
-    .filter(({ name, exactVersion }) =>
-      isUpdatableDep(name, exactVersion, versionMap, level),
+    .filter(
+      ({ name, exactVersion, isSupported }) =>
+        isSupported && isUpdatableDep(name, exactVersion, versionMap, level),
     )
     .map(({ name, bumpVersion, bumpCharacter }) => ({
       name,
       actual: bumpVersion,
-      exact: versionMap[name],
-      expected: `${bumpCharacter}${versionMap[name]}`,
+      exact: constructVersionTypes(versionMap[name]).exactVersion,
+      expected: `${bumpCharacter}${constructVersionTypes(versionMap[name]).exactVersion}`,
     }));
 };
 
@@ -1038,17 +1229,34 @@ export const checkFiles = async ({
 }: CheckFiles): Promise<VersionDiff[] | void> => {
   try {
     const resolvedRootDir = resolve(rootDir);
+    const hasExplicitMatchers = matchers !== undefined && matchers.length > 0;
+    if (!hasExplicitMatchers && !language) {
+      const detectedLanguages = detectLanguage(resolvedRootDir).map(
+        (detection) => detection.language,
+      );
+      if (detectedLanguages.length > 1) {
+        throw new Error(
+          `Multiple languages detected in ${resolvedRootDir} (${formatLanguageList(detectedLanguages as SupportedLanguage[])}). Codependence supports a single language per run. Re-run with --language <lang> or narrower --files patterns.`,
+        );
+      }
+    }
+
     const effectiveMatchers = resolveMatchers(resolvedRootDir, matchers, language);
     const files = await glob(effectiveMatchers, {
       cwd: resolvedRootDir,
       ignore,
     });
-    const manifests = await loadManifests(files, resolvedRootDir, {
+    const matchedManifests = validateMatchedManifests(
+      files,
+      resolvedRootDir,
       language,
+    );
+    const manifests = await loadManifests(matchedManifests, {
       debug,
       yarnConfig,
       isTesting,
     });
+    assertSupportedNodeUpdateManagers(manifests, update && !dryRun);
     const versionResolver = createVersionResolver(manifests, resolvedRootDir, {
       language,
       debug,
