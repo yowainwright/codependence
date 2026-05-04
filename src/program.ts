@@ -115,8 +115,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
       ? loadConfig(options.config)
       : null;
     const pathConfig = validateConfigResult(configFileResult, options.config);
-    const baseConfig =
-      Object.keys(pathConfig).length > 0 ? {} : validateConfigResult(result);
+    const baseConfig = validateConfigResult(result);
 
     const updatedOptions = mergeConfigs(options, baseConfig, pathConfig);
 
