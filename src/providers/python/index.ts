@@ -370,7 +370,7 @@ export class PythonProvider implements DependencyProvider {
           filePath,
           content.replace(
             PYTHON_PATTERNS.PEP621_DEPS,
-            `dependencies = [${updatedBody}]`,
+            `dependencies = [${updatedBody}\n]`,
           ),
         );
       }

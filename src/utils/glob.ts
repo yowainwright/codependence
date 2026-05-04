@@ -118,7 +118,7 @@ const walkFiles = async (
       const relativePath = normalizePath(relative(cwd, absolutePath));
 
       if (entry.isDirectory()) {
-        if (shouldIgnore?.(`${relativePath}/__ignored__`)) continue;
+        if (shouldIgnore?.(relativePath) || shouldIgnore?.(`${relativePath}/__ignored__`)) continue;
         await walkDirectory(absolutePath);
         continue;
       }
