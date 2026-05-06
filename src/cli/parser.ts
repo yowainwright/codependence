@@ -77,11 +77,12 @@ const validateValue = (
 ): void => {
   if (!def.validValues || value === undefined) return;
 
-  const isValid = typeof value === "string" && def.validValues.includes(value);
-  if (isValid) return;
+  const values = Array.isArray(value) ? value : [value];
+  const invalid = values.find((v) => typeof v !== "string" || !def.validValues!.includes(v));
+  if (!invalid) return;
 
   throw new Error(
-    `Invalid value for ${flag}: ${String(value)}. Expected one of: ${def.validValues.join(", ")}`,
+    `Invalid value for ${flag}: ${String(invalid)}. Expected one of: ${def.validValues.join(", ")}`,
   );
 };
 
