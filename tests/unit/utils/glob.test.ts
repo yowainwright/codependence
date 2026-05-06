@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { writeFileSync, mkdirSync, rmSync } from "fs";
+import { writeFileSync, mkdirSync, rmSync, symlinkSync, unlinkSync } from "fs";
 import { join } from "path";
 import { glob } from "../../../src/utils/glob";
 
@@ -62,5 +62,16 @@ describe("glob", () => {
   it("should return empty array when no matches", async () => {
     const files = await glob("*.xyz", { cwd: testDir });
     expect(files).toEqual([]);
+  });
+
+  it("should include symlinked files", async () => {
+    const linkPath = join(testDir, "linked.ts");
+    symlinkSync(join(testDir, "file1.ts"), linkPath);
+    try {
+      const files = await glob("*.ts", { cwd: testDir });
+      expect(files).toContain("linked.ts");
+    } finally {
+      unlinkSync(linkPath);
+    }
   });
 });

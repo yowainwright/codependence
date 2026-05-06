@@ -227,6 +227,77 @@ describe("PythonProvider", () => {
 
       expect(versions).toEqual([]);
     });
+
+    test("should get all versions using conda", async () => {
+      const execMock = jest.fn(() => ({
+        stdout: JSON.stringify({
+          numpy: [{ version: "1.24.0" }, { version: "1.25.0" }],
+        }),
+        stderr: "",
+      })) as any;
+
+      const provider = new PythonProvider("environment.yml", "conda");
+      mock.module("../../../src/utils/exec", () => ({
+        exec: execMock,
+      }));
+
+      const versions = await provider.getAllVersions("numpy");
+
+      expect(versions).toEqual(["1.24.0", "1.25.0"]);
+    });
+
+    test("should return [] when conda package not found", async () => {
+      const execMock = jest.fn(() => ({
+        stdout: "{}",
+        stderr: "",
+      })) as any;
+
+      const provider = new PythonProvider("environment.yml", "conda");
+      mock.module("../../../src/utils/exec", () => ({
+        exec: execMock,
+      }));
+
+      const versions = await provider.getAllVersions("nonexistent");
+
+      expect(versions).toEqual([]);
+    });
+
+    test("should return [] on pip exec error", async () => {
+      const execMock = jest.fn(() => {
+        throw new Error("pip not found");
+      }) as any;
+
+      const provider = new PythonProvider("requirements.txt", "pip");
+      mock.module("../../../src/utils/exec", () => ({
+        exec: execMock,
+      }));
+
+      const versions = await provider.getAllVersions("requests");
+
+      expect(versions).toEqual([]);
+    });
+
+    test("should get all versions using uv", async () => {
+      const execMock = jest.fn(() => ({
+        stdout: "Available versions: 3.0.0, 2.9.0\n",
+        stderr: "",
+      })) as any;
+
+      const provider = new PythonProvider("requirements.txt", "uv");
+      mock.module("../../../src/utils/exec", () => ({
+        exec: execMock,
+      }));
+
+      const versions = await provider.getAllVersions("django");
+
+      expect(versions).toEqual(["3.0.0", "2.9.0"]);
+      expect(execMock).toHaveBeenCalledWith("uv", [
+        "pip",
+        "index",
+        "versions",
+        "django",
+      ]);
+    });
   });
 
   describe("readManifest - requirements.txt", () => {
@@ -359,6 +430,57 @@ version = "0.1.0"
       const manifest = await provider.readManifest(pyprojectPath);
 
       expect(manifest.dependencies).toEqual({});
+    });
+
+    test("should read pyproject.toml PEP 621 dependencies (multiline)", async () => {
+      const pep621Dir = mkdtempSync(join(tmpdir(), "codependence-pep621-read-multi-"));
+      try {
+        const pyprojectPath = join(pep621Dir, "pyproject.toml");
+        const content = `[project]
+name = "myproject"
+version = "0.1.0"
+
+dependencies = [
+  "requests>=2.31.0",
+  "flask>=2.0.0",
+]
+`;
+
+        writeFileSync(pyprojectPath, content);
+
+        const provider = new PythonProvider(pyprojectPath, "uv");
+        const manifest = await provider.readManifest(pyprojectPath);
+
+        expect(manifest.dependencies).toEqual({
+          requests: ">=2.31.0",
+          flask: ">=2.0.0",
+        });
+      } finally {
+        rmSync(pep621Dir, { recursive: true, force: true });
+      }
+    });
+
+    test("should read pyproject.toml PEP 621 dependencies (single-line)", async () => {
+      const pep621Dir = mkdtempSync(join(tmpdir(), "codependence-pep621-read-single-"));
+      try {
+        const pyprojectPath = join(pep621Dir, "pyproject.toml");
+        const content = `[project]
+name = "myproject"
+
+dependencies = ["flask>=2.0.0"]
+`;
+
+        writeFileSync(pyprojectPath, content);
+
+        const provider = new PythonProvider(pyprojectPath, "uv");
+        const manifest = await provider.readManifest(pyprojectPath);
+
+        expect(manifest.dependencies).toEqual({
+          flask: ">=2.0.0",
+        });
+      } finally {
+        rmSync(pep621Dir, { recursive: true, force: true });
+      }
     });
   });
 
@@ -571,6 +693,108 @@ pytest = "^7.0.0"
         expect(content).toContain('requests = "^2.31.0" # keep this comment');
         expect(content).toContain("[tool.poetry.dev-dependencies]");
         expect(content).toContain('pytest = "^7.0.0"');
+      } finally {
+        rmSync(preserveDir, { recursive: true, force: true });
+      }
+    });
+
+    test("should update pyproject.toml PEP 621 dependencies in place", async () => {
+      const preserveDir = mkdtempSync(
+        join(tmpdir(), "codependence-python-pep621-"),
+      );
+
+      try {
+        const pyprojectPath = join(preserveDir, "pyproject.toml");
+        const original = `[project]
+name = "myproject"
+
+dependencies = [
+  "requests>=2.30.0",
+  "flask>=2.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+`;
+
+        writeFileSync(pyprojectPath, original);
+
+        const provider = new PythonProvider(pyprojectPath, "uv");
+        await provider.writeManifest(pyprojectPath, {
+          filePath: pyprojectPath,
+          dependencies: {
+            requests: ">=2.31.0",
+            flask: ">=2.1.0",
+          },
+        });
+
+        const content = readFileSync(pyprojectPath, "utf8");
+
+        expect(content).toContain('"requests>=2.31.0"');
+        expect(content).toContain('"flask>=2.1.0"');
+        expect(content).toContain("[build-system]");
+      } finally {
+        rmSync(preserveDir, { recursive: true, force: true });
+      }
+    });
+
+    test("should write pyproject.toml PEP 621 deps from scratch when none match", async () => {
+      const preserveDir = mkdtempSync(
+        join(tmpdir(), "codependence-python-pep621-fallback-"),
+      );
+
+      try {
+        const pyprojectPath = join(preserveDir, "pyproject.toml");
+        const original = `[project]
+name = "myproject"
+
+dependencies = []
+`;
+
+        writeFileSync(pyprojectPath, original);
+
+        const provider = new PythonProvider(pyprojectPath, "uv");
+        await provider.writeManifest(pyprojectPath, {
+          filePath: pyprojectPath,
+          dependencies: {
+            flask: ">=2.1.0",
+          },
+        });
+
+        const content = readFileSync(pyprojectPath, "utf8");
+
+        expect(content).toContain('"flask>=2.1.0"');
+      } finally {
+        rmSync(preserveDir, { recursive: true, force: true });
+      }
+    });
+
+    test("should not grow TOML newlines on repeated PEP 621 writes", async () => {
+      const preserveDir = mkdtempSync(
+        join(tmpdir(), "codependence-python-pep621-idempotent-"),
+      );
+
+      try {
+        const pyprojectPath = join(preserveDir, "pyproject.toml");
+        const original = `[project]
+name = "myproject"
+
+dependencies = [
+  "requests>=2.30.0",
+]
+`;
+
+        writeFileSync(pyprojectPath, original);
+
+        const provider = new PythonProvider(pyprojectPath, "uv");
+        const deps = { filePath: pyprojectPath, dependencies: { requests: ">=2.31.0" } };
+
+        await provider.writeManifest(pyprojectPath, deps);
+        await provider.writeManifest(pyprojectPath, deps);
+
+        const content = readFileSync(pyprojectPath, "utf8");
+
+        expect(content).not.toMatch(/\n\n\]/);
       } finally {
         rmSync(preserveDir, { recursive: true, force: true });
       }
