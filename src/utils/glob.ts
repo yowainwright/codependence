@@ -1,4 +1,4 @@
-import { readdir } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import { resolve, relative, join } from "node:path";
 import type { GlobOptions } from "./types";
 
@@ -123,8 +123,20 @@ const walkFiles = async (
         continue;
       }
 
-      if (entry.isFile() || entry.isSymbolicLink()) {
+      if (entry.isFile()) {
         results.push(relativePath);
+        continue;
+      }
+
+      if (entry.isSymbolicLink()) {
+        try {
+          const resolved = await stat(absolutePath);
+          if (!resolved.isDirectory()) {
+            results.push(relativePath);
+          }
+        } catch {
+          // broken symlink, skip
+        }
       }
     }
   };

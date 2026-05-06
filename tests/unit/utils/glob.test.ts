@@ -74,4 +74,15 @@ describe("glob", () => {
       unlinkSync(linkPath);
     }
   });
+
+  it("should not include symlinked directories as files", async () => {
+    const linkPath = join(testDir, "linked-dir");
+    symlinkSync(join(testDir, "src"), linkPath);
+    try {
+      const files = await glob("*", { cwd: testDir });
+      expect(files).not.toContain("linked-dir");
+    } finally {
+      unlinkSync(linkPath);
+    }
+  });
 });
