@@ -55,6 +55,7 @@ const updateRequireLine = (
   line: string,
   dependencies: Record<string, string>,
 ): { line: string; updated: boolean } => {
+  if (/^\s*replace\b/.test(line)) return { line, updated: false };
   const match = line.match(/^(\s*(?:require\s+)?)([^\s(]+)(\s+)([^\s]+)(.*)$/);
   if (!match) return { line, updated: false };
 

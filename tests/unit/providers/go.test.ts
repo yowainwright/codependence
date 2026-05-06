@@ -477,6 +477,45 @@ require (
     });
   });
 
+  describe("replace directives", () => {
+    test("should not modify replace directive source versions", async () => {
+      const preserveDir = mkdtempSync(
+        join(tmpdir(), "codependence-go-replace-"),
+      );
+
+      try {
+        const goModPath = join(preserveDir, "go.mod");
+        const originalContent = `module github.com/example/app
+
+go 1.21
+
+require (
+\tgithub.com/old/module v1.0.0
+)
+
+replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0
+`;
+
+        writeFileSync(goModPath, originalContent);
+
+        const provider = new GoProvider({ isTesting: true });
+        await provider.writeManifest(goModPath, {
+          filePath: goModPath,
+          dependencies: { "github.com/old/module": "v1.1.0" },
+        });
+
+        const updated = readFileSync(goModPath, "utf8");
+
+        expect(updated).toContain("github.com/old/module v1.1.0");
+        expect(updated).toContain(
+          "replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0",
+        );
+      } finally {
+        rmSync(preserveDir, { recursive: true, force: true });
+      }
+    });
+  });
+
   describe("runGoModTidy", () => {
     test("should skip go mod tidy when isTesting is true", async () => {
       const goModPath = join(__dirname, ".tmp-tidy", "go.mod");
