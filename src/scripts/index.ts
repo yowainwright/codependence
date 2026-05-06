@@ -110,6 +110,9 @@ const getPythonManifestSupportError = (file: string): Error =>
     `Matched manifest "${file}" is not supported for Python runs. Supported Python manifests are requirements.txt, Pipfile, Poetry pyproject.toml, and uv-managed pyproject.toml.`,
   );
 
+const isSupportedPyprojectManifest = (path: string): boolean =>
+  isPoetryPyproject(path) || existsSync(join(dirname(path), "uv.lock"));
+
 const isNodeManifestJson = (path: string): boolean => {
   if (!path.endsWith(".json")) return false;
 
@@ -165,8 +168,7 @@ const resolveMatchedManifestLanguage = (
   }
 
   if (manifestName === "pyproject.toml") {
-    const hasUvLock = existsSync(join(dirname(path), "uv.lock"));
-    if (!isPoetryPyproject(path) && !hasUvLock) {
+    if (!isSupportedPyprojectManifest(path)) {
       throw getPythonManifestSupportError(file);
     }
     if (scopedLanguage && scopedLanguage !== "python") {
@@ -194,14 +196,24 @@ const validateMatchedManifests = (
   files: string[],
   rootDir: string,
   scopedLanguage?: SupportedLanguage,
+  options: { skipUnsupportedDefaultPythonManifests?: boolean } = {},
 ): MatchedManifest[] => {
-  const matches = files.map((file) => {
+  const matches = files.flatMap((file) => {
     const path = resolveManifestPath(rootDir, file);
-    return {
-      file,
-      path,
-      language: resolveMatchedManifestLanguage(file, path, scopedLanguage),
-    };
+    const isUnsupportedDefaultPythonPyproject =
+      options.skipUnsupportedDefaultPythonManifests &&
+      basename(file) === "pyproject.toml" &&
+      !isSupportedPyprojectManifest(path);
+
+    if (isUnsupportedDefaultPythonPyproject) return [];
+
+    return [
+      {
+        file,
+        path,
+        language: resolveMatchedManifestLanguage(file, path, scopedLanguage),
+      },
+    ];
   });
 
   const languages = matches.map((match) => match.language);
@@ -1250,6 +1262,9 @@ export const checkFiles = async ({
       files,
       resolvedRootDir,
       language,
+      {
+        skipUnsupportedDefaultPythonManifests: !hasExplicitMatchers,
+      },
     );
     const manifests = await loadManifests(matchedManifests, {
       debug,

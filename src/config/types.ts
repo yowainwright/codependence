@@ -14,3 +14,7 @@ export interface ValidationResult {
   valid: boolean;
   errors: ValidationError[];
 }
+
+export interface ValidationOptions {
+  requireUsageFields?: boolean;
+}

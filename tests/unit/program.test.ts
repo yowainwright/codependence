@@ -146,6 +146,34 @@ describe("Action Function Tests (Fast)", () => {
     }
   });
 
+  test("allows partial config when CLI supplies codependencies", async () => {
+    const configPath = "tests/unit/.tmp-partial-codependence-config.json";
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        files: ["package.json"],
+        language: "nodejs",
+      }),
+    );
+
+    try {
+      const result = await action({
+        config: configPath,
+        codependencies: ["lodash"],
+        isTestingAction: true,
+      });
+
+      expect(result).toEqual({
+        isCLI: true,
+        files: ["package.json"],
+        language: "nodejs",
+        codependencies: ["lodash"],
+      });
+    } finally {
+      fs.rmSync(configPath, { force: true });
+    }
+  });
+
   test("handles verbose mode", async () => {
     const result = await action({
       codependencies: ["lodash"],

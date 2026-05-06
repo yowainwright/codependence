@@ -77,7 +77,9 @@ const validateConfigResult = (
   }
 
   const normalizedConfig = normalizeConfig(result.config);
-  const validation = validateConfig(normalizedConfig);
+  const validation = validateConfig(normalizedConfig, {
+    requireUsageFields: false,
+  });
 
   if (!validation.valid) {
     throw new Error(

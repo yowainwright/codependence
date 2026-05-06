@@ -6,7 +6,11 @@ import {
   VALID_MODES,
   KNOWN_FIELDS,
 } from "./constants";
-import type { ValidationError, ValidationResult } from "./types";
+import type {
+  ValidationError,
+  ValidationOptions,
+  ValidationResult,
+} from "./types";
 
 const isString = (value: unknown): value is string => typeof value === "string";
 
@@ -297,7 +301,10 @@ const validateUnknownFields = (
     : [];
 };
 
-export const validateConfig = (config: unknown): ValidationResult => {
+export const validateConfig = (
+  config: unknown,
+  options: ValidationOptions = {},
+): ValidationResult => {
   const rootErrors = validateRootObject(config);
 
   if (rootErrors.length > 0) {
@@ -305,9 +312,10 @@ export const validateConfig = (config: unknown): ValidationResult => {
   }
 
   const typedConfig = config as Record<string, unknown>;
+  const shouldRequireUsageFields = options.requireUsageFields !== false;
 
   const errors = concat(
-    validateRequiredFields(typedConfig),
+    shouldRequireUsageFields ? validateRequiredFields(typedConfig) : [],
     validateCodependencies(typedConfig),
     validatePermissive(typedConfig),
     validateLanguage(typedConfig),

@@ -1417,6 +1417,30 @@ test("checkFiles => auto-detects python manifests", async () => {
   }
 });
 
+test("checkFiles => ignores tool-only pyproject.toml during default python discovery", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-python-tool-pyproject");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(join(tempDir, "requirements.txt"), "requests==2.28.0\n");
+  writeFileSync(
+    join(tempDir, "pyproject.toml"),
+    "[project]\nname = 'tool-only-config'\n",
+  );
+
+  const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+  try {
+    await checkFiles({
+      codependencies: [{ requests: "==2.28.0" }],
+      rootDir: tempDir,
+      permissive: false,
+      isTesting: true,
+    });
+  } finally {
+    logSpy.mockRestore();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("checkFiles => rejects mixed-language runs without explicit scoping", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-mixed-language-run");
   rmSync(tempDir, { recursive: true, force: true });
