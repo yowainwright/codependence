@@ -162,6 +162,18 @@ export class PythonProvider implements DependencyProvider {
   }
 
   async getAllVersions(packageName: string): Promise<string[]> {
+    if (this.packageManager === "conda") {
+      try {
+        const { stdout } = await exec("conda", ["search", packageName, "--json"]);
+        const results = JSON.parse(stdout);
+        const packages = results[packageName];
+        if (!packages || packages.length === 0) return [];
+        return packages.map((p: { version: string }) => p.version);
+      } catch {
+        return [];
+      }
+    }
+
     const cmd = this.packageManager === "uv" ? "uv" : "pip";
     const args =
       this.packageManager === "uv"
