@@ -123,7 +123,7 @@ const walkFiles = async (
         continue;
       }
 
-      if (entry.isFile()) {
+      if (entry.isFile() || entry.isSymbolicLink()) {
         results.push(relativePath);
       }
     }
