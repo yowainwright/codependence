@@ -883,14 +883,15 @@ pytest = "==7.4.0"
       expect(provider.validatePackageName("beautifulsoup4")).toBe(true);
       expect(provider.validatePackageName("Pillow")).toBe(true);
       expect(provider.validatePackageName("some_package")).toBe(true);
+      expect(provider.validatePackageName("zope.interface")).toBe(true);
+      expect(provider.validatePackageName("sphinxcontrib.httpdomain")).toBe(true);
     });
 
     test("should reject invalid Python package names", () => {
       expect(provider.validatePackageName("@scope/package")).toBe(false);
-      expect(provider.validatePackageName("github.com/user/repo")).toBe(false);
+      expect(provider.validatePackageName("has/slashes")).toBe(false);
       expect(provider.validatePackageName("")).toBe(false);
       expect(provider.validatePackageName("has spaces")).toBe(false);
-      expect(provider.validatePackageName("has.dots.bad")).toBe(false);
     });
   });
 
