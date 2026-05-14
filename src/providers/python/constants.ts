@@ -1,5 +1,5 @@
 export const PYTHON_PATTERNS = {
-  REQUIREMENT_LINE: /^([a-zA-Z0-9_-]+)(==|>=|<=|~=|>|<)([0-9.]+)/,
+  REQUIREMENT_LINE: /^([a-zA-Z0-9_-]+)(\[[^\]]*\])?(==|>=|<=|~=|>|<)([0-9.]+)/,
   COMMENT: /^#/,
   POETRY_DEPS: /\[tool\.poetry\.dependencies\]([\s\S]*?)(?=\[|$)/,
   POETRY_LINE: /^([a-zA-Z0-9_-]+)\s*=\s*"([^"]+)"/,

@@ -74,9 +74,19 @@ const updateExistingRequireLines = (
   dependencies: Record<string, string>,
 ): { content: string; updatedCount: number } => {
   let updatedCount = 0;
+  let inReplaceBlock = false;
+
   const updatedContent = content
     .split("\n")
     .map((line) => {
+      if (/^\s*replace\s*\(/.test(line)) {
+        inReplaceBlock = true;
+        return line;
+      }
+      if (inReplaceBlock) {
+        if (/^\s*\)/.test(line)) inReplaceBlock = false;
+        return line;
+      }
       const result = updateRequireLine(line, dependencies);
       if (result.updated) updatedCount++;
       return result.line;

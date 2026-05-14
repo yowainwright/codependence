@@ -22,7 +22,7 @@ export const parseRequirementLine = (line: string): [string, string] | null => {
   const match = trimmed.match(PYTHON_PATTERNS.REQUIREMENT_LINE);
   if (!match) return null;
 
-  return [match[1], `${match[2]}${match[3]}`];
+  return [match[1], `${match[3]}${match[4]}`];
 };
 
 export const parsePoetryLine = (line: string): [string, string] | null => {
@@ -293,7 +293,7 @@ export class PythonProvider implements DependencyProvider {
       updatedCount++;
       return line.replace(
         PYTHON_PATTERNS.REQUIREMENT_LINE,
-        `${name}${version}`,
+        (_full, pkgName, extras) => `${pkgName}${extras ?? ""}${version}`,
       );
     });
 
@@ -377,7 +377,11 @@ export class PythonProvider implements DependencyProvider {
           const newVersion = manifest.dependencies[name];
           if (!newVersion) return line;
           updatedCount++;
-          return line.replace(stripped, `${name}${newVersion}`);
+          const newStripped = stripped.replace(
+            PYTHON_PATTERNS.REQUIREMENT_LINE,
+            (_full, pkgName, extras) => `${pkgName}${extras ?? ""}${newVersion}`,
+          );
+          return line.replace(stripped, newStripped);
         })
         .join("\n");
 
