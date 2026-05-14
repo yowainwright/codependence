@@ -655,7 +655,7 @@ pytest = "^7.0.0"
       expect(content).toContain('python = "^3.8"');
       expect(content).toContain('requests = "^2.31.0"');
       expect(content).toContain('flask = "~2.0.0"');
-      expect(content).not.toContain("old-package");
+      expect(content).toContain("old-package");
       expect(content).toContain("[tool.poetry.dev-dependencies]");
     });
 

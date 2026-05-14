@@ -347,7 +347,11 @@ export class PythonProvider implements DependencyProvider {
       const preservedLines = existingPoetrySection[1]
         .split("\n")
         .map((line) => line.trim())
-        .filter((line) => line.startsWith("python = "));
+        .filter((line) => line.length > 0 && !line.startsWith("#"))
+        .filter((line) => {
+          const parsed = parsePoetryLine(line);
+          return !parsed || !(parsed[0] in manifest.dependencies);
+        });
       const depEntries = Object.entries(manifest.dependencies)
         .map(([name, version]) => `${name} = "${version}"`)
         .join("\n");

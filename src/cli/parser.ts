@@ -158,7 +158,15 @@ const processArgument = (
     const rawValue = def.isArray ? [inlineValue] : inlineValue;
     validateValue(def, rawValue, flag);
     const normalizedValue = normalizeValue(key, rawValue);
-    const updatedOptions = { ...state.options, [key]: normalizedValue };
+    const existingInline =
+      def.isArray && Array.isArray(state.options[key])
+        ? (state.options[key] as unknown[])
+        : [];
+    const mergedInline =
+      def.isArray && Array.isArray(normalizedValue)
+        ? [...existingInline, ...normalizedValue]
+        : normalizedValue;
+    const updatedOptions = { ...state.options, [key]: mergedInline };
     return {
       nextIndex: index + 1,
       options: updatedOptions,
@@ -180,7 +188,15 @@ const processArgument = (
   const { value, consumed } = collectValue(args, index, def, flag);
   validateValue(def, value, flag);
   const normalizedValue = normalizeValue(key, value);
-  const updatedOptions = { ...state.options, [key]: normalizedValue };
+  const existing =
+    def.isArray && Array.isArray(state.options[key])
+      ? (state.options[key] as unknown[])
+      : [];
+  const merged =
+    def.isArray && Array.isArray(normalizedValue)
+      ? [...existing, ...normalizedValue]
+      : normalizedValue;
+  const updatedOptions = { ...state.options, [key]: merged };
 
   return {
     nextIndex: index + consumed + 1,
