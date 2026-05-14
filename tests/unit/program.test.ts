@@ -329,7 +329,7 @@ describe("Action Function Tests (Fast)", () => {
 
     const errorCalls = errorSpy.mock.calls.flat().join(" ");
     expect(errorCalls).toContain("codependencies");
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(exitSpy).toHaveBeenCalledWith(2);
     errorSpy.mockRestore();
     exitSpy.mockRestore();
     configSpy.mockRestore();

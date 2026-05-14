@@ -210,7 +210,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
   } catch (err) {
     spinner?.stop();
     logger.error((err as string).toString());
-    process.exit(1);
+    process.exit(2);
   }
 }
 

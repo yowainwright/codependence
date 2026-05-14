@@ -183,12 +183,15 @@ runs:
         codependence "${ARGS[@]}"
         EXIT_CODE=$?
 
-        if [ $EXIT_CODE -ne 0 ]; then
+        if [ $EXIT_CODE -eq 1 ]; then
           echo "outdated=true" >> $GITHUB_OUTPUT
           if [ "$FAIL_ON_OUTDATED" = "true" ]; then
             echo "::error::Dependencies are outdated. Run 'codependence --update' to fix."
             exit 1
           fi
+        elif [ $EXIT_CODE -ne 0 ]; then
+          echo "outdated=false" >> $GITHUB_OUTPUT
+          exit $EXIT_CODE
         else
           echo "outdated=false" >> $GITHUB_OUTPUT
         fi

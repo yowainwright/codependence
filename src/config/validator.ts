@@ -283,23 +283,6 @@ const validateInteractive = createBooleanValidator("interactive");
 const validateWatch = createBooleanValidator("watch");
 const validateNoCache = createBooleanValidator("noCache");
 
-const validateUnknownFields = (
-  config: Record<string, unknown>,
-): ValidationError[] => {
-  const unknownFields = Object.keys(config).filter(
-    (key) => !(KNOWN_FIELDS as readonly string[]).includes(key),
-  );
-
-  return unknownFields.length > 0
-    ? [
-        {
-          field: "root",
-          message: `Unknown field(s): ${unknownFields.join(", ")}`,
-          suggestion: `Remove unknown fields. Valid fields are: ${KNOWN_FIELDS.join(", ")}`,
-        },
-      ]
-    : [];
-};
 
 export const validateConfig = (
   config: unknown,
