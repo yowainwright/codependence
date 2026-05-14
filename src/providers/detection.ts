@@ -70,11 +70,11 @@ export const detectPythonPackageManagerForManifest = (
   const rootDir = dirname(manifestPath);
   const hasUvLock = existsSync(join(rootDir, "uv.lock"));
 
+  if (hasUvLock) return "uv";
   if (manifestName === "Pipfile") return "pipenv";
   if (manifestName === "pyproject.toml" && isPoetryPyproject(manifestPath)) {
     return "poetry";
   }
-  if (hasUvLock) return "uv";
   return "pip";
 };
 
