@@ -1558,7 +1558,7 @@ test("checkFiles => rejects unsupported python manifests", async () => {
   }
 });
 
-test("checkFiles => rejects Node.js updates for non-npm package managers", async () => {
+test("checkFiles => allows Node.js updates for yarn/pnpm projects", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-node-update-manager");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
@@ -1573,16 +1573,15 @@ test("checkFiles => rejects Node.js updates for non-npm package managers", async
   writeFileSync(join(tempDir, "yarn.lock"), "");
 
   try {
-    await expect(
-      checkFiles({
-        codependencies: [{ lodash: "4.17.21" }],
-        rootDir: tempDir,
-        files: ["package.json"],
-        update: true,
-        permissive: false,
-        isTesting: true,
-      }),
-    ).rejects.toThrow("Node.js updates currently support npm projects only");
+    const result = await checkFiles({
+      codependencies: [{ lodash: "4.17.21" }],
+      rootDir: tempDir,
+      files: ["package.json"],
+      update: true,
+      permissive: false,
+      isTesting: true,
+    });
+    expect(Array.isArray(result)).toBe(true);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

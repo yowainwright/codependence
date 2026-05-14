@@ -47,7 +47,6 @@ const UNSUPPORTED_PYTHON_MANIFEST_NAMES = new Set([
   "environment.yml",
   "environment.yaml",
 ]);
-const SUPPORTED_NODE_UPDATE_PACKAGE_MANAGERS = new Set(["npm"]);
 const VERSION_RESOLUTION_CONCURRENCY = 8;
 
 type MatchedManifest = {
@@ -352,30 +351,6 @@ const detectStaleCodependenciesFromManifests = (
   return pinnedNames.filter((name) => !allDepNames.has(name));
 };
 
-const assertSupportedNodeUpdateManagers = (
-  manifests: LoadedManifest[],
-  shouldUpdate: boolean,
-): void => {
-  if (!shouldUpdate) return;
-
-  const unsupportedManagers = Array.from(
-    new Set(
-      manifests
-        .filter(
-          (manifest) =>
-            manifest.language === "nodejs" &&
-            !SUPPORTED_NODE_UPDATE_PACKAGE_MANAGERS.has(manifest.packageManager),
-        )
-        .map((manifest) => manifest.packageManager),
-    ),
-  );
-
-  if (unsupportedManagers.length === 0) return;
-
-  throw new Error(
-    `Node.js updates currently support npm projects only. Found ${unsupportedManagers.join(", ")}. Re-run checks without --update, or scope updates to npm-managed package.json manifests.`,
-  );
-};
 
 const createVersionResolver = (
   manifests: LoadedManifest[],
@@ -1271,7 +1246,6 @@ export const checkFiles = async ({
       yarnConfig,
       isTesting,
     });
-    assertSupportedNodeUpdateManagers(manifests, update && !dryRun);
     const versionResolver = createVersionResolver(manifests, resolvedRootDir, {
       language,
       debug,
