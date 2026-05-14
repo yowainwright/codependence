@@ -9,6 +9,104 @@ import type {
   ProviderOptions,
 } from "../types";
 
+type LineState = {
+  readonly inReplaceBlock: boolean;
+  readonly inExcludeBlock: boolean;
+};
+
+export const isReplaceBlockStart = (line: string): boolean =>
+  GO_PATTERNS.REPLACE_BLOCK_START.test(line);
+
+export const isExcludeBlockStart = (line: string): boolean =>
+  GO_PATTERNS.EXCLUDE_BLOCK_START.test(line);
+
+export const isBlockClose = (line: string): boolean =>
+  GO_PATTERNS.BLOCK_CLOSE.test(line);
+
+export const isReplaceLine = (line: string): boolean =>
+  GO_PATTERNS.REPLACE_LINE.test(line);
+
+export const preserveFinalNewline = (content: string): string =>
+  content.endsWith("\n") ? content : content + "\n";
+
+export const updateRequireLine = (
+  line: string,
+  dependencies: Record<string, string>,
+): { line: string; updated: boolean } => {
+  if (isReplaceLine(line)) return { line, updated: false };
+
+  const match = line.match(GO_PATTERNS.DEP_UPDATE_LINE);
+  if (!match) return { line, updated: false };
+
+  const [, prefix, pkgName, space, currentVersion, rest] = match;
+  const newVersion = dependencies[pkgName];
+  const isSameVersion = newVersion === currentVersion;
+  if (!newVersion || isSameVersion) return { line, updated: false };
+
+  return { line: `${prefix}${pkgName}${space}${newVersion}${rest}`, updated: true };
+};
+
+export const processLine = (
+  line: string,
+  state: LineState,
+  dependencies: Record<string, string>,
+): { line: string; state: LineState; updated: boolean } => {
+  if (state.inReplaceBlock) {
+    if (isBlockClose(line)) {
+      return { line, state: { ...state, inReplaceBlock: false }, updated: false };
+    }
+    return { line, state, updated: false };
+  }
+
+  if (state.inExcludeBlock) {
+    if (isBlockClose(line)) {
+      return { line, state: { ...state, inExcludeBlock: false }, updated: false };
+    }
+    return { line, state, updated: false };
+  }
+
+  if (isReplaceBlockStart(line)) {
+    return { line, state: { ...state, inReplaceBlock: true }, updated: false };
+  }
+
+  if (isExcludeBlockStart(line)) {
+    return { line, state: { ...state, inExcludeBlock: true }, updated: false };
+  }
+
+  if (isReplaceLine(line)) {
+    return { line, state, updated: false };
+  }
+
+  const { line: updatedLine, updated } = updateRequireLine(line, dependencies);
+  return { line: updatedLine, state, updated };
+};
+
+export const updateExistingRequireLines = (
+  content: string,
+  dependencies: Record<string, string>,
+): { content: string; updatedCount: number } => {
+  const lines = content.split("\n");
+  const initialState: LineState = { inReplaceBlock: false, inExcludeBlock: false };
+
+  const { lines: resultLines, updatedCount } = lines.reduce<{
+    lines: string[];
+    state: LineState;
+    updatedCount: number;
+  }>(
+    (acc, line) => {
+      const result = processLine(line, acc.state, dependencies);
+      return {
+        lines: [...acc.lines, result.line],
+        state: result.state,
+        updatedCount: acc.updatedCount + (result.updated ? 1 : 0),
+      };
+    },
+    { lines: [], state: initialState, updatedCount: 0 },
+  );
+
+  return { content: resultLines.join("\n"), updatedCount };
+};
+
 export const parseRequireBlock = (content: string): Record<string, string> => {
   const dependencies: Record<string, string> = {};
   const requireBlock = content.match(GO_PATTERNS.REQUIRE_BLOCK);
@@ -101,12 +199,24 @@ export class GoProvider implements DependencyProvider {
     manifest: DependencyManifest,
   ): Promise<void> {
     const content = readFileSync(filePath, "utf8");
+
+    const { content: inPlaceContent, updatedCount } = updateExistingRequireLines(
+      content,
+      manifest.dependencies,
+    );
+
+    if (updatedCount > 0) {
+      writeFileSync(filePath, preserveFinalNewline(inPlaceContent));
+      await this.runGoModTidy(filePath);
+      return;
+    }
+
     const requireBlock = buildRequireBlock(manifest.dependencies);
 
     const hasMultiLineRequire = GO_PATTERNS.REQUIRE_BLOCK.test(content);
     if (hasMultiLineRequire) {
       const updated = content.replace(GO_PATTERNS.REQUIRE_BLOCK, requireBlock);
-      writeFileSync(filePath, updated + "\n");
+      writeFileSync(filePath, preserveFinalNewline(updated));
       await this.runGoModTidy(filePath);
       return;
     }

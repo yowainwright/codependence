@@ -1,0 +1,10 @@
+module github.com/example/testapp
+
+go 1.21
+
+require (
+	github.com/gin-gonic/gin v1.0.0
+	github.com/lib/pq v1.0.0
+)
+
+replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0
