@@ -3,8 +3,27 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 WORK_DIR="$(mktemp -d)"
+
+resolve_root_dir() {
+  if [ -f "$SCRIPT_DIR/dist/index.js" ]; then
+    echo "$SCRIPT_DIR"
+  else
+    echo "$(dirname "$(dirname "$SCRIPT_DIR")")"
+  fi
+}
+
+resolve_fixture_dir() {
+  local root="$1"
+  if [ -f "$SCRIPT_DIR/go.mod-replace.fixture" ]; then
+    echo "$SCRIPT_DIR"
+  else
+    echo "$root/tests/e2e/fixtures"
+  fi
+}
+
+ROOT_DIR="$(resolve_root_dir)"
+FIXTURE_DIR="$(resolve_fixture_dir "$ROOT_DIR")"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -20,6 +39,7 @@ trap cleanup EXIT
 
 setup_work_dir() {
   cp "$ROOT_DIR/dist/index.js" "$WORK_DIR/" || fail "dist/index.js not found — run bun run build-dist first"
+  cp -r "$ROOT_DIR/dist" "$WORK_DIR/" 2>/dev/null || true
 }
 
 write_rc() {
@@ -45,7 +65,7 @@ assert_file_contains() {
 
 test_replace_directive_preserved() {
   info "replace directive preserved after --update"
-  cp "$ROOT_DIR/tests/e2e/fixtures/go.mod-replace.fixture" "$WORK_DIR/go.mod"
+  cp "$FIXTURE_DIR/go.mod-replace.fixture" "$WORK_DIR/go.mod"
   write_rc '{"codependencies":["github.com/gin-gonic/gin","github.com/lib/pq"],"language":"go"}'
   run_update
   assert_file_contains "$WORK_DIR/go.mod" \
@@ -55,7 +75,7 @@ test_replace_directive_preserved() {
 
 test_indirect_comments_preserved() {
   info "// indirect comments preserved after --update"
-  cp "$ROOT_DIR/tests/e2e/fixtures/go.mod-indirect.fixture" "$WORK_DIR/go.mod"
+  cp "$FIXTURE_DIR/go.mod-indirect.fixture" "$WORK_DIR/go.mod"
   write_rc '{"codependencies":["github.com/gin-gonic/gin","github.com/lib/pq"],"language":"go"}'
   run_update
   assert_file_contains "$WORK_DIR/go.mod" "// indirect" "// indirect comments preserved"
@@ -63,7 +83,7 @@ test_indirect_comments_preserved() {
 
 test_packages_detected() {
   info "go packages are detected"
-  cp "$ROOT_DIR/tests/e2e/fixtures/go.mod.fixture" "$WORK_DIR/go.mod"
+  cp "$FIXTURE_DIR/go.mod.fixture" "$WORK_DIR/go.mod"
   write_rc '{"codependencies":["github.com/gin-gonic/gin","github.com/lib/pq","golang.org/x/crypto"],"language":"go"}'
   OUTPUT=$(run_check)
   if echo "$OUTPUT" | grep -q "gin-gonic\|lib/pq\|golang.org"; then

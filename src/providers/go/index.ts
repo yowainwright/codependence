@@ -32,79 +32,91 @@ export const preserveFinalNewline = (content: string): string =>
 export const updateRequireLine = (
   line: string,
   dependencies: Record<string, string>,
-): { line: string; updated: boolean } => {
-  if (isReplaceLine(line)) return { line, updated: false };
+): { line: string; updated: boolean; found: boolean } => {
+  if (isReplaceLine(line)) return { line, updated: false, found: false };
 
   const match = line.match(GO_PATTERNS.DEP_UPDATE_LINE);
-  if (!match) return { line, updated: false };
+  if (!match) return { line, updated: false, found: false };
 
   const [, prefix, pkgName, space, currentVersion, rest] = match;
   const newVersion = dependencies[pkgName];
-  const isSameVersion = newVersion === currentVersion;
-  if (!newVersion || isSameVersion) return { line, updated: false };
+  if (!newVersion) return { line, updated: false, found: false };
 
-  return { line: `${prefix}${pkgName}${space}${newVersion}${rest}`, updated: true };
+  const isSameVersion = newVersion === currentVersion;
+  if (isSameVersion) return { line, updated: false, found: true };
+
+  return { line: `${prefix}${pkgName}${space}${newVersion}${rest}`, updated: true, found: true };
 };
 
 export const processLine = (
   line: string,
   state: LineState,
   dependencies: Record<string, string>,
-): { line: string; state: LineState; updated: boolean } => {
+): { line: string; state: LineState; updated: boolean; found: boolean } => {
   if (state.inReplaceBlock) {
     if (isBlockClose(line)) {
-      return { line, state: { ...state, inReplaceBlock: false }, updated: false };
+      return { line, state: { ...state, inReplaceBlock: false }, updated: false, found: false };
     }
-    return { line, state, updated: false };
+    return { line, state, updated: false, found: false };
   }
 
   if (state.inExcludeBlock) {
     if (isBlockClose(line)) {
-      return { line, state: { ...state, inExcludeBlock: false }, updated: false };
+      return { line, state: { ...state, inExcludeBlock: false }, updated: false, found: false };
     }
-    return { line, state, updated: false };
+    return { line, state, updated: false, found: false };
   }
 
   if (isReplaceBlockStart(line)) {
-    return { line, state: { ...state, inReplaceBlock: true }, updated: false };
+    return { line, state: { ...state, inReplaceBlock: true }, updated: false, found: false };
   }
 
   if (isExcludeBlockStart(line)) {
-    return { line, state: { ...state, inExcludeBlock: true }, updated: false };
+    return { line, state: { ...state, inExcludeBlock: true }, updated: false, found: false };
   }
 
   if (isReplaceLine(line)) {
-    return { line, state, updated: false };
+    return { line, state, updated: false, found: false };
   }
 
-  const { line: updatedLine, updated } = updateRequireLine(line, dependencies);
-  return { line: updatedLine, state, updated };
+  const { line: updatedLine, updated, found } = updateRequireLine(line, dependencies);
+  return { line: updatedLine, state, updated, found };
+};
+
+type ProcessLinesResult = {
+  readonly lines: string[];
+  readonly updatedCount: number;
+  readonly foundCount: number;
+};
+
+const processLines = (
+  lines: string[],
+  dependencies: Record<string, string>,
+): ProcessLinesResult => {
+  const initial: { lines: string[]; state: LineState; updatedCount: number; foundCount: number } = {
+    lines: [],
+    state: { inReplaceBlock: false, inExcludeBlock: false },
+    updatedCount: 0,
+    foundCount: 0,
+  };
+
+  return lines.reduce((acc, line) => {
+    const result = processLine(line, acc.state, dependencies);
+    return {
+      lines: [...acc.lines, result.line],
+      state: result.state,
+      updatedCount: acc.updatedCount + (result.updated ? 1 : 0),
+      foundCount: acc.foundCount + (result.found ? 1 : 0),
+    };
+  }, initial);
 };
 
 export const updateExistingRequireLines = (
   content: string,
   dependencies: Record<string, string>,
-): { content: string; updatedCount: number } => {
-  const lines = content.split("\n");
-  const initialState: LineState = { inReplaceBlock: false, inExcludeBlock: false };
-
-  const { lines: resultLines, updatedCount } = lines.reduce<{
-    lines: string[];
-    state: LineState;
-    updatedCount: number;
-  }>(
-    (acc, line) => {
-      const result = processLine(line, acc.state, dependencies);
-      return {
-        lines: [...acc.lines, result.line],
-        state: result.state,
-        updatedCount: acc.updatedCount + (result.updated ? 1 : 0),
-      };
-    },
-    { lines: [], state: initialState, updatedCount: 0 },
-  );
-
-  return { content: resultLines.join("\n"), updatedCount };
+): { content: string; updatedCount: number; foundCount: number } => {
+  const { lines, updatedCount, foundCount } = processLines(content.split("\n"), dependencies);
+  return { content: lines.join("\n"), updatedCount, foundCount };
 };
 
 export const parseRequireBlock = (content: string): Record<string, string> => {
@@ -200,12 +212,12 @@ export class GoProvider implements DependencyProvider {
   ): Promise<void> {
     const content = readFileSync(filePath, "utf8");
 
-    const { content: inPlaceContent, updatedCount } = updateExistingRequireLines(
+    const { content: inPlaceContent, updatedCount, foundCount } = updateExistingRequireLines(
       content,
       manifest.dependencies,
     );
 
-    if (updatedCount > 0) {
+    if (updatedCount > 0 || foundCount > 0) {
       writeFileSync(filePath, preserveFinalNewline(inPlaceContent));
       await this.runGoModTidy(filePath);
       return;

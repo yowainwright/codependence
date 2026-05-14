@@ -421,6 +421,27 @@ require (
       expect(updated).toContain("replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0");
     });
 
+    test("should preserve // indirect when dep is already at correct version", async () => {
+      const goModPath = join(tmpDir, "no-change.mod");
+      const originalContent =
+        "module github.com/example/app\n\n" +
+        "go 1.21\n\n" +
+        "require (\n" +
+        "\tgithub.com/pkg v1.0.0 // indirect\n" +
+        ")\n";
+
+      writeFileSync(goModPath, originalContent);
+
+      const provider = new GoProvider({ isTesting: true });
+      await provider.writeManifest(goModPath, {
+        filePath: goModPath,
+        dependencies: { "github.com/pkg": "v1.0.0" },
+      });
+
+      const updated = readFileSync(goModPath, "utf8");
+      expect(updated).toContain("\tgithub.com/pkg v1.0.0 // indirect");
+    });
+
     test("should preserve exclude block contents", async () => {
       const goModPath = join(tmpDir, "exclude.mod");
       const originalContent =
