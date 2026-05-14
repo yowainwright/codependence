@@ -577,7 +577,7 @@ const UNSUPPORTED_VERSION_SPEC_PATTERNS = [
   /^(workspace:|file:|link:|portal:|github:|git\+|https?:)/,
 ];
 const VERSION_NUMBER_PATTERN =
-  /^v?\d+(?:\.\d+){0,2}(?:[-+][0-9A-Za-z.-]+)?$/;
+  /^v?\d+(?:\.\d+){0,3}(?:[-+][0-9A-Za-z.-]+)?$/;
 
 export const constructVersionTypes = (
   version: string,

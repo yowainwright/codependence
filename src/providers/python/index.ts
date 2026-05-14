@@ -230,7 +230,7 @@ export class PythonProvider implements DependencyProvider {
 
     const pep621Section = content.match(PYTHON_PATTERNS.PEP621_DEPS);
     if (pep621Section) {
-      pep621Section[1].split("\n").forEach((line) => {
+      pep621Section[2].split("\n").forEach((line) => {
         const stripped = line.trim().replace(/^"/, "").replace(/",?$/, "");
         const parsed = parseRequirementLine(stripped);
         if (parsed) dependencies[parsed[0]] = parsed[1];
@@ -371,7 +371,7 @@ export class PythonProvider implements DependencyProvider {
 
     const existingPep621Section = content.match(PYTHON_PATTERNS.PEP621_DEPS);
     if (existingPep621Section) {
-      const updatedBody = existingPep621Section[1]
+      const updatedBody = existingPep621Section[2]
         .split("\n")
         .map((line) => {
           const stripped = line.trim().replace(/^"/, "").replace(/",?$/, "");
@@ -394,7 +394,7 @@ export class PythonProvider implements DependencyProvider {
           filePath,
           content.replace(
             PYTHON_PATTERNS.PEP621_DEPS,
-            `dependencies = [${updatedBody.trimEnd()}\n]`,
+            (_, prefix) => `${prefix}dependencies = [${updatedBody.trimEnd()}\n]`,
           ),
         );
         return;
@@ -407,7 +407,7 @@ export class PythonProvider implements DependencyProvider {
         filePath,
         content.replace(
           PYTHON_PATTERNS.PEP621_DEPS,
-          `dependencies = [${depEntries}\n]`,
+          (_, prefix) => `${prefix}dependencies = [${depEntries}\n]`,
         ),
       );
     }
