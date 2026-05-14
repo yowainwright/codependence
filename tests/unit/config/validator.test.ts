@@ -541,7 +541,7 @@ describe("validateConfig", () => {
   });
 
   describe("unknown fields validation", () => {
-    it("should reject unknown fields", () => {
+    it("should ignore unknown fields", () => {
       const config = {
         codependencies: ["react"],
         unknown: "field",
@@ -549,16 +549,11 @@ describe("validateConfig", () => {
 
       const result = validateConfig(config);
 
-      expect(result.valid).toBe(false);
-      expect(result.errors).toHaveLength(1);
-      expect(result.errors[0].field).toBe("root");
-      expect(result.errors[0].message).toBe("Unknown field(s): unknown");
-      expect(result.errors[0].suggestion).toBe(
-        "Remove unknown fields. Valid fields are: codependencies, permissive, language, files, ignore, rootDir, update, debug, silent, verbose, quiet, yarnConfig, dryRun, interactive, watch, noCache, format, outputFile, level, mode",
-      );
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
     });
 
-    it("should reject multiple unknown fields", () => {
+    it("should ignore multiple unknown fields", () => {
       const config = {
         codependencies: ["react"],
         unknown1: "field",
@@ -567,12 +562,10 @@ describe("validateConfig", () => {
 
       const result = validateConfig(config);
 
-      expect(result.valid).toBe(false);
-      expect(result.errors[0].message).toContain("unknown1");
-      expect(result.errors[0].message).toContain("unknown2");
+      expect(result.valid).toBe(true);
     });
 
-    it("should not allow random properties", () => {
+    it("should ignore random properties", () => {
       const config = {
         codependencies: ["react"],
         randomProperty: 123,
@@ -580,8 +573,7 @@ describe("validateConfig", () => {
 
       const result = validateConfig(config);
 
-      expect(result.valid).toBe(false);
-      expect(result.errors[0].message).toContain("randomProperty");
+      expect(result.valid).toBe(true);
     });
   });
 

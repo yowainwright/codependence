@@ -336,7 +336,6 @@ export const validateConfig = (
     validateInteractive(typedConfig),
     validateWatch(typedConfig),
     validateNoCache(typedConfig),
-    validateUnknownFields(typedConfig),
   );
 
   return { valid: errors.length === 0, errors };
