@@ -130,11 +130,30 @@ export class PythonProvider implements DependencyProvider {
   }
 
   async getAllVersions(packageName: string): Promise<string[]> {
-    const { stdout } = await exec("pip", ["index", "versions", packageName]);
-    const match = stdout.match(PYTHON_PATTERNS.PIP_VERSIONS);
-    if (!match) return [];
+    try {
+      if (this.packageManager === "conda") {
+        const { stdout } = await exec("conda", ["search", packageName, "--json"]);
+        const results = JSON.parse(stdout);
+        const packages = results[packageName];
+        if (!packages || packages.length === 0) return [];
+        return [...new Set<string>(packages.map((p: { version: string }) => p.version))];
+      }
+      const command = this.packageManager === "uv" ? "uv" : "pip";
+      const args =
+        this.packageManager === "uv"
+          ? ["pip", "index", "versions", packageName]
+          : ["index", "versions", packageName];
+      const { stdout } = await exec(command, args);
+      const match = stdout.match(PYTHON_PATTERNS.PIP_VERSIONS);
+      if (!match) return [];
 
-    return match[1].split(",").map((v) => v.trim());
+      return match[1].split(",").map((v) => v.trim());
+    } catch (error) {
+      if (this.options.debug) {
+        logger.error(`Failed to get all versions for ${packageName}`, error as Error);
+      }
+      return [];
+    }
   }
 
   async readManifest(filePath: string): Promise<DependencyManifest> {

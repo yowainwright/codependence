@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "fs";
-import { join } from "path";
+import { basename, dirname, join } from "path";
 import type { Language, LanguageDetectionResult } from "./types";
 
 const readNodePackageManagerField = (rootDir: string): string | null => {
@@ -52,22 +52,49 @@ export const detectNodePackageManager = (rootDir: string): string => {
   return "npm";
 };
 
+export const isPoetryPyproject = (filePath: string): boolean => {
+  if (!existsSync(filePath)) return false;
+
+  try {
+    return readFileSync(filePath, "utf8").includes("[tool.poetry");
+  } catch {
+    return false;
+  }
+};
+
+export const detectPythonPackageManagerForManifest = (
+  manifestPath: string,
+): string => {
+  const manifestName = basename(manifestPath);
+
+  if (manifestName === "Pipfile") return "pipenv";
+  if (
+    manifestName === "environment.yml" ||
+    manifestName === "environment.yaml"
+  ) {
+    return "conda";
+  }
+  if (existsSync(join(dirname(manifestPath), "uv.lock"))) return "uv";
+  if (manifestName === "pyproject.toml" && isPoetryPyproject(manifestPath)) {
+    return "poetry";
+  }
+
+  return "pip";
+};
+
 export const detectPythonPackageManager = (rootDir: string): string => {
   const hasEnvironmentYml =
     existsSync(join(rootDir, "environment.yml")) ||
     existsSync(join(rootDir, "environment.yaml"));
   const hasPipfile = existsSync(join(rootDir, "Pipfile"));
-  const hasPyprojectToml = existsSync(join(rootDir, "pyproject.toml"));
+  const pyprojectPath = join(rootDir, "pyproject.toml");
+  const hasPyprojectToml = existsSync(pyprojectPath);
   const hasUvLock = existsSync(join(rootDir, "uv.lock"));
 
   if (hasEnvironmentYml) return "conda";
   if (hasUvLock) return "uv";
   if (hasPipfile) return "pipenv";
-  if (hasPyprojectToml) {
-    const content = readFileSync(join(rootDir, "pyproject.toml"), "utf8");
-    const hasPoetry = content.includes("[tool.poetry");
-    if (hasPoetry) return "poetry";
-  }
+  if (hasPyprojectToml && isPoetryPyproject(pyprojectPath)) return "poetry";
   return "pip";
 };
 

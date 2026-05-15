@@ -1,7 +1,9 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import {
   detectNodePackageManager,
   detectPythonPackageManager,
+  detectPythonPackageManagerForManifest,
+  isPoetryPyproject,
 } from "../../../src/providers/detection";
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
@@ -183,5 +185,58 @@ describe("detectPythonPackageManager", () => {
     );
 
     expect(detectPythonPackageManager(tmpDir)).toBe("pipenv");
+  });
+});
+
+describe("detectPythonPackageManagerForManifest", () => {
+  const tmpDir = join(__dirname, ".tmp-python-manifest-pm-test");
+
+  beforeEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+    mkdirSync(tmpDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test("returns pip for requirements.txt by default", () => {
+    const manifestPath = join(tmpDir, "requirements.txt");
+    writeFileSync(manifestPath, "");
+
+    expect(detectPythonPackageManagerForManifest(manifestPath)).toBe("pip");
+  });
+
+  test("returns uv for requirements.txt when uv.lock exists", () => {
+    const manifestPath = join(tmpDir, "requirements.txt");
+    writeFileSync(manifestPath, "");
+    writeFileSync(join(tmpDir, "uv.lock"), "");
+
+    expect(detectPythonPackageManagerForManifest(manifestPath)).toBe("uv");
+  });
+
+  test("returns pipenv for Pipfile even when uv.lock exists", () => {
+    const manifestPath = join(tmpDir, "Pipfile");
+    writeFileSync(manifestPath, "");
+    writeFileSync(join(tmpDir, "uv.lock"), "");
+
+    expect(detectPythonPackageManagerForManifest(manifestPath)).toBe("pipenv");
+  });
+
+  test("returns poetry for Poetry pyproject.toml", () => {
+    const manifestPath = join(tmpDir, "pyproject.toml");
+    writeFileSync(manifestPath, "[tool.poetry]\nname = 'test'\n");
+
+    expect(isPoetryPyproject(manifestPath)).toBe(true);
+    expect(detectPythonPackageManagerForManifest(manifestPath)).toBe("poetry");
+  });
+
+  test("returns uv for non-Poetry pyproject.toml when uv.lock exists", () => {
+    const manifestPath = join(tmpDir, "pyproject.toml");
+    writeFileSync(manifestPath, "[project]\nname = 'test'\n");
+    writeFileSync(join(tmpDir, "uv.lock"), "");
+
+    expect(isPoetryPyproject(manifestPath)).toBe(false);
+    expect(detectPythonPackageManagerForManifest(manifestPath)).toBe("uv");
   });
 });

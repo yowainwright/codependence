@@ -1,6 +1,13 @@
 import { readFileSync, writeFileSync } from "fs";
 import { basename, dirname, resolve } from "path";
-import { GoProvider, NodeJSProvider, PythonProvider, detectNodePackageManager, detectPrimaryLanguage, detectPythonPackageManager } from "../providers";
+import {
+  GoProvider,
+  NodeJSProvider,
+  PythonProvider,
+  detectNodePackageManager,
+  detectPrimaryLanguage,
+  detectPythonPackageManagerForManifest,
+} from "../providers";
 import type { PythonPackageManager } from "../providers/python/constants";
 import type { DependencyManifest, DependencyProvider } from "../providers/types";
 import { validatePackageName } from "../utils/validate-package";
@@ -154,8 +161,8 @@ const createProvider = (
         packageManager: "go",
       };
     case "python": {
-      const packageManager = detectPythonPackageManager(
-        dirname(filePath),
+      const packageManager = detectPythonPackageManagerForManifest(
+        filePath,
       ) as PythonPackageManager;
       return {
         provider: new PythonProvider(filePath, packageManager, providerOptions),
