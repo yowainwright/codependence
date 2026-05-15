@@ -74,10 +74,10 @@ export const detectPythonPackageManagerForManifest = (
   ) {
     return "conda";
   }
+  if (existsSync(join(dirname(manifestPath), "uv.lock"))) return "uv";
   if (manifestName === "pyproject.toml" && isPoetryPyproject(manifestPath)) {
     return "poetry";
   }
-  if (existsSync(join(dirname(manifestPath), "uv.lock"))) return "uv";
 
   return "pip";
 };
