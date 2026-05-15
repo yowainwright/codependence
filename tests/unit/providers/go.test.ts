@@ -1,5 +1,5 @@
 import { expect, test, describe, beforeEach, afterEach, jest, mock } from "bun:test";
-import { GoProvider } from "../../../src/providers/go";
+import { GoProvider, updateRequireLine, updateExistingRequireLines } from "../../../src/providers/go";
 import { writeFileSync, readFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 
@@ -374,6 +374,99 @@ require (
       const content = readFileSync(goModPath, "utf8");
       expect(content.endsWith("\n")).toBe(true);
     });
+
+    test("should update existing require lines in place", async () => {
+      const goModPath = join(tmpDir, "indirect.mod");
+      const originalContent =
+        "module github.com/example/app\n\n" +
+        "go 1.21\n\n" +
+        "require (\n" +
+        "\tgithub.com/pkg v1.0.0 // indirect\n" +
+        ")\n";
+
+      writeFileSync(goModPath, originalContent);
+
+      const provider = new GoProvider({ isTesting: true });
+      await provider.writeManifest(goModPath, {
+        filePath: goModPath,
+        dependencies: { "github.com/pkg": "v1.2.0" },
+      });
+
+      const updated = readFileSync(goModPath, "utf8");
+      expect(updated).toContain("\tgithub.com/pkg v1.2.0 // indirect");
+      expect(updated).toContain("module github.com/example/app");
+      expect(updated).toContain("go 1.21");
+    });
+
+    test("should not modify replace directive source versions", async () => {
+      const goModPath = join(tmpDir, "replace.mod");
+      const originalContent =
+        "module github.com/example/app\n\n" +
+        "go 1.21\n\n" +
+        "require (\n" +
+        "\tgithub.com/gin-gonic/gin v1.0.0\n" +
+        ")\n\n" +
+        "replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0\n";
+
+      writeFileSync(goModPath, originalContent);
+
+      const provider = new GoProvider({ isTesting: true });
+      await provider.writeManifest(goModPath, {
+        filePath: goModPath,
+        dependencies: { "github.com/gin-gonic/gin": "v1.9.1" },
+      });
+
+      const updated = readFileSync(goModPath, "utf8");
+      expect(updated).toContain("github.com/gin-gonic/gin v1.9.1");
+      expect(updated).toContain("replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0");
+    });
+
+    test("should preserve // indirect when dep is already at correct version", async () => {
+      const goModPath = join(tmpDir, "no-change.mod");
+      const originalContent =
+        "module github.com/example/app\n\n" +
+        "go 1.21\n\n" +
+        "require (\n" +
+        "\tgithub.com/pkg v1.0.0 // indirect\n" +
+        ")\n";
+
+      writeFileSync(goModPath, originalContent);
+
+      const provider = new GoProvider({ isTesting: true });
+      await provider.writeManifest(goModPath, {
+        filePath: goModPath,
+        dependencies: { "github.com/pkg": "v1.0.0" },
+      });
+
+      const updated = readFileSync(goModPath, "utf8");
+      expect(updated).toContain("\tgithub.com/pkg v1.0.0 // indirect");
+    });
+
+    test("should preserve exclude block contents", async () => {
+      const goModPath = join(tmpDir, "exclude.mod");
+      const originalContent =
+        "module github.com/example/app\n\n" +
+        "go 1.21\n\n" +
+        "require (\n" +
+        "\tgithub.com/gin-gonic/gin v1.0.0\n" +
+        ")\n\n" +
+        "exclude (\n" +
+        "\tgithub.com/bad/module v0.1.0\n" +
+        ")\n";
+
+      writeFileSync(goModPath, originalContent);
+
+      const provider = new GoProvider({ isTesting: true });
+      await provider.writeManifest(goModPath, {
+        filePath: goModPath,
+        dependencies: { "github.com/gin-gonic/gin": "v1.9.1" },
+      });
+
+      const updated = readFileSync(goModPath, "utf8");
+      expect(updated).toContain("github.com/gin-gonic/gin v1.9.1");
+      expect(updated).toContain("exclude (");
+      expect(updated).toContain("github.com/bad/module v0.1.0");
+    });
   });
 
   describe("validatePackageName", () => {
@@ -401,6 +494,113 @@ require (
       expect(provider.validatePackageName("example.com/org/pkg")).toBe(true);
       expect(provider.validatePackageName("example.io/pkg")).toBe(true);
       expect(provider.validatePackageName("example.dev/pkg")).toBe(true);
+    });
+  });
+
+  describe("updateRequireLine", () => {
+    test("should update version when dep is found", () => {
+      const deps = { "github.com/pkg": "v1.2.0" };
+      const result = updateRequireLine("\tgithub.com/pkg v1.0.0", deps);
+      expect(result.updated).toBe(true);
+      expect(result.line).toBe("\tgithub.com/pkg v1.2.0");
+    });
+
+    test("should preserve // indirect comment", () => {
+      const deps = { "github.com/pkg": "v1.2.0" };
+      const result = updateRequireLine("\tgithub.com/pkg v1.0.0 // indirect", deps);
+      expect(result.updated).toBe(true);
+      expect(result.line).toBe("\tgithub.com/pkg v1.2.0 // indirect");
+    });
+
+    test("should skip replace lines", () => {
+      const deps = { "github.com/old/module": "v2.0.0" };
+      const result = updateRequireLine("\treplace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0", deps);
+      expect(result.updated).toBe(false);
+      expect(result.line).toContain("replace github.com/old/module");
+    });
+
+    test("should skip unknown deps", () => {
+      const deps = { "github.com/other": "v2.0.0" };
+      const result = updateRequireLine("\tgithub.com/pkg v1.0.0", deps);
+      expect(result.updated).toBe(false);
+      expect(result.line).toBe("\tgithub.com/pkg v1.0.0");
+    });
+  });
+
+  describe("updateExistingRequireLines", () => {
+    test("should preserve replace block contents", () => {
+      const content =
+        "module example.com/app\n\n" +
+        "go 1.21\n\n" +
+        "require (\n" +
+        "\tgithub.com/gin-gonic/gin v1.0.0\n" +
+        ")\n\n" +
+        "replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0\n";
+      const deps = { "github.com/gin-gonic/gin": "v1.9.1" };
+      const { content: result } = updateExistingRequireLines(content, deps);
+      expect(result).toContain("replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0");
+      expect(result).toContain("github.com/gin-gonic/gin v1.9.1");
+    });
+
+    test("should preserve replace block lines", () => {
+      const content =
+        "module example.com/app\n\n" +
+        "go 1.21\n\n" +
+        "require (\n" +
+        "\tgithub.com/gin-gonic/gin v1.0.0\n" +
+        ")\n\n" +
+        "replace (\n" +
+        "\tgithub.com/old/module v1.0.0 => github.com/fork/module v2.0.0\n" +
+        ")\n";
+      const deps = { "github.com/gin-gonic/gin": "v1.9.1" };
+      const { content: result } = updateExistingRequireLines(content, deps);
+      expect(result).toContain("github.com/old/module v1.0.0 => github.com/fork/module v2.0.0");
+      expect(result).toContain("github.com/gin-gonic/gin v1.9.1");
+    });
+
+    test("should preserve exclude block contents", () => {
+      const content =
+        "module example.com/app\n\n" +
+        "go 1.21\n\n" +
+        "require (\n" +
+        "\tgithub.com/gin-gonic/gin v1.0.0\n" +
+        ")\n\n" +
+        "exclude (\n" +
+        "\tgithub.com/bad/module v0.1.0\n" +
+        ")\n";
+      const deps = { "github.com/gin-gonic/gin": "v1.9.1" };
+      const { content: result, updatedCount } = updateExistingRequireLines(content, deps);
+      expect(result).toContain("exclude (");
+      expect(result).toContain("github.com/bad/module v0.1.0");
+      expect(updatedCount).toBe(1);
+    });
+
+    test("should update multiple deps", () => {
+      const content =
+        "module example.com/app\n\n" +
+        "go 1.21\n\n" +
+        "require (\n" +
+        "\tgithub.com/gin-gonic/gin v1.0.0\n" +
+        "\tgithub.com/lib/pq v1.0.0\n" +
+        ")\n";
+      const deps = { "github.com/gin-gonic/gin": "v1.9.1", "github.com/lib/pq": "v1.10.9" };
+      const { content: result, updatedCount } = updateExistingRequireLines(content, deps);
+      expect(result).toContain("github.com/gin-gonic/gin v1.9.1");
+      expect(result).toContain("github.com/lib/pq v1.10.9");
+      expect(updatedCount).toBe(2);
+    });
+
+    test("should be a no-op when deps unchanged", () => {
+      const content =
+        "module example.com/app\n\n" +
+        "go 1.21\n\n" +
+        "require (\n" +
+        "\tgithub.com/gin-gonic/gin v1.9.1\n" +
+        ")\n";
+      const deps = { "github.com/gin-gonic/gin": "v1.9.1" };
+      const { content: result, updatedCount } = updateExistingRequireLines(content, deps);
+      expect(updatedCount).toBe(0);
+      expect(result).toBe(content);
     });
   });
 

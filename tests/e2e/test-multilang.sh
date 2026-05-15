@@ -51,6 +51,13 @@ case "${1:-all}" in
         print_success "Multi-language tests passed!"
         ;;
 
+    "go-update")
+        print_status "Running Go update tests..."
+        docker build --target multilang-test -t codependence-multilang-test -f tests/e2e/Dockerfile.multilang . && \
+        docker run --rm codependence-multilang-test:latest ./test-go-update.sh
+        print_success "Go update tests passed!"
+        ;;
+
     "all")
         print_status "Running all e2e tests..."
 
@@ -59,10 +66,14 @@ case "${1:-all}" in
         docker run --rm codependence-test:latest
         print_success "Node.js tests passed!"
 
-        print_status "2/2: Multi-language tests..."
+        print_status "2/3: Multi-language tests..."
         docker build --target multilang-test -t codependence-multilang-test -f tests/e2e/Dockerfile.multilang . && \
         docker run --rm codependence-multilang-test:latest
         print_success "Multi-language tests passed!"
+
+        print_status "3/3: Go update tests..."
+        docker run --rm codependence-multilang-test:latest ./test-go-update.sh
+        print_success "Go update tests passed!"
 
         print_success "All e2e tests passed! 🎉"
         ;;
@@ -83,6 +94,7 @@ case "${1:-all}" in
         echo "  multilang   Run Python + Go tests only"
         echo "  python      Run Python + Go tests only (alias)"
         echo "  go          Run Python + Go tests only (alias)"
+        echo "  go-update   Run Go update/preserve tests only"
         echo "  clean       Clean up Docker resources"
         echo "  help        Show this help message"
         echo ""

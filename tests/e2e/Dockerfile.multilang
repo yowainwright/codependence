@@ -81,6 +81,9 @@ RUN bun install --production --frozen-lockfile --ignore-scripts
 # Copy all test fixtures
 COPY tests/e2e/fixtures/ ./
 
+# Copy e2e test scripts
+COPY tests/e2e/test-go-update.sh ./
+
 # Make all test scripts executable
 RUN chmod +x *.sh
 
