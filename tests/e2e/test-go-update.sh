@@ -47,11 +47,15 @@ write_rc() {
 }
 
 run_update() {
-  (cd "$WORK_DIR" && node index.js --update 2>&1 || true)
+  local exit_code=0
+  (cd "$WORK_DIR" && node index.js --update 2>&1) || exit_code=$?
+  [ "$exit_code" -le 1 ] || fail "codependence --update exited with unexpected code $exit_code"
 }
 
 run_check() {
-  (cd "$WORK_DIR" && node index.js --debug 2>&1 || true)
+  local exit_code=0
+  (cd "$WORK_DIR" && node index.js --debug 2>&1) || exit_code=$?
+  [ "$exit_code" -le 1 ] || fail "codependence --debug exited with unexpected code $exit_code"
 }
 
 assert_file_contains() {
