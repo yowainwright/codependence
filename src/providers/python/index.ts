@@ -130,11 +130,20 @@ export class PythonProvider implements DependencyProvider {
   }
 
   async getAllVersions(packageName: string): Promise<string[]> {
-    const { stdout } = await exec("pip", ["index", "versions", packageName]);
-    const match = stdout.match(PYTHON_PATTERNS.PIP_VERSIONS);
-    if (!match) return [];
+    try {
+      const command = this.packageManager === "uv" ? "uv" : "pip";
+      const args =
+        this.packageManager === "uv"
+          ? ["pip", "index", "versions", packageName]
+          : ["index", "versions", packageName];
+      const { stdout } = await exec(command, args);
+      const match = stdout.match(PYTHON_PATTERNS.PIP_VERSIONS);
+      if (!match) return [];
 
-    return match[1].split(",").map((v) => v.trim());
+      return match[1].split(",").map((v) => v.trim());
+    } catch {
+      return [];
+    }
   }
 
   async readManifest(filePath: string): Promise<DependencyManifest> {

@@ -215,6 +215,28 @@ describe("PythonProvider", () => {
 
       expect(versions).toEqual([]);
     });
+
+    test("should get all versions using uv", async () => {
+      const execMock = jest.fn(() => ({
+        stdout: "Available versions: 3.0.0, 2.9.0\n",
+        stderr: "",
+      })) as any;
+
+      const provider = new PythonProvider("requirements.txt", "uv");
+      mock.module("../../../src/utils/exec", () => ({
+        exec: execMock,
+      }));
+
+      const versions = await provider.getAllVersions("django");
+
+      expect(versions).toEqual(["3.0.0", "2.9.0"]);
+      expect(execMock).toHaveBeenCalledWith("uv", [
+        "pip",
+        "index",
+        "versions",
+        "django",
+      ]);
+    });
   });
 
   describe("readManifest - requirements.txt", () => {
@@ -534,6 +556,10 @@ pytest = "==7.4.0"
       expect(provider.validatePackageName("beautifulsoup4")).toBe(true);
       expect(provider.validatePackageName("Pillow")).toBe(true);
       expect(provider.validatePackageName("some_package")).toBe(true);
+      expect(provider.validatePackageName("zope.interface")).toBe(true);
+      expect(provider.validatePackageName("sphinxcontrib.httpdomain")).toBe(
+        true,
+      );
     });
 
     test("should reject invalid Python package names", () => {
@@ -541,7 +567,6 @@ pytest = "==7.4.0"
       expect(provider.validatePackageName("github.com/user/repo")).toBe(false);
       expect(provider.validatePackageName("")).toBe(false);
       expect(provider.validatePackageName("has spaces")).toBe(false);
-      expect(provider.validatePackageName("has.dots.bad")).toBe(false);
     });
   });
 
