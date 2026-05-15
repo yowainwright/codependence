@@ -136,7 +136,7 @@ export class PythonProvider implements DependencyProvider {
         const results = JSON.parse(stdout);
         const packages = results[packageName];
         if (!packages || packages.length === 0) return [];
-        return [...new Set(packages.map((p: { version: string }) => p.version))];
+        return [...new Set<string>(packages.map((p: { version: string }) => p.version))];
       }
       const command = this.packageManager === "uv" ? "uv" : "pip";
       const args =
