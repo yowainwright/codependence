@@ -131,6 +131,13 @@ export class PythonProvider implements DependencyProvider {
 
   async getAllVersions(packageName: string): Promise<string[]> {
     try {
+      if (this.packageManager === "conda") {
+        const { stdout } = await exec("conda", ["search", packageName, "--json"]);
+        const results = JSON.parse(stdout);
+        const packages = results[packageName];
+        if (!packages || packages.length === 0) return [];
+        return packages.map((p: { version: string }) => p.version);
+      }
       const command = this.packageManager === "uv" ? "uv" : "pip";
       const args =
         this.packageManager === "uv"
@@ -141,7 +148,10 @@ export class PythonProvider implements DependencyProvider {
       if (!match) return [];
 
       return match[1].split(",").map((v) => v.trim());
-    } catch {
+    } catch (error) {
+      if (this.options.debug) {
+        logger.error(`Failed to get all versions for ${packageName}`, error as Error);
+      }
       return [];
     }
   }
