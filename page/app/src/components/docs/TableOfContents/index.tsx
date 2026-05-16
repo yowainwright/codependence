@@ -4,7 +4,7 @@ import { OBSERVER_OPTIONS } from './constants';
 
 function HeadingLink({ heading, activeId }: { heading: Heading; activeId: string }) {
   const isActive = activeId === heading.slug;
-  const baseClass = 'block py-1 text-sm transition font-outfit';
+  const baseClass = 'block py-1 text-sm transition font-sans';
   const activeClass = 'text-primary font-medium';
   const inactiveClass = 'text-base-content/70 hover:text-primary';
 
@@ -49,7 +49,7 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
 
   return (
     <div className="hidden xl:sticky xl:block xl:top-28">
-      <h2 className="mb-4 text-lg font-bold font-outfit">On this page</h2>
+      <h2 className="mb-4 text-lg font-bold font-sans">On this page</h2>
       <ul className="space-y-1">
         {headings.map((heading) => (
           <HeadingLink key={heading.slug} heading={heading} activeId={activeId} />

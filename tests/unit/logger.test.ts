@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from "bun:test";
 import { createLogger } from "../../src/logger";
+import { ANSI_PATTERN } from "../../src/utils/constants";
 import type { LogLevel } from "../../src/logger";
 
 describe("Logger", () => {
@@ -11,7 +12,7 @@ describe("Logger", () => {
   };
 
   const stripAnsi = (str: string): string => {
-    return str.replace(/\x1b\[[0-9;]*m/g, "");
+    return str.replace(ANSI_PATTERN, "");
   };
 
   beforeEach(() => {

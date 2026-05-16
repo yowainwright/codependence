@@ -9,7 +9,7 @@
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --font-outfit: "Outfit Variable", "sans-serif";
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 [data-theme="codependence-light"] {
@@ -160,4 +160,3 @@
   border-color: #9B4D5A;
   color: #9B4D5A;
 }
-

@@ -73,7 +73,7 @@ const mapWithConcurrency = async <T, R>(
 ): Promise<R[]> => {
   if (items.length === 0) return [];
 
-  const results = new Array<R>(items.length);
+  const results = Array.from({ length: items.length }, () => undefined as R);
   let nextIndex = 0;
 
   const runWorker = async () => {

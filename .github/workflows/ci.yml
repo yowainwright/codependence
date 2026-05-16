@@ -28,6 +28,7 @@ jobs:
           bun-version: latest
       - name: Install dependencies
         run: bun install
+      - run: bun run deps:security
       - run: bun run build
       - run: bun run lint
       - run: bun run coverage

@@ -1,4 +1,5 @@
-import { DEFAULT_WIDTH, INDENT_SIZE, BOX_CHARS, ANSI_PATTERN } from './constants';
+import { ANSI_PATTERN } from "../utils/constants";
+import { DEFAULT_WIDTH, INDENT_SIZE, BOX_CHARS } from './constants';
 import type { BoxOptions, TextAlign } from './types';
 
 export const getTerminalWidth = (): number => {

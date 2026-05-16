@@ -1,8 +1,8 @@
 import { describe, test, expect } from "bun:test";
+import { ANSI_PATTERN } from "../../../src/utils/constants";
 import { SYMBOLS, RAW_SYMBOLS } from "../../../src/utils/symbols";
 
-const stripAnsi = (str: string): string =>
-  str.replace(/\x1b\[[0-9;]*m/g, "");
+const stripAnsi = (str: string): string => str.replace(ANSI_PATTERN, "");
 
 describe("SYMBOLS", () => {
   test("success contains checkmark with ANSI color", () => {
