@@ -70,7 +70,7 @@ assert_file_contains() {
 test_replace_directive_preserved() {
   info "replace directive preserved after --update"
   cp "$FIXTURE_DIR/go.mod-replace.fixture" "$WORK_DIR/go.mod"
-  write_rc '{"codependencies":["github.com/gin-gonic/gin","github.com/lib/pq"],"language":"go"}'
+  write_rc '{"codependencies":["github.com/gin-gonic/gin","github.com/lib/pq"],"language":"go","mode":"verbose"}'
   run_update
   assert_file_contains "$WORK_DIR/go.mod" \
     "replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0" \
@@ -80,7 +80,7 @@ test_replace_directive_preserved() {
 test_indirect_comments_preserved() {
   info "// indirect comments preserved after --update"
   cp "$FIXTURE_DIR/go.mod-indirect.fixture" "$WORK_DIR/go.mod"
-  write_rc '{"codependencies":["github.com/gin-gonic/gin","github.com/lib/pq"],"language":"go"}'
+  write_rc '{"codependencies":["github.com/gin-gonic/gin","github.com/lib/pq"],"language":"go","mode":"verbose"}'
   run_update
   assert_file_contains "$WORK_DIR/go.mod" "// indirect" "// indirect comments preserved"
 }
@@ -88,7 +88,7 @@ test_indirect_comments_preserved() {
 test_packages_detected() {
   info "go packages are detected"
   cp "$FIXTURE_DIR/go.mod.fixture" "$WORK_DIR/go.mod"
-  write_rc '{"codependencies":["github.com/gin-gonic/gin","github.com/lib/pq","golang.org/x/crypto"],"language":"go"}'
+  write_rc '{"codependencies":["github.com/gin-gonic/gin","github.com/lib/pq","golang.org/x/crypto"],"language":"go","mode":"verbose"}'
   OUTPUT=$(run_check)
   if echo "$OUTPUT" | grep -q "gin-gonic\|lib/pq\|golang.org"; then
     pass "go packages detected"
