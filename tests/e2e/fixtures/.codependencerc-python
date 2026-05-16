@@ -1,4 +1,5 @@
 {
   "codependencies": ["requests", "flask", "django"],
-  "language": "python"
+  "language": "python",
+  "mode": "verbose"
 }

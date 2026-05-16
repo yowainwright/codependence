@@ -4,5 +4,6 @@
     "github.com/lib/pq",
     "golang.org/x/crypto"
   ],
-  "language": "go"
+  "language": "go",
+  "mode": "verbose"
 }

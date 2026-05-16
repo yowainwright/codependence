@@ -57,7 +57,7 @@ echo "\n5. Testing automatic language detection..."
 mv package.json package.json.bak
 mv node_modules node_modules.bak 2>/dev/null || true
 cp python-requirements.txt.fixture requirements.txt
-echo '{"codependencies":["requests"]}' > .codependencerc
+echo '{"codependencies":["requests"],"mode":"verbose"}' > .codependencerc
 if node ./dist/index.js --debug 2>&1 | grep -q "requests"; then
   echo "✓ Python auto-detection test passed"
 else
@@ -74,7 +74,7 @@ mv node_modules.bak node_modules 2>/dev/null || true
 mv package.json package.json.bak
 mv node_modules node_modules.bak 2>/dev/null || true
 cp go.mod.fixture go.mod
-echo '{"codependencies":["github.com/gin-gonic/gin"]}' > .codependencerc
+echo '{"codependencies":["github.com/gin-gonic/gin"],"mode":"verbose"}' > .codependencerc
 if node ./dist/index.js --debug 2>&1 | grep -q "gin"; then
   echo "✓ Go auto-detection test passed"
 else
@@ -88,7 +88,7 @@ mv node_modules.bak node_modules 2>/dev/null || true
 echo "\n6. Testing polyglot project (Node.js + Python)..."
 cp test-package.json.fixture package.json
 cp python-requirements.txt.fixture requirements.txt
-echo '{"codependencies":["lodash"]}' > .codependencerc
+echo '{"codependencies":["lodash"],"mode":"verbose"}' > .codependencerc
 if node ./dist/index.js --debug 2>&1 | grep -q "lodash"; then
   echo "✓ Polyglot project test passed (prioritizes Node.js)"
 else
