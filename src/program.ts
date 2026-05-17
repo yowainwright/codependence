@@ -89,10 +89,18 @@ export async function action(options: Options = {}): Promise<void | Options> {
   let spinner: ReturnType<typeof createSpinner> | null = null;
 
   try {
-    const effectivePermissive = updatedOptions.permissive ?? (updatedOptions.mode !== "verbose");
-    const hasPermissiveWithoutMode = effectivePermissive && !updatedOptions.mode;
-    if (hasPermissiveWithoutMode) {
-      updatedOptions.mode = "precise";
+    const hasCodependencies =
+      Array.isArray(updatedOptions.codependencies) &&
+      updatedOptions.codependencies.length > 0;
+    const hasNoExplicitMode = !updatedOptions.mode;
+    if (hasNoExplicitMode) {
+      if (updatedOptions.permissive === true) {
+        updatedOptions.mode = "precise";
+      } else if (updatedOptions.permissive === false || hasCodependencies) {
+        updatedOptions.mode = "verbose";
+      } else {
+        updatedOptions.mode = "precise";
+      }
     }
 
     const isDryRun = updatedOptions.dryRun === true;

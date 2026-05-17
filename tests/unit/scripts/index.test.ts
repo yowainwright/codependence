@@ -881,6 +881,15 @@ test("checkFiles => with updates (verbose mode)", async () => {
   logCheckFilesWithUpdates.mockRestore();
 });
 
+test("checkFiles => defaults codependencies to 0.x compatible verbose mode", async () => {
+  const codependencies = [{ lodash: "4.18.0" }];
+  const rootDir = "./tests/unit/fixtures/";
+  const files = ["test-fail-package.json"];
+  const diffs = await checkFiles({ codependencies, rootDir, files, format: "json" });
+
+  expect(diffs?.map((diff) => diff.package)).toEqual(["lodash"]);
+});
+
 test("checkFiles => with permissive mode only", async () => {
   const logCheckFilesPermissive = jest.spyOn(console, "error");
   const codependencies = null;

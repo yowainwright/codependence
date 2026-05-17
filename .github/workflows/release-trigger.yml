@@ -1,20 +1,75 @@
-name: codependence trigger release tests 🤼‍♀️
+name: codependence release
 
 on:
   push:
     tags:
-      - '**'
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
-  build:
+  publish:
+    if: github.repository == 'yowainwright/codependence'
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [24.x]
-
     steps:
-      - name: Repository Dispatch
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify tag matches package version
+        run: |
+          PACKAGE_VERSION="$(node -p "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version")"
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package version $PACKAGE_VERSION"
+            exit 1
+          fi
+
+      - run: bun run deps:security
+      - run: bun run build
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run coverage
+        env:
+          CI: true
+      - run: npm pack --dry-run
+
+      - name: Determine npm dist-tag
+        id: npm-tag
+        shell: bash
+        run: |
+          PACKAGE_VERSION="$(node -p "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version")"
+          case "$PACKAGE_VERSION" in
+            *-alpha*) NPM_TAG="alpha" ;;
+            *-alfa*) NPM_TAG="alfa" ;;
+            *-beta*) NPM_TAG="beta" ;;
+            *-*) NPM_TAG="next" ;;
+            *) NPM_TAG="latest" ;;
+          esac
+          echo "tag=$NPM_TAG" >> "$GITHUB_OUTPUT"
+          echo "Publishing $PACKAGE_VERSION with npm dist-tag: $NPM_TAG"
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public --tag "${{ steps.npm-tag.outputs.tag }}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Repository dispatch release tests
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.REPO_ACCESS_TOKEN }}

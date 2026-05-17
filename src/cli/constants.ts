@@ -11,7 +11,11 @@ export const OPTION_DEFINITIONS: OptionDefinition[] = [
   { flags: ["--silent"], hasValue: false },
   { flags: ["-v", "--verbose"], hasValue: false },
   { flags: ["-q", "--quiet"], hasValue: false },
-  { flags: ["--cds", "--codependencies"], hasValue: true, isArray: true },
+  {
+    flags: ["-cds", "--codependencies", "--cds"],
+    hasValue: true,
+    isArray: true,
+  },
   { flags: ["-c", "--config"], hasValue: true },
   { flags: ["-s", "--searchPath"], hasValue: true },
   { flags: ["-y", "--yarnConfig"], hasValue: false },
@@ -48,7 +52,7 @@ Options:
   --silent                          Enable mainly silent logging
   -v, --verbose                     Enable verbose logging (shows debug info)
   -q, --quiet                       Suppress all output except errors
-  --cds, --codependencies [deps...] Dependencies to check
+  -cds, --codependencies [deps...] Dependencies to check
   -c, --config <config>            Path to a config file
   -s, --searchPath <searchPath>    Path to do a config file search
   -y, --yarnConfig                  Enable yarn config support
@@ -73,11 +77,15 @@ Examples:
   codependence --update                       Update all dependencies to latest
   codependence --update --dryRun              Preview changes without modifying files
 
-  # Pin specific packages, update everything else (default behavior)
+  # Check and update only specific packages (0.x compatible behavior)
   codependence --codependencies react lodash --update
+                                              Only update react and lodash
+
+  # Pin specific packages, update everything else
+  codependence --permissive --codependencies react lodash --update
                                               Pin react & lodash, update everything else
 
-  # Opt out: only check/update listed packages
+  # Explicit compatibility mode: only check/update listed packages
   codependence --mode verbose --codependencies react lodash --update
                                               Only update react and lodash
 

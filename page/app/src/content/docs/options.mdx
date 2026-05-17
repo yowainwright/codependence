@@ -90,10 +90,10 @@ Search path for config files. Default: `undefined`
 Enable yarn config checking. Default: `false`
 
 ### `permissive`: `boolean`
-**Recommended mode.** Update all dependencies to latest except those in `codependencies`. Default: `true`
+Update all dependencies to latest except those in `codependencies`. Default: `false` when `codependencies` are provided, preserving 0.x behavior.
 
 ### `mode`: `string`
-Controls which packages are checked. `verbose`: only listed packages; `precise`: all except listed. Default: `precise`
+Controls which packages are checked. `verbose`: only listed packages; `precise`: all except listed. Default: `verbose` with `codependencies`, otherwise `precise`.
 
 ### `level`: `string`
 Update level constraint: `patch`, `minor`, or `major`. Default: `major`
