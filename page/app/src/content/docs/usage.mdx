@@ -30,7 +30,7 @@ pnpm add codependence --save-dev
 Pure CLI quick run
 
 ```bash
-codependence --condependencies 'fs-extra' 'lodash'
+codependence --codependencies 'fs-extra' 'lodash'
 ```
 
 Or use it with a config in the root package.json file
@@ -38,7 +38,7 @@ Or use it with a config in the root package.json file
 ```js
 {
   "codependence": {
-    "condependencies": ["fs-extra", "lodash"]
+    "codependencies": ["fs-extra", "lodash"]
   },
   "scripts": {
     "update-codependencies": "codependence --update",

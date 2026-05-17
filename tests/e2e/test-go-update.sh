@@ -47,14 +47,23 @@ write_rc() {
 
 run_update() {
   local exit_code=0
-  (cd "$WORK_DIR" && node dist/cli.js --update 2>&1) || exit_code=$?
-  [ "$exit_code" -le 1 ] || fail "codependence --update exited with unexpected code $exit_code"
+  local output
+  output=$(cd "$WORK_DIR" && node dist/cli.js --update --isTesting 2>&1) || exit_code=$?
+  [ "$exit_code" -eq 0 ] || fail "codependence --update exited with unexpected code $exit_code: $output"
+  if echo "$output" | grep -q "Failed to fetch version\|Error: Command failed"; then
+    fail "codependence --update had resolver errors: $output"
+  fi
 }
 
 run_check() {
   local exit_code=0
-  (cd "$WORK_DIR" && node dist/cli.js --debug 2>&1) || exit_code=$?
+  local output
+  output=$(cd "$WORK_DIR" && node dist/cli.js --debug 2>&1) || exit_code=$?
   [ "$exit_code" -le 1 ] || fail "codependence --debug exited with unexpected code $exit_code"
+  if echo "$output" | grep -q "Failed to fetch version\|Error: Command failed"; then
+    fail "codependence --debug had resolver errors: $output"
+  fi
+  echo "$output"
 }
 
 assert_file_contains() {
@@ -69,17 +78,17 @@ assert_file_contains() {
 test_replace_directive_preserved() {
   info "replace directive preserved after --update"
   cp "$FIXTURE_DIR/go.mod-replace.fixture" "$WORK_DIR/go.mod"
-  write_rc '{"codependencies":["github.com/gin-gonic/gin","github.com/lib/pq"],"language":"go","mode":"verbose"}'
+  write_rc '{"codependencies":[{"github.com/gin-gonic/gin":"v1.9.1"},{"github.com/lib/pq":"v1.10.9"}],"language":"go","mode":"verbose"}'
   run_update
   assert_file_contains "$WORK_DIR/go.mod" \
-    "replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0" \
+    "replace github.com/old/module v1.0.0 => github.com/fork/module v1.1.0" \
     "replace directive preserved"
 }
 
 test_indirect_comments_preserved() {
   info "// indirect comments preserved after --update"
   cp "$FIXTURE_DIR/go.mod-indirect.fixture" "$WORK_DIR/go.mod"
-  write_rc '{"codependencies":["github.com/gin-gonic/gin","github.com/lib/pq"],"language":"go","mode":"verbose"}'
+  write_rc '{"codependencies":[{"github.com/gin-gonic/gin":"v1.9.1"},{"github.com/lib/pq":"v1.10.9"}],"language":"go","mode":"verbose"}'
   run_update
   assert_file_contains "$WORK_DIR/go.mod" "// indirect" "// indirect comments preserved"
 }
@@ -87,7 +96,7 @@ test_indirect_comments_preserved() {
 test_packages_detected() {
   info "go packages are detected"
   cp "$FIXTURE_DIR/go.mod.fixture" "$WORK_DIR/go.mod"
-  write_rc '{"codependencies":["github.com/gin-gonic/gin","github.com/lib/pq","golang.org/x/crypto"],"language":"go","mode":"verbose"}'
+  write_rc '{"codependencies":[{"github.com/gin-gonic/gin":"v1.9.1"},{"github.com/lib/pq":"v1.10.9"},{"golang.org/x/crypto":"v0.11.0"}],"language":"go","mode":"verbose"}'
   OUTPUT=$(run_check)
   if echo "$OUTPUT" | grep -q "gin-gonic\|lib/pq\|golang.org"; then
     pass "go packages detected"

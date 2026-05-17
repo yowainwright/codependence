@@ -85,8 +85,9 @@ runs:
 
         # Add codependencies
         if [ -n "$INPUT_CODEDEPENDENCIES" ]; then
+          CMD+=(--codependencies)
           for dep in $INPUT_CODEDEPENDENCIES; do
-            CMD+=(--codependencies "$dep")
+            CMD+=("$dep")
           done
         fi
 
@@ -95,8 +96,9 @@ runs:
 
         # Add files
         if [ -n "$INPUT_FILES" ]; then
+          CMD+=(--files)
           for file in $INPUT_FILES; do
-            CMD+=(--files "$file")
+            CMD+=("$file")
           done
         fi
 
@@ -111,8 +113,9 @@ runs:
 
         # Add ignore patterns
         if [ -n "$INPUT_IGNORE" ]; then
+          CMD+=(--ignore)
           for pattern in $INPUT_IGNORE; do
-            CMD+=(--ignore "$pattern")
+            CMD+=("$pattern")
           done
         fi
 
