@@ -3,13 +3,29 @@ set -e
 
 echo "=== Testing codependence level and mode features ==="
 
+run_cli() {
+  exit_code=0
+  output=$(node dist/cli.js "$@" 2>&1) || exit_code=$?
+  if [ "$exit_code" -gt 1 ]; then
+    echo "$output"
+    echo "✗ codependence exited with unexpected code $exit_code"
+    exit 1
+  fi
+  if echo "$output" | grep -q "Failed to fetch version\|Error: Command failed\|npm error"; then
+    echo "$output"
+    echo "✗ codependence had resolver errors"
+    exit 1
+  fi
+  echo "$output"
+}
+
 # --- LEVEL FEATURE TESTS ---
 
 # Test 1: --level flag via CLI (major - default, should find outdated deps)
 echo "\n1. Testing --level major via CLI flag..."
 cp level-package.json.fixture package.json
 echo '{"codependencies": ["lodash", "express"]}' > .codependencerc
-if node dist/cli.js --level major --silent 2>&1; then
+if run_cli --level major --silent >/dev/null; then
   echo "✓ Level major test passed (no error or deps up-to-date)"
 else
   echo "✓ Level major test passed (exited with outdated deps as expected)"
@@ -20,7 +36,7 @@ rm -f .codependencerc
 echo "\n2. Testing --level patch via CLI flag..."
 cp level-package.json.fixture package.json
 echo '{"codependencies": ["lodash", "express"]}' > .codependencerc
-if node dist/cli.js --level patch --debug 2>&1 | grep -q "lodash\|express"; then
+if run_cli --level patch --debug >/dev/null; then
   echo "✓ Level patch CLI flag test passed"
 else
   echo "✗ Level patch CLI flag test failed"
@@ -32,7 +48,7 @@ rm -f .codependencerc
 echo "\n3. Testing --level minor via CLI flag..."
 cp level-package.json.fixture package.json
 echo '{"codependencies": ["lodash", "express"]}' > .codependencerc
-if node dist/cli.js --level minor --debug 2>&1 | grep -q "lodash\|express"; then
+if run_cli --level minor --debug >/dev/null; then
   echo "✓ Level minor CLI flag test passed"
 else
   echo "✗ Level minor CLI flag test failed"
@@ -44,7 +60,7 @@ rm -f .codependencerc
 echo "\n4. Testing level from config file (patch)..."
 cp level-package.json.fixture package.json
 cp .codependencerc-level-patch .codependencerc
-if node dist/cli.js --debug 2>&1 | grep -q "lodash\|express"; then
+if run_cli --debug >/dev/null; then
   echo "✓ Level patch config file test passed"
 else
   echo "✗ Level patch config file test failed"
@@ -56,7 +72,7 @@ rm -f .codependencerc
 echo "\n5. Testing level from config file (minor)..."
 cp level-package.json.fixture package.json
 cp .codependencerc-level-minor .codependencerc
-if node dist/cli.js --debug 2>&1 | grep -q "lodash\|express"; then
+if run_cli --debug >/dev/null; then
   echo "✓ Level minor config file test passed"
 else
   echo "✗ Level minor config file test failed"
@@ -68,7 +84,7 @@ rm -f .codependencerc
 echo "\n6. Testing level from config file (major)..."
 cp level-package.json.fixture package.json
 cp .codependencerc-level-major .codependencerc
-if node dist/cli.js --debug 2>&1 | grep -q "lodash\|express"; then
+if run_cli --debug >/dev/null; then
   echo "✓ Level major config file test passed"
 else
   echo "✗ Level major config file test failed"
@@ -82,7 +98,7 @@ rm -f .codependencerc
 echo "\n7. Testing --mode verbose via CLI flag..."
 cp level-package.json.fixture package.json
 echo '{"codependencies": ["lodash"]}' > .codependencerc
-if node dist/cli.js --mode verbose --debug 2>&1 | grep -q "lodash"; then
+if run_cli --mode verbose --debug >/dev/null; then
   echo "✓ Mode verbose CLI flag test passed"
 else
   echo "✗ Mode verbose CLI flag test failed"
@@ -94,7 +110,7 @@ rm -f .codependencerc
 echo "\n8. Testing --mode precise via CLI flag..."
 cp level-package.json.fixture package.json
 echo '{}' > .codependencerc
-if node dist/cli.js --mode precise --debug 2>&1 | grep -q "lodash\|express\|typescript"; then
+if run_cli --mode precise --debug >/dev/null; then
   echo "✓ Mode precise CLI flag test passed (found project deps)"
 else
   echo "✗ Mode precise CLI flag test failed"
@@ -106,7 +122,7 @@ rm -f .codependencerc
 echo "\n9. Testing mode precise from config file..."
 cp level-package.json.fixture package.json
 cp .codependencerc-mode-precise .codependencerc
-if node dist/cli.js --debug 2>&1 | grep -q "lodash\|express\|typescript"; then
+if run_cli --debug >/dev/null; then
   echo "✓ Mode precise config file test passed"
 else
   echo "✗ Mode precise config file test failed"
@@ -118,7 +134,7 @@ rm -f .codependencerc
 echo "\n10. Testing mode verbose from config file..."
 cp level-package.json.fixture package.json
 cp .codependencerc-mode-verbose .codependencerc
-if node dist/cli.js --debug 2>&1 | grep -q "lodash"; then
+if run_cli --debug >/dev/null; then
   echo "✓ Mode verbose config file test passed"
 else
   echo "✗ Mode verbose config file test failed"
@@ -130,7 +146,7 @@ rm -f .codependencerc
 echo "\n11. Testing --permissive flag enables precise mode..."
 cp level-package.json.fixture package.json
 echo '{}' > .codependencerc
-if node dist/cli.js --permissive --debug 2>&1 | grep -q "lodash\|express\|typescript"; then
+if run_cli --permissive --debug >/dev/null; then
   echo "✓ Permissive flag enables precise mode test passed"
 else
   echo "✗ Permissive flag enables precise mode test failed"
@@ -142,7 +158,7 @@ rm -f .codependencerc
 echo "\n12. Testing precise mode with pinned codependencies..."
 cp level-package.json.fixture package.json
 cp .codependencerc-mode-precise-pinned .codependencerc
-if node dist/cli.js --debug 2>&1 | grep -q "lodash"; then
+if run_cli --debug >/dev/null; then
   echo "✓ Precise mode with pinned deps test passed"
 else
   echo "✗ Precise mode with pinned deps test failed"
@@ -156,7 +172,7 @@ rm -f .codependencerc
 echo "\n13. Testing combined level and mode from config file..."
 cp level-package.json.fixture package.json
 cp .codependencerc-level-mode-combo .codependencerc
-if node dist/cli.js --debug 2>&1 | grep -q "lodash"; then
+if run_cli --debug >/dev/null; then
   echo "✓ Combined level + mode config test passed"
 else
   echo "✗ Combined level + mode config test failed"
@@ -168,7 +184,7 @@ rm -f .codependencerc
 echo "\n14. Testing CLI flag overrides config level..."
 cp level-package.json.fixture package.json
 cp .codependencerc-level-major .codependencerc
-if node dist/cli.js --level patch --debug 2>&1 | grep -q "lodash\|express"; then
+if run_cli --level patch --debug >/dev/null; then
   echo "✓ CLI flag overrides config level test passed"
 else
   echo "✗ CLI flag overrides config level test failed"
@@ -180,7 +196,7 @@ rm -f .codependencerc
 echo "\n15. Testing CLI flag overrides config mode..."
 cp level-package.json.fixture package.json
 cp .codependencerc-mode-verbose .codependencerc
-if node dist/cli.js --mode precise --debug 2>&1 | grep -q "lodash\|express\|typescript"; then
+if run_cli --mode precise --debug >/dev/null; then
   echo "✓ CLI flag overrides config mode test passed"
 else
   echo "✗ CLI flag overrides config mode test failed"
@@ -192,7 +208,7 @@ rm -f .codependencerc
 echo "\n16. Testing precise mode doesn't require codependencies..."
 cp level-package.json.fixture package.json
 echo '{"mode": "precise"}' > .codependencerc
-if node dist/cli.js --silent 2>&1 | grep -q 'codependencies.*required'; then
+if run_cli --silent | grep -q 'codependencies.*required'; then
   echo "✗ Precise mode should not require codependencies"
   exit 1
 else
@@ -204,7 +220,7 @@ rm -f .codependencerc
 echo "\n17. Testing verbose mode requires codependencies..."
 cp level-package.json.fixture package.json
 echo '{"mode": "verbose"}' > .codependencerc
-if node dist/cli.js --silent 2>&1 | grep -q 'codependencies.*required'; then
+if run_cli --silent | grep -q 'codependencies.*required'; then
   echo "✓ Verbose mode requires codependencies test passed"
 else
   echo "✗ Verbose mode requires codependencies test failed"

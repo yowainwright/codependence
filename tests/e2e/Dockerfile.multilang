@@ -62,7 +62,7 @@ RUN pip3 install --no-cache-dir --break-system-packages pip --upgrade && \
 
 # Create test user
 RUN groupadd -g 1001 testuser && \
-    useradd -r -u 1001 -g testuser testuser && \
+    useradd -r -u 1001 -g testuser -m testuser && \
     mkdir -p /go && \
     chown -R testuser:testuser /go
 

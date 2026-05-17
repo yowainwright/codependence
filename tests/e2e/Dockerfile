@@ -40,7 +40,7 @@ ENV PATH="/root/.bun/bin:$PATH"
 
 # Create a non-root user for testing
 RUN groupadd -g 1001 testuser && \
-    useradd -r -u 1001 -g testuser testuser
+    useradd -r -u 1001 -g testuser -m testuser
 
 # Set working directory
 WORKDIR /test

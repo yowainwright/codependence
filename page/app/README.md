@@ -1,6 +1,6 @@
 # Codependence Documentation Site
 
-This is the documentation website for Codependence, a JavaScript utility for managing and validating critical dependencies across your projects.
+This is the documentation website for Codependence, a CLI and Node API for checking, reporting, and updating dependency versions across project manifests. Codependence can update only selected dependencies, or pin chosen packages while updating everything else with permissive mode.
 
 ## Features
 
