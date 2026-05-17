@@ -37,7 +37,7 @@ npm install codependence --save-dev
 
 #### Quick setup
 
-Pin specific packages, update everything else:
+Check and update specific packages:
 
 ```sh
 codependence --codependencies 'react' 'lodash' --update
@@ -57,7 +57,13 @@ Or use it with a config in the root `package.json` file
 }
 ```
 
-> By default, `codependence` runs in **permissive mode** — it updates all dependencies to their latest versions _except_ those listed in `codependencies`. Your pinned list is what you want to **hold back**; everything else follows latest.
+By default, a `codependencies` list keeps the 0.x behavior: only those listed
+dependencies are checked and updated. To pin specific packages while updating
+everything else, opt into permissive mode:
+
+```sh
+codependence --permissive --codependencies 'react' 'lodash' --update
+```
 
 #### Initialize Codependence
 
@@ -124,12 +130,12 @@ Options:
   --silent                          Enable mainly silent logging
   -v, --verbose                     Enable verbose logging (shows debug info)
   -q, --quiet                       Suppress all output except errors
-  --cds, --codependencies [deps...] Dependencies to check
+  -cds, --codependencies [deps...] Dependencies to check
   -c, --config <config>            Path to a config file
   -s, --searchPath <searchPath>    Path to do a config file search
   -y, --yarnConfig                  Enable yarn config support
   --level <level>                   Update level: patch, minor, or major (default: major)
-  -m, --mode <mode>                Listing mode: verbose or precise (default: precise)
+  -m, --mode <mode>                verbose: only listed packages; precise: all except listed
   -l, --language <lang>            Target language (nodejs, go, python) (experimental)
   -h, --help                        Show this help message
   --dryRun                          Show what would change without modifying files
@@ -309,9 +315,9 @@ An **optional** boolean value used to enable \***yarn config** checking
 
 Controls whether all dependencies are updated to latest except those listed in `codependencies`.
 
-- The default value is `true`
-- When `true` (default), all dependencies NOT listed in `codependencies` are updated to latest — your `codependencies` list is what you want to **pin**
-- To opt out, use `--mode verbose` (CLI) or `mode: "verbose"` (config) — only the listed packages will be checked/updated
+- The default value is `false` when `codependencies` are provided, for compatibility with 0.x jobs
+- When `true`, all dependencies NOT listed in `codependencies` are updated to latest — your `codependencies` list is what you want to **pin**
+- Use `--mode precise` (CLI) or `mode: "precise"` (config) for the same pin-and-update-everything-else behavior
 
 ---
 
@@ -329,8 +335,8 @@ An **optional** string constraining how far updates are allowed to reach.
 
 An **optional** string controlling which packages are checked.
 
-- `"verbose"` — only check/update the packages listed in `codependencies` (opt out of permissive default)
-- `"precise"` — update all dependencies except those listed in `codependencies` (same as default permissive behavior)
+- `"verbose"` — only check/update the packages listed in `codependencies` (0.x compatible behavior)
+- `"precise"` — update all dependencies except those listed in `codependencies` (same as permissive behavior)
 
 ---
 
@@ -527,6 +533,12 @@ curl -fsSL https://bun.sh/install | bash
 bun install
 ```
 
+## Release Strategy
+
+Git tags must match `package.json` versions. Stable tags like `v1.0.0` publish
+to npm `latest`; prerelease tags publish by identifier: `alpha`, `alfa`, `beta`,
+or `next` for other prereleases.
+
 ## Contributing
 
 [Contributing](.github/CONTRIBUTING.md) is straightforward.
@@ -566,4 +578,4 @@ Thanks to [Dev Wells](https://github.com/devdumpling) and [Steve Cox](https://gi
 
 ---
 
-Made by [@yowainwright](https://github.com/yowainwright), MIT 2022
+Made by [@yowainwright](https://github.com/yowainwright), MIT 2022-present

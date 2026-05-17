@@ -7,7 +7,7 @@ echo "=== Testing codependence init functionality ==="
 echo "\n1. Testing init with dependencies available (legacy pin-all mode)..."
 cp test-package.json.fixture package.json
 rm -f .codependencerc
-node dist/index.js init rc
+node dist/cli.js init rc
 if [ -f ".codependencerc" ]; then
   # Verify config has codependencies (not permissive mode)
   if grep -q '"codependencies"' .codependencerc && ! grep -q '"permissive"' .codependencerc; then
@@ -27,7 +27,7 @@ echo "\n2. Testing package.json configuration (legacy pin-all mode)..."
 rm -f .codependencerc
 rm -f package.json
 cp test-package.json.fixture package.json
-node dist/index.js init package
+node dist/cli.js init package
 if grep -q '"codependence"' package.json; then
   # Verify package.json has codependencies but not permissive flag
   if grep -q '"codependencies"' package.json && ! grep -q '"permissive"' package.json; then
@@ -44,7 +44,7 @@ fi
 
 # Test 3: Existing config detection
 echo "\n3. Testing existing config detection..."
-if node dist/index.js init rc 2>&1 | grep -q "configuration already exists"; then
+if node dist/cli.js init rc 2>&1 | grep -q "configuration already exists"; then
   echo "✓ Existing config detection test passed"
 else
   echo "✗ Existing config detection test failed"
@@ -56,7 +56,7 @@ echo "\n4. Testing no dependencies scenario..."
 rm -f .codependencerc
 rm -f package.json
 cp minimal-package.json.fixture package.json
-if node dist/index.js init rc 2>&1 | grep -q "No dependencies found"; then
+if node dist/cli.js init rc 2>&1 | grep -q "No dependencies found"; then
   echo "✓ No dependencies error test passed"
 else
   echo "✗ No dependencies error test failed"
@@ -71,7 +71,7 @@ rm -f package.json
 mkdir -p invalid-test
 cp invalid-package.json.fixture invalid-test/package.json
 cd invalid-test
-if node ../dist/index.js init rc 2>&1 | grep -q "Invalid JSON in package.json"; then
+if node ../dist/cli.js init rc 2>&1 | grep -q "Invalid JSON in package.json"; then
   echo "✓ Invalid JSON error test passed"
 else
   echo "✗ Invalid JSON error test failed"
@@ -84,7 +84,7 @@ rm -rf invalid-test
 echo "\n6. Testing missing package.json scenario..."
 rm -f package.json
 rm -f .codependencerc
-if node dist/index.js init rc 2>&1 | grep -q "package.json not found"; then
+if node dist/cli.js init rc 2>&1 | grep -q "package.json not found"; then
   echo "✓ Missing package.json error test passed"
 else
   echo "✗ Missing package.json error test failed"
@@ -98,7 +98,7 @@ rm -f .codependencerc
 # Create a minimal permissive config - should not throw "codependencies required" error
 echo '{"permissive": true}' > .codependencerc
 # In permissive mode, it might exit with 1 due to outdated deps, but shouldn't throw "required" error
-if node dist/index.js --silent 2>&1 | grep -q 'codependencies.*required'; then
+if node dist/cli.js --silent 2>&1 | grep -q 'codependencies.*required'; then
   echo "✗ Permissive mode should not require codependencies"
   exit 1
 else
@@ -123,7 +123,7 @@ fi
 echo "\n9. Testing non-permissive mode requires codependencies..."
 rm -f .codependencerc
 echo '{ "permissive": false }' > .codependencerc
-if node dist/index.js --silent 2>&1 | grep -q 'codependencies.*required'; then
+if node dist/cli.js --silent 2>&1 | grep -q 'codependencies.*required'; then
   echo "✓ Non-permissive mode codependencies requirement test passed"
 else
   echo "✗ Non-permissive mode codependencies requirement test failed"
@@ -135,7 +135,7 @@ echo "\n10. Testing init default type creates pin-all config..."
 rm -f .codependencerc
 rm -f package.json
 cp test-package.json.fixture package.json
-node dist/index.js init default
+node dist/cli.js init default
 if [ -f ".codependencerc" ]; then
   # Should create pin-all config (not permissive)
   if grep -q '"codependencies"' .codependencerc && ! grep -q '"permissive"' .codependencerc; then

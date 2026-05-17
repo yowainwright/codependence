@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORK_DIR="$(mktemp -d)"
 
 resolve_root_dir() {
-  if [ -f "$SCRIPT_DIR/dist/index.js" ]; then
+  if [ -f "$SCRIPT_DIR/dist/cli.js" ]; then
     echo "$SCRIPT_DIR"
   else
     echo "$(dirname "$(dirname "$SCRIPT_DIR")")"
@@ -38,8 +38,7 @@ cleanup() { rm -rf "$WORK_DIR"; }
 trap cleanup EXIT
 
 setup_work_dir() {
-  cp "$ROOT_DIR/dist/index.js" "$WORK_DIR/" || fail "dist/index.js not found — run bun run build-dist first"
-  cp -r "$ROOT_DIR/dist" "$WORK_DIR/" 2>/dev/null || true
+  cp -r "$ROOT_DIR/dist" "$WORK_DIR/" || fail "dist/cli.js not found - run bun run build-dist first"
 }
 
 write_rc() {
@@ -48,13 +47,13 @@ write_rc() {
 
 run_update() {
   local exit_code=0
-  (cd "$WORK_DIR" && node index.js --update 2>&1) || exit_code=$?
+  (cd "$WORK_DIR" && node dist/cli.js --update 2>&1) || exit_code=$?
   [ "$exit_code" -le 1 ] || fail "codependence --update exited with unexpected code $exit_code"
 }
 
 run_check() {
   local exit_code=0
-  (cd "$WORK_DIR" && node index.js --debug 2>&1) || exit_code=$?
+  (cd "$WORK_DIR" && node dist/cli.js --debug 2>&1) || exit_code=$?
   [ "$exit_code" -le 1 ] || fail "codependence --debug exited with unexpected code $exit_code"
 }
 

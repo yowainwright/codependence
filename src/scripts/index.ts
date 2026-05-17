@@ -1020,6 +1020,20 @@ const resolvePreciseModeDeps = async (
   return { ...versionMap, ...additionalMap };
 };
 
+const resolveEffectiveMode = ({
+  codependencies,
+  mode,
+  permissive,
+}: Pick<CheckFiles, "codependencies" | "mode" | "permissive">): "verbose" | "precise" => {
+  if (mode) return mode;
+  if (permissive === true) return "precise";
+  if (permissive === false) return "verbose";
+
+  return Array.isArray(codependencies) && codependencies.length > 0
+    ? "verbose"
+    : "precise";
+};
+
 export const checkFiles = async ({
   codependencies,
   files: matchers,
@@ -1033,7 +1047,7 @@ export const checkFiles = async ({
   isCLI = false,
   yarnConfig = false,
   isTesting = false,
-  permissive = true,
+  permissive,
   language,
   dryRun = false,
   interactive = false,
@@ -1063,7 +1077,12 @@ export const checkFiles = async ({
       isTesting,
     });
     const validate = createPackageValidator(versionResolver.provider);
-    const isPreciseMode = mode === "precise" || (permissive && mode !== "verbose");
+    const effectiveMode = resolveEffectiveMode({
+      codependencies,
+      mode,
+      permissive,
+    });
+    const isPreciseMode = effectiveMode === "precise";
 
     const hasNoDepsAndNotPrecise = !codependencies && !isPreciseMode;
     if (hasNoDepsAndNotPrecise) {
@@ -1169,4 +1188,5 @@ export const checkFiles = async ({
 };
 
 export const codependence = checkFiles;
+export const script = checkFiles;
 export default checkFiles;

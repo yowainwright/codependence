@@ -323,6 +323,25 @@ describe("Action Function Tests (Fast)", () => {
     configSpy.mockRestore();
   });
 
+  test("should default listed codependencies to 0.x compatible verbose mode", async () => {
+    await action({
+      codependencies: ["lodash"],
+    });
+
+    const callArgs = scriptSpy.mock.calls[0][0];
+    expect(callArgs.mode).toBe("verbose");
+  });
+
+  test("should use precise mode when permissive is explicit", async () => {
+    await action({
+      codependencies: ["lodash"],
+      permissive: true,
+    });
+
+    const callArgs = scriptSpy.mock.calls[0][0];
+    expect(callArgs.mode).toBe("precise");
+  });
+
   test("should execute script with dry-run mode", async () => {
     const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
 

@@ -2,17 +2,19 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Security fixes are released for the current stable major version.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| < 1.0   | ✅                 |
+| Version | Supported |
+| ------- | --------- |
+| 1.x     | Yes       |
+| < 1.0   | No        |
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+Please report vulnerabilities privately through GitHub Security Advisories or by
+emailing yowainwright@gmail.com.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+Include the affected version, a description of the impact, reproduction steps,
+and any suggested fix if you have one. You can expect an initial response within
+7 days. Confirmed vulnerabilities will be patched in a security release and
+documented after the fix is available.

@@ -1,11 +1,19 @@
-#!/usr/bin/env node
-import { run } from "./program";
-import { checkFiles, codependence } from "./scripts";
+import { pathToFileURL } from "url";
 import { logger } from "./logger";
+import { run } from "./program";
+import { checkFiles, codependence, script } from "./scripts";
 
-run().catch((err) => {
-  logger.error(err.message || err.toString());
-  process.exit(1);
-});
+const isDirectExecution =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 
-export { checkFiles, codependence };
+/* c8 ignore next 5 */
+if (isDirectExecution) {
+  run().catch((err) => {
+    logger.error(err.message || err.toString());
+    process.exit(1);
+  });
+}
+
+export { checkFiles, codependence, script };
+export default codependence;

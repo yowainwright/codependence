@@ -172,14 +172,25 @@ describe("parseArgs", () => {
     ];
     const result = parseArgs(args);
 
-    expect(result.options.cds).toEqual(["lodash", "express", "react"]);
+    expect(result.options.codependencies).toEqual([
+      "lodash",
+      "express",
+      "react",
+    ]);
   });
 
   test("should handle --cds shorthand", () => {
     const args = [...baseArgs, "--cds", "lodash"];
     const result = parseArgs(args);
 
-    expect(result.options.cds).toEqual(["lodash"]);
+    expect(result.options.codependencies).toEqual(["lodash"]);
+  });
+
+  test("should handle legacy -cds shorthand", () => {
+    const args = [...baseArgs, "-cds", "lodash"];
+    const result = parseArgs(args);
+
+    expect(result.options.codependencies).toEqual(["lodash"]);
   });
 
   test("should handle --ignore with multiple patterns", () => {
@@ -288,7 +299,7 @@ describe("parseArgs", () => {
     expect(result.options.interactive).toBe(true);
     expect(result.options.files).toEqual(["packages/*/package.json"]);
     expect(result.options.ignore).toEqual(["**/node_modules/**"]);
-    expect(result.options.cds).toEqual(["lodash", "express"]);
+    expect(result.options.codependencies).toEqual(["lodash", "express"]);
     expect(result.options.verbose).toBe(true);
   });
 
