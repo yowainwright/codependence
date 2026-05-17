@@ -7,6 +7,7 @@ const isDirectExecution =
   process.argv[1] !== undefined &&
   import.meta.url === pathToFileURL(process.argv[1]).href;
 
+/* c8 ignore next 5 */
 if (isDirectExecution) {
   run().catch((err) => {
     logger.error(err.message || err.toString());
