@@ -5,10 +5,10 @@ import {
   formatAsTable,
   format,
 } from "../../../src/utils/formatters";
-import { ANSI_PATTERN } from "../../../src/utils/constants";
+import { createAnsiPattern } from "../../../src/utils/constants";
 import type { DependencyInfo } from "../../../src/types";
 
-const stripAnsi = (str: string): string => str.replace(ANSI_PATTERN, "");
+const stripAnsi = (str: string): string => str.replace(createAnsiPattern(), "");
 
 describe("formatAsJSON", () => {
   it("should format dependencies as JSON with outdated status", () => {

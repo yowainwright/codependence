@@ -1,5 +1,5 @@
 import { cyan, green, yellow, gray } from "./colors";
-import { ANSI_PATTERN } from "./constants";
+import { createAnsiPattern } from "./constants";
 import { SYMBOLS } from "./symbols";
 
 export interface TableColumn {
@@ -13,7 +13,7 @@ export interface TableRow {
 }
 
 const padString = (str: string, width: number, align = "left"): string => {
-  const displayLength = str.replace(ANSI_PATTERN, "").length;
+  const displayLength = str.replace(createAnsiPattern(), "").length;
   const padding = Math.max(0, width - displayLength);
 
   if (align === "right") {

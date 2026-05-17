@@ -1,4 +1,4 @@
-import { ANSI_PATTERN } from "../utils/constants";
+import { createAnsiPattern } from "../utils/constants";
 import { DEFAULT_WIDTH, INDENT_SIZE, BOX_CHARS } from './constants';
 import type { BoxOptions, TextAlign } from './types';
 
@@ -7,7 +7,7 @@ export const getTerminalWidth = (): number => {
 };
 
 export const visibleLength = (str: string): number => {
-  return str.replace(ANSI_PATTERN, "").length;
+  return str.replace(createAnsiPattern(), "").length;
 };
 
 export const pad = (
