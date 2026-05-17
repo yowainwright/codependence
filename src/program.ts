@@ -38,8 +38,8 @@ export const mergeConfigs = (
   const {
     config: _usedConfig,
     searchPath: _usedSearchPath,
-    isTestingCLI,
-    isTestingAction,
+    isTestingCLI: _isTestingCLI,
+    isTestingAction: _isTestingAction,
     ...updatedOptions
   } = updatedConfig;
 

@@ -16,5 +16,3 @@ export const ANSI = {
   SHOW_CURSOR: '\x1B[?25h',
   RESET: '\x1b[0m',
 } as const;
-
-export const ANSI_PATTERN = /\x1b\[[0-9;]*m/g;

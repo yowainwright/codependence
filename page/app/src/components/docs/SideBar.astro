@@ -10,7 +10,7 @@ const pathname = new URL(Astro.request.url).pathname;
   ></label>
   <aside class="bg-base-100 min-h-screen w-80">
     <div
-      class="bg-base-100 sticky top-0 z-20 items-center gap-2 bg-opacity-90 px-4 py-2 backdrop-blur lg:flex font-outfit"
+      class="bg-base-100 sticky top-0 z-20 items-center gap-2 bg-opacity-90 px-4 py-2 backdrop-blur lg:flex font-sans"
     >
       <a href={resolveUrl("")} class="px-2">
         <h1
@@ -21,7 +21,7 @@ const pathname = new URL(Astro.request.url).pathname;
       </a>
     </div>
 
-    <ul class="menu w-full px-4 py-0 font-outfit">
+    <ul class="menu w-full px-4 py-0 font-sans">
       {
         SIDEBAR.map((navItem) => (
           <li>
