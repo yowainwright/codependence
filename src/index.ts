@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { pathToFileURL } from "url";
 import { logger } from "./logger";
 import { run } from "./program";
