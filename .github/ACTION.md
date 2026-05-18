@@ -1,6 +1,6 @@
 # Codependence GitHub Action
 
-Use Codependence in your GitHub Actions workflows to automatically check and update dependencies.
+Use Codependence in your GitHub Actions workflows to enforce dependency version policy and optionally update mismatched manifests.
 
 ## Quick Start
 

@@ -34,7 +34,7 @@
       "typescript"
     ]
   },
-  "description": "Checks `codependencies` in package.json files to ensure dependencies are up-to-date 🤼‍♀️",
+  "description": "Enforce dependency version policy across projects, workspaces, and CI.",
   "engines": {
     "node": ">=18"
   },
@@ -47,8 +47,12 @@
     "optional-dependencies",
     "dependencies",
     "devDependencies",
+    "dependency-policy",
+    "version-policy",
     "versioning",
     "versions",
+    "monorepo",
+    "ci",
     "semver"
   ],
   "license": "MIT",

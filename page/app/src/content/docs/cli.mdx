@@ -7,7 +7,7 @@ description: Command Line Interface for Codependence
 
 ## Overview
 
-CLI-first, set-it-and-forget-it tool.
+CLI-first policy tool for checking, reporting, and updating dependency versions.
 
 Install as a devDependency and use a `codependence.codependencies` array to define dependencies to keep updated or pinned.
 
@@ -61,12 +61,14 @@ codependence init
 ## Options Reference
 
 ### File and Directory Options
+
 - `-f, --files [files...]` - Specify file glob patterns to check
 - `-r, --rootDir <rootDir>` - Set the root directory to start search
 - `-i, --ignore [ignore...]` - Specify glob patterns to ignore
 - `-s, --searchPath <searchPath>` - Path to search for config files
 
 ### Update Options
+
 - `-u, --update` - Automatically update dependencies based on check results
 - `--permissive` - Update all dependencies to latest except those specified in codependencies
 - `--dryRun` - Preview what would change without modifying files
@@ -75,11 +77,13 @@ codependence init
 - `-m, --mode <mode>` - `verbose`: only listed packages; `precise`: all except listed
 
 ### Configuration Options
+
 - `-c, --config <config>` - Path to a configuration file
 - `-cds, --codependencies [deps...]` - Specify dependencies to check inline
 - `-y, --yarnConfig` - Enable yarn configuration support
 
 ### Output Options
+
 - `--debug` - Enable debugging output
 - `--silent` - Enable mainly silent logging
 - `-v, --verbose` - Enable verbose logging (shows debug info)
@@ -88,13 +92,16 @@ codependence init
 - `--outputFile <path>` - Write output to a file instead of stdout
 
 ### Performance Options
+
 - `--noCache` - Disable version caching for fresh results
 - `--watch` - Watch for changes and re-check continuously
 
 ### Language Options
+
 - `-l, --language <lang>` - Target language: `nodejs`, `go`, or `python` (experimental)
 
 ### Testing Options
+
 - `-t, --isTestingCLI` - Enable CLI only testing
 - `--isTesting` - Enable running function tests without overwriting
 

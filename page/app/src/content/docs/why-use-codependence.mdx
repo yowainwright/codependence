@@ -1,17 +1,20 @@
 ---
 title: Why use Codependence?
-description: Codependence is a utility tool focused on a single task—managing specified dependency versions!
+description: Codependence enforces dependency version policy where your code runs.
 ---
+
 <section>
 
 ## Why use Codependence?
 
-Manages dependency versions with granular control.
+Use Codependence when dependency versions need a policy, not just occasional update PRs.
 
-- Fully manages dependencies—no additional tools needed
-- Handles monorepos without package manager bias
-- Runs immediately via npm scripts or build tools like Husky
-- Integrates with CI via npm scripts or GitHub Actions
+- Define which packages must stay current or pinned
+- Fail CI when a manifest drifts from policy
+- Update only listed packages, or update everything except listed packages
+- Handle package-specific policy in monorepos
+- Run locally, in npm scripts, in GitHub Actions, or through the Node API
+- Pair with Dependabot or Renovate instead of replacing them
 
 ---
 

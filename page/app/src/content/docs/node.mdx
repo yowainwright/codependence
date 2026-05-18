@@ -7,23 +7,35 @@ description: How to use Codependence as a Node.js utility.
 
 ## Overview
 
-Although Codependence is built to primarily be a CLI utility, it can be used as a Node.js module for programmatic usage.
+Although Codependence is built primarily as a CLI utility, it can also be used as a Node.js module for custom policy checks and internal tooling.
 
 ```ts
-import codependence from "codependence";
+import { checkFiles } from "codependence";
 
-const checkForUpdate = async () => {
-  const isLatest = await codependence({
-    codependencies: ["fs-extra", "lodash"],
-  });
-  if (!isLatest) {
-    console.log("This repo is update-to-date");
-  } else {
-    console.error("This repo is not update-to-date");
+const checkPolicy = async () => {
+  try {
+    await checkFiles({
+      codependencies: ["fs-extra", "lodash"],
+    });
+    console.log("Dependency policy passed");
+  } catch (error) {
+    console.error("Dependency policy failed", error);
   }
 };
 
-checkForUpdate();
+checkPolicy();
+```
+
+To pin selected packages while updating everything else, enable permissive mode:
+
+```ts
+import { codependence } from "codependence";
+
+await codependence({
+  codependencies: ["fs-extra", "lodash"],
+  permissive: true,
+  update: true,
+});
 ```
 
 ## API Reference
@@ -34,7 +46,7 @@ The `codependence` function accepts an options object with the same parameters a
 
 ```ts
 interface CodependenceOptions {
-  codependencies?: string[];
+  codependencies?: Array<string | Record<string, string>>;
   files?: string[];
   update?: boolean;
   rootDir?: string;
@@ -55,51 +67,52 @@ interface CodependenceOptions {
 ### Check Specific Dependencies
 
 ```ts
-import codependence from "codependence";
+import { checkFiles } from "codependence";
 
-await codependence({
-  codependencies: ["react@^18.0.0", "typescript@^5.0.0"],
-  update: false
+await checkFiles({
+  codependencies: [{ react: "^18.0.0" }, { typescript: "^5.0.0" }],
+  update: false,
 });
 ```
 
 ### Update Dependencies in Monorepo
 
 ```ts
-import codependence from "codependence";
+import { codependence } from "codependence";
 
 await codependence({
   files: ["packages/*/package.json"],
   codependencies: ["eslint", "prettier"],
+  permissive: true,
   update: true,
-  rootDir: process.cwd()
+  rootDir: process.cwd(),
 });
 ```
 
 ### Using with Configuration File
 
 ```ts
-import codependence from "codependence";
+import { codependence } from "codependence";
 
 await codependence({
-  config: "./codependence.config.json"
+  config: "./codependence.config.json",
 });
 ```
 
 ## Return Values
 
-The function returns a boolean:
-- `true` - Dependencies need updating
-- `false` - All dependencies are up-to-date
+The function resolves when the policy passes or updates complete. When `format`, `dryRun`, or update output is enabled, it can return version-diff data for reporting.
 
 ## Error Handling
 
 Wrap calls in try-catch blocks to handle errors:
 
 ```ts
+import { codependence } from "codependence";
+
 try {
-  const needsUpdate = await codependence({ 
-    codependencies: ["lodash"] 
+  await codependence({
+    codependencies: ["lodash"],
   });
 } catch (error) {
   console.error("Codependence check failed:", error);

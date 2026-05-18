@@ -1,6 +1,6 @@
 # Codependence Documentation Site
 
-This is the documentation website for Codependence, a CLI and Node API for checking, reporting, and updating dependency versions across project manifests. Codependence can update only selected dependencies, or pin chosen packages while updating everything else with permissive mode.
+This is the documentation website for Codependence, a CLI and Node API for enforcing dependency version policy across project manifests, workspaces, and CI. Codependence can update only selected dependencies, or pin chosen packages while updating everything else with permissive mode.
 
 ## Features
 

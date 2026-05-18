@@ -1,25 +1,26 @@
 ---
-title: Main Usecase
-description: Keep dependencies up-to-date
+title: Main Use Case
+description: Keep important versions intentional
 ---
 
 <section>
 
-## Main Usecase
+## Main Use Case
 
-Pin what you want, update the rest—unlike `npm update` or `yarn upgrade` which update all or nothing.
+Use Codependence when dependency versions are part of your project policy. It can check only the dependencies you list, or pin listed dependencies while updating everything else.
 
 ## Key Features
 
-- **Version pinning:** Use `~` or `^` for precise control
-- **Package manager agnostic:** Works with npm, yarn, pnpm, bun
-- **Monorepo support:** Single command across multiple packages
+- **Policy checks:** Fail when versions drift from your `codependencies` policy
+- **Version pinning:** Keep selected packages at exact, `~`, or `^` versions
+- **Permissive updates:** Pin critical packages while the rest move forward
+- **Monorepo support:** Apply root and package-specific policies across workspaces
 
 ## Why This Matters
 
-- Check/update the dependencies you list
-- Optionally pin critical dependencies and auto-update everything else with `--permissive`
+- Keep dependency decisions explicit
+- Catch drift before it lands in main
 - Maintain consistency across packages
-- Automate in CI/CD
+- Run the same policy locally, in scripts, or in CI/CD
 
 </section>
