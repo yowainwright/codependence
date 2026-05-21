@@ -7,7 +7,7 @@ description: How to use Codependence
 
 ## Getting Started
 
-Use as standalone CLI, in npm scripts, or as a Node utility.
+Use Codependence as a standalone CLI, in npm scripts, in CI, or as a Node utility.
 
 ## Installation
 
@@ -27,7 +27,7 @@ pnpm add codependence --save-dev
 
 ## Quick Setup
 
-Pure CLI quick run
+Check only selected dependencies:
 
 ```bash
 codependence --codependencies 'fs-extra' 'lodash'
@@ -47,9 +47,15 @@ Or use it with a config in the root package.json file
 }
 ```
 
+Pin selected packages while updating the rest:
+
+```bash
+codependence --permissive --codependencies 'react' 'lodash' --update
+```
+
 ## Initialize Codependence
 
-Quickly setup Codependence in your project with the interactive init command:
+Quickly set up Codependence in your project with the interactive init command:
 
 ```bash
 # Interactive setup with permissive mode by default - recommended!
@@ -63,6 +69,7 @@ codependence init package
 ```
 
 Init command:
+
 - Interactive setup can create permissive mode configs (update all, pin specific ones)
 - Scans `package.json` for dependencies
 - Choose strategy: 🚀 Permissive (recommended) or 🔒 Pin all

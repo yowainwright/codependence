@@ -11,14 +11,14 @@ export const searchData: SearchResult[] = [
     title: "Introduction",
     description: "Get started with Codependence",
     content:
-      "Codependence is a powerful JavaScript utility for managing and validating critical dependencies across your projects.",
+      "Codependence enforces dependency version policy across local development, workspaces, and CI.",
     slug: "introduction",
   },
   {
     title: "CLI Usage",
     description: "Learn how to use the Codependence CLI",
     content:
-      "The Codependence CLI provides powerful commands for managing your dependencies.",
+      "The Codependence CLI checks, reports, and applies dependency version policy.",
     slug: "cli",
   },
   {
@@ -31,7 +31,7 @@ export const searchData: SearchResult[] = [
   {
     title: "Node.js API",
     description: "Using Codependence programmatically",
-    content: "Integrate Codependence into your Node.js applications.",
+    content: "Integrate Codependence into custom Node.js policy tooling.",
     slug: "node",
   },
   {
@@ -41,15 +41,23 @@ export const searchData: SearchResult[] = [
     slug: "recipes",
   },
   {
-    title: "Main Usecase",
+    title: "Policy Surface",
+    description: "Current and planned version policy surfaces",
+    content:
+      "Understand what Codependence checks today and where version policy can expand next.",
+    slug: "policy-surface",
+  },
+  {
+    title: "Main Use Case",
     description: "Primary use cases for Codependence",
-    content: "Understanding when and how to use Codependence effectively.",
+    content:
+      "Use Codependence to keep important dependency versions intentional.",
     slug: "main-usecase",
   },
   {
     title: "Why Use Codependence",
     description: "Benefits of using Codependence",
-    content: "Learn why Codependence is essential for dependency management.",
+    content: "Learn why Codependence is useful for version policy enforcement.",
     slug: "why-use-codependence",
   },
   {
@@ -74,13 +82,14 @@ export const searchData: SearchResult[] = [
   {
     title: "Synopsis",
     description: "Quick overview of Codependence",
-    content: "A brief summary of what Codependence does and how it works.",
+    content: "A brief summary of Codependence dependency version policy.",
     slug: "synopsis",
   },
   {
     title: "Usage",
     description: "Detailed usage instructions",
-    content: "Comprehensive guide to using Codependence in your projects.",
+    content:
+      "Comprehensive guide to using Codependence in project policy checks.",
     slug: "usage",
   },
 ];

@@ -4,38 +4,44 @@ import {
   GitBranch,
   Terminal,
   RefreshCw,
-  Search
-} from 'lucide-react';
+  Search,
+} from "lucide-react";
 
 const features = [
   {
-    title: "Efficient Scanning",
-    description: "Scan your entire project for dependency issues in seconds. Optimized for performance even in large monorepos.",
+    title: "Policy Checks",
+    description:
+      "Compare manifests against the versions your project expects and fail when dependencies drift.",
     icon: Gauge,
   },
   {
-    title: "Dependency Control",
-    description: "Detect outdated, unused, or mismatched dependencies across multiple package.json files in your project.",
+    title: "Version Control",
+    description:
+      "Update only listed packages, or pin selected packages while updating everything else.",
     icon: Package,
   },
   {
-    title: "Monorepo Ready",
-    description: "Built for modern development workflows. Works with monorepos, ensuring consistency across all packages.",
+    title: "Monorepo Policy",
+    description:
+      "Use root defaults and package-specific policies to keep workspace versions intentional.",
     icon: GitBranch,
   },
   {
     title: "CLI & API",
-    description: "Use codependence from the command line or integrate it into your build process with the Node.js API.",
+    description:
+      "Run Codependence from the command line or integrate it into custom tooling with the Node.js API.",
     icon: Terminal,
   },
   {
-    title: "CI/CD Integration",
-    description: "Integrate with GitHub Actions, GitLab CI, or any CI/CD pipeline to ensure dependency integrity on every commit.",
+    title: "CI Gates",
+    description:
+      "Use the same checks locally and in CI so version policy is enforced before merge.",
     icon: RefreshCw,
   },
   {
-    title: "Version Detection",
-    description: "Identifies version conflicts, outdated packages, and dependency mismatches that could impact your project.",
+    title: "Structured Output",
+    description:
+      "Generate table, JSON, or Markdown reports for scripts, PR comments, and audits.",
     icon: Search,
   },
 ];
@@ -46,7 +52,10 @@ export default function Features() {
       {features.map((feature) => {
         const Icon = feature.icon;
         return (
-          <div key={feature.title} className="card max-w-2xl bg-base-200 border border-base-content/10 hover:shadow-lg transition rounded-lg">
+          <div
+            key={feature.title}
+            className="card max-w-2xl bg-base-200 border border-base-content/10 hover:shadow-lg transition rounded-lg"
+          >
             <div className="card-body font-sans">
               <div className="h-16 w-16 bg-base-300 rounded-full flex items-center justify-center">
                 <Icon className="w-8 h-8 text-primary" />

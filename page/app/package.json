@@ -1,6 +1,6 @@
 {
   "name": "@codependence/docs",
-  "description": "Codependence documentation site",
+  "description": "Documentation site for Codependence dependency version policy.",
   "type": "module",
   "version": "1.1.0",
   "engines": {

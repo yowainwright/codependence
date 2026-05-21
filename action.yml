@@ -1,5 +1,5 @@
 name: 'Codependence'
-description: 'Check and update dependencies to ensure they are up-to-date or match specified versions'
+description: 'Enforce dependency version policy in CI and optionally update mismatched versions'
 author: 'Jeff Wainwright'
 branding:
   icon: 'package'

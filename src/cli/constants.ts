@@ -33,7 +33,7 @@ export const OPTION_DEFINITIONS: OptionDefinition[] = [
 ];
 
 export const HELP_TEXT = `
-Codependence - Manage dependency versions across your project
+Codependence - Enforce dependency version policy across your project
 
 Usage: codependence [command] [options]
 

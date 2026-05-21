@@ -1,6 +1,6 @@
 ---
 title: Introduction
-description: Stop wrestling with code dependencies. Use Codependence!
+description: Enforce dependency version policy locally, in CI, and across workspaces.
 ---
 
 <section className="grid grid-flow-col-dense justify-start gap-x-2 mb-8">
@@ -27,21 +27,24 @@ description: Stop wrestling with code dependencies. Use Codependence!
 
 ## Introduction
 
-JavaScript utility to ensure dependencies are up-to-date or match specified versions.
+Codependence is a CLI and Node API for enforcing dependency version policy. It checks, reports, and can update dependency versions so important packages stay current, pinned, or consistent across your project.
 
 ## Synopsis
 
-Checks your "codependencies" array against `package.json` dependencies—verifying each is at latest or matches a specified version. Pass/fail CI or auto-update mismatched dependencies.
+Checks your `codependencies` policy against `package.json` dependencies, verifies each dependency is at the expected version, and can fail CI or update mismatched manifests.
+
+See [Policy Surface](/docs/policy-surface/) for what Codependence supports today and where the same policy model can expand next.
 
 ## Why use Codependence?
 
-- Manages dependency versions with granular control
-- Handles monorepos—checks multiple `package.json` files
-- Runs in CI via npm scripts or GitHub Actions
-- Integrates with build tools like [Husky](https://github.com/typicode/husky)
+- Define the versions that must stay current or pinned
+- Fail local checks or CI when dependency versions drift
+- Update only listed packages, or update everything except listed packages
+- Apply package-specific policy across monorepos
+- Run from npm scripts, GitHub Actions, or custom Node tooling
 
 ## Why not use Codependence?
 
-Skip if you don't need strict version control or prefer manual pinning.
+Skip it if hosted dependency PRs from Dependabot or Renovate already cover your workflow and you do not need local or CI policy enforcement.
 
 </section>

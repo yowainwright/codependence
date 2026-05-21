@@ -5,29 +5,31 @@
 ![e2e](https://github.com/yowainwright/codependence/actions/workflows/e2e.yml/badge.svg)
 [![codecov](https://codecov.io/gh/yowainwright/codependence/branch/main/graph/badge.svg)](https://codecov.io/gh/yowainwright/codependence)
 
-#### Stop wrestling with your code dependencies. Use Codependence!
+#### Enforce dependency version policy wherever your project needs it.
 
-**Codependence** is a JavaScript utility for checking dependencies to ensure they're up-to-date or match a specified version.
+**Codependence** is a CLI and Node API for checking, reporting, and updating dependency versions from a project-defined policy. Use it when versions need to be consistent across package manifests, monorepos, local development, or CI jobs.
 
 ---
 
-## _Main Usecase_
+## _Main Use Case_
 
-#### Keep dependencies up-to-date
+#### Keep important versions intentional
 
-Codependence updates `package.json`'s dependencies based on a "codependencies" array of dependency names.
-The difference from `{npm,pnpm} update` or `yarn upgrade` is Codependence _allows you to pin what you want and update the rest_!
-Furthermore, Codependence works with monorepos and is package manager agnostic.
+Codependence checks `package.json` dependencies against a `codependencies` policy. It can either keep only listed packages current, or pin listed packages while updating everything else.
+
+The difference from `{npm,pnpm} update` or `yarn upgrade` is that Codependence gives you an explicit policy surface: _these versions matter, these packages may move, and CI should fail when the repo drifts_.
+
+The difference from hosted update bots is scope. Dependabot and Renovate are strong choices for scheduled dependency pull requests. Codependence is useful when dependency policy needs to run locally, in a script, in any CI provider, or across multiple manifests without depending on a hosted bot workflow.
 
 #### \*yes, dependencies can be pinned to `~` or `^` versions in `package.json` files!
 
-Readme more about [Codependence](#synopsis) why you might want to use it [below](#why-use-codependence)!
+Read more about [Codependence](#synopsis) and why you might want to use it [below](#why-use-codependence).
 
 ---
 
 ## Usage
 
-**Codependence** can be used as a standalone CLI, in npm scripts or, secondarily, as node utility!
+**Codependence** can be used as a standalone CLI, in npm scripts or, secondarily, as a Node utility.
 
 #### Install
 
@@ -37,7 +39,7 @@ npm install codependence --save-dev
 
 #### Quick setup
 
-Check and update specific packages:
+Check and update only specific packages:
 
 ```sh
 codependence --codependencies 'react' 'lodash' --update
@@ -59,15 +61,21 @@ Or use it with a config in the root `package.json` file
 
 By default, a `codependencies` list keeps the 0.x behavior: only those listed
 dependencies are checked and updated. To pin specific packages while updating
-everything else, opt into permissive mode:
+everything else, opt into policy/permissive mode:
 
 ```sh
 codependence --permissive --codependencies 'react' 'lodash' --update
 ```
 
+Or run a policy check without writing files:
+
+```sh
+codependence --permissive --codependencies 'react' 'lodash' --dryRun
+```
+
 #### Initialize Codependence
 
-Quickly setup Codependence in your project with the interactive init command:
+Quickly set up Codependence in your project with the interactive init command:
 
 ```sh
 # Interactive setup with permissive mode by default - recommended!
@@ -84,7 +92,7 @@ The init command will:
 
 - **Default to permissive mode** (update all dependencies to latest, except those you want to pin)
 - Scan your `package.json` for dependencies
-- Let you choose your dependency management strategy:
+- Let you choose your dependency policy strategy:
   - 🚀 **Permissive mode** (default/recommended): Update all to latest, pin specific ones
   - 🔒 **Pin all mode**: Keep all dependencies at current versions
 - Create either a `.codependencerc` file or add config to `package.json`
@@ -108,11 +116,11 @@ bun test --coverage        # Run with coverage report
 
 ## Codependence as a CLI
 
-**Codependence** is built as a CLI-first, set-it-and-forget-it tool.
+**Codependence** is built as a CLI-first policy tool.
 
-It is recommendeded to install and setup **Codependence** as a `devDependency` within your root `package.json` and use a `codependence.codependencies` array to define dependencies you need to keep updated or pinned to a specific version.
+It is recommended to install and set up **Codependence** as a `devDependency` within your root `package.json` and use a `codependence.codependencies` array to define dependencies you need to keep updated or pinned to a specific version.
 
-Furthermore, you can add a `codependence.codependencies` array to child packages' `package.json` in your monorepo to ensure specific dependencies are pinned to a specific versions within your monorepo packages.
+Furthermore, you can add a `codependence.codependencies` array to child packages' `package.json` in your monorepo to ensure specific dependencies are pinned to specific versions within your monorepo packages.
 
 ```sh
 Usage: codependence [command] [options]
@@ -148,7 +156,7 @@ Options:
 
 ## Codependence in Node
 
-Although, **Codependence** is built to primarily be a CLI utility, it can be used as a node utility.
+Although **Codependence** is built primarily as a CLI utility, it can be used as a Node utility.
 
 ```ts
 import { checkFiles, codependence } from "codependence";
@@ -165,6 +173,7 @@ const checkForOutdated = async () => {
 const updateAllExceptSpecific = async () => {
   await codependence({
     codependencies: ["react", "lodash"],
+    permissive: true,
     update: true,
   });
 };
@@ -421,42 +430,59 @@ codependence --codependencies '@foo/*' --update
 
 ### Want to update all dependencies to latest except specific ones?
 
-This is the default behavior — just list what you want to pin:
+Use permissive mode and list what you want to pin:
 
 ```sh
-codependence --codependencies 'react' 'lodash' --update
+codependence --permissive --codependencies 'react' 'lodash' --update
 ```
 
 ---
 
 ## Synopsis
 
-Codependence is a JavaScript utility CLI and node tool that compares a `codependencies` array against `package.json` `dependencies`, `devDependencies`, and `peerDependencies` for \***codependencies**.
+Codependence is a JavaScript utility CLI and Node tool that compares a `codependencies` policy against `package.json` `dependencies`, `devDependencies`, `peerDependencies`, and `optionalDependencies`.
 
-For each dependency included in the `codependencies` array, Codependence will either **a)** check that versions are at `latest` or **b)** Check that a specified version is matched within `package.json` files. Codependence can either **a)** return a pass/fail result _or_ **b)** update dependencies, devDependencies, and peerDependencies, in package.json file(s).
-
----
-
-Codependence is useful for ensuring specified dependencies are up-to-date—or at a specified version within a project's `package.json` files(s)!
-
-This utility is built to work alongside dependency management tools like [dependabot](https://dependabot.com/). It _could_ work instead of dependency management tool but is built for managing specific dependency versions vs _all_ dependencies.
+For each dependency included in the `codependencies` array, Codependence will either **a)** check that versions are at `latest` or **b)** check that a specified version is matched within manifest files. Codependence can either **a)** return a pass/fail result _or_ **b)** update dependency versions in manifest file(s).
 
 ---
 
-#### \*Codependencies: are project dependencies which **must be** up-to-date or set to a specific version!
+Codependence is useful for ensuring important dependency versions are intentional: up-to-date where they should move, pinned where they should not, and consistent across a repo or monorepo.
 
-In example, if your repository requires the latest version and `latest` can't be specified as the dependency version within your `package.json`, Codependence will ensure your `package.json` has the **actual latest semver version** set in your `package.json`. It can/will do the same if an exact version is specified!
+This utility is built to work alongside dependency automation tools like [Dependabot](https://dependabot.com/) and [Renovate](https://docs.renovatebot.com/). Use those tools for hosted dependency PR automation. Use Codependence for local checks, CI gates, scripted updates, and repo-specific version policy.
+
+---
+
+## Policy Surface
+
+Codependence currently focuses on package manifests and dependency sections. The same policy model can expand to other version surfaces over time.
+
+| Surface | Status | Purpose |
+| --- | --- | --- |
+| `package.json` dependencies | Supported | Enforce dependency policy in Node.js projects and monorepos |
+| Python and Go manifests | Experimental | Apply the same check/update workflow outside Node.js |
+| Local repository scans | Roadmap | Report drift across a directory of projects, such as `~/code` |
+| Toolchain files | Roadmap | Keep `.nvmrc`, `.node-version`, `.tool-versions`, and `.mise.toml` aligned |
+| Docker and compose files | Roadmap | Check base image and service image versions |
+| CI workflow YAML | Roadmap | Check action, image, and runtime versions in pipeline files |
+
+---
+
+#### \*Codependencies are project dependencies which **must be** up-to-date or set to a specific version!
+
+For example, if your repository requires the latest version and `latest` can't be specified as the dependency version within your `package.json`, Codependence will ensure your `package.json` has the **actual latest semver version** set in your `package.json`. It can do the same if an exact version is specified.
 
 ---
 
 ## Why use Codependence?
 
-**Codependence** is a utility tool focused on a single task—managing specified dependency versions!
+**Codependence** is focused on one job: enforcing dependency version policy where your code actually runs.
 
-- It is built to work along side tools (like Dependabot) but it [can also manage dependencies fully](https://github.com/yowainwright/codependence-cron)!
-- It handles monorepos child package dependencies _with ease_ and **without** package manager bias!
-- It is as immediate as you want it to be, via [npm install scripts](https://docs.npmjs.com/cli/v8/using-npm/scripts#npm-install) and build pipeline tools, such as [Husky](https://typicode.github.io/husky/)
-- It can be run along with npm scripts or in github actions
+- It gives teams a small, explicit policy for versions that must stay current or pinned.
+- It can fail CI when dependency versions drift.
+- It can update only listed packages, or update everything except listed packages.
+- It handles monorepo child package dependencies with package-specific policy.
+- It runs locally, from npm scripts, in GitHub Actions, or in other CI providers.
+- It exposes a Node API for custom workflows and internal tooling.
 
 ---
 
@@ -464,8 +490,10 @@ In example, if your repository requires the latest version and `latest` can't be
 
 **Codependence** isn't for everybody or every repository. Here are some reasons why it _might not_ be for you!
 
-- You don't need intricate dependency version management
-- You prefer specifying necessary dependencies with `latest`, or manually `pinning`, or using a tool like [Dependabot's ignore spec](https://github.blog/changelog/2021-05-21-dependabot-version-updates-can-now-ignore-major-minor-patch-releases/) within a `dependabot.yml`.
+- You only need hosted dependency PRs and are happy with Dependabot or Renovate.
+- You do not need local or CI enforcement for version drift.
+- You prefer manually pinning versions without automated checks.
+- You do not need package-specific or workspace-specific dependency policy.
 
 ---
 
@@ -473,7 +501,7 @@ In example, if your repository requires the latest version and `latest` can't be
 
 Check out Codependence in Action!
 
-- **[Codependence Cron](https://github.com/yowainwright/codependence-cron):** Codependence running off a Github Action cron job.
+- **[Codependence Cron](https://github.com/yowainwright/codependence-cron):** Codependence running off a GitHub Action cron job.
 - **[Codependence Monorepo](https://github.com/yowainwright/codependence-monorepo):** Codependence monorepo example.
 
 ---
@@ -561,6 +589,11 @@ Thank you!
 
 ## Roadmap
 
+- **Policy Surface:**
+  - scan a directory of local repositories and report version drift
+  - extend policy checks beyond package manifests to toolchain files such as `.nvmrc`, `.node-version`, `.tool-versions`, and `.mise.toml`
+  - explore Docker image version checks for `Dockerfile`, `Containerfile`, and compose files
+  - explore CI pipeline version checks for GitHub Actions and other workflow YAML
 - **Code:**
   - add better spying/mocking (in progress)
   - add utils functions to be executed with the cli cmd (monorepo, cadence, all deps)

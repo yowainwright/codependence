@@ -2,6 +2,7 @@
 title: Codependence Options
 description: Configuration options for Codependence.
 ---
+
 <section>
 
 ## Configuration Options
@@ -15,6 +16,7 @@ Use options via CLI, config file, or Node function parameters.
 **Required.** Array of dependencies to check/update.
 
 **Supports:**
+
 - `["fs-extra", "lodash"]` - Latest versions
 - `[{ "foo": "1.0.0" }]` - Exact version
 - `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]` - Range versions
@@ -52,71 +54,92 @@ And another package.json file in a `@foo/baz` package with following:
 }
 ```
 
-Installs correct version per package. Packages without specific configs use monorepo root versions.
+Applies the correct version policy per package. Packages without specific configs use monorepo root versions.
 
 ---
 
 ### `files`: `Array<string>`
+
 Glob patterns for `package.json` files to check. Default: `['package.json']`
 
 ### `update`: `boolean`
+
 Auto-update dependencies. Default: `false`
 
 ### `rootDir`: `string`
+
 Root directory to start search. Default: `"./"`
 
 ### `ignore`: `Array<string>`
+
 Directories to ignore (glob patterns). Default: `["node_modules/**/*", "**/node_modules/**/*"]`
 
 ### `debug`: `boolean`
+
 Enable debugging output. Default: `false`
 
 ### `silent`: `boolean`
+
 Minimal logging. Default: `false`
 
 ### `verbose`: `boolean`
+
 Detailed debug logs—useful for troubleshooting. Default: `false`
 
 ### `quiet`: `boolean`
+
 Only show errors—useful for CI/CD. Default: `false`
 
 ### `config`: `string`
+
 Path to config file. Default: `undefined`
 
 ### `searchPath`: `string`
+
 Search path for config files. Default: `undefined`
 
 ### `yarnConfig`: `boolean`
+
 Enable yarn config checking. Default: `false`
 
 ### `permissive`: `boolean`
+
 Update all dependencies to latest except those in `codependencies`. Default: `false` when `codependencies` are provided, preserving 0.x behavior.
 
 ### `mode`: `string`
+
 Controls which packages are checked. `verbose`: only listed packages; `precise`: all except listed. Default: `verbose` with `codependencies`, otherwise `precise`.
 
 ### `level`: `string`
+
 Update level constraint: `patch`, `minor`, or `major`. Default: `major`
 
 ### `dryRun`: `boolean`
+
 Preview what would change without modifying any files. Default: `false`
 
 ### `interactive`: `boolean`
+
 Interactively choose which packages to update. Default: `false`
 
 ### `watch`: `boolean`
+
 Watch for changes and re-check continuously. Default: `false`
 
 ### `noCache`: `boolean`
+
 Disable version caching to always fetch fresh results. Default: `false`
 
 ### `format`: `string`
+
 Output format: `json`, `markdown`, or `table`. Default: `table`
 
 ### `outputFile`: `string`
+
 Write output to a file instead of stdout. Default: `undefined`
 
 ### `language`: `string`
+
 Target language for dependency checking: `nodejs`, `go`, or `python`. Default: `nodejs` (experimental)
 
 ---

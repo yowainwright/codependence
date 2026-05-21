@@ -41,6 +41,10 @@ const SIDEBAR = [
     title: "Advanced",
     items: [
       {
+        title: "Policy Surface",
+        href: resolveDocsUrl("policy-surface"),
+      },
+      {
         title: "Recipes",
         href: resolveDocsUrl("recipes"),
       },
