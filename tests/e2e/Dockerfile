@@ -1,6 +1,8 @@
 # Multi-stage Dockerfile for testing codependence init functionality
 FROM node:24-slim AS builder
 
+ARG BUN_VERSION=1.3.14
+
 # Install curl, unzip and other necessary tools
 RUN apt-get update && apt-get install -y curl unzip && rm -rf /var/lib/apt/lists/*
 
@@ -16,7 +18,7 @@ COPY bunfig.toml ./
 COPY page/ ./page/
 
 # Install bun
-RUN curl -fsSL https://bun.sh/install | bash
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
 ENV PATH="/root/.bun/bin:$PATH"
 
 # Install dependencies (skip git hooks setup in Docker)
@@ -31,11 +33,13 @@ RUN bun run build-dist
 # Test stage - clean environment for testing
 FROM node:24-slim AS test
 
+ARG BUN_VERSION=1.3.14
+
 # Install curl, unzip and other necessary tools
 RUN apt-get update && apt-get install -y curl unzip && rm -rf /var/lib/apt/lists/*
 
 # Install bun globally
-RUN curl -fsSL https://bun.sh/install | bash
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
 ENV PATH="/root/.bun/bin:$PATH"
 
 # Create a non-root user for testing

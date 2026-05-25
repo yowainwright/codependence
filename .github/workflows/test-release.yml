@@ -1,0 +1,137 @@
+name: Test Published Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Published codependence version to test (leave empty for latest on npm)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test-published-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Determine Version to Test
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          elif [ -n "${{ github.event.release.tag_name }}" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION=$(npm view codependence version)
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Testing codependence version: $VERSION"
+
+      - name: Wait for NPM Package Availability
+        run: |
+          echo "Waiting for codependence@${{ steps.version.outputs.version }} to be available on npm..."
+          for i in {1..30}; do
+            if npm view codependence@${{ steps.version.outputs.version }} version >/dev/null 2>&1; then
+              echo "Package codependence@${{ steps.version.outputs.version }} is available on npm"
+              exit 0
+            fi
+            echo "Attempt $i/30: Package not yet available, waiting 30 seconds..."
+            sleep 30
+          done
+          echo "Package was not available after waiting."
+          exit 1
+
+      - name: Build Test Docker Image
+        run: |
+          cat > Dockerfile.release-test <<'EOF'
+          FROM node:24-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
+
+          RUN apk add --no-cache bash
+          WORKDIR /app
+
+          ARG CODEPENDENCE_VERSION
+          RUN npm install -g codependence@${CODEPENDENCE_VERSION}
+
+          CMD ["/bin/bash"]
+          EOF
+
+          docker build \
+            --build-arg CODEPENDENCE_VERSION=${{ steps.version.outputs.version }} \
+            -f Dockerfile.release-test \
+            -t codependence-release-test .
+
+      - name: Verify Installation
+        run: |
+          docker run --rm codependence-release-test bash -c "codependence --help"
+
+      - name: Check Node Fixture
+        run: |
+          docker run --rm codependence-release-test bash -c '
+            mkdir -p /tmp/node-check
+            cat > /tmp/node-check/package.json <<EOF
+          {"name":"node-check","version":"1.0.0","dependencies":{"lodash":"4.17.21"}}
+          EOF
+            cat > /tmp/node-check/.codependencerc <<EOF
+          {"codependencies":[{"lodash":"4.17.21"}],"mode":"verbose"}
+          EOF
+            codependence --rootDir /tmp/node-check --config /tmp/node-check/.codependencerc
+          '
+
+      - name: Check Python Fixture
+        run: |
+          docker run --rm codependence-release-test bash -c '
+            mkdir -p /tmp/python-check
+            cat > /tmp/python-check/requirements.txt <<EOF
+          requests==2.28.0
+          EOF
+            cat > /tmp/python-check/.codependencerc <<EOF
+          {"codependencies":[{"requests":"==2.28.0"}],"language":"python","mode":"verbose"}
+          EOF
+            codependence --rootDir /tmp/python-check --config /tmp/python-check/.codependencerc --language python
+          '
+
+      - name: Check Go Fixture
+        run: |
+          docker run --rm codependence-release-test bash -c '
+            mkdir -p /tmp/go-check
+            cat > /tmp/go-check/go.mod <<EOF
+          module github.com/example/release-check
+
+          go 1.21
+
+          require github.com/gin-gonic/gin v1.9.0
+          EOF
+            cat > /tmp/go-check/.codependencerc <<EOF
+          {"codependencies":[{"github.com/gin-gonic/gin":"v1.9.0"}],"language":"go","mode":"verbose"}
+          EOF
+            codependence --rootDir /tmp/go-check --config /tmp/go-check/.codependencerc --language go
+          '
+
+      - name: Trigger External E2E Tests
+        if: success()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: 'yowainwright',
+              repo: 'codependence-test',
+              event_type: 'codependence-release',
+              client_payload: {
+                version: '${{ steps.version.outputs.version }}',
+                trigger_type: '${{ github.event_name }}'
+              }
+            });

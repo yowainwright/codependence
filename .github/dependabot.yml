@@ -1,8 +1,14 @@
 version: 2
 updates:
-  - package-ecosystem: npm
-    directory: '/'
+  - package-ecosystem: "bun"
+    directory: "/"
     schedule:
-      interval: daily
-      time: '13:00'
-    open-pull-requests-limit: 0
+      interval: "weekly"
+    exclude-paths:
+      - "tests/**"
+      - "page/app/tests/**"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

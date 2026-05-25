@@ -526,8 +526,8 @@ If there is a `.npmrc` file, there is no issue with **Codependence** monitoring 
 
 This project uses:
 
-- Node.js 18.0.0+
-- Bun 1.2.9+
+- Node.js 20, 22, or 24 in CI; releases run on Node.js 24
+- Bun 1.3.14
 
 We use [mise](https://mise.jdx.dev/) to manage tool versions. If you have mise installed, it will automatically use the correct versions of Node.js and bun.
 
@@ -551,11 +551,11 @@ bun install
 ### Setup without mise
 
 ```sh
-# Install Node.js 18.0.0+
-nvm install 18
+# Install Node.js 24
+nvm install 24
 
-# Install bun
-curl -fsSL https://bun.sh/install | bash
+# Install pinned bun
+curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14"
 
 # Install dependencies
 bun install
@@ -566,6 +566,19 @@ bun install
 Git tags must match `package.json` versions. Stable tags like `v1.0.0` publish
 to npm `latest`; prerelease tags publish by identifier: `alpha`, `alfa`, `beta`,
 or `next` for other prereleases.
+
+Local release helpers keep the release commit and the publish trigger composable:
+
+```sh
+bun run release:dry
+bun run release:beta:dry
+bun run release
+```
+
+The release helper creates the release commit locally, pushes only the version tag,
+and restores local `main` to its starting commit. The tag triggers the publish
+workflow, which packs the npm tarball, attests it, publishes it, and uploads the
+tarball plus attestation to the GitHub release.
 
 ## Contributing
 

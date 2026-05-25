@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,6 +30,38 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+run_step() {
+    local label="$1"
+    shift
+
+    if "$@"; then
+        print_success "$label"
+    else
+        print_error "$label"
+        exit 1
+    fi
+}
+
+build_init_image() {
+    run_step "Built Node.js init test image" docker build --target test -t codependence-test -f tests/e2e/Dockerfile .
+}
+
+run_init_tests() {
+    run_step "Node.js init tests passed!" docker run --rm codependence-test:latest
+}
+
+build_multilang_image() {
+    run_step "Built multi-language test image" docker build --target multilang-test -t codependence-multilang-test -f tests/e2e/Dockerfile.multilang .
+}
+
+run_multilang_tests() {
+    run_step "Multi-language tests passed!" docker run --rm codependence-multilang-test:latest
+}
+
+run_go_update_tests() {
+    run_step "Go update tests passed!" docker run --rm codependence-multilang-test:latest ./test-go-update.sh
+}
+
 # Check Docker
 if ! command -v docker &> /dev/null; then
     print_error "Docker is not installed"
@@ -39,41 +71,35 @@ fi
 case "${1:-all}" in
     "init")
         print_status "Running Node.js init tests..."
-        docker build --target test -t codependence-test -f tests/e2e/Dockerfile . && \
-        docker run --rm codependence-test:latest
-        print_success "Node.js init tests passed!"
+        build_init_image
+        run_init_tests
         ;;
 
     "multilang"|"python"|"go")
         print_status "Running multi-language tests (Python + Go)..."
-        docker build --target multilang-test -t codependence-multilang-test -f tests/e2e/Dockerfile.multilang . && \
-        docker run --rm codependence-multilang-test:latest
-        print_success "Multi-language tests passed!"
+        build_multilang_image
+        run_multilang_tests
         ;;
 
     "go-update")
         print_status "Running Go update tests..."
-        docker build --target multilang-test -t codependence-multilang-test -f tests/e2e/Dockerfile.multilang . && \
-        docker run --rm codependence-multilang-test:latest ./test-go-update.sh
-        print_success "Go update tests passed!"
+        build_multilang_image
+        run_go_update_tests
         ;;
 
     "all")
         print_status "Running all e2e tests..."
 
-        print_status "1/2: Node.js init tests..."
-        docker build --target test -t codependence-test -f tests/e2e/Dockerfile . && \
-        docker run --rm codependence-test:latest
-        print_success "Node.js tests passed!"
+        print_status "1/3: Node.js init tests..."
+        build_init_image
+        run_init_tests
 
         print_status "2/3: Multi-language tests..."
-        docker build --target multilang-test -t codependence-multilang-test -f tests/e2e/Dockerfile.multilang . && \
-        docker run --rm codependence-multilang-test:latest
-        print_success "Multi-language tests passed!"
+        build_multilang_image
+        run_multilang_tests
 
         print_status "3/3: Go update tests..."
-        docker run --rm codependence-multilang-test:latest ./test-go-update.sh
-        print_success "Go update tests passed!"
+        run_go_update_tests
 
         print_success "All e2e tests passed! 🎉"
         ;;
