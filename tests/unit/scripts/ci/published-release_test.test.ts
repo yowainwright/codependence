@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import {
   buildDockerBuildArgs,
   buildDockerRunShellArgs,
@@ -8,6 +8,7 @@ import {
   packageSpec,
   releaseE2eScript,
   requireVersion,
+  runTestPublishedReleaseCli,
 } from "../../../../scripts/ci/published-release.js";
 
 describe("scripts/ci/published-release_test", () => {
@@ -70,5 +71,28 @@ describe("scripts/ci/published-release_test", () => {
 
   test("requireVersion rejects missing versions", () => {
     expect(() => requireVersion("", "build-release-image")).toThrow("CODEPENDENCE_VERSION");
+  });
+
+  test("wait-for-npm skips sleeping after the last failed attempt", () => {
+    const calls: string[] = [];
+    const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const runner = (command: string, args: string[]) => {
+      calls.push([command, ...args].join(" "));
+      return { status: command === "sleep" ? 0 : 1, stdout: "", stderr: "" };
+    };
+
+    try {
+      expect(() =>
+        runTestPublishedReleaseCli({
+          argv: ["wait-for-npm"],
+          env: { CODEPENDENCE_VERSION: "1.0.0" },
+          runner,
+        }),
+      ).toThrow("was not available after 30 attempts");
+    } finally {
+      logSpy.mockRestore();
+    }
+
+    expect(calls.filter((call) => call === "sleep 30")).toHaveLength(29);
   });
 });

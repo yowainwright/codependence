@@ -185,14 +185,14 @@ runs:
         EXIT_CODE=$?
         set -e
 
-        if [ $EXIT_CODE -ne 0 ]; then
-          echo "outdated=true" >> $GITHUB_OUTPUT
+        if [ "$EXIT_CODE" -ne 0 ]; then
+          echo "outdated=true" >> "$GITHUB_OUTPUT"
           if [ "$INPUT_FAIL_ON_OUTDATED" = "true" ]; then
             echo "::error::Dependencies are outdated. Run 'codependence --update' to fix."
             exit 1
           fi
         else
-          echo "outdated=false" >> $GITHUB_OUTPUT
+          echo "outdated=false" >> "$GITHUB_OUTPUT"
         fi
 
         exit 0

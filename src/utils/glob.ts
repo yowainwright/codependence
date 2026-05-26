@@ -1,10 +1,6 @@
 import { existsSync, readdirSync, statSync, type Dirent } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import {
-  GLOB_REGEX_CACHE_MAX_SIZE,
-  GLOB_SPECIAL_CHARS,
-  IGNORED_DIRECTORIES,
-} from "./constants";
+import { GLOB_REGEX_CACHE_MAX_SIZE, GLOB_SPECIAL_CHARS } from "./constants";
 import type {
   DirectMatchContext,
   DirectMatchItem,
@@ -98,8 +94,6 @@ const matchesPattern = (filePath: string, pattern: string): boolean => {
 const matchesAnyIgnore = (filePath: string, ignorePatterns: string[]): boolean =>
   ignorePatterns.some((pattern) => matchesPattern(filePath, pattern));
 
-const isIgnoredDirectory = (name: string): boolean => IGNORED_DIRECTORIES.includes(name);
-
 const shouldIgnorePath = (filePath: string, ignorePatterns: string[]): boolean =>
   matchesAnyIgnore(filePath, ignorePatterns);
 
@@ -127,7 +121,6 @@ const collectDirectoryEntry = (
 
   if (shouldIgnorePath(relativePath, ignorePatterns)) return [];
   if (!entry.isDirectory()) return [relativePath];
-  if (isIgnoredDirectory(entry.name)) return [];
   return collectAllFiles(fullPath, baseDir, ignorePatterns);
 };
 
@@ -221,13 +214,11 @@ const collectLiteralSegmentMatches = (
 };
 
 const canEnterPatternDirectory = (
-  entry: Dirent,
   step: DirectMatchStep,
   relativePath: string,
   ignorePatterns: string[],
 ): boolean =>
   !step.isLast &&
-  !isIgnoredDirectory(entry.name) &&
   shouldIncludeRelativePath(relativePath, ignorePatterns);
 
 const collectPatternEntryMatches = (
@@ -242,7 +233,7 @@ const collectPatternEntryMatches = (
   const relativePath = toRelativePath(context.cwd, fullPath);
 
   if (entry.isDirectory()) {
-    if (!canEnterPatternDirectory(entry, step, relativePath, context.ignorePatterns)) return [];
+    if (!canEnterPatternDirectory(step, relativePath, context.ignorePatterns)) return [];
     return [{ type: "candidate", path: fullPath }];
   }
 

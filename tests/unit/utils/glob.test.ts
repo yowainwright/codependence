@@ -86,6 +86,12 @@ describe("glob", () => {
     ]);
   });
 
+  it("does not implicitly ignore dependency directories", () => {
+    const files = sync("**/package.json", { cwd: testDir });
+
+    expect(files).toContain("node_modules/pkg/package.json");
+  });
+
   it("matches direct workspace patterns", () => {
     const files = sync("packages/*/package.json", { cwd: testDir });
 

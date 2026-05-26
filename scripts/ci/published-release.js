@@ -2,6 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
+import { runCliEntrypoint } from "./cli-entrypoint.js";
 import { resolveToolVersions, readToolVersionInputs } from "./tool-versions.js";
 
 export function packageSpec(packageName, version) {
@@ -155,8 +156,10 @@ export function runTestPublishedReleaseCli({
         console.log(`Package ${packageSpec(packageName, version)} is available on npm`);
         return 0;
       }
-      console.log(`Attempt ${attempt}/30: package not yet available, waiting 30 seconds...`);
-      runOrThrow(runner, "sleep", ["30"]);
+      if (attempt < 30) {
+        console.log(`Attempt ${attempt}/30: package not yet available, waiting 30 seconds...`);
+        runOrThrow(runner, "sleep", ["30"]);
+      }
     }
     throw new Error(`Package ${packageSpec(packageName, version)} was not available after 30 attempts`);
   }
@@ -244,5 +247,5 @@ export function runTestPublishedReleaseCli({
 }
 
 if (import.meta.main) {
-  runTestPublishedReleaseCli();
+  runCliEntrypoint(runTestPublishedReleaseCli);
 }

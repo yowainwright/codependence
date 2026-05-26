@@ -129,17 +129,5 @@
       "severityThreshold": "medium",
       "hasWorkspaceSecurityChecks": true
     }
-  },
-  "release-it": {
-    "git": {
-      "commitMessage": "chore(release): ${version}",
-      "commitArgs": [
-        "--no-verify"
-      ],
-      "tagName": "v${version}"
-    },
-    "npm": {
-      "publish": false
-    }
   }
 }

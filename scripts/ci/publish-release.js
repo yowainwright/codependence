@@ -2,6 +2,7 @@
 
 import { copyFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { runCliEntrypoint } from "./cli-entrypoint.js";
 
 export function resolveDistTag(version) {
   const prerelease = version.match(/-(alpha|beta|rc)(?:[.-]|$)/)?.[1];
@@ -154,5 +155,5 @@ export function runPublishReleaseCli({
 }
 
 if (import.meta.main) {
-  runPublishReleaseCli();
+  runCliEntrypoint(runPublishReleaseCli);
 }
