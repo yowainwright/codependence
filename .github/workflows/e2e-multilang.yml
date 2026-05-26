@@ -1,4 +1,4 @@
-name: codependence e2e multilang tests 🌍
+name: codependence e2e multilang tests
 
 on:
   push:
@@ -29,23 +29,8 @@ jobs:
         run: ./tests/e2e/test-multilang.sh go-update
 
       - name: Test Docker environment (Python + Go)
-        run: |
-          echo "🔧 Testing multi-language environment setup..."
-          docker run --rm --entrypoint=/bin/sh codependence-multilang-test:latest -c "
-            echo '📦 Checking Node.js...'
-            node --version &&
-            echo '🐍 Checking Python...'
-            python3 --version &&
-            pip3 --version &&
-            poetry --version &&
-            echo '🐹 Checking Go...'
-            go version &&
-            echo '✅ All language environments verified!'
-          "
+        run: ./tests/e2e/test-multilang.sh verify-multilang-env
 
       - name: Cleanup Docker images
         if: always()
-        run: |
-          echo "🧹 Cleaning up Docker resources..."
-          docker rmi codependence-multilang-test:latest || true
-          docker system prune -f || true
+        run: ./tests/e2e/test-multilang.sh clean

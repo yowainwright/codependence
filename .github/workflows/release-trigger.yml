@@ -9,12 +9,11 @@ permissions:
   contents: read
 
 jobs:
-  release-tests:
-    if: github.repository == 'yowainwright/codependence'
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Repository dispatch release tests
+      - name: Repository Dispatch
         uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
         with:
           token: ${{ secrets.REPO_ACCESS_TOKEN }}

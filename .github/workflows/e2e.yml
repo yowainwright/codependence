@@ -1,4 +1,4 @@
-name: codependence e2e tests 🐳
+name: codependence e2e tests
 
 on:
   push:
@@ -26,17 +26,8 @@ jobs:
         run: ./tests/e2e/test-multilang.sh init
           
       - name: Test Docker environment (dev mode)
-        run: |
-          echo "🔧 Testing dev environment setup..."
-          docker run --rm --entrypoint=/bin/sh codependence-test:latest -c "
-            ls -la dist/ &&
-            ls -la node_modules/ &&
-            echo 'Environment setup verified ✅'
-          "
+        run: ./tests/e2e/test-multilang.sh verify-init-env
           
       - name: Cleanup Docker images
         if: always()
-        run: |
-          echo "🧹 Cleaning up Docker resources..."
-          docker rmi codependence-test:latest || true
-          docker system prune -f || true
+        run: ./tests/e2e/test-multilang.sh clean

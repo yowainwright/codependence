@@ -8,7 +8,7 @@ ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 cd "$ROOT_DIR"
 
-echo "🌍 Codependence Multi-Language E2E Test Runner"
+echo "Codependence Multi-Language E2E Test Runner"
 echo "=============================================="
 
 # Colors for output
@@ -62,6 +62,35 @@ run_go_update_tests() {
     run_step "Go update tests passed!" docker run --rm codependence-multilang-test:latest ./test-go-update.sh
 }
 
+verify_init_environment() {
+    docker run --rm --entrypoint=/bin/sh codependence-test:latest -c '
+        set -e
+        ls -la dist/
+        ls -la node_modules/
+        echo "Environment setup verified"
+    '
+}
+
+verify_multilang_environment() {
+    docker run --rm --entrypoint=/bin/sh codependence-multilang-test:latest -c '
+        set -e
+        echo "Checking Node.js..."
+        node --version
+        echo "Checking Python..."
+        python3 --version
+        pip3 --version
+        poetry --version
+        echo "Checking Go..."
+        go version
+        echo "All language environments verified"
+    '
+}
+
+clean_images() {
+    docker rmi codependence-test:latest codependence-multilang-test:latest 2>/dev/null || true
+    docker system prune -f
+}
+
 # Check Docker
 if ! command -v docker &> /dev/null; then
     print_error "Docker is not installed"
@@ -87,6 +116,16 @@ case "${1:-all}" in
         run_go_update_tests
         ;;
 
+    "verify-init-env")
+        print_status "Verifying Node.js init Docker environment..."
+        verify_init_environment
+        ;;
+
+    "verify-multilang-env")
+        print_status "Verifying multi-language Docker environment..."
+        verify_multilang_environment
+        ;;
+
     "all")
         print_status "Running all e2e tests..."
 
@@ -101,13 +140,12 @@ case "${1:-all}" in
         print_status "3/3: Go update tests..."
         run_go_update_tests
 
-        print_success "All e2e tests passed! 🎉"
+        print_success "All e2e tests passed!"
         ;;
 
     "clean")
         print_status "Cleaning up Docker resources..."
-        docker rmi codependence-test codependence-multilang-test 2>/dev/null || true
-        docker system prune -f
+        clean_images
         print_success "Cleanup complete!"
         ;;
 
@@ -121,6 +159,8 @@ case "${1:-all}" in
         echo "  python      Run Python + Go tests only (alias)"
         echo "  go          Run Python + Go tests only (alias)"
         echo "  go-update   Run Go update/preserve tests only"
+        echo "  verify-init-env       Verify the Node.js init Docker image"
+        echo "  verify-multilang-env  Verify the Python + Go Docker image"
         echo "  clean       Clean up Docker resources"
         echo "  help        Show this help message"
         echo ""

@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   publish:
-    if: github.repository == 'yowainwright/codependence'
     runs-on: ubuntu-latest
     environment: npm-publish
     permissions:
@@ -23,47 +22,32 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup toolchain
-        uses: ./.github/actions/setup-toolchain
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
+          bun-version: 1.3.14
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
           registry-url: "https://registry.npmjs.org"
 
-      - name: Verify tag matches package version
-        run: |
-          PACKAGE_VERSION="$(node -p "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version")"
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
-            echo "Tag $GITHUB_REF_NAME does not match package version $PACKAGE_VERSION"
-            exit 1
-          fi
+      - run: bun install --frozen-lockfile
 
-      - run: bun run deps:security
-      - run: bun run validate
+      - run: bun test tests/unit/
         env:
           CI: true
+
       - run: bun run build-dist
 
       - name: Resolve npm dist-tag
         id: dist-tag
-        run: |
-          VERSION="${{ github.ref_name }}"
-          if [[ "$VERSION" =~ -(alpha|beta|rc) ]]; then
-            echo "tag=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
-          elif [[ "$VERSION" =~ -alfa ]]; then
-            echo "tag=alfa" >> "$GITHUB_OUTPUT"
-          elif [[ "$VERSION" =~ - ]]; then
-            echo "tag=next" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=latest" >> "$GITHUB_OUTPUT"
-          fi
+        run: bash scripts/ci/publish-release.sh resolve-dist-tag
+        env:
+          VERSION: ${{ github.ref_name }}
 
       - name: Pack npm tarball
         id: pack
-        run: |
-          npm pack --ignore-scripts --json > npm-pack.json
-          TARBALL="$(node -e "const fs = require('node:fs'); const text = fs.readFileSync('npm-pack.json', 'utf8'); const start = text.indexOf('['); if (start < 0) throw new Error('npm pack JSON output not found'); const [pkg] = JSON.parse(text.slice(start)); console.log(pkg.filename)")"
-          test -n "$TARBALL"
-          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+        run: bash scripts/ci/publish-release.sh pack
 
       - name: Attest npm tarball
         id: attest
@@ -73,22 +57,17 @@ jobs:
 
       - name: Prepare release attestation
         id: release-attestation
-        run: |
-          SIGSTORE_BUNDLE="${{ steps.pack.outputs.tarball }}.sigstore.json"
-          cp "${{ steps.attest.outputs.bundle-path }}" "$SIGSTORE_BUNDLE"
-          echo "sigstore_bundle=$SIGSTORE_BUNDLE" >> "$GITHUB_OUTPUT"
+        run: bash scripts/ci/publish-release.sh prepare-attestation
+        env:
+          ATTESTATION_BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+          TARBALL: ${{ steps.pack.outputs.tarball }}
 
       - name: Publish npm package
         env:
           PACKAGE_VERSION: ${{ github.ref_name }}
-        run: |
-          VERSION="${PACKAGE_VERSION#v}"
-          if npm view "codependence@$VERSION" version > /dev/null 2>&1; then
-            echo "codependence@$VERSION is already published"
-            exit 0
-          fi
-
-          npm publish "${{ steps.pack.outputs.tarball }}" --provenance --access public --tag "${{ steps.dist-tag.outputs.tag }}"
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+          DIST_TAG: ${{ steps.dist-tag.outputs.tag }}
+        run: bash scripts/ci/publish-release.sh publish-npm
 
       - name: Publish GitHub release assets
         env:
@@ -96,18 +75,4 @@ jobs:
           SIGSTORE_BUNDLE: ${{ steps.release-attestation.outputs.sigstore_bundle }}
           TARBALL: ${{ steps.pack.outputs.tarball }}
           VERSION: ${{ github.ref_name }}
-        run: |
-          RELEASE_ARGS=()
-          if [[ "$VERSION" =~ -(alpha|beta|rc) ]]; then
-            RELEASE_ARGS+=(--prerelease)
-          fi
-
-          if gh release view "$VERSION" > /dev/null 2>&1; then
-            gh release upload "$VERSION" "$TARBALL" "$SIGSTORE_BUNDLE" --clobber
-            exit 0
-          fi
-
-          gh release create "$VERSION" "$TARBALL" "$SIGSTORE_BUNDLE" \
-            --title "$VERSION" \
-            --generate-notes \
-            "${RELEASE_ARGS[@]}"
+        run: bash scripts/ci/publish-release.sh publish-github-release-assets
