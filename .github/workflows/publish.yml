@@ -61,6 +61,7 @@ jobs:
           PACKAGE_VERSION: ${{ github.ref_name }}
           TARBALL: ${{ steps.pack.outputs.tarball }}
           DIST_TAG: ${{ steps.dist-tag.outputs.tag }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: node scripts/ci/publish-release.js publish-npm
 
       - name: Publish GitHub release assets
