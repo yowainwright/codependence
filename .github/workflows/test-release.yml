@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  test-published-release:
+  published-release-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -33,36 +33,36 @@ jobs:
 
       - name: Determine Version to Test
         id: version
-        run: bash scripts/ci/test-published-release.sh resolve-version
+        run: bash scripts/ci/published-release_test.sh resolve-version
         env:
           INPUT_VERSION: ${{ inputs.version }}
 
       - name: Wait for NPM Package Availability
-        run: bash scripts/ci/test-published-release.sh wait-for-npm
+        run: bash scripts/ci/published-release_test.sh wait-for-npm
         env:
           CODEPENDENCE_VERSION: ${{ steps.version.outputs.version }}
 
       - name: Build Test Docker Image
-        run: bash scripts/ci/test-published-release.sh build-release-image
+        run: bash scripts/ci/published-release_test.sh build-release-image
         env:
           CODEPENDENCE_VERSION: ${{ steps.version.outputs.version }}
 
       - name: Verify Installation
-        run: bash scripts/ci/test-published-release.sh verify-installation
+        run: bash scripts/ci/published-release_test.sh verify-installation
 
       - name: Run Full E2E Test Suite
-        run: bash scripts/ci/test-published-release.sh run-e2e
+        run: bash scripts/ci/published-release_test.sh run-e2e
 
       - name: Run NPM Package Smoke Test
-        run: bash scripts/ci/test-published-release.sh run-npm-smoke
+        run: bash scripts/ci/published-release_test.sh run-npm-smoke
         env:
           CODEPENDENCE_VERSION: ${{ steps.version.outputs.version }}
 
       - name: Performance and Compatibility Check
-        run: bash scripts/ci/test-published-release.sh compatibility-check
+        run: bash scripts/ci/published-release_test.sh compatibility-check
 
       - name: Report Test Results
-        run: bash scripts/ci/test-published-release.sh summary
+        run: bash scripts/ci/published-release_test.sh summary
         env:
           CODEPENDENCE_VERSION: ${{ steps.version.outputs.version }}
 
@@ -77,6 +77,6 @@ jobs:
 
       - name: Create Test Report
         if: always()
-        run: bash scripts/ci/test-published-release.sh write-report
+        run: bash scripts/ci/published-release_test.sh write-report
         env:
           CODEPENDENCE_VERSION: ${{ steps.version.outputs.version }}

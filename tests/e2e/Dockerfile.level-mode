@@ -1,4 +1,7 @@
-FROM node:24-slim AS builder
+ARG NODE_SLIM_IMAGE
+FROM ${NODE_SLIM_IMAGE} AS builder
+
+ARG BUN_VERSION
 
 RUN apt-get update && apt-get install -y curl unzip && rm -rf /var/lib/apt/lists/*
 
@@ -9,7 +12,7 @@ COPY bun.lock ./
 COPY bunfig.toml ./
 COPY page/ ./page/
 
-RUN curl -fsSL https://bun.sh/install | bash
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
 ENV PATH="/root/.bun/bin:$PATH"
 
 RUN bun install --frozen-lockfile --ignore-scripts
@@ -18,11 +21,13 @@ COPY . .
 
 RUN bun run build-dist
 
-FROM node:24-slim AS test
+FROM ${NODE_SLIM_IMAGE} AS test
+
+ARG BUN_VERSION
 
 RUN apt-get update && apt-get install -y curl unzip && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://bun.sh/install | bash
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
 ENV PATH="/root/.bun/bin:$PATH"
 
 RUN groupadd -g 1001 testuser && \

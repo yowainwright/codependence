@@ -8,6 +8,9 @@ ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 cd "$ROOT_DIR"
 
+BUN_VERSION="$(node scripts/ci/tool-versions.js bun-version)"
+NODE_SLIM_IMAGE="$(node scripts/ci/tool-versions.js node-slim-image)"
+
 echo "Codependence Multi-Language E2E Test Runner"
 echo "=============================================="
 
@@ -43,7 +46,12 @@ run_step() {
 }
 
 build_init_image() {
-    run_step "Built Node.js init test image" docker build --target test -t codependence-test -f tests/e2e/Dockerfile .
+    run_step "Built Node.js init test image" docker build \
+        --build-arg "BUN_VERSION=$BUN_VERSION" \
+        --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" \
+        --target test \
+        -t codependence-test \
+        -f tests/e2e/Dockerfile .
 }
 
 run_init_tests() {
@@ -51,7 +59,12 @@ run_init_tests() {
 }
 
 build_multilang_image() {
-    run_step "Built multi-language test image" docker build --target multilang-test -t codependence-multilang-test -f tests/e2e/Dockerfile.multilang .
+    run_step "Built multi-language test image" docker build \
+        --build-arg "BUN_VERSION=$BUN_VERSION" \
+        --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" \
+        --target multilang-test \
+        -t codependence-multilang-test \
+        -f tests/e2e/Dockerfile.multilang .
 }
 
 run_multilang_tests() {

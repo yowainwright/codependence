@@ -1,7 +1,8 @@
 # Multi-stage Dockerfile for testing codependence init functionality
-FROM node:24-slim AS builder
+ARG NODE_SLIM_IMAGE
+FROM ${NODE_SLIM_IMAGE} AS builder
 
-ARG BUN_VERSION=1.3.14
+ARG BUN_VERSION
 
 # Install curl, unzip and other necessary tools
 RUN apt-get update && apt-get install -y curl unzip && rm -rf /var/lib/apt/lists/*
@@ -31,9 +32,9 @@ COPY . .
 RUN bun run build-dist
 
 # Test stage - clean environment for testing
-FROM node:24-slim AS test
+FROM ${NODE_SLIM_IMAGE} AS test
 
-ARG BUN_VERSION=1.3.14
+ARG BUN_VERSION
 
 # Install curl, unzip and other necessary tools
 RUN apt-get update && apt-get install -y curl unzip && rm -rf /var/lib/apt/lists/*
