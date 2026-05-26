@@ -1,0 +1,26 @@
+ARG NODE_ALPINE_IMAGE
+FROM ${NODE_ALPINE_IMAGE}
+
+RUN apk add --no-cache bash go py3-pip python3
+
+WORKDIR /app
+
+ARG CODEPENDENCE_VERSION
+RUN echo "Installing codependence@${CODEPENDENCE_VERSION}" && \
+    npm install -g codependence@${CODEPENDENCE_VERSION}
+
+RUN mkdir -p dist tests/e2e/fixtures/dist tests/release/fixtures
+COPY tests/e2e/fixtures/ ./tests/e2e/fixtures/
+COPY tests/e2e/test-go-update.sh ./tests/e2e/test-go-update.sh
+COPY tests/release/codependence-cli-shim.cjs ./dist/cli.js
+COPY tests/release/codependence-cli-shim.cjs ./tests/e2e/fixtures/dist/cli.js
+COPY tests/release/fixtures/smoke-package.json ./tests/e2e/fixtures/package.json
+COPY tests/release/fixtures/smoke-package.json ./tests/release/fixtures/smoke-package.json
+COPY tests/release/fixtures/smoke-codependencerc.json ./tests/release/fixtures/smoke-codependencerc.json
+
+RUN chmod +x ./dist/cli.js \
+    ./tests/e2e/fixtures/dist/cli.js \
+    ./tests/e2e/fixtures/*.sh \
+    ./tests/e2e/test-go-update.sh
+
+CMD ["/bin/sh"]

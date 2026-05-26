@@ -5,6 +5,9 @@ services:
       context: ../..
       dockerfile: tests/e2e/Dockerfile
       target: test
+      args:
+        BUN_VERSION: ${BUN_VERSION}
+        NODE_SLIM_IMAGE: ${NODE_SLIM_IMAGE}
     volumes:
       - test-results:/test/results
     environment:
@@ -16,6 +19,9 @@ services:
       context: ../..
       dockerfile: tests/e2e/Dockerfile
       target: test
+      args:
+        BUN_VERSION: ${BUN_VERSION}
+        NODE_SLIM_IMAGE: ${NODE_SLIM_IMAGE}
     volumes:
       - ..:/app:ro
       - dev-workspace:/workspace
@@ -49,6 +55,9 @@ services:
       context: ../..
       dockerfile: tests/e2e/Dockerfile
       target: builder
+      args:
+        BUN_VERSION: ${BUN_VERSION}
+        NODE_SLIM_IMAGE: ${NODE_SLIM_IMAGE}
     volumes:
       - ..:/app
       - /app/node_modules

@@ -27,13 +27,20 @@ jobs:
 | `config` | Path to config file | No | - |
 | `files` | File glob patterns (space-separated) | No | - |
 | `update` | Update dependencies | No | `false` |
+| `dryRun` | Preview changes without modifying files | No | `false` |
 | `permissive` | Update all except pinned | No | `false` |
+| `mode` | Policy mode: `verbose` or `precise` | No | - |
+| `level` | Allowed update level: `patch`, `minor`, or `major` | No | - |
+| `language` | Target language: `nodejs`, `go`, or `python` | No | - |
 | `fail-on-outdated` | Fail if outdated | No | `true` |
 | `rootDir` | Root directory | No | - |
 | `ignore` | Ignore patterns (space-separated) | No | - |
 | `silent` | Silent logging | No | `false` |
 | `debug` | Debug logging | No | `false` |
 | `yarnConfig` | Yarn config support | No | `false` |
+| `noCache` | Disable version cache | No | `false` |
+| `format` | Output format: `json`, `markdown`, or `table` | No | - |
+| `outputFile` | Write formatted output to a file | No | - |
 
 ## Outputs
 
@@ -70,6 +77,22 @@ jobs:
   with:
     config: '.codependencerc'
     files: 'package.json **/package.json'
+```
+
+### Python or Go
+
+```yaml
+- uses: yowainwright/codependence@v1
+  with:
+    language: python
+    config: '.codependencerc'
+```
+
+```yaml
+- uses: yowainwright/codependence@v1
+  with:
+    language: go
+    config: '.codependencerc'
 ```
 
 ### Update and commit

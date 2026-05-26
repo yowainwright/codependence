@@ -1,0 +1,82 @@
+name: Setup Codependence toolchain
+description: Install pinned Node.js and Bun, restore the Bun cache, and optionally install dependencies.
+
+inputs:
+  node-version:
+    description: Node.js version to install.
+    required: false
+    default: ""
+  bun-version:
+    description: Bun version to install.
+    required: false
+    default: ""
+  cache:
+    description: Restore the Bun package cache.
+    required: false
+    default: "true"
+  install:
+    description: Install project dependencies after setting up the runtime.
+    required: false
+    default: "true"
+  frozen-lockfile:
+    description: Use bun install --frozen-lockfile when installing dependencies.
+    required: false
+    default: "true"
+  registry-url:
+    description: Optional npm registry URL for actions/setup-node.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve tool versions
+      id: tool-versions
+      shell: bash
+      run: node scripts/ci/tool-versions.js github-output
+      env:
+        INPUT_NODE_VERSION: ${{ inputs.node-version }}
+        INPUT_BUN_VERSION: ${{ inputs.bun-version }}
+
+    - name: Setup Node.js
+      if: inputs.registry-url == ''
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: ${{ steps.tool-versions.outputs.node_version }}
+
+    - name: Setup Node.js with npm registry
+      if: inputs.registry-url != ''
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: ${{ steps.tool-versions.outputs.node_version }}
+        registry-url: ${{ inputs.registry-url }}
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version: ${{ steps.tool-versions.outputs.bun_version }}
+
+    - name: Get Bun cache directory
+      if: inputs.cache == 'true'
+      id: bun-cache
+      shell: bash
+      run: echo "bun_cache_dir=$(bun pm cache dir)" >> "$GITHUB_OUTPUT"
+
+    - name: Restore Bun cache
+      if: inputs.cache == 'true'
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ steps.bun-cache.outputs.bun_cache_dir }}
+        key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-bun-
+
+    - name: Install dependencies
+      if: inputs.install == 'true' && inputs.frozen-lockfile == 'true'
+      shell: bash
+      run: bun install --frozen-lockfile
+
+    - name: Install dependencies
+      if: inputs.install == 'true' && inputs.frozen-lockfile != 'true'
+      shell: bash
+      run: bun install

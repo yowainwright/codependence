@@ -4,12 +4,15 @@ set -e
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 # Change to root directory for Docker builds
 cd "$ROOT_DIR"
 
-echo "🤼‍♀️ Codependence Docker Test Runner"
+BUN_VERSION="$(node scripts/ci/tool-versions.js bun-version)"
+NODE_SLIM_IMAGE="$(node scripts/ci/tool-versions.js node-slim-image)"
+
+echo "Codependence Docker Test Runner"
 echo "==================================="
 
 # Colors for output
@@ -49,17 +52,20 @@ if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/
 fi
 
 # Use docker compose or docker-compose based on availability
-COMPOSE_CMD="docker compose -f e2e/docker-compose.yml"
+COMPOSE_CMD="docker compose -f tests/e2e/docker-compose.yml"
 if ! docker compose version &> /dev/null; then
-    COMPOSE_CMD="docker-compose -f e2e/docker-compose.yml"
+    COMPOSE_CMD="docker-compose -f tests/e2e/docker-compose.yml"
 fi
 
+export BUN_VERSION
+export NODE_SLIM_IMAGE
+
 case "${1:-test}" in
-    "test")
-        print_status "Running automated tests..."
-        docker build --target test -t codependence-test -f e2e/Dockerfile . && docker run --rm codependence-test:latest
-        print_success "Automated tests completed!"
-        ;;
+	    "test")
+	        print_status "Running automated tests..."
+	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t codependence-test -f tests/e2e/Dockerfile . && docker run --rm codependence-test:latest
+	        print_success "Automated tests completed!"
+	        ;;
     
     "dev")
         print_status "Starting interactive development environment..."
@@ -67,24 +73,24 @@ case "${1:-test}" in
         $COMPOSE_CMD run --rm dev
         ;;
     
-    "build")
-        print_status "Building project in Docker..."
-        docker build --target builder -t codependence-builder -f e2e/Dockerfile .
-        print_success "Build completed!"
-        ;;
+	    "build")
+	        print_status "Building project in Docker..."
+	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target builder -t codependence-builder -f tests/e2e/Dockerfile .
+	        print_success "Build completed!"
+	        ;;
     
-    "level-mode")
-        print_status "Running level and mode feature tests..."
-        docker build --target test -t codependence-level-mode-test -f e2e/Dockerfile.level-mode . && docker run --rm codependence-level-mode-test:latest
-        print_success "Level and mode tests completed!"
-        ;;
+	    "level-mode")
+	        print_status "Running level and mode feature tests..."
+	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t codependence-level-mode-test -f tests/e2e/Dockerfile.level-mode . && docker run --rm codependence-level-mode-test:latest
+	        print_success "Level and mode tests completed!"
+	        ;;
 
-    "all")
-        print_status "Running all e2e test suites..."
-        docker build --target test -t codependence-test -f e2e/Dockerfile . && docker run --rm codependence-test:latest
-        print_success "Init tests completed!"
-        docker build --target test -t codependence-level-mode-test -f e2e/Dockerfile.level-mode . && docker run --rm codependence-level-mode-test:latest
-        print_success "Level and mode tests completed!"
+	    "all")
+	        print_status "Running all e2e test suites..."
+	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t codependence-test -f tests/e2e/Dockerfile . && docker run --rm codependence-test:latest
+	        print_success "Init tests completed!"
+	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t codependence-level-mode-test -f tests/e2e/Dockerfile.level-mode . && docker run --rm codependence-level-mode-test:latest
+	        print_success "Level and mode tests completed!"
         print_success "All e2e test suites completed!"
         ;;
 

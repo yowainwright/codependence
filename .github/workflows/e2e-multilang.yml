@@ -1,4 +1,4 @@
-name: codependence e2e multilang tests 🌍
+name: codependence e2e multilang tests
 
 on:
   push:
@@ -10,42 +10,27 @@ on:
 jobs:
   e2e-multilang-tests:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker multi-language test image
-        run: |
-          echo "🌍 Building Docker multi-language test image..."
-          docker build --target multilang-test -t codependence-multilang-test -f tests/e2e/Dockerfile.multilang .
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
 
       - name: Run e2e Python and Go tests
-        run: |
-          echo "🐍🐹 Running codependence Python and Go e2e tests..."
-          docker run --rm codependence-multilang-test:latest
+        run: ./tests/e2e/test-multilang.sh multilang
+
+      - name: Run Go update e2e tests
+        run: ./tests/e2e/test-multilang.sh go-update
 
       - name: Test Docker environment (Python + Go)
-        run: |
-          echo "🔧 Testing multi-language environment setup..."
-          docker run --rm --entrypoint=/bin/sh codependence-multilang-test:latest -c "
-            echo '📦 Checking Node.js...'
-            node --version &&
-            echo '🐍 Checking Python...'
-            python3 --version &&
-            pip3 --version &&
-            poetry --version &&
-            echo '🐹 Checking Go...'
-            go version &&
-            echo '✅ All language environments verified!'
-          "
+        run: ./tests/e2e/test-multilang.sh verify-multilang-env
 
       - name: Cleanup Docker images
         if: always()
-        run: |
-          echo "🧹 Cleaning up Docker resources..."
-          docker rmi codependence-multilang-test:latest || true
-          docker system prune -f || true
+        run: ./tests/e2e/test-multilang.sh clean

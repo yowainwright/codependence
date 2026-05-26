@@ -1,0 +1,73 @@
+name: publish
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm-publish
+    permissions:
+      id-token: write
+      contents: write
+      attestations: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-toolchain
+        with:
+          registry-url: "https://registry.npmjs.org"
+
+      - run: bun test tests/unit/
+        env:
+          CI: true
+
+      - run: bun run build-dist
+
+      - name: Resolve npm dist-tag
+        id: dist-tag
+        run: node scripts/ci/publish-release.js resolve-dist-tag
+        env:
+          VERSION: ${{ github.ref_name }}
+
+      - name: Pack npm tarball
+        id: pack
+        run: node scripts/ci/publish-release.js pack
+
+      - name: Attest npm tarball
+        id: attest
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4
+        with:
+          subject-path: ${{ steps.pack.outputs.tarball }}
+
+      - name: Prepare release attestation
+        id: release-attestation
+        run: node scripts/ci/publish-release.js prepare-attestation
+        env:
+          ATTESTATION_BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+
+      - name: Publish npm package
+        env:
+          PACKAGE_VERSION: ${{ github.ref_name }}
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+          DIST_TAG: ${{ steps.dist-tag.outputs.tag }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: node scripts/ci/publish-release.js publish-npm
+
+      - name: Publish GitHub release assets
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SIGSTORE_BUNDLE: ${{ steps.release-attestation.outputs.sigstore_bundle }}
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+          VERSION: ${{ github.ref_name }}
+        run: node scripts/ci/publish-release.js publish-github-release-assets

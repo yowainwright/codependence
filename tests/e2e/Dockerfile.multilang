@@ -1,5 +1,8 @@
 # Multi-language Dockerfile for testing codependence with Python and Go
-FROM node:24-slim AS builder
+ARG NODE_SLIM_IMAGE
+FROM ${NODE_SLIM_IMAGE} AS builder
+
+ARG BUN_VERSION
 
 # Install build tools
 RUN apt-get update && apt-get install -y \
@@ -18,7 +21,7 @@ COPY bunfig.toml ./
 COPY page/ ./page/
 
 # Install bun
-RUN curl -fsSL https://bun.sh/install | bash
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
 ENV PATH="/root/.bun/bin:$PATH"
 
 # Install Node.js dependencies
@@ -29,7 +32,9 @@ COPY . .
 RUN bun run build-dist
 
 # Multi-language test stage with Python and Go
-FROM node:24-slim AS multilang-test
+FROM ${NODE_SLIM_IMAGE} AS multilang-test
+
+ARG BUN_VERSION
 
 # Install system dependencies for Python, Go, and other tools
 RUN apt-get update && apt-get install -y \
@@ -53,7 +58,7 @@ ENV GOPATH="/go"
 ENV PATH="$GOPATH/bin:$PATH"
 
 # Install bun
-RUN curl -fsSL https://bun.sh/install | bash
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
 ENV PATH="/root/.bun/bin:$PATH"
 
 # Install Python package managers

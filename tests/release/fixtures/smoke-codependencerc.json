@@ -1,0 +1,8 @@
+{
+  "codependencies": [
+    {
+      "lodash": "4.17.21"
+    }
+  ],
+  "mode": "verbose"
+}

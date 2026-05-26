@@ -1,0 +1,231 @@
+name: Test Action
+
+on:
+  pull_request:
+    paths:
+      - "action.yml"
+      - "src/**"
+      - "package.json"
+      - ".github/workflows/test-action.yml"
+  push:
+    branches: [main]
+    paths:
+      - "action.yml"
+      - "src/**"
+      - "package.json"
+      - ".github/workflows/test-action.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  build:
+    name: Build Codependence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-toolchain
+
+      - name: Build
+        run: bun run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/
+
+  test-node-check:
+    name: Test Node Check
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+
+      - name: Setup Node fixture
+        run: |
+          mkdir -p /tmp/codependence-node
+          cat > /tmp/codependence-node/package.json <<'EOF'
+          {
+            "name": "codependence-node-action-test",
+            "version": "1.0.0",
+            "dependencies": {
+              "lodash": "4.17.21"
+            }
+          }
+          EOF
+          cat > /tmp/codependence-node/.codependencerc <<'EOF'
+          {"codependencies":[{"lodash":"4.17.21"}],"mode":"verbose"}
+          EOF
+
+      - name: Run Codependence Action
+        id: codependence
+        uses: ./
+        with:
+          config: /tmp/codependence-node/.codependencerc
+          rootDir: /tmp/codependence-node
+          fail-on-outdated: true
+
+      - name: Verify output
+        run: |
+          test "${{ steps.codependence.outputs.outdated }}" = "false"
+
+  test-node-outdated:
+    name: Test Node Outdated Output
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+
+      - name: Setup outdated fixture
+        run: |
+          mkdir -p /tmp/codependence-outdated
+          cat > /tmp/codependence-outdated/package.json <<'EOF'
+          {
+            "name": "codependence-outdated-action-test",
+            "version": "1.0.0",
+            "dependencies": {
+              "lodash": "4.17.0"
+            }
+          }
+          EOF
+          cat > /tmp/codependence-outdated/.codependencerc <<'EOF'
+          {"codependencies":[{"lodash":"4.17.21"}],"mode":"verbose"}
+          EOF
+
+      - name: Run Codependence Action
+        id: codependence
+        uses: ./
+        with:
+          config: /tmp/codependence-outdated/.codependencerc
+          rootDir: /tmp/codependence-outdated
+          fail-on-outdated: false
+
+      - name: Verify output
+        run: |
+          test "${{ steps.codependence.outputs.outdated }}" = "true"
+
+  test-python-check:
+    name: Test Python Check
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+
+      - name: Setup Python fixture
+        run: |
+          mkdir -p /tmp/codependence-python
+          cat > /tmp/codependence-python/requirements.txt <<'EOF'
+          requests==2.28.0
+          EOF
+          cat > /tmp/codependence-python/.codependencerc <<'EOF'
+          {"codependencies":[{"requests":"==2.28.0"}],"language":"python","mode":"verbose"}
+          EOF
+
+      - name: Run Codependence Action
+        id: codependence
+        uses: ./
+        with:
+          config: /tmp/codependence-python/.codependencerc
+          rootDir: /tmp/codependence-python
+          language: python
+          fail-on-outdated: true
+
+      - name: Verify output
+        run: |
+          test "${{ steps.codependence.outputs.outdated }}" = "false"
+
+  test-go-check:
+    name: Test Go Check
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+
+      - name: Setup Go fixture
+        run: |
+          mkdir -p /tmp/codependence-go
+          cat > /tmp/codependence-go/go.mod <<'EOF'
+          module github.com/example/action-test
+
+          go 1.21
+
+          require github.com/gin-gonic/gin v1.9.0
+          EOF
+          cat > /tmp/codependence-go/.codependencerc <<'EOF'
+          {"codependencies":[{"github.com/gin-gonic/gin":"v1.9.0"}],"language":"go","mode":"verbose"}
+          EOF
+
+      - name: Run Codependence Action
+        id: codependence
+        uses: ./
+        with:
+          config: /tmp/codependence-go/.codependencerc
+          rootDir: /tmp/codependence-go
+          language: go
+          fail-on-outdated: true
+
+      - name: Verify output
+        run: |
+          test "${{ steps.codependence.outputs.outdated }}" = "false"
+
+  summary:
+    name: Test Summary
+    needs:
+      [
+        test-node-check,
+        test-node-outdated,
+        test-python-check,
+        test-go-check,
+      ]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          if [ "${{ needs.test-node-check.result }}" != "success" ] || \
+             [ "${{ needs.test-node-outdated.result }}" != "success" ] || \
+             [ "${{ needs.test-python-check.result }}" != "success" ] || \
+             [ "${{ needs.test-go-check.result }}" != "success" ]; then
+            echo "One or more action tests failed"
+            exit 1
+          fi
+          echo "All action tests passed."
