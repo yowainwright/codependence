@@ -15,6 +15,7 @@ export const VERSION_PREFIXES = [
 ] as const;
 
 export const REPEATING_VERSION_PREFIXES = ["^", "~"] as const;
+export const STRICT_INEQUALITY_VERSION_PREFIXES = [">", "<"] as const;
 export const VERSION_COMPARISON_PREFIXES = VERSION_PREFIXES.filter(
   (prefix) => !REPEATING_VERSION_PREFIXES.some((repeatable) => repeatable === prefix),
 );

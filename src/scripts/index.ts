@@ -26,7 +26,10 @@ import { collectDiffsFromManifests, displayVersionDiffs } from "../utils/diff";
 import { Prompt } from "../utils/prompts";
 import { isWithinLevel } from "../utils/semver";
 import { DEP_SECTIONS } from "./constants";
-import { VERSION_PREFIXES } from "../utils/constants";
+import {
+  STRICT_INEQUALITY_VERSION_PREFIXES,
+  VERSION_PREFIXES,
+} from "../utils/constants";
 import {
   CheckFiles,
   ConstructVersionMapOptions,
@@ -462,8 +465,14 @@ export const constructVersionTypes = (
     return { bumpCharacter: "", bumpVersion: version, exactVersion: version };
   }
 
-  const bumpCharacter =
-    prefix === "^" || prefix === "~" ? version[0] : prefix;
+  const isStrictInequality = STRICT_INEQUALITY_VERSION_PREFIXES.some(
+    (strictPrefix) => strictPrefix === prefix,
+  );
+  const bumpCharacter = isStrictInequality
+    ? ""
+    : prefix === "^" || prefix === "~"
+      ? version[0]
+      : prefix;
   const exactVersion =
     prefix === "^" || prefix === "~"
       ? version.replace(/^[~^]+/, "")
@@ -472,8 +481,23 @@ export const constructVersionTypes = (
   return { bumpCharacter, bumpVersion: version, exactVersion };
 };
 
+const isExplicitTargetSpec = (version: string): boolean => {
+  const { bumpVersion, exactVersion } = constructVersionTypes(version);
+  return bumpVersion !== exactVersion;
+};
+
+const constructExpectedVersion = (
+  currentBumpCharacter: string,
+  targetVersion: string,
+): string => {
+  const target = constructVersionTypes(targetVersion);
+  if (isExplicitTargetSpec(targetVersion)) return target.bumpVersion;
+  return `${currentBumpCharacter}${target.exactVersion}`;
+};
+
 const isUpdatablePermissiveDep = (
   name: string,
+  currentVersion: string,
   exactVersion: string,
   versionMap: Record<string, string>,
   level: Level,
@@ -481,7 +505,9 @@ const isUpdatablePermissiveDep = (
   const latestVersion = versionMap[name];
   if (!latestVersion) return false;
   const normalizedLatestVersion = constructVersionTypes(latestVersion).exactVersion;
-  const isDifferent = exactVersion !== normalizedLatestVersion;
+  const isDifferent = isExplicitTargetSpec(latestVersion)
+    ? currentVersion !== latestVersion
+    : exactVersion !== normalizedLatestVersion;
   const isAllowed = isWithinLevel(exactVersion, normalizedLatestVersion, level);
   return isDifferent && isAllowed;
 };
@@ -500,19 +526,20 @@ export const constructPermissiveDepsToUpdateList = (
       const { exactVersion, bumpCharacter } = constructVersionTypes(version);
       return { name, version, exactVersion, bumpCharacter };
     })
-    .filter(({ name, exactVersion }) =>
-      isUpdatablePermissiveDep(name, exactVersion, versionMap, level),
+    .filter(({ name, version, exactVersion }) =>
+      isUpdatablePermissiveDep(name, version, exactVersion, versionMap, level),
     )
     .map(({ name, version, bumpCharacter }) => ({
       name,
       actual: version,
       exact: constructVersionTypes(versionMap[name]).exactVersion,
-      expected: `${bumpCharacter}${constructVersionTypes(versionMap[name]).exactVersion}`,
+      expected: constructExpectedVersion(bumpCharacter, versionMap[name]),
     }));
 };
 
 const isUpdatableDep = (
   name: string,
+  currentVersion: string,
   exactVersion: string,
   versionMap: Record<string, string>,
   level: Level,
@@ -520,7 +547,9 @@ const isUpdatableDep = (
   const latestVersion = versionMap[name];
   if (!latestVersion) return false;
   const normalizedLatestVersion = constructVersionTypes(latestVersion).exactVersion;
-  const isDifferent = normalizedLatestVersion !== exactVersion;
+  const isDifferent = isExplicitTargetSpec(latestVersion)
+    ? latestVersion !== currentVersion
+    : normalizedLatestVersion !== exactVersion;
   const isAllowed = isWithinLevel(exactVersion, normalizedLatestVersion, level);
   return isDifferent && isAllowed;
 };
@@ -538,14 +567,14 @@ export const constructDepsToUpdateList = (
         constructVersionTypes(version);
       return { name, exactVersion, bumpCharacter, bumpVersion };
     })
-    .filter(({ name, exactVersion }) =>
-      isUpdatableDep(name, exactVersion, versionMap, level),
+    .filter(({ name, bumpVersion, exactVersion }) =>
+      isUpdatableDep(name, bumpVersion, exactVersion, versionMap, level),
     )
     .map(({ name, bumpVersion, bumpCharacter }) => ({
       name,
       actual: bumpVersion,
       exact: constructVersionTypes(versionMap[name]).exactVersion,
-      expected: `${bumpCharacter}${constructVersionTypes(versionMap[name]).exactVersion}`,
+      expected: constructExpectedVersion(bumpCharacter, versionMap[name]),
     }));
 };
 

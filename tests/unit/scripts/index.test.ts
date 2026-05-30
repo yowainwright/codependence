@@ -213,6 +213,15 @@ test("constructVersionTypes => preserves equality prefix", () => {
   });
 });
 
+test("constructVersionTypes => does not reuse strict inequality prefix", () => {
+  const result = constructVersionTypes("<2.0.0");
+  expect(result).toEqual({
+    bumpCharacter: "",
+    bumpVersion: "<2.0.0",
+    exactVersion: "2.0.0",
+  });
+});
+
 test("constructVersionTypes with no specifier", () => {
   const { bumpVersion, exactVersion } = constructVersionTypes("1.2.3");
   expect(bumpVersion).toEqual(exactVersion);
@@ -265,6 +274,74 @@ test("constructDepsToUpdateList => preserves equality prefix once", () => {
       exact: "2.31.0",
       expected: "==2.31.0",
       actual: "==2.28.0",
+    },
+  ]);
+});
+
+test("constructDepsToUpdateList => enforces explicit object target prefix", () => {
+  const result = constructDepsToUpdateList(
+    { foo: "1.0.0" },
+    { foo: "^1.0.0" },
+  );
+  expect(result).toEqual([
+    {
+      name: "foo",
+      exact: "1.0.0",
+      expected: "^1.0.0",
+      actual: "1.0.0",
+    },
+  ]);
+});
+
+test("constructDepsToUpdateList => updates mismatched prefixes to explicit object target", () => {
+  const result = constructDepsToUpdateList(
+    { foo: "~1.0.0" },
+    { foo: "^1.0.0" },
+  );
+  expect(result).toEqual([
+    {
+      name: "foo",
+      exact: "1.0.0",
+      expected: "^1.0.0",
+      actual: "~1.0.0",
+    },
+  ]);
+});
+
+test("constructDepsToUpdateList => skips matching explicit object target", () => {
+  const result = constructDepsToUpdateList(
+    { foo: "^1.0.0" },
+    { foo: "^1.0.0" },
+  );
+  expect(result).toEqual([]);
+});
+
+test("constructDepsToUpdateList => does not preserve strict less-than prefix", () => {
+  const result = constructDepsToUpdateList(
+    { foo: "<2.0.0" },
+    { foo: "3.0.0" },
+  );
+  expect(result).toEqual([
+    {
+      name: "foo",
+      exact: "3.0.0",
+      expected: "3.0.0",
+      actual: "<2.0.0",
+    },
+  ]);
+});
+
+test("constructDepsToUpdateList => does not preserve strict greater-than prefix", () => {
+  const result = constructDepsToUpdateList(
+    { foo: ">2.0.0" },
+    { foo: "3.0.0" },
+  );
+  expect(result).toEqual([
+    {
+      name: "foo",
+      exact: "3.0.0",
+      expected: "3.0.0",
+      actual: ">2.0.0",
     },
   ]);
 });
