@@ -426,6 +426,10 @@ python_version = "3.11"
       mkdirSync(tmpDir, { recursive: true });
     });
 
+    afterEach(() => {
+      rmSync(tmpDir, { recursive: true, force: true });
+    });
+
     test("should read conda dependencies and skip Python runtime and nested pip", async () => {
       const envPath = join(tmpDir, "environment.yml");
       const content = `name: myenv
@@ -587,6 +591,10 @@ pytest = "==7.4.0"
     beforeEach(() => {
       rmSync(tmpDir, { recursive: true, force: true });
       mkdirSync(tmpDir, { recursive: true });
+    });
+
+    afterEach(() => {
+      rmSync(tmpDir, { recursive: true, force: true });
     });
 
     test("should update conda dependencies without touching runtime or nested pip", async () => {
