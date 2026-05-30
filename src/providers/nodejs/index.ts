@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "fs";
 import { validatePackageName } from "../../utils/validate-package";
 import { exec } from "../../utils/exec";
+import { LANGUAGES, NODE_PACKAGE_MANAGERS } from "../constants";
 import type {
   DependencyProvider,
   DependencyManifest,
@@ -8,7 +9,7 @@ import type {
 } from "../types";
 
 export class NodeJSProvider implements DependencyProvider {
-  readonly language = "nodejs" as const;
+  readonly language = LANGUAGES.NODEJS;
   private options: ProviderOptions;
 
   constructor(options: ProviderOptions = {}) {
@@ -18,7 +19,8 @@ export class NodeJSProvider implements DependencyProvider {
   async getLatestVersion(packageName: string): Promise<string> {
     const packageManager = this.options.packageManager;
     const shouldUseYarn =
-      packageManager === "yarn" || this.options.yarnConfig === true;
+      packageManager === NODE_PACKAGE_MANAGERS.YARN ||
+      this.options.yarnConfig === true;
 
     if (shouldUseYarn) {
       return this.getYarnVersion(packageName);
@@ -28,7 +30,7 @@ export class NodeJSProvider implements DependencyProvider {
   }
 
   private async getNpmVersion(packageName: string): Promise<string> {
-    const { stdout } = await exec("npm", [
+    const { stdout } = await exec(NODE_PACKAGE_MANAGERS.NPM, [
       "view",
       packageName,
       "version",
@@ -38,8 +40,8 @@ export class NodeJSProvider implements DependencyProvider {
   }
 
   private async getYarnVersion(packageName: string): Promise<string> {
-    const { stdout } = await exec("yarn", [
-      "npm",
+    const { stdout } = await exec(NODE_PACKAGE_MANAGERS.YARN, [
+      NODE_PACKAGE_MANAGERS.NPM,
       "info",
       packageName,
       "--fields",
@@ -51,7 +53,7 @@ export class NodeJSProvider implements DependencyProvider {
   }
 
   async getAllVersions(packageName: string): Promise<string[]> {
-    const { stdout } = await exec("npm", [
+    const { stdout } = await exec(NODE_PACKAGE_MANAGERS.NPM, [
       "view",
       packageName,
       "versions",

@@ -1,4 +1,9 @@
-export type Language = "nodejs" | "go" | "python" | "rust" | "php";
+import type { LANGUAGES } from "./constants";
+
+export type Language =
+  | (typeof LANGUAGES)[keyof typeof LANGUAGES]
+  | "rust"
+  | "php";
 
 export interface LanguageDetectionResult {
   language: Language;

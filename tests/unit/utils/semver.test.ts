@@ -13,6 +13,10 @@ test("parseSemver => handles tilde prefix", () => {
   expect(parseSemver("~1.2.3")).toEqual([1, 2, 3]);
 });
 
+test("parseSemver => handles equality prefix", () => {
+  expect(parseSemver("==1.2.3")).toEqual([1, 2, 3]);
+});
+
 test("parseSemver => handles partial version", () => {
   expect(parseSemver("1.2")).toEqual([1, 2, 0]);
 });

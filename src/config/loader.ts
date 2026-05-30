@@ -1,6 +1,7 @@
 import { existsSync } from "fs";
 import { resolve, dirname } from "path";
 import { CONFIG_FILES } from "./constants";
+import { MANIFEST_FILES } from "../providers/constants";
 import { loadPackageJson, loadRcFile } from "./utils";
 import type { ConfigResult } from "./types";
 
@@ -16,7 +17,7 @@ const searchForConfig = (searchFrom: string): ConfigResult | null => {
 
       let config: Record<string, unknown> | null = null;
 
-      if (filename === "package.json") {
+      if (filename === MANIFEST_FILES.PACKAGE_JSON) {
         config = loadPackageJson(filepath);
       } else {
         config = loadRcFile(filepath);
@@ -44,7 +45,7 @@ export const loadConfig = (
       return null;
     }
 
-    if (filepath.endsWith("package.json")) {
+    if (filepath.endsWith(MANIFEST_FILES.PACKAGE_JSON)) {
       const config = loadPackageJson(resolvedPath);
       return config ? { config, filepath: resolvedPath } : null;
     }

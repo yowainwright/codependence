@@ -9,6 +9,7 @@ import { Prompt } from "./utils/prompts";
 import { loadConfig } from "./config";
 import { parseArgs, showHelp } from "./cli/parser";
 import { format } from "./utils/formatters";
+import { MANIFEST_FILES } from "./providers/constants";
 import { Options, PackageJSON, CodependenceConfig, DependencyInfo } from "./types";
 
 const gradient = (text: string) => bold(cyan(text));
@@ -240,7 +241,7 @@ export async function initAction(
 
   try {
     const rcPath = ".codependencerc";
-    const packageJsonPath = "package.json";
+    const packageJsonPath = MANIFEST_FILES.PACKAGE_JSON;
     const hasConfig = existsSync(rcPath);
     const hasPackageJsonConfig = (() => {
       if (!existsSync(packageJsonPath)) return false;
@@ -358,7 +359,7 @@ export async function initAction(
           "Where would you like to save the configuration?",
           [
             { name: ".codependencerc (recommended)", value: "rc" },
-            { name: "package.json", value: "package" },
+            { name: MANIFEST_FILES.PACKAGE_JSON, value: "package" },
           ],
         );
         outputType = outputLocation as "rc" | "package";

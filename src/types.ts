@@ -1,9 +1,11 @@
+import type { LANGUAGES } from "./providers/constants";
+
 export type CodeDependenciesItem = string | Record<string, string>;
 export type CodeDependencies = Array<CodeDependenciesItem>;
 
 export type Level = "patch" | "minor" | "major";
 export type Mode = "verbose" | "precise";
-export type SupportedLanguage = "nodejs" | "go" | "python";
+export type SupportedLanguage = (typeof LANGUAGES)[keyof typeof LANGUAGES];
 
 export type Options = {
   isTestingCLI?: boolean;
