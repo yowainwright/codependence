@@ -1,8 +1,14 @@
 import { readFileSync, writeFileSync } from "fs";
 import { exec } from "../../utils/exec";
 import { logger } from "../../logger";
+import { LANGUAGES } from "../constants";
 import {
+  CONDA_MANIFEST_FILES,
+  MANIFEST_FILES,
+  PYTHON_MANIFEST_TYPES,
   PYTHON_PATTERNS,
+  PYTHON_PACKAGE_MANAGERS,
+  PYTHON_RUNTIME_DEPENDENCY_NAME,
   type PythonManifestType,
   type PythonPackageManager,
 } from "./constants";
@@ -29,20 +35,54 @@ export const parsePoetryLine = (line: string): [string, string] | null => {
   const trimmed = line.trim();
   const match = trimmed.match(PYTHON_PATTERNS.POETRY_LINE);
 
-  if (!match || match[1] === "python") return null;
+  if (!match || match[1] === PYTHON_RUNTIME_DEPENDENCY_NAME) return null;
 
   return [match[1], match[2]];
 };
 
+type ParsedCondaDependencyLine = {
+  readonly name: string;
+  readonly version: string;
+  readonly suffix: string;
+};
+
+const parseCondaDependencySpec = (
+  spec: string,
+): ParsedCondaDependencyLine | null => {
+  const trimmed = spec.trim();
+  if (!trimmed || trimmed.endsWith(":")) return null;
+
+  const match = trimmed.match(PYTHON_PATTERNS.CONDA_DEPENDENCY_LINE);
+  if (!match || match[1] === PYTHON_RUNTIME_DEPENDENCY_NAME) return null;
+
+  return {
+    name: match[1],
+    version: `${match[2]}${match[3]}`,
+    suffix: match[4],
+  };
+};
+
+export const parseCondaDependencyLine = (
+  line: string,
+): [string, string] | null => {
+  const itemMatch = line.match(PYTHON_PATTERNS.CONDA_DEPENDENCY_ITEM);
+  if (!itemMatch) return null;
+
+  const parsed = parseCondaDependencySpec(itemMatch[2]);
+  if (!parsed) return null;
+
+  return [parsed.name, parsed.version];
+};
+
 export class PythonProvider implements DependencyProvider {
-  readonly language = "python" as const;
+  readonly language = LANGUAGES.PYTHON;
   private options: ProviderOptions;
   private manifestType: PythonManifestType;
   private packageManager: PythonPackageManager;
 
   constructor(
     manifestPath: string,
-    packageManager: PythonPackageManager = "pip",
+    packageManager: PythonPackageManager = PYTHON_PACKAGE_MANAGERS.PIP,
     providerOptions: ProviderOptions = {},
   ) {
     this.options = providerOptions;
@@ -51,24 +91,27 @@ export class PythonProvider implements DependencyProvider {
   }
 
   private detectManifestType(manifestPath: string): PythonManifestType {
-    if (manifestPath.endsWith("requirements.txt")) return "requirements";
-    if (manifestPath.endsWith("pyproject.toml")) return "pyproject";
-    if (manifestPath.endsWith("Pipfile")) return "pipfile";
-    if (
-      manifestPath.endsWith("environment.yml") ||
-      manifestPath.endsWith("environment.yaml")
-    ) {
-      return "conda";
+    if (manifestPath.endsWith(MANIFEST_FILES.REQUIREMENTS)) {
+      return PYTHON_MANIFEST_TYPES.REQUIREMENTS;
     }
-    return "requirements";
+    if (manifestPath.endsWith(MANIFEST_FILES.PYPROJECT)) {
+      return PYTHON_MANIFEST_TYPES.PYPROJECT;
+    }
+    if (manifestPath.endsWith(MANIFEST_FILES.PIPFILE)) {
+      return PYTHON_MANIFEST_TYPES.PIPFILE;
+    }
+    if (CONDA_MANIFEST_FILES.some((file) => manifestPath.endsWith(file))) {
+      return PYTHON_MANIFEST_TYPES.CONDA;
+    }
+    return PYTHON_MANIFEST_TYPES.REQUIREMENTS;
   }
 
   async getLatestVersion(packageName: string): Promise<string> {
-    if (this.packageManager === "conda") {
+    if (this.packageManager === PYTHON_PACKAGE_MANAGERS.CONDA) {
       return this.getCondaVersion(packageName);
     }
 
-    if (this.packageManager === "uv") {
+    if (this.packageManager === PYTHON_PACKAGE_MANAGERS.UV) {
       return this.getUvVersion(packageName);
     }
 
@@ -77,7 +120,11 @@ export class PythonProvider implements DependencyProvider {
 
   private async getPipVersion(packageName: string): Promise<string> {
     try {
-      const { stdout } = await exec("pip", ["index", "versions", packageName]);
+      const { stdout } = await exec(PYTHON_PACKAGE_MANAGERS.PIP, [
+        "index",
+        "versions",
+        packageName,
+      ]);
       const match = stdout.match(PYTHON_PATTERNS.PIP_VERSIONS);
       if (!match) return "";
 
@@ -93,7 +140,11 @@ export class PythonProvider implements DependencyProvider {
 
   private async getCondaVersion(packageName: string): Promise<string> {
     try {
-      const { stdout } = await exec("conda", ["search", packageName, "--json"]);
+      const { stdout } = await exec(PYTHON_PACKAGE_MANAGERS.CONDA, [
+        "search",
+        packageName,
+        "--json",
+      ]);
       const results = JSON.parse(stdout);
       const packages = results[packageName];
       if (!packages || packages.length === 0) return "";
@@ -110,8 +161,8 @@ export class PythonProvider implements DependencyProvider {
 
   private async getUvVersion(packageName: string): Promise<string> {
     try {
-      const { stdout } = await exec("uv", [
-        "pip",
+      const { stdout } = await exec(PYTHON_PACKAGE_MANAGERS.UV, [
+        PYTHON_PACKAGE_MANAGERS.PIP,
         "index",
         "versions",
         packageName,
@@ -131,17 +182,24 @@ export class PythonProvider implements DependencyProvider {
 
   async getAllVersions(packageName: string): Promise<string[]> {
     try {
-      if (this.packageManager === "conda") {
-        const { stdout } = await exec("conda", ["search", packageName, "--json"]);
+      if (this.packageManager === PYTHON_PACKAGE_MANAGERS.CONDA) {
+        const { stdout } = await exec(PYTHON_PACKAGE_MANAGERS.CONDA, [
+          "search",
+          packageName,
+          "--json",
+        ]);
         const results = JSON.parse(stdout);
         const packages = results[packageName];
         if (!packages || packages.length === 0) return [];
         return [...new Set<string>(packages.map((p: { version: string }) => p.version))];
       }
-      const command = this.packageManager === "uv" ? "uv" : "pip";
+      const command =
+        this.packageManager === PYTHON_PACKAGE_MANAGERS.UV
+          ? PYTHON_PACKAGE_MANAGERS.UV
+          : PYTHON_PACKAGE_MANAGERS.PIP;
       const args =
-        this.packageManager === "uv"
-          ? ["pip", "index", "versions", packageName]
+        this.packageManager === PYTHON_PACKAGE_MANAGERS.UV
+          ? [PYTHON_PACKAGE_MANAGERS.PIP, "index", "versions", packageName]
           : ["index", "versions", packageName];
       const { stdout } = await exec(command, args);
       const match = stdout.match(PYTHON_PATTERNS.PIP_VERSIONS);
@@ -157,12 +215,16 @@ export class PythonProvider implements DependencyProvider {
   }
 
   async readManifest(filePath: string): Promise<DependencyManifest> {
-    if (this.manifestType === "requirements") {
+    if (this.manifestType === PYTHON_MANIFEST_TYPES.REQUIREMENTS) {
       return this.readRequirementsTxt(filePath);
     }
 
-    if (this.manifestType === "pyproject") {
+    if (this.manifestType === PYTHON_MANIFEST_TYPES.PYPROJECT) {
       return this.readPyprojectToml(filePath);
+    }
+
+    if (this.manifestType === PYTHON_MANIFEST_TYPES.CONDA) {
+      return this.readCondaEnvironment(filePath);
     }
 
     return this.readPipfile(filePath);
@@ -215,17 +277,54 @@ export class PythonProvider implements DependencyProvider {
     return { filePath, dependencies };
   }
 
+  private readCondaEnvironment(filePath: string): DependencyManifest {
+    const content = readFileSync(filePath, "utf8");
+    const dependencies: Record<string, string> = {};
+    let inDependencies = false;
+    let dependencyItemIndent: number | null = null;
+
+    for (const line of content.split("\n")) {
+      if (!inDependencies) {
+        inDependencies = PYTHON_PATTERNS.CONDA_DEPENDENCIES_SECTION.test(line);
+        continue;
+      }
+
+      if (PYTHON_PATTERNS.CONDA_TOP_LEVEL_SECTION.test(line)) break;
+
+      const itemMatch = line.match(PYTHON_PATTERNS.CONDA_DEPENDENCY_ITEM);
+      if (!itemMatch) continue;
+
+      const itemIndent = itemMatch[1].length;
+      if (dependencyItemIndent === null) {
+        dependencyItemIndent = itemIndent;
+      }
+      if (itemIndent !== dependencyItemIndent) continue;
+
+      const parsed = parseCondaDependencyLine(line);
+      if (!parsed) continue;
+
+      dependencies[parsed[0]] = parsed[1];
+    }
+
+    return { filePath, dependencies };
+  }
+
   async writeManifest(
     filePath: string,
     manifest: DependencyManifest,
   ): Promise<void> {
-    if (this.manifestType === "requirements") {
+    if (this.manifestType === PYTHON_MANIFEST_TYPES.REQUIREMENTS) {
       this.writeRequirementsTxt(filePath, manifest);
       return;
     }
 
-    if (this.manifestType === "pyproject") {
+    if (this.manifestType === PYTHON_MANIFEST_TYPES.PYPROJECT) {
       this.writePyprojectToml(filePath, manifest);
+      return;
+    }
+
+    if (this.manifestType === PYTHON_MANIFEST_TYPES.CONDA) {
+      this.writeCondaEnvironment(filePath, manifest);
       return;
     }
 
@@ -268,6 +367,49 @@ export class PythonProvider implements DependencyProvider {
       PYTHON_PATTERNS.PIPFILE_PACKAGES,
       replacement,
     );
+
+    writeFileSync(filePath, updated);
+  }
+
+  private writeCondaEnvironment(
+    filePath: string,
+    manifest: DependencyManifest,
+  ): void {
+    const content = readFileSync(filePath, "utf8");
+    let inDependencies = false;
+    let dependencyItemIndent: number | null = null;
+
+    const updated = content
+      .split("\n")
+      .map((line) => {
+        if (!inDependencies) {
+          inDependencies = PYTHON_PATTERNS.CONDA_DEPENDENCIES_SECTION.test(line);
+          return line;
+        }
+
+        if (PYTHON_PATTERNS.CONDA_TOP_LEVEL_SECTION.test(line)) {
+          inDependencies = false;
+          return line;
+        }
+
+        const itemMatch = line.match(PYTHON_PATTERNS.CONDA_DEPENDENCY_ITEM);
+        if (!itemMatch) return line;
+
+        const itemIndent = itemMatch[1].length;
+        if (dependencyItemIndent === null) {
+          dependencyItemIndent = itemIndent;
+        }
+        if (itemIndent !== dependencyItemIndent) return line;
+
+        const parsed = parseCondaDependencySpec(itemMatch[2]);
+        if (!parsed) return line;
+
+        const version = manifest.dependencies[parsed.name];
+        if (!version) return line;
+
+        return `${itemMatch[1]}- ${parsed.name}${version}${parsed.suffix}`;
+      })
+      .join("\n");
 
     writeFileSync(filePath, updated);
   }

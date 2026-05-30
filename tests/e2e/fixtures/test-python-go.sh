@@ -1,6 +1,22 @@
 #!/bin/sh
 set -e
 
+TMP_DIRS=""
+
+make_tmp_dir() {
+  dir="$(mktemp -d)"
+  TMP_DIRS="$TMP_DIRS $dir"
+  echo "$dir"
+}
+
+cleanup() {
+  for dir in $TMP_DIRS; do
+    rm -rf "$dir"
+  done
+}
+
+trap cleanup EXIT
+
 echo "=== Testing codependence with Python and Go ==="
 
 # Test 1: Python requirements.txt
@@ -54,47 +70,36 @@ rm -f go.mod .codependencerc
 # Test 5: Detection without language flag
 echo "\n5. Testing automatic language detection..."
 
-mv package.json package.json.bak
-mv node_modules node_modules.bak 2>/dev/null || true
-cp python-requirements.txt.fixture requirements.txt
-echo '{"codependencies":["requests"],"mode":"verbose"}' > .codependencerc
-if node ./dist/cli.js --debug 2>&1 | grep -q "requests"; then
+PYTHON_AUTO_DIR="$(make_tmp_dir)"
+cp python-requirements.txt.fixture "$PYTHON_AUTO_DIR/requirements.txt"
+echo '{"codependencies":["requests"],"mode":"verbose"}' > "$PYTHON_AUTO_DIR/.codependencerc"
+if node ./dist/cli.js --debug --rootDir "$PYTHON_AUTO_DIR" --searchPath "$PYTHON_AUTO_DIR" 2>&1 | grep -q "requests"; then
   echo "✓ Python auto-detection test passed"
 else
   echo "✗ Python auto-detection test failed"
-  mv package.json.bak package.json
-  mv node_modules.bak node_modules 2>/dev/null || true
-  rm -f requirements.txt .codependencerc
   exit 1
 fi
-rm -f requirements.txt .codependencerc
-mv package.json.bak package.json
-mv node_modules.bak node_modules 2>/dev/null || true
 
-mv package.json package.json.bak
-mv node_modules node_modules.bak 2>/dev/null || true
-cp go.mod.fixture go.mod
-echo '{"codependencies":["github.com/gin-gonic/gin"],"mode":"verbose"}' > .codependencerc
-if node ./dist/cli.js --debug 2>&1 | grep -q "gin"; then
+GO_AUTO_DIR="$(make_tmp_dir)"
+cp go.mod.fixture "$GO_AUTO_DIR/go.mod"
+echo '{"codependencies":["github.com/gin-gonic/gin"],"mode":"verbose"}' > "$GO_AUTO_DIR/.codependencerc"
+if node ./dist/cli.js --debug --rootDir "$GO_AUTO_DIR" --searchPath "$GO_AUTO_DIR" 2>&1 | grep -q "gin"; then
   echo "✓ Go auto-detection test passed"
 else
   echo "✗ Go auto-detection test failed - this is expected if go is not installed"
 fi
-rm -f go.mod .codependencerc
-mv package.json.bak package.json
-mv node_modules.bak node_modules 2>/dev/null || true
 
 # Test 6: Mixed project (Node.js + Python)
 echo "\n6. Testing polyglot project (Node.js + Python)..."
-cp test-package.json.fixture package.json
-cp python-requirements.txt.fixture requirements.txt
-echo '{"codependencies":["lodash"],"mode":"verbose"}' > .codependencerc
-if node ./dist/cli.js --debug 2>&1 | grep -q "lodash"; then
+MIXED_DIR="$(make_tmp_dir)"
+cp test-package.json.fixture "$MIXED_DIR/package.json"
+cp python-requirements.txt.fixture "$MIXED_DIR/requirements.txt"
+echo '{"codependencies":["lodash"],"mode":"verbose"}' > "$MIXED_DIR/.codependencerc"
+if node ./dist/cli.js --debug --rootDir "$MIXED_DIR" --searchPath "$MIXED_DIR" 2>&1 | grep -q "lodash"; then
   echo "✓ Polyglot project test passed (prioritizes Node.js)"
 else
   echo "✗ Polyglot project test failed"
   exit 1
 fi
-rm -f package.json requirements.txt .codependencerc
 
 echo "\n=== All Python and Go tests passed! ==="

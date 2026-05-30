@@ -1,8 +1,13 @@
 import { readFileSync, writeFileSync } from "fs";
 import { basename, dirname, resolve } from "path";
 import {
+  DEFAULT_LANGUAGE_MANIFESTS,
   GoProvider,
+  LANGUAGES,
+  MANIFEST_FILES,
+  NODE_PACKAGE_MANAGERS,
   NodeJSProvider,
+  PYTHON_MANIFEST_FILES,
   PythonProvider,
   detectNodePackageManager,
   detectPrimaryLanguage,
@@ -21,6 +26,7 @@ import { collectDiffsFromManifests, displayVersionDiffs } from "../utils/diff";
 import { Prompt } from "../utils/prompts";
 import { isWithinLevel } from "../utils/semver";
 import { DEP_SECTIONS } from "./constants";
+import { VERSION_PREFIXES } from "../utils/constants";
 import {
   CheckFiles,
   ConstructVersionMapOptions,
@@ -36,18 +42,12 @@ import {
 } from "../types";
 
 const DEFAULT_FILE_MATCHERS: Record<SupportedLanguage, string[]> = {
-  nodejs: ["package.json"],
-  go: ["go.mod"],
-  python: [
-    "requirements.txt",
-    "pyproject.toml",
-    "Pipfile",
-    "environment.yml",
-    "environment.yaml",
-  ],
+  [LANGUAGES.NODEJS]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.NODEJS]],
+  [LANGUAGES.GO]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.GO]],
+  [LANGUAGES.PYTHON]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.PYTHON]],
 };
 
-const PYTHON_MANIFEST_NAMES = new Set(DEFAULT_FILE_MATCHERS.python);
+const PYTHON_MANIFEST_NAMES = new Set<string>(PYTHON_MANIFEST_FILES);
 const VERSION_RESOLUTION_CONCURRENCY = 8;
 
 type LoadedManifest = {
@@ -98,9 +98,9 @@ const resolveManifestPath = (rootDir: string, file: string): string =>
 const inferLanguageFromFile = (file: string): SupportedLanguage | null => {
   const manifestName = basename(file);
 
-  if (manifestName === "package.json") return "nodejs";
-  if (manifestName === "go.mod") return "go";
-  if (PYTHON_MANIFEST_NAMES.has(manifestName)) return "python";
+  if (manifestName === MANIFEST_FILES.PACKAGE_JSON) return LANGUAGES.NODEJS;
+  if (manifestName === MANIFEST_FILES.GO_MOD) return LANGUAGES.GO;
+  if (PYTHON_MANIFEST_NAMES.has(manifestName)) return LANGUAGES.PYTHON;
 
   return null;
 };
@@ -112,11 +112,15 @@ const resolveTargetLanguage = (
   if (language) return language;
 
   const detected = detectPrimaryLanguage(rootDir)?.language;
-  if (detected === "nodejs" || detected === "go" || detected === "python") {
+  if (
+    detected === LANGUAGES.NODEJS ||
+    detected === LANGUAGES.GO ||
+    detected === LANGUAGES.PYTHON
+  ) {
     return detected;
   }
 
-  return "nodejs";
+  return LANGUAGES.NODEJS;
 };
 
 const resolveMatchers = (
@@ -143,9 +147,9 @@ const createProvider = (
   };
 
   switch (language) {
-    case "nodejs": {
+    case LANGUAGES.NODEJS: {
       const packageManager = options.yarnConfig
-        ? "yarn"
+        ? NODE_PACKAGE_MANAGERS.YARN
         : detectNodePackageManager(dirname(filePath));
       return {
         provider: new NodeJSProvider({
@@ -155,12 +159,12 @@ const createProvider = (
         packageManager,
       };
     }
-    case "go":
+    case LANGUAGES.GO:
       return {
         provider: new GoProvider(providerOptions),
-        packageManager: "go",
+        packageManager: LANGUAGES.GO,
       };
-    case "python": {
+    case LANGUAGES.PYTHON: {
       const packageManager = detectPythonPackageManagerForManifest(
         filePath,
       ) as PythonPackageManager;
@@ -315,10 +319,12 @@ export const resolveFromRegistry = async (
   yarnConfig: boolean,
   execFn: ConstructVersionMapOptions["exec"],
 ): Promise<string> => {
-  const runner = !yarnConfig ? "npm" : "yarn";
+  const runner = !yarnConfig
+    ? NODE_PACKAGE_MANAGERS.NPM
+    : NODE_PACKAGE_MANAGERS.YARN;
   const cmd = !yarnConfig
     ? ["view", dep, "version", "latest"]
-    : ["npm", "info", dep, "--fields", "version", "--json"];
+    : [NODE_PACKAGE_MANAGERS.NPM, "info", dep, "--fields", "version", "--json"];
 
   const execRunner = execFn || exec;
   const { stdout = "" } = await execRunner(runner, cmd);
@@ -388,7 +394,9 @@ export const constructVersionMap = async ({
   const resolveLatestVersion =
     resolveVersion ||
     ((packageName: string) => resolveFromRegistry(packageName, yarnConfig, execFn));
-  const cacheNamespace = cachePrefix || `${yarnConfig ? "yarn" : "npm"}`;
+  const cacheNamespace =
+    cachePrefix ||
+    `${yarnConfig ? NODE_PACKAGE_MANAGERS.YARN : NODE_PACKAGE_MANAGERS.NPM}`;
 
   const updatedCodeDependencies = await mapWithConcurrency(
     codependencies,
@@ -446,14 +454,20 @@ export const constructVersionMap = async ({
 export const constructVersionTypes = (
   version: string,
 ): Record<string, string> => {
-  const hasSpecialPrefix = version.startsWith("^") || version.startsWith("~");
+  const prefix = VERSION_PREFIXES.find((candidate) =>
+    version.startsWith(candidate),
+  );
 
-  if (!hasSpecialPrefix) {
+  if (!prefix) {
     return { bumpCharacter: "", bumpVersion: version, exactVersion: version };
   }
 
-  const bumpCharacter = version[0];
-  const exactVersion = version.replace(/^[~^]+/, "");
+  const bumpCharacter =
+    prefix === "^" || prefix === "~" ? version[0] : prefix;
+  const exactVersion =
+    prefix === "^" || prefix === "~"
+      ? version.replace(/^[~^]+/, "")
+      : version.slice(prefix.length);
 
   return { bumpCharacter, bumpVersion: version, exactVersion };
 };
@@ -466,8 +480,9 @@ const isUpdatablePermissiveDep = (
 ): boolean => {
   const latestVersion = versionMap[name];
   if (!latestVersion) return false;
-  const isDifferent = exactVersion !== latestVersion;
-  const isAllowed = isWithinLevel(exactVersion, latestVersion, level);
+  const normalizedLatestVersion = constructVersionTypes(latestVersion).exactVersion;
+  const isDifferent = exactVersion !== normalizedLatestVersion;
+  const isAllowed = isWithinLevel(exactVersion, normalizedLatestVersion, level);
   return isDifferent && isAllowed;
 };
 
@@ -491,8 +506,8 @@ export const constructPermissiveDepsToUpdateList = (
     .map(({ name, version, bumpCharacter }) => ({
       name,
       actual: version,
-      exact: versionMap[name],
-      expected: `${bumpCharacter}${versionMap[name]}`,
+      exact: constructVersionTypes(versionMap[name]).exactVersion,
+      expected: `${bumpCharacter}${constructVersionTypes(versionMap[name]).exactVersion}`,
     }));
 };
 
@@ -504,8 +519,9 @@ const isUpdatableDep = (
 ): boolean => {
   const latestVersion = versionMap[name];
   if (!latestVersion) return false;
-  const isDifferent = latestVersion !== exactVersion;
-  const isAllowed = isWithinLevel(exactVersion, latestVersion, level);
+  const normalizedLatestVersion = constructVersionTypes(latestVersion).exactVersion;
+  const isDifferent = normalizedLatestVersion !== exactVersion;
+  const isAllowed = isWithinLevel(exactVersion, normalizedLatestVersion, level);
   return isDifferent && isAllowed;
 };
 
@@ -528,8 +544,8 @@ export const constructDepsToUpdateList = (
     .map(({ name, bumpVersion, bumpCharacter }) => ({
       name,
       actual: bumpVersion,
-      exact: versionMap[name],
-      expected: `${bumpCharacter}${versionMap[name]}`,
+      exact: constructVersionTypes(versionMap[name]).exactVersion,
+      expected: `${bumpCharacter}${constructVersionTypes(versionMap[name]).exactVersion}`,
     }));
 };
 

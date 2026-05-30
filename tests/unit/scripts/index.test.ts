@@ -204,6 +204,15 @@ test("constructVersionTypes => with ^", () => {
   });
 });
 
+test("constructVersionTypes => preserves equality prefix", () => {
+  const result = constructVersionTypes("==2.28.0");
+  expect(result).toEqual({
+    bumpCharacter: "==",
+    bumpVersion: "==2.28.0",
+    exactVersion: "2.28.0",
+  });
+});
+
 test("constructVersionTypes with no specifier", () => {
   const { bumpVersion, exactVersion } = constructVersionTypes("1.2.3");
   expect(bumpVersion).toEqual(exactVersion);
@@ -241,6 +250,21 @@ test("constructDepsToUpdateList => preserves caret prefix", () => {
       exact: "2.0.0",
       expected: "^2.0.0",
       actual: "^1.0.0",
+    },
+  ]);
+});
+
+test("constructDepsToUpdateList => preserves equality prefix once", () => {
+  const result = constructDepsToUpdateList(
+    { requests: "==2.28.0" },
+    { requests: "==2.31.0" },
+  );
+  expect(result).toEqual([
+    {
+      name: "requests",
+      exact: "2.31.0",
+      expected: "==2.31.0",
+      actual: "==2.28.0",
     },
   ]);
 });

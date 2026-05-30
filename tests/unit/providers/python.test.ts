@@ -418,6 +418,41 @@ python_version = "3.11"
     });
   });
 
+  describe("readManifest - environment.yml", () => {
+    const tmpDir = join(__dirname, ".tmp-conda-test");
+
+    beforeEach(() => {
+      rmSync(tmpDir, { recursive: true, force: true });
+      mkdirSync(tmpDir, { recursive: true });
+    });
+
+    test("should read conda dependencies and skip Python runtime and nested pip", async () => {
+      const envPath = join(tmpDir, "environment.yml");
+      const content = `name: myenv
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy=1.24.0
+  - pandas>=2.0.0
+  - pip:
+      - requests==2.31.0
+variables:
+  EXAMPLE: true
+`;
+
+      writeFileSync(envPath, content);
+
+      const provider = new PythonProvider(envPath, "conda");
+      const manifest = await provider.readManifest(envPath);
+
+      expect(manifest.dependencies).toEqual({
+        numpy: "=1.24.0",
+        pandas: ">=2.0.0",
+      });
+    });
+  });
+
   describe("writeManifest - requirements.txt", () => {
     const tmpDir = join(__dirname, ".tmp-python-write-test");
 
@@ -543,6 +578,45 @@ pytest = "==7.4.0"
       expect(content).toContain('flask = ">=2.0.0"');
       expect(content).not.toContain("old-package");
       expect(content).toContain('[dev-packages]');
+    });
+  });
+
+  describe("writeManifest - environment.yml", () => {
+    const tmpDir = join(__dirname, ".tmp-conda-write-test");
+
+    beforeEach(() => {
+      rmSync(tmpDir, { recursive: true, force: true });
+      mkdirSync(tmpDir, { recursive: true });
+    });
+
+    test("should update conda dependencies without touching runtime or nested pip", async () => {
+      const envPath = join(tmpDir, "environment.yml");
+      const original = `name: myenv
+dependencies:
+  - python=3.11
+  - numpy=1.24.0 # keep comment
+  - pandas>=2.0.0
+  - pip:
+      - requests==2.31.0
+`;
+
+      writeFileSync(envPath, original);
+
+      const provider = new PythonProvider(envPath, "conda");
+      await provider.writeManifest(envPath, {
+        filePath: envPath,
+        dependencies: {
+          numpy: "=1.25.0",
+          pandas: ">=2.1.0",
+        },
+      });
+
+      const content = readFileSync(envPath, "utf8");
+
+      expect(content).toContain("  - python=3.11");
+      expect(content).toContain("  - numpy=1.25.0 # keep comment");
+      expect(content).toContain("  - pandas>=2.1.0");
+      expect(content).toContain("      - requests==2.31.0");
     });
   });
 

@@ -1,5 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import {
+  parseCondaDependencyLine,
   parseRequirementLine,
   parsePoetryLine,
 } from "../../../src/providers/python";
@@ -73,6 +74,28 @@ describe("parseRequirementLine", () => {
     const result = parseRequirementLine("my_package==1.0.0");
 
     expect(result).toEqual(["my_package", "==1.0.0"]);
+  });
+});
+
+describe("parseCondaDependencyLine", () => {
+  test("parses conda exact dependency", () => {
+    const result = parseCondaDependencyLine("  - numpy=1.24.0");
+
+    expect(result).toEqual(["numpy", "=1.24.0"]);
+  });
+
+  test("parses conda comparison dependency", () => {
+    const result = parseCondaDependencyLine("  - pandas>=2.0.0");
+
+    expect(result).toEqual(["pandas", ">=2.0.0"]);
+  });
+
+  test("ignores python runtime dependency", () => {
+    expect(parseCondaDependencyLine("  - python=3.11")).toBeNull();
+  });
+
+  test("ignores nested pip group header", () => {
+    expect(parseCondaDependencyLine("  - pip:")).toBeNull();
   });
 });
 

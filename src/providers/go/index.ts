@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from "fs";
 import { dirname } from "path";
 import { exec } from "../../utils/exec";
 import { logger } from "../../logger";
+import { LANGUAGES } from "../constants";
 import { GO_PATTERNS } from "./constants";
 import type {
   DependencyProvider,
@@ -155,7 +156,7 @@ export const buildRequireBlock = (dependencies: Record<string, string>): string 
 };
 
 export class GoProvider implements DependencyProvider {
-  readonly language = "go" as const;
+  readonly language = LANGUAGES.GO;
   private options: ProviderOptions;
 
   constructor(options: ProviderOptions = {}) {
@@ -163,7 +164,7 @@ export class GoProvider implements DependencyProvider {
   }
 
   async getLatestVersion(packageName: string): Promise<string> {
-    const { stdout } = await exec("go", [
+    const { stdout } = await exec(LANGUAGES.GO, [
       "list",
       "-m",
       "-versions",
@@ -176,7 +177,7 @@ export class GoProvider implements DependencyProvider {
   }
 
   async getAllVersions(packageName: string): Promise<string[]> {
-    const { stdout } = await exec("go", [
+    const { stdout } = await exec(LANGUAGES.GO, [
       "list",
       "-m",
       "-versions",
@@ -249,7 +250,7 @@ export class GoProvider implements DependencyProvider {
     if (this.options.isTesting) return;
 
     try {
-      await exec("go", ["mod", "tidy"], { cwd: dirname(filePath) });
+      await exec(LANGUAGES.GO, ["mod", "tidy"], { cwd: dirname(filePath) });
     } catch (error) {
       if (this.options.debug) {
         logger.error("Failed to run go mod tidy", error as Error);
