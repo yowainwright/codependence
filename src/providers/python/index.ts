@@ -300,10 +300,10 @@ export class PythonProvider implements DependencyProvider {
       }
       if (itemIndent !== dependencyItemIndent) continue;
 
-      const parsed = parseCondaDependencyLine(line);
+      const parsed = parseCondaDependencySpec(itemMatch[2]);
       if (!parsed) continue;
 
-      dependencies[parsed[0]] = parsed[1];
+      dependencies[parsed.name] = parsed.version;
     }
 
     return { filePath, dependencies };
