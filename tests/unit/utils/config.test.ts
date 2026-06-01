@@ -52,13 +52,11 @@ describe("Config Loading", () => {
       expect(result).toBeNull();
     });
 
-    test("should return null on JSON parse error", () => {
+    test("should throw on JSON parse error for explicit config", () => {
       const badPath = join(tmpDir, "bad.json");
       writeFileSync(badPath, "{ invalid json");
 
-      const result = loadConfig(badPath);
-
-      expect(result).toBeNull();
+      expect(() => loadConfig(badPath)).toThrow("Failed to load config");
     });
 
     test("should search for config if no path provided", () => {
@@ -111,6 +109,51 @@ describe("Config Loading", () => {
       expect(result).not.toBeNull();
       expect(result?.config).toEqual(config);
     });
+
+    test("should load from .codependencerc.yaml", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yaml");
+      writeFileSync(
+        rcPath,
+        [
+          "codependencies:",
+          "  - lodash",
+          "  - react: 18.2.0",
+          "permissive: false",
+          "mode: verbose",
+        ].join("\n"),
+      );
+
+      const result = loadConfig(rcPath);
+
+      expect(result).not.toBeNull();
+      expect(result?.config).toEqual({
+        codependencies: ["lodash", { react: "18.2.0" }],
+        permissive: false,
+        mode: "verbose",
+      });
+    });
+
+    test("should load inline YAML values for the config API", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yml");
+      writeFileSync(
+        rcPath,
+        [
+          'codependencies: ["lodash", { react: "18.2.0" }]',
+          'files: ["package.json", "packages/*/package.json"]',
+          'ignore: ["**/node_modules/**"]',
+          "level: minor",
+        ].join("\n"),
+      );
+
+      const result = loadConfig(rcPath);
+
+      expect(result?.config).toEqual({
+        codependencies: ["lodash", { react: "18.2.0" }],
+        files: ["package.json", "packages/*/package.json"],
+        ignore: ["**/node_modules/**"],
+        level: "minor",
+      });
+    });
   });
 
   describe("searchForConfig behavior", () => {
@@ -132,6 +175,18 @@ describe("Config Loading", () => {
       const result = loadConfig(undefined, tmpDir);
 
       expect(result?.filepath).toBe(join(tmpDir, ".codependencerc.json"));
+    });
+
+    test("should find legacy yaml rc files in current directory", () => {
+      writeFileSync(
+        join(tmpDir, ".codependencerc.yml"),
+        "codependencies:\n  - lodash\n",
+      );
+
+      const result = loadConfig(undefined, tmpDir);
+
+      expect(result?.filepath).toBe(join(tmpDir, ".codependencerc.yml"));
+      expect(result?.config).toEqual({ codependencies: ["lodash"] });
     });
 
     test("should find package.json with codependence field", () => {
@@ -194,12 +249,26 @@ describe("Config Loading", () => {
       expect(result?.filepath).toBe(join(tmpDir, ".codependencerc"));
     });
 
-    test("should handle malformed package.json gracefully", () => {
+    test("should throw for malformed package.json during config search", () => {
       writeFileSync(join(tmpDir, "package.json"), "{ invalid json");
 
-      const result = loadConfig(undefined, tmpDir);
+      expect(() => loadConfig(undefined, tmpDir)).toThrow(
+        "package.json is not valid JSON",
+      );
+    });
 
-      expect(result).toBeNull();
+    test("should throw for malformed discovered rc files instead of falling back", () => {
+      writeFileSync(join(tmpDir, ".codependencerc"), "{ invalid json");
+      writeFileSync(
+        join(tmpDir, "package.json"),
+        JSON.stringify({
+          codependence: { codependencies: ["lodash"] },
+        }),
+      );
+
+      expect(() => loadConfig(undefined, tmpDir)).toThrow(
+        "Failed to load config",
+      );
     });
   });
 
@@ -230,22 +299,18 @@ describe("Config Loading", () => {
       expect(result?.config).toEqual(config);
     });
 
-    test("should return null for empty file", () => {
+    test("should throw for empty file", () => {
       const rcPath = join(tmpDir, ".codependencerc");
       writeFileSync(rcPath, "");
 
-      const result = loadConfig(rcPath);
-
-      expect(result).toBeNull();
+      expect(() => loadConfig(rcPath)).toThrow("Failed to load config");
     });
 
-    test("should return null for file with only whitespace", () => {
+    test("should throw for file with only whitespace", () => {
       const rcPath = join(tmpDir, ".codependencerc");
       writeFileSync(rcPath, "   \n  \t  ");
 
-      const result = loadConfig(rcPath);
-
-      expect(result).toBeNull();
+      expect(() => loadConfig(rcPath)).toThrow("Failed to load config");
     });
   });
 });

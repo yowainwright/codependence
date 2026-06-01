@@ -3,6 +3,8 @@ import { LANGUAGES, MANIFEST_FILES } from "../providers/constants";
 export const CONFIG_FILES = [
   ".codependencerc",
   ".codependencerc.json",
+  ".codependencerc.yaml",
+  ".codependencerc.yml",
   MANIFEST_FILES.PACKAGE_JSON,
 ] as const;
 
