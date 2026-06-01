@@ -1,15 +1,16 @@
 import { readFileSync } from "fs";
 import { extname } from "path";
 
+type ParsedLine = {
+  indent: number;
+  text: string;
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 export class ConfigLoadError extends Error {
-  constructor(
-    filepath: string,
-    message: string,
-    readonly cause?: unknown,
-  ) {
+  constructor(filepath: string, message: string) {
     super(`Failed to load config ${filepath}: ${message}`);
     this.name = "ConfigLoadError";
   }
@@ -24,7 +25,58 @@ export const parseJSON = (content: string): Record<string, unknown> | null => {
   }
 };
 
-const stripYamlComment = (value: string): string => {
+const stripComment = (line: string): string => {
+  let quote: string | null = null;
+
+  for (let index = 0; index < line.length; index++) {
+    const char = line[index];
+    const previous = line[index - 1];
+
+    if ((char === "\"" || char === "'") && previous !== "\\") {
+      quote = quote === char ? null : quote || char;
+    }
+
+    if (char === "#" && quote === null) {
+      const isSeparated = index === 0 || /\s/.test(previous);
+      if (isSeparated) return line.slice(0, index).trimEnd();
+    }
+  }
+
+  return line;
+};
+
+const parseLines = (content: string): ParsedLine[] =>
+  content
+    .split(/\r?\n/)
+    .map((line) => {
+      const text = stripComment(line);
+      return {
+        indent: text.match(/^\s*/)?.[0].length || 0,
+        text: text.trim(),
+      };
+    })
+    .filter((line) => line.text.length > 0);
+
+const unquote = (value: string): string => {
+  const trimmed = value.trim();
+  const quote = trimmed[0];
+  const isQuoted =
+    (quote === "\"" || quote === "'") && trimmed.endsWith(quote);
+
+  if (!isQuoted) return trimmed;
+
+  if (quote === "\"") {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return trimmed.slice(1, -1);
+    }
+  }
+
+  return trimmed.slice(1, -1);
+};
+
+const findSeparator = (value: string): number => {
   let quote: string | null = null;
 
   for (let index = 0; index < value.length; index++) {
@@ -35,18 +87,16 @@ const stripYamlComment = (value: string): string => {
       quote = quote === char ? null : quote || char;
     }
 
-    const isCommentStart = char === "#" && quote === null;
-    const isSeparated = index === 0 || /\s/.test(previous);
-    if (isCommentStart && isSeparated) return value.slice(0, index).trimEnd();
+    if (char === ":" && quote === null) return index;
   }
 
-  return value;
+  return -1;
 };
 
-const splitInlineYamlArray = (value: string): string[] => {
+const splitInlineArray = (value: string): string[] => {
   const items: string[] = [];
   let quote: string | null = null;
-  let depth = 0;
+  let braceDepth = 0;
   let current = "";
 
   for (const char of value) {
@@ -54,10 +104,10 @@ const splitInlineYamlArray = (value: string): string[] => {
       quote = quote === char ? null : quote || char;
     }
 
-    if (quote === null && (char === "{" || char === "[")) depth++;
-    if (quote === null && (char === "}" || char === "]")) depth--;
+    if (quote === null && char === "{") braceDepth++;
+    if (quote === null && char === "}") braceDepth--;
 
-    if (char === "," && quote === null && depth === 0) {
+    if (char === "," && quote === null && braceDepth === 0) {
       items.push(current.trim());
       current = "";
     } else {
@@ -69,128 +119,101 @@ const splitInlineYamlArray = (value: string): string[] => {
   return items;
 };
 
-const findYamlSeparator = (value: string): number => {
-  let quote: string | null = null;
-  let depth = 0;
+const parseScalar = (value: string): unknown => {
+  const trimmed = value.trim();
 
-  for (let index = 0; index < value.length; index++) {
-    const char = value[index];
-    const previous = value[index - 1];
+  if (trimmed === "true") return true;
+  if (trimmed === "false") return false;
+  if (trimmed === "null") return null;
 
-    if ((char === "\"" || char === "'") && previous !== "\\") {
-      quote = quote === char ? null : quote || char;
-    }
-
-    if (quote === null && (char === "{" || char === "[")) depth++;
-    if (quote === null && (char === "}" || char === "]")) depth--;
-    if (char === ":" && quote === null && depth === 0) return index;
-  }
-
-  return -1;
+  return unquote(trimmed);
 };
 
-const parseYamlScalar = (rawValue: string): unknown => {
-  const value = stripYamlComment(rawValue).trim();
+const parseInlineObject = (value: string): Record<string, unknown> | null => {
+  const trimmed = value.trim();
+  const isObject = trimmed.startsWith("{") && trimmed.endsWith("}");
+  if (!isObject) return null;
 
-  if (value === "true") return true;
-  if (value === "false") return false;
-  if (value === "null") return null;
+  const body = trimmed.slice(1, -1).trim();
+  const separator = findSeparator(body);
+  if (separator < 0) return null;
 
-  const isQuoted =
-    (value.startsWith("\"") && value.endsWith("\"")) ||
-    (value.startsWith("'") && value.endsWith("'"));
-  if (value.startsWith("\"") && value.endsWith("\"")) {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return value.slice(1, -1);
-    }
-  }
-  if (isQuoted) return value.slice(1, -1);
-
-  if (value.startsWith("[") && value.endsWith("]")) {
-    const inner = value.slice(1, -1).trim();
-    if (!inner) return [];
-    return splitInlineYamlArray(inner).map(parseYamlValue);
-  }
-
-  if (value.startsWith("{") && value.endsWith("}")) {
-    const inner = value.slice(1, -1).trim();
-    if (!inner) return {};
-
-    return splitInlineYamlArray(inner).reduce<Record<string, unknown> | null>(
-      (acc, pair) => {
-        if (!acc) return null;
-
-        const separatorIndex = findYamlSeparator(pair);
-        if (separatorIndex < 0) return null;
-
-        const key = parseYamlScalar(pair.slice(0, separatorIndex));
-        if (typeof key !== "string") return null;
-
-        return {
-          ...acc,
-          [key]: parseYamlValue(pair.slice(separatorIndex + 1)),
-        };
-      },
-      {},
-    );
-  }
-
-  return value;
+  const key = unquote(body.slice(0, separator));
+  const objectValue = body.slice(separator + 1);
+  return { [key]: parseScalar(objectValue) };
 };
 
-const parseYamlValue = (rawValue: string): unknown => parseYamlScalar(rawValue);
+const parseValue = (value: string): unknown => {
+  const trimmed = value.trim();
 
-const parseYamlArrayItem = (rawValue: string): unknown => {
-  const value = stripYamlComment(rawValue).trim();
-  const separatorIndex = findYamlSeparator(value);
-
-  if (separatorIndex > -1) {
-    const key = parseYamlScalar(value.slice(0, separatorIndex));
-    if (typeof key !== "string") return null;
-    return { [key]: parseYamlValue(value.slice(separatorIndex + 1)) };
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+    const body = trimmed.slice(1, -1).trim();
+    return body ? splitInlineArray(body).map(parseArrayItem) : [];
   }
 
-  return parseYamlValue(value);
+  return parseInlineObject(trimmed) ?? parseScalar(trimmed);
 };
 
+const parseArrayItem = (value: string): unknown => {
+  const inlineObject = parseInlineObject(value);
+  if (inlineObject) return inlineObject;
+
+  const separator = findSeparator(value);
+  if (separator > -1) {
+    const key = unquote(value.slice(0, separator));
+    return { [key]: parseValue(value.slice(separator + 1)) };
+  }
+
+  return parseValue(value);
+};
+
+const parseBlockArray = (
+  lines: ParsedLine[],
+  startIndex: number,
+): { value: unknown[]; nextIndex: number } | null => {
+  const value: unknown[] = [];
+  let index = startIndex;
+
+  while (index < lines.length && lines[index].indent > 0) {
+    const line = lines[index];
+    if (!line.text.startsWith("- ")) return null;
+
+    value.push(parseArrayItem(line.text.slice(2)));
+    index++;
+  }
+
+  return { value, nextIndex: index };
+};
+
+// This is intentionally a small config parser, not a full YAML implementation.
 export const parseYAML = (content: string): Record<string, unknown> | null => {
-  if (!content.trim()) return null;
+  const lines = parseLines(content);
+  if (lines.length === 0) return null;
 
   const config: Record<string, unknown> = {};
-  let currentArrayKey: string | null = null;
+  let index = 0;
 
-  for (const line of content.split(/\r?\n/)) {
-    if (!line.trim() || line.trimStart().startsWith("#")) continue;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (line.indent !== 0) return null;
 
-    const indent = line.match(/^\s*/)?.[0].length || 0;
-    const trimmed = line.trim();
+    const separator = findSeparator(line.text);
+    if (separator < 0) return null;
 
-    if (indent === 0) {
-      const separatorIndex = findYamlSeparator(trimmed);
-      if (separatorIndex < 0) return null;
+    const key = unquote(line.text.slice(0, separator));
+    const rawValue = line.text.slice(separator + 1).trim();
 
-      const key = parseYamlScalar(trimmed.slice(0, separatorIndex));
-      if (typeof key !== "string") return null;
-
-      const value = trimmed.slice(separatorIndex + 1).trim();
-      if (value === "") {
-        config[key] = [];
-        currentArrayKey = key;
-      } else {
-        config[key] = parseYamlValue(value);
-        currentArrayKey = null;
-      }
+    if (rawValue) {
+      config[key] = parseValue(rawValue);
+      index++;
       continue;
     }
 
-    if (!currentArrayKey || !trimmed.startsWith("- ")) return null;
+    const block = parseBlockArray(lines, index + 1);
+    if (!block) return null;
 
-    const currentValue = config[currentArrayKey];
-    if (!Array.isArray(currentValue)) return null;
-
-    currentValue.push(parseYamlArrayItem(trimmed.slice(2)));
+    config[key] = block.value;
+    index = block.nextIndex;
   }
 
   return Object.keys(config).length > 0 ? config : null;
@@ -199,28 +222,22 @@ export const parseYAML = (content: string): Record<string, unknown> | null => {
 export const loadPackageJson = (
   filepath: string,
 ): Record<string, unknown> | null => {
-  const content = readFileSync(filepath, "utf8");
-  const json = parseJSON(content);
+  const json = parseJSON(readFileSync(filepath, "utf8"));
   if (!json) {
     throw new ConfigLoadError(filepath, "package.json is not valid JSON");
   }
 
   const codependenceConfig = json.codependence;
-  if (!codependenceConfig || typeof codependenceConfig !== "object") {
-    return null;
-  }
-
-  return codependenceConfig as Record<string, unknown>;
+  return isRecord(codependenceConfig) ? codependenceConfig : null;
 };
 
 export const loadRcFile = (filepath: string): Record<string, unknown> | null => {
   const content = readFileSync(filepath, "utf8");
   const extension = extname(filepath);
-
   const config =
     extension === ".yaml" || extension === ".yml"
       ? parseYAML(content)
-      : parseJSON(content) || parseYAML(content);
+      : parseJSON(content) ?? parseYAML(content);
 
   if (!config) {
     throw new ConfigLoadError(

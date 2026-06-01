@@ -62,7 +62,7 @@ export class NodeJSProvider implements DependencyProvider {
     return JSON.parse(stdout);
   }
 
-  async readManifest(filePath: string): Promise<DependencyManifest> {
+  readManifest(filePath: string): DependencyManifest {
     const content = readFileSync(filePath, "utf8");
     const json = JSON.parse(content);
 
@@ -77,10 +77,10 @@ export class NodeJSProvider implements DependencyProvider {
     };
   }
 
-  async writeManifest(
+  writeManifest(
     filePath: string,
     manifest: DependencyManifest,
-  ): Promise<void> {
+  ): void {
     const content = readFileSync(filePath, "utf8");
     const json = JSON.parse(content);
 

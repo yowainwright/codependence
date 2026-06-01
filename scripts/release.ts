@@ -122,7 +122,7 @@ export function createRunner(cwd: string): ReleaseRunner {
   };
 }
 
-export async function runRelease(options: ReleaseOptions = {}): Promise<number> {
+export function runRelease(options: ReleaseOptions = {}): number {
   const cwd = options.cwd ?? process.cwd();
   const logger = options.logger ?? console;
   const runner = options.runner ?? createRunner(cwd);
@@ -259,7 +259,7 @@ function restoreStartingHead(runner: ReleaseRunner, startingHead: string): void 
 
 if (import.meta.main) {
   try {
-    process.exitCode = await runRelease(parseArgs(process.argv.slice(2)));
+    process.exitCode = runRelease(parseArgs(process.argv.slice(2)));
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

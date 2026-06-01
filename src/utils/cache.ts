@@ -68,21 +68,20 @@ export const versionCache = new ResponseCache(5);
 export class RequestDeduplicator {
   private pending = new Map<string, Promise<unknown>>();
 
-  async dedupe<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  dedupe<T>(key: string, fn: () => Promise<T>): Promise<T> {
     const existingRequest = this.pending.get(key);
     if (existingRequest) {
       return existingRequest as Promise<T>;
     }
 
-    const promise = fn();
+    const promise = Promise.resolve()
+      .then(fn)
+      .finally(() => {
+        this.pending.delete(key);
+      });
     this.pending.set(key, promise);
 
-    try {
-      const result = await promise;
-      return result;
-    } finally {
-      this.pending.delete(key);
-    }
+    return promise;
   }
 
   clear(): void {

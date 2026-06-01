@@ -214,7 +214,7 @@ export class PythonProvider implements DependencyProvider {
     }
   }
 
-  async readManifest(filePath: string): Promise<DependencyManifest> {
+  readManifest(filePath: string): DependencyManifest {
     if (this.manifestType === PYTHON_MANIFEST_TYPES.REQUIREMENTS) {
       return this.readRequirementsTxt(filePath);
     }
@@ -309,10 +309,10 @@ export class PythonProvider implements DependencyProvider {
     return { filePath, dependencies };
   }
 
-  async writeManifest(
+  writeManifest(
     filePath: string,
     manifest: DependencyManifest,
-  ): Promise<void> {
+  ): void {
     if (this.manifestType === PYTHON_MANIFEST_TYPES.REQUIREMENTS) {
       this.writeRequirementsTxt(filePath, manifest);
       return;

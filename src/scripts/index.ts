@@ -179,31 +179,29 @@ const createProvider = (
   }
 };
 
-const loadManifests = async (
+const loadManifests = (
   files: string[],
   rootDir: string,
   options: Pick<CheckFiles, "language" | "debug" | "yarnConfig" | "isTesting">,
-): Promise<LoadedManifest[]> =>
-  Promise.all(
-    files.map(async (file) => {
-      const path = resolveManifestPath(rootDir, file);
-      const language =
-        options.language ||
-        inferLanguageFromFile(file) ||
-        resolveTargetLanguage(dirname(path));
-      const { provider, packageManager } = createProvider(language, path, options);
-      const manifest = await provider.readManifest(path);
+): LoadedManifest[] =>
+  files.map((file) => {
+    const path = resolveManifestPath(rootDir, file);
+    const language =
+      options.language ||
+      inferLanguageFromFile(file) ||
+      resolveTargetLanguage(dirname(path));
+    const { provider, packageManager } = createProvider(language, path, options);
+    const manifest = provider.readManifest(path);
 
-      return {
-        file,
-        path,
-        language,
-        packageManager,
-        provider,
-        manifest,
-      };
-    }),
-  );
+    return {
+      file,
+      path,
+      language,
+      packageManager,
+      provider,
+      manifest,
+    };
+  });
 
 const collectDepNamesFromManifest = (manifest: DependencyManifest): string[] =>
   DEP_SECTIONS.map((section) => manifest[section])
@@ -1115,11 +1113,11 @@ export const checkFiles = async ({
   try {
     const resolvedRootDir = resolve(rootDir);
     const effectiveMatchers = resolveMatchers(resolvedRootDir, matchers, language);
-    const files = await glob(effectiveMatchers, {
+    const files = glob(effectiveMatchers, {
       cwd: resolvedRootDir,
       ignore,
     });
-    const manifests = await loadManifests(files, resolvedRootDir, {
+    const manifests = loadManifests(files, resolvedRootDir, {
       language,
       debug,
       yarnConfig,

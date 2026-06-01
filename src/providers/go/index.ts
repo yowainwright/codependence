@@ -186,7 +186,7 @@ export class GoProvider implements DependencyProvider {
     return stdout.split(" ").filter((v) => GO_PATTERNS.VERSION_PREFIX.test(v));
   }
 
-  async readManifest(filePath: string): Promise<DependencyManifest> {
+  readManifest(filePath: string): DependencyManifest {
     const content = readFileSync(filePath, "utf8");
 
     const moduleMatch = content.match(GO_PATTERNS.MODULE);

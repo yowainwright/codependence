@@ -132,7 +132,7 @@ describe("scripts/release", () => {
     expect(formatReleasePlan(plan)).toContain("3. git push origin refs/tags/v1.2.4-beta.6");
   });
 
-  test("runRelease dry run validates main and reports the planned release", async () => {
+  test("runRelease dry run validates main and reports the planned release", () => {
     let output = "";
     const logger = {
       error: mock(() => {}),
@@ -149,7 +149,7 @@ describe("scripts/release", () => {
         ok("1.2.4-beta.6\n"),
     });
 
-    const code = await runRelease({
+    const code = runRelease({
       dryRun: true,
       logger,
       preRelease: "beta",
@@ -169,23 +169,23 @@ describe("scripts/release", () => {
     ]);
   });
 
-  test("runRelease requires a clean main branch", async () => {
+  test("runRelease requires a clean main branch", () => {
     const { runner } = createRunner({
       "git branch --show-current": ok("release-fix\n"),
       "git status --short": ok(""),
     });
 
-    await expect(runRelease({ dryRun: true, runner })).rejects.toThrow("Run releases from main");
+    expect(() => runRelease({ dryRun: true, runner })).toThrow("Run releases from main");
   });
 
-  test("runRelease surfaces command failures", async () => {
+  test("runRelease surfaces command failures", () => {
     const { runner } = createRunner({
       ...readyOverrides,
       "./node_modules/.bin/release-it --release-version --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
         fail("release-it failed"),
     });
 
-    await expect(runRelease({ dryRun: true, runner })).rejects.toThrow("release-it failed");
+    expect(() => runRelease({ dryRun: true, runner })).toThrow("release-it failed");
   });
 
   test("incrementPreReleaseVersion advances the prerelease number", () => {
@@ -230,7 +230,7 @@ describe("scripts/release", () => {
     ).toBe("1.2.4-beta.8");
   });
 
-  test("runRelease dry run advances past an existing prerelease tag", async () => {
+  test("runRelease dry run advances past an existing prerelease tag", () => {
     let output = "";
     const logger = {
       error: mock(() => {}),
@@ -249,7 +249,7 @@ describe("scripts/release", () => {
         ok("1.2.4-beta.6\n"),
     });
 
-    const code = await runRelease({
+    const code = runRelease({
       dryRun: true,
       logger,
       preRelease: "beta",
@@ -261,7 +261,7 @@ describe("scripts/release", () => {
     expect(output).toContain("./node_modules/.bin/release-it 1.2.4-beta.7 --preRelease=beta");
   });
 
-  test("runRelease creates a release commit and pushes the release tag", async () => {
+  test("runRelease creates a release commit and pushes the release tag", () => {
     const logger = {
       error: mock(() => {}),
       log: mock(() => {}),
@@ -280,7 +280,7 @@ describe("scripts/release", () => {
       "git reset --hard abc": ok(""),
     });
 
-    const code = await runRelease({ logger, runner });
+    const code = runRelease({ logger, runner });
 
     expect(code).toBe(0);
     expect(logger.log).toHaveBeenCalledWith("Pushed v1.2.4");
@@ -288,7 +288,7 @@ describe("scripts/release", () => {
     expect(calls()).toContainEqual(["git", "reset", "--hard", "abc"]);
   });
 
-  test("runRelease does not call GitHub PR commands", async () => {
+  test("runRelease does not call GitHub PR commands", () => {
     const logger = {
       error: mock(() => {}),
       log: mock(() => {}),
@@ -307,12 +307,12 @@ describe("scripts/release", () => {
       "git reset --hard abc": ok(""),
     });
 
-    await runRelease({ logger, runner });
+    runRelease({ logger, runner });
 
     expect(calls().some((call) => call[0] === "gh")).toBe(false);
   });
 
-  test("runRelease restores main when tag push fails", async () => {
+  test("runRelease restores main when tag push fails", () => {
     const logger = {
       error: mock(() => {}),
       log: mock(() => {}),
@@ -332,7 +332,7 @@ describe("scripts/release", () => {
       "git reset --hard abc": ok(""),
     });
 
-    await expect(runRelease({ logger, runner })).rejects.toThrow("push rejected");
+    expect(() => runRelease({ logger, runner })).toThrow("push rejected");
     expect(calls()).toContainEqual(["git", "tag", "--delete", "v1.2.4"]);
     expect(calls()).toContainEqual(["git", "reset", "--hard", "abc"]);
   });

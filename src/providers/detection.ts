@@ -1,5 +1,8 @@
 import { existsSync, readFileSync } from "fs";
 import { basename, dirname, join } from "path";
+import { GoProvider } from "./go";
+import { NodeJSProvider } from "./nodejs";
+import { PythonProvider } from "./python";
 import {
   CONDA_MANIFEST_FILES,
   LANGUAGES,
@@ -11,6 +14,11 @@ import {
   PYTHON_PACKAGE_MANAGERS,
 } from "./constants";
 import type { Language, LanguageDetectionResult } from "./types";
+
+type LanguageProvider =
+  | typeof NodeJSProvider
+  | typeof GoProvider
+  | typeof PythonProvider;
 
 const hasAnyFile = (rootDir: string, files: readonly string[]): boolean =>
   files.some((file) => existsSync(join(rootDir, file)));
@@ -171,20 +179,14 @@ export const detectPrimaryLanguage = (
   return detections.length > 0 ? detections[0] : null;
 };
 
-export const getLanguageProvider = async (
-  language: Language,
-): Promise<
-  | typeof import("./nodejs").NodeJSProvider
-  | typeof import("./go").GoProvider
-  | typeof import("./python").PythonProvider
-> => {
+export const getLanguageProvider = (language: Language): LanguageProvider => {
   switch (language) {
     case LANGUAGES.NODEJS:
-      return (await import("./nodejs")).NodeJSProvider;
+      return NodeJSProvider;
     case LANGUAGES.GO:
-      return (await import("./go")).GoProvider;
+      return GoProvider;
     case LANGUAGES.PYTHON:
-      return (await import("./python")).PythonProvider;
+      return PythonProvider;
     default:
       throw new Error(`Unsupported language: ${language}`);
   }

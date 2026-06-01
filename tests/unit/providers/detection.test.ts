@@ -286,26 +286,26 @@ describe("Language Detection", () => {
   });
 
   describe("getLanguageProvider", () => {
-    test("should get NodeJSProvider for nodejs", async () => {
-      const Provider = await getLanguageProvider("nodejs");
+    test("should get NodeJSProvider for nodejs", () => {
+      const Provider = getLanguageProvider("nodejs");
 
       expect(Provider).toBe(NodeJSProvider);
     });
 
-    test("should get GoProvider for go", async () => {
-      const Provider = await getLanguageProvider("go");
+    test("should get GoProvider for go", () => {
+      const Provider = getLanguageProvider("go");
 
       expect(Provider).toBe(GoProvider);
     });
 
-    test("should get PythonProvider for python", async () => {
-      const Provider = await getLanguageProvider("python");
+    test("should get PythonProvider for python", () => {
+      const Provider = getLanguageProvider("python");
 
       expect(Provider).toBe(PythonProvider);
     });
 
-    test("should throw error for unsupported language", async () => {
-      await expect(getLanguageProvider("rust" as any)).rejects.toThrow(
+    test("should throw error for unsupported language", () => {
+      expect(() => getLanguageProvider("rust" as any)).toThrow(
         "Unsupported language: rust",
       );
     });
