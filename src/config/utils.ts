@@ -93,38 +93,53 @@ const findSeparator = (value: string): number => {
   return -1;
 };
 
+type SplitState = {
+  items: string[];
+  quote: string | null;
+  braceDepth: number;
+  bracketDepth: number;
+  current: string;
+};
+
+const SPLIT_INITIAL: SplitState = {
+  items: [],
+  quote: null,
+  braceDepth: 0,
+  bracketDepth: 0,
+  current: "",
+};
+
 const splitInlineArray = (value: string): string[] => {
-  const items: string[] = [];
-  let quote: string | null = null;
-  let braceDepth = 0;
-  let bracketDepth = 0;
-  let current = "";
+  const chars = [...value];
 
-  for (const char of value) {
-    if (char === "\"" || char === "'") {
-      quote = quote === char ? null : quote || char;
-    }
+  const reduceChar = (state: SplitState, char: string, index: number): SplitState => {
+    const isQuoteChar = char === "\"" || char === "'";
+    const togglesQuote = isQuoteChar && chars[index - 1] !== "\\";
+    const openedQuote = state.quote || char;
+    const closedQuote = state.quote === char ? null : openedQuote;
+    const quote = togglesQuote ? closedQuote : state.quote;
 
-    if (quote === null && char === "{") braceDepth++;
-    if (quote === null && char === "}") braceDepth--;
-    if (quote === null && char === "[") bracketDepth++;
-    if (quote === null && char === "]") bracketDepth--;
+    const isOpen = quote === null;
+    const braceDelta = isOpen ? Number(char === "{") - Number(char === "}") : 0;
+    const bracketDelta = isOpen ? Number(char === "[") - Number(char === "]") : 0;
+    const braceDepth = state.braceDepth + braceDelta;
+    const bracketDepth = state.bracketDepth + bracketDelta;
 
-    if (
-      char === "," &&
-      quote === null &&
-      braceDepth === 0 &&
-      bracketDepth === 0
-    ) {
-      items.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
-  }
+    const isBalanced = braceDepth === 0 && bracketDepth === 0;
+    const isSeparator = char === "," && isOpen && isBalanced;
 
-  if (current.trim()) items.push(current.trim());
-  return items;
+    return {
+      items: isSeparator ? state.items.concat(state.current.trim()) : state.items,
+      quote,
+      braceDepth,
+      bracketDepth,
+      current: isSeparator ? "" : state.current + char,
+    };
+  };
+
+  const result = chars.reduce(reduceChar, SPLIT_INITIAL);
+  const trailing = result.current.trim();
+  return trailing ? result.items.concat(trailing) : result.items;
 };
 
 const parseScalar = (value: string): unknown => {
