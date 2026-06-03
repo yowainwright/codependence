@@ -1,4 +1,4 @@
-ARG NODE_ALPINE_IMAGE
+ARG NODE_ALPINE_IMAGE=node:24-alpine
 FROM ${NODE_ALPINE_IMAGE}
 
 RUN apk add --no-cache bash

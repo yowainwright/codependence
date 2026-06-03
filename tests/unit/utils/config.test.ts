@@ -154,6 +154,20 @@ describe("Config Loading", () => {
         level: "minor",
       });
     });
+
+    test("should preserve multi-key inline YAML objects for validation", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yml");
+      writeFileSync(
+        rcPath,
+        "codependencies: [{ lodash: 4.17.21, react: 18.2.0 }]",
+      );
+
+      const result = loadConfig(rcPath);
+
+      expect(result?.config).toEqual({
+        codependencies: [{ lodash: "4.17.21", react: "18.2.0" }],
+      });
+    });
   });
 
   describe("searchForConfig behavior", () => {

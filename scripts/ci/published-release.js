@@ -2,7 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
-import { runCliEntrypoint } from "./cli-entrypoint.js";
+import { isDirectCliExecution, runCliEntrypoint } from "./cli-entrypoint.js";
 import { resolveToolVersions, readToolVersionInputs } from "./tool-versions.js";
 
 export function packageSpec(packageName, version) {
@@ -246,6 +246,6 @@ export function runTestPublishedReleaseCli({
   );
 }
 
-if (import.meta.main) {
+if (isDirectCliExecution(import.meta.url)) {
   runCliEntrypoint(runTestPublishedReleaseCli);
 }

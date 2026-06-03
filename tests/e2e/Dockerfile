@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for testing codependence init functionality
-ARG NODE_SLIM_IMAGE
+ARG NODE_SLIM_IMAGE=node:24-slim
 FROM ${NODE_SLIM_IMAGE} AS builder
 
 ARG BUN_VERSION

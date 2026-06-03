@@ -1,5 +1,11 @@
 import { error } from "../utils/colors";
-import { VALID_LANGUAGES, VALID_LEVELS, VALID_MODES, KNOWN_FIELDS } from "./constants";
+import {
+  VALID_FORMATS,
+  VALID_LANGUAGES,
+  VALID_LEVELS,
+  VALID_MODES,
+  KNOWN_FIELDS,
+} from "./constants";
 import type { ValidationError, ValidationResult } from "./types";
 
 const isString = (value: unknown): value is string => typeof value === "string";
@@ -216,6 +222,54 @@ const validateLevel = createEnumValidator("level", VALID_LEVELS);
 const validateMode = createEnumValidator("mode", VALID_MODES);
 const validateFiles = createArrayValidator("files", "file", '{"files": ["**/package.json"]}');
 const validateIgnore = createArrayValidator("ignore", "ignore", '{"ignore": ["**/node_modules/**"]}');
+const validateFormat = createEnumValidator("format", VALID_FORMATS);
+
+const validateStringField = (field: string) => (
+  config: Record<string, unknown>,
+): ValidationError[] => {
+  if (!(field in config)) return [];
+
+  return isString(config[field])
+    ? []
+    : [
+        {
+          field,
+          message: `"${field}" must be a string, got ${typeof config[field]}`,
+          suggestion: `Use a string value for "${field}"`,
+        },
+      ];
+};
+
+const validateBooleanField = (field: string) => (
+  config: Record<string, unknown>,
+): ValidationError[] => {
+  if (!(field in config)) return [];
+
+  return isBoolean(config[field])
+    ? []
+    : [
+        {
+          field,
+          message: `"${field}" must be a boolean, got ${typeof config[field]}`,
+          suggestion: `Use true or false for "${field}"`,
+        },
+      ];
+};
+
+const validateRootDir = validateStringField("rootDir");
+const validateOutputFile = validateStringField("outputFile");
+const validateBooleanOptions = [
+  "update",
+  "debug",
+  "silent",
+  "verbose",
+  "quiet",
+  "yarnConfig",
+  "dryRun",
+  "interactive",
+  "watch",
+  "noCache",
+].map(validateBooleanField);
 
 const validateUnknownFields = (
   config: Record<string, unknown>,
@@ -235,7 +289,11 @@ const validateUnknownFields = (
     : [];
 };
 
-export const validateConfig = (config: unknown): ValidationResult => {
+export const validateConfig = (
+  config: unknown,
+  options: { requirePolicy?: boolean } = {},
+): ValidationResult => {
+  const requirePolicy = options.requirePolicy ?? true;
   const rootErrors = validateRootObject(config);
 
   if (rootErrors.length > 0) {
@@ -245,7 +303,7 @@ export const validateConfig = (config: unknown): ValidationResult => {
   const typedConfig = config as Record<string, unknown>;
 
   const errors = concat(
-    validateRequiredFields(typedConfig),
+    ...(requirePolicy ? [validateRequiredFields(typedConfig)] : []),
     validateCodependencies(typedConfig),
     validatePermissive(typedConfig),
     validateLanguage(typedConfig),
@@ -253,6 +311,10 @@ export const validateConfig = (config: unknown): ValidationResult => {
     validateMode(typedConfig),
     validateFiles(typedConfig),
     validateIgnore(typedConfig),
+    validateRootDir(typedConfig),
+    validateOutputFile(typedConfig),
+    validateFormat(typedConfig),
+    ...validateBooleanOptions.map((validate) => validate(typedConfig)),
     validateUnknownFields(typedConfig),
   );
 

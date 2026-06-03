@@ -6,13 +6,24 @@ import { createSpinner } from "./utils/spinner";
 import { cyan, bold, green, gray, red } from "./utils/colors";
 import { SYMBOLS } from "./utils/symbols";
 import { Prompt } from "./utils/prompts";
-import { loadConfig } from "./config";
+import { formatValidationErrors, loadConfig, validateConfig } from "./config";
 import { parseArgs, showHelp } from "./cli/parser";
 import { format } from "./utils/formatters";
 import { MANIFEST_FILES } from "./providers/constants";
 import { Options, PackageJSON, CodependenceConfig, DependencyInfo } from "./types";
 
 const gradient = (text: string) => bold(cyan(text));
+const CLI_ERROR_EXIT_CODE = 2;
+
+const errorMessage = (err: unknown): string =>
+  err instanceof Error ? err.message : String(err);
+
+const internalOptionFields = new Set(["isCLI", "isTesting"]);
+
+const publicConfigOptions = (options: Options): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(options).filter(([key]) => !internalOptionFields.has(key)),
+  );
 
 export const mergeConfigs = (
   options: Options,
@@ -47,6 +58,31 @@ export const mergeConfigs = (
   return updatedOptions as Options;
 };
 
+const validateEffectiveConfig = (options: Options): void => {
+  const result = validateConfig(publicConfigOptions(options));
+  if (result.valid) return;
+
+  throw new Error(`Invalid config\n${formatValidationErrors(result.errors)}`);
+};
+
+const loadActionConfigs = (
+  options: Options,
+): {
+  baseConfig: Record<string, unknown>;
+  pathConfig: Record<string, unknown>;
+} => {
+  if (options.config) {
+    const configFileResult = loadConfig(options.config);
+    if (!configFileResult) throw new Error(`Config file not found: ${options.config}`);
+    return { baseConfig: {}, pathConfig: configFileResult.config };
+  }
+
+  const result = loadConfig(undefined, options.searchPath);
+  if (!result) return { baseConfig: {}, pathConfig: {} };
+
+  return { baseConfig: result.config, pathConfig: {} };
+};
+
 export async function action(options: Options = {}): Promise<void | Options> {
   const isVerbose = options.verbose;
   const isDebug = options.debug;
@@ -66,11 +102,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
   };
   const logger = createLogger(loggerConfig);
 
-  const result = loadConfig(undefined, options?.searchPath);
-  const configFileResult = options?.config ? loadConfig(options.config) : null;
-  const pathConfig = configFileResult?.config || {};
-  const baseConfig = result?.config || {};
-
+  const { baseConfig, pathConfig } = loadActionConfigs(options);
   const updatedOptions = mergeConfigs(options, baseConfig, pathConfig);
 
   const isTestingCLI =
@@ -103,6 +135,8 @@ export async function action(options: Options = {}): Promise<void | Options> {
         updatedOptions.mode = "precise";
       }
     }
+
+    validateEffectiveConfig(updatedOptions);
 
     const isDryRun = updatedOptions.dryRun === true;
     const isWatchMode = updatedOptions.watch === true;
@@ -168,8 +202,8 @@ export async function action(options: Options = {}): Promise<void | Options> {
     }
   } catch (err) {
     spinner?.stop();
-    logger.error((err as string).toString());
-    process.exit(1);
+    logger.error(errorMessage(err));
+    process.exit(CLI_ERROR_EXIT_CODE);
   }
 }
 

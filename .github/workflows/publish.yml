@@ -27,11 +27,13 @@ jobs:
         with:
           registry-url: "https://registry.npmjs.org"
 
-      - run: bun test tests/unit/
+      - run: bun run validate:full
         env:
           CI: true
 
       - run: bun run build-dist
+
+      - run: node dist/cli.js --help
 
       - name: Resolve npm dist-tag
         id: dist-tag

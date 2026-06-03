@@ -16,6 +16,8 @@ import {
 } from "../../src/program";
 import type { Options } from "../../src/types";
 import * as fs from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import { logger } from "../../src/logger";
 import * as scripts from "../../src/scripts";
 import * as config from "../../src/config";
@@ -187,6 +189,63 @@ describe("Action Function Tests (Fast)", () => {
     }
   });
 
+  test("allows supplemental explicit config when CLI supplies policy", async () => {
+    const workDir = fs.mkdtempSync(join(tmpdir(), "codependence-partial-config-"));
+    const configPath = join(workDir, ".codependencerc");
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        files: ["package.json"],
+        rootDir: workDir,
+      }),
+    );
+
+    try {
+      await action({
+        config: configPath,
+        codependencies: ["react"],
+      });
+
+      expect(scriptSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          codependencies: ["react"],
+          files: ["package.json"],
+          rootDir: workDir,
+        }),
+      );
+    } finally {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects multi-key inline YAML codependency objects", async () => {
+    const workDir = fs.mkdtempSync(join(tmpdir(), "codependence-yaml-config-"));
+    const configPath = join(workDir, ".codependencerc.yml");
+    fs.writeFileSync(
+      configPath,
+      "codependencies: [{ lodash: 4.17.21, react: 18.2.0 }]",
+    );
+    const errorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const exitSpy = jest
+      .spyOn(process, "exit")
+      .mockImplementation((() => {}) as () => never);
+
+    try {
+      await action({ config: configPath });
+
+      const errorCalls = errorSpy.mock.calls.flat().join(" ");
+      expect(errorCalls).toContain("exactly one key");
+      expect(exitSpy).toHaveBeenCalledWith(2);
+      expect(scriptSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+      exitSpy.mockRestore();
+      fs.rmSync(workDir, { recursive: true, force: true });
+    }
+  });
+
   test("handles array of files", async () => {
     const consoleInfoSpy = jest
       .spyOn(console, "info")
@@ -291,7 +350,7 @@ describe("Action Function Tests (Fast)", () => {
     scriptSpy.mockRestore();
     const configSpy = jest
       .spyOn(config, "loadConfig")
-      .mockReturnValue({ config: {}, configPath: null });
+      .mockReturnValue(null);
     const errorSpy = jest
       .spyOn(console, "error")
       .mockImplementation(() => {});
@@ -299,23 +358,26 @@ describe("Action Function Tests (Fast)", () => {
       .spyOn(process, "exit")
       .mockImplementation((() => {}) as () => never);
 
-    await action({
-      permissive: false,
-    });
+    try {
+      await action({
+        permissive: false,
+      });
 
-    const errorCalls = errorSpy.mock.calls.flat().join(" ");
-    expect(errorCalls).toContain("codependencies");
-    expect(exitSpy).toHaveBeenCalledWith(1);
-    errorSpy.mockRestore();
-    exitSpy.mockRestore();
-    configSpy.mockRestore();
-    scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue(undefined);
+      const errorCalls = errorSpy.mock.calls.flat().join(" ");
+      expect(errorCalls).toContain("codependencies");
+      expect(exitSpy).toHaveBeenCalledWith(2);
+    } finally {
+      errorSpy.mockRestore();
+      exitSpy.mockRestore();
+      configSpy.mockRestore();
+      scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue(undefined);
+    }
   });
 
   test("should run in permissive mode when no options provided", async () => {
     const configSpy = jest
       .spyOn(config, "loadConfig")
-      .mockReturnValue({ config: {}, configPath: null });
+      .mockReturnValue(null);
 
     await action({});
 

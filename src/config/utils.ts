@@ -97,6 +97,7 @@ const splitInlineArray = (value: string): string[] => {
   const items: string[] = [];
   let quote: string | null = null;
   let braceDepth = 0;
+  let bracketDepth = 0;
   let current = "";
 
   for (const char of value) {
@@ -106,8 +107,15 @@ const splitInlineArray = (value: string): string[] => {
 
     if (quote === null && char === "{") braceDepth++;
     if (quote === null && char === "}") braceDepth--;
+    if (quote === null && char === "[") bracketDepth++;
+    if (quote === null && char === "]") bracketDepth--;
 
-    if (char === "," && quote === null && braceDepth === 0) {
+    if (
+      char === "," &&
+      quote === null &&
+      braceDepth === 0 &&
+      bracketDepth === 0
+    ) {
       items.push(current.trim());
       current = "";
     } else {
@@ -135,12 +143,19 @@ const parseInlineObject = (value: string): Record<string, unknown> | null => {
   if (!isObject) return null;
 
   const body = trimmed.slice(1, -1).trim();
-  const separator = findSeparator(body);
-  if (separator < 0) return null;
+  if (!body) return {};
 
-  const key = unquote(body.slice(0, separator));
-  const objectValue = body.slice(separator + 1);
-  return { [key]: parseScalar(objectValue) };
+  const object: Record<string, unknown> = {};
+  for (const item of splitInlineArray(body)) {
+    const separator = findSeparator(item);
+    if (separator < 0) return null;
+
+    const key = unquote(item.slice(0, separator));
+    const objectValue = item.slice(separator + 1);
+    object[key] = parseValue(objectValue);
+  }
+
+  return object;
 };
 
 const parseValue = (value: string): unknown => {

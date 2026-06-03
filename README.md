@@ -564,14 +564,16 @@ bun install
 ## Release Strategy
 
 Git tags must match `package.json` versions. Stable tags like `v1.0.0` publish
-to npm `latest`; prerelease tags publish by identifier: `alpha`, `alfa`, `beta`,
-or `next` for other prereleases.
+to npm `latest`. Supported prerelease tags use `alpha`, `beta`, or `rc`, such as
+`v1.0.0-beta.1`, and publish to the matching npm dist-tag.
 
 Local release helpers keep the release commit and the publish trigger composable:
 
 ```sh
 bun run release:dry
+bun run release:alpha:dry
 bun run release:beta:dry
+bun run release:rc:dry
 bun run release
 ```
 

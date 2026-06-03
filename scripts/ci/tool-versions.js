@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { appendFileSync, readFileSync } from "node:fs";
+import { isDirectCliExecution, runCliEntrypoint } from "./cli-entrypoint.js";
 
 const TOOL_OUTPUT_KEYS = {
   bunVersion: "bun_version",
@@ -90,6 +91,6 @@ export function runToolVersionsCli({
   return 0;
 }
 
-if (import.meta.main) {
-  runToolVersionsCli();
+if (isDirectCliExecution(import.meta.url)) {
+  runCliEntrypoint(runToolVersionsCli);
 }

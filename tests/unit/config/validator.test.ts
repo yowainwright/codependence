@@ -153,6 +153,29 @@ describe("validateConfig", () => {
       expect(result.valid).toBe(false);
       expect(result.errors[0].field).toBe("root");
     });
+
+    it("should allow supplemental config when policy is not required", () => {
+      const config = {
+        files: ["package.json"],
+        rootDir: ".",
+      };
+
+      const result = validateConfig(config, { requirePolicy: false });
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+    });
+
+    it("should still validate supplemental config shape when policy is not required", () => {
+      const config = {
+        files: "package.json",
+      };
+
+      const result = validateConfig(config, { requirePolicy: false });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].field).toBe("files");
+    });
   });
 
   describe("codependencies validation", () => {
@@ -497,7 +520,9 @@ describe("validateConfig", () => {
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].field).toBe("root");
       expect(result.errors[0].message).toBe("Unknown field(s): unknown");
-      expect(result.errors[0].suggestion).toBe("Remove unknown fields. Valid fields are: codependencies, permissive, language, files, ignore, level, mode");
+      expect(result.errors[0].suggestion).toContain("Valid fields are:");
+      expect(result.errors[0].suggestion).toContain("codependencies");
+      expect(result.errors[0].suggestion).toContain("outputFile");
     });
 
     it("should reject multiple unknown fields", () => {

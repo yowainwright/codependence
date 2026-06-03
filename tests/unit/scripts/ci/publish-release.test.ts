@@ -4,8 +4,10 @@ import {
   buildNpmPublishArgs,
   isPrereleaseVersion,
   parseNpmPackFilename,
+  readPrereleaseIdentifier,
   resolveDistTag,
   stripTagPrefix,
+  validateReleaseVersion,
 } from "../../../../scripts/ci/publish-release.js";
 
 describe("scripts/ci/publish-release", () => {
@@ -14,6 +16,36 @@ describe("scripts/ci/publish-release", () => {
     expect(resolveDistTag("v1.0.0-beta.1")).toBe("beta");
     expect(resolveDistTag("v1.0.0-rc.1")).toBe("rc");
     expect(resolveDistTag("v1.0.0")).toBe("latest");
+  });
+
+  test("resolveDistTag rejects unsupported prerelease identifiers", () => {
+    expect(() => resolveDistTag("v1.0.0-next.1")).toThrow(
+      "Unsupported prerelease identifier: next",
+    );
+    expect(() => resolveDistTag("v1.0.0-beta-build.1")).toThrow(
+      "Unsupported prerelease identifier: beta-build",
+    );
+  });
+
+  test("resolveDistTag rejects malformed release versions", () => {
+    expect(() => resolveDistTag("v1.0.0beta.1")).toThrow(
+      "Invalid release version: v1.0.0beta.1",
+    );
+    expect(() => resolveDistTag("v1.0.0-")).toThrow(
+      "Invalid release version: v1.0.0-",
+    );
+  });
+
+  test("readPrereleaseIdentifier reads any semver prerelease identifier", () => {
+    expect(readPrereleaseIdentifier("v1.0.0-rc.1")).toBe("rc");
+    expect(readPrereleaseIdentifier("v1.0.0-next.1")).toBe("next");
+    expect(readPrereleaseIdentifier("v1.0.0-beta-build.1")).toBe("beta-build");
+    expect(readPrereleaseIdentifier("v1.0.0")).toBeUndefined();
+  });
+
+  test("validateReleaseVersion accepts stable and prerelease versions", () => {
+    expect(() => validateReleaseVersion("v1.0.0")).not.toThrow();
+    expect(() => validateReleaseVersion("1.0.0-rc.1")).not.toThrow();
   });
 
   test("parseNpmPackFilename reads npm JSON output", () => {
@@ -49,8 +81,8 @@ describe("scripts/ci/publish-release", () => {
     ).toContain("--prerelease");
   });
 
-  test("isPrereleaseVersion recognizes supported prerelease names", () => {
+  test("isPrereleaseVersion recognizes semver prerelease tags", () => {
     expect(isPrereleaseVersion("v1.0.0-beta.1")).toBe(true);
-    expect(isPrereleaseVersion("v1.0.0-next.1")).toBe(false);
+    expect(isPrereleaseVersion("v1.0.0-next.1")).toBe(true);
   });
 });
