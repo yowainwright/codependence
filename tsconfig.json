@@ -1,13 +1,12 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "target": "esnext",
     "module": "esnext",
     "rootDir": ".",
     "declaration": true,
     "outDir": "./dist",
     "strict": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "lib": ["esnext", "dom", "es6", "dom.iterable"],
     "forceConsistentCasingInFileNames": true,

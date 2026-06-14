@@ -5,9 +5,12 @@ This sandbox demonstrates basic [Codependence](https://github.com/yowainwright/c
 ## Setup
 
 ```bash
+cp package-test.json package.json
 npm install
 npm install -g codependence  # or use npx
 ```
+
+`package-test.json` is intentionally not committed as `package.json` so repository-wide vulnerability scans do not treat this demo fixture as a real project manifest.
 
 ## Commands
 
@@ -43,5 +46,5 @@ This example has intentionally outdated dependencies:
 1. Checks only packages listed in `codependence.codependencies`
 2. Compares local versions against npm registry
 3. Reports outdated packages with current versions
-4. Can update package.json automatically with `--update`
+4. Can update a local package.json automatically with `--update`
 5. Generates reports in multiple formats (JSON, Markdown, Table)
