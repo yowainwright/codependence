@@ -127,6 +127,14 @@ node = "24.3.0"
     });
   });
 
+  test("resolveToolVersions keeps project Docker pins for runtime Node overrides", () => {
+    expect(resolveVersions({ env: { INPUT_NODE_VERSION: "20" } })).toMatchObject({
+      nodeAlpineImage,
+      nodeSlimImage,
+      nodeVersion: "20",
+    });
+  });
+
   test("resolveToolVersions rejects unpinned Docker image defaults", () => {
     expect(() => resolveVersions({ nodeSlimImage: "node:24-slim" })).toThrow("Expected slim image");
   });

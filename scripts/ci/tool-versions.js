@@ -59,7 +59,10 @@ export function resolveToolVersions({
   nodeSlimImage,
   packageJson,
 }) {
-  const nodeVersion = env.INPUT_NODE_VERSION || parseMiseTool(miseToml, "node");
+  const projectNodeVersion = parseMiseTool(miseToml, "node");
+  const nodeVersion = env.INPUT_NODE_VERSION || projectNodeVersion;
+  const dockerNodeVersion =
+    env.NODE_DOCKER_VERSION || (env.NODE_ALPINE_IMAGE || env.NODE_SLIM_IMAGE ? nodeVersion : projectNodeVersion);
   const bunVersion =
     env.INPUT_BUN_VERSION || parsePackageManagerBunVersion(packageJson) || parseMiseTool(miseToml, "bun");
   const rawNodeAlpineImage = env.NODE_ALPINE_IMAGE || nodeAlpineImage;
@@ -71,9 +74,9 @@ export function resolveToolVersions({
     bunLinuxX64Sha256: env.BUN_LINUX_X64_SHA256 || bunArchiveSha({ arch: "x64", bunVersion, dockerPins }),
     bunVersion,
     nodeAlpineImage:
-      pinnedNodeImage({ flavor: "alpine", image: rawNodeAlpineImage, nodeVersion }),
+      pinnedNodeImage({ flavor: "alpine", image: rawNodeAlpineImage, nodeVersion: dockerNodeVersion }),
     nodeSlimImage:
-      pinnedNodeImage({ flavor: "slim", image: rawNodeSlimImage, nodeVersion }),
+      pinnedNodeImage({ flavor: "slim", image: rawNodeSlimImage, nodeVersion: dockerNodeVersion }),
     nodeVersion,
   };
 
