@@ -7,6 +7,8 @@ services:
       target: test
       args:
         BUN_VERSION: ${BUN_VERSION}
+        BUN_LINUX_X64_SHA256: ${BUN_LINUX_X64_SHA256}
+        BUN_LINUX_AARCH64_SHA256: ${BUN_LINUX_AARCH64_SHA256}
         NODE_SLIM_IMAGE: ${NODE_SLIM_IMAGE}
     volumes:
       - test-results:/test/results
@@ -21,6 +23,8 @@ services:
       target: test
       args:
         BUN_VERSION: ${BUN_VERSION}
+        BUN_LINUX_X64_SHA256: ${BUN_LINUX_X64_SHA256}
+        BUN_LINUX_AARCH64_SHA256: ${BUN_LINUX_AARCH64_SHA256}
         NODE_SLIM_IMAGE: ${NODE_SLIM_IMAGE}
     volumes:
       - ..:/app:ro
@@ -57,6 +61,8 @@ services:
       target: builder
       args:
         BUN_VERSION: ${BUN_VERSION}
+        BUN_LINUX_X64_SHA256: ${BUN_LINUX_X64_SHA256}
+        BUN_LINUX_AARCH64_SHA256: ${BUN_LINUX_AARCH64_SHA256}
         NODE_SLIM_IMAGE: ${NODE_SLIM_IMAGE}
     volumes:
       - ..:/app

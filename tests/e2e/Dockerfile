@@ -3,8 +3,8 @@ ARG NODE_SLIM_IMAGE=node:24-slim@sha256:2c87ef9bd3c6a3bd4b472b4bec2ce9d16354b0c5
 FROM ${NODE_SLIM_IMAGE} AS builder
 
 ARG BUN_VERSION
-ARG BUN_LINUX_X64_SHA256=951ee2aee855f08595aeec6225226a298d3fea83a3dcd6465c09cbccdf7e848f
-ARG BUN_LINUX_AARCH64_SHA256=a27ffb63a8310375836e0d6f668ae17fa8d8d18b88c37c821c65331973a19a3b
+ARG BUN_LINUX_X64_SHA256
+ARG BUN_LINUX_AARCH64_SHA256
 ARG TARGETARCH
 
 # Install curl, unzip and other necessary tools
@@ -30,9 +30,10 @@ RUN set -eu; \
         *) echo "Unsupported Bun architecture: $detected_arch" >&2; exit 1 ;; \
     esac; \
     case "$bun_arch" in \
-        x64) bun_sha="$BUN_LINUX_X64_SHA256" ;; \
-        aarch64) bun_sha="$BUN_LINUX_AARCH64_SHA256" ;; \
+        x64) bun_sha="${BUN_LINUX_X64_SHA256:-}" ;; \
+        aarch64) bun_sha="${BUN_LINUX_AARCH64_SHA256:-}" ;; \
     esac; \
+    if [ -z "$bun_sha" ]; then echo "Missing Bun SHA256 for linux-${bun_arch}" >&2; exit 1; fi; \
     curl -fsSLo /tmp/bun.zip "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-${bun_arch}.zip"; \
     echo "${bun_sha}  /tmp/bun.zip" | sha256sum -c -; \
     unzip -q /tmp/bun.zip -d /tmp; \
