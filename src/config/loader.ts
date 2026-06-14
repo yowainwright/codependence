@@ -15,17 +15,13 @@ const searchForConfig = (searchFrom: string): ConfigResult | null => {
 
       if (!existsSync(filepath)) continue;
 
-      let config: Record<string, unknown> | null = null;
-
       if (filename === MANIFEST_FILES.PACKAGE_JSON) {
-        config = loadPackageJson(filepath);
-      } else {
-        config = loadRcFile(filepath);
+        const config = loadPackageJson(filepath);
+        if (config) return { config, filepath };
+        continue;
       }
 
-      if (config) {
-        return { config, filepath };
-      }
+      return { config: loadRcFile(filepath), filepath };
     }
 
     currentDir = dirname(currentDir);
@@ -50,8 +46,7 @@ export const loadConfig = (
       return config ? { config, filepath: resolvedPath } : null;
     }
 
-    const config = loadRcFile(resolvedPath);
-    return config ? { config, filepath: resolvedPath } : null;
+    return { config: loadRcFile(resolvedPath), filepath: resolvedPath };
   }
 
   return searchForConfig(searchFrom);

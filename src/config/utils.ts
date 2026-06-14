@@ -200,13 +200,29 @@ const parseArrayItem = (value: string): unknown => {
 const parseBlockArray = (
   lines: ParsedLine[],
   startIndex: number,
+  parentIndent: number,
 ): { value: unknown[]; nextIndex: number } | null => {
+  const firstLine = lines[startIndex];
+  if (!firstLine?.text.startsWith("- ")) return null;
+  if (firstLine.indent < parentIndent) return null;
+
+  const itemIndent = firstLine.indent;
   const value: unknown[] = [];
   let index = startIndex;
 
-  while (index < lines.length && lines[index].indent > 0) {
+  while (index < lines.length) {
     const line = lines[index];
-    if (!line.text.startsWith("- ")) return null;
+    if (line.indent < itemIndent) break;
+
+    if (line.indent > itemIndent) return null;
+
+    if (!line.text.startsWith("- ")) {
+      const isNextTopLevelKey =
+        itemIndent === parentIndent && findSeparator(line.text) > -1;
+      if (isNextTopLevelKey) break;
+
+      return null;
+    }
 
     value.push(parseArrayItem(line.text.slice(2)));
     index++;
@@ -239,8 +255,12 @@ export const parseYAML = (content: string): Record<string, unknown> | null => {
       continue;
     }
 
-    const block = parseBlockArray(lines, index + 1);
-    if (!block) return null;
+    const block = parseBlockArray(lines, index + 1, line.indent);
+    if (!block) {
+      config[key] = null;
+      index++;
+      continue;
+    }
 
     config[key] = block.value;
     index = block.nextIndex;
@@ -261,7 +281,7 @@ export const loadPackageJson = (
   return isRecord(codependenceConfig) ? codependenceConfig : null;
 };
 
-export const loadRcFile = (filepath: string): Record<string, unknown> | null => {
+export const loadRcFile = (filepath: string): Record<string, unknown> => {
   const content = readFileSync(filepath, "utf8");
   const extension = extname(filepath);
   const config =

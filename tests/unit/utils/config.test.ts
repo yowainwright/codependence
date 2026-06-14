@@ -133,6 +133,41 @@ describe("Config Loading", () => {
       });
     });
 
+    test("should load unindented YAML block arrays", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yaml");
+      writeFileSync(
+        rcPath,
+        [
+          "codependencies:",
+          "- lodash",
+          "- react: 18.2.0",
+          "permissive: false",
+        ].join("\n"),
+      );
+
+      const result = loadConfig(rcPath);
+
+      expect(result?.config).toEqual({
+        codependencies: ["lodash", { react: "18.2.0" }],
+        permissive: false,
+      });
+    });
+
+    test("should load bare YAML keys as null", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yaml");
+      writeFileSync(
+        rcPath,
+        ["codependencies:", "permissive: true"].join("\n"),
+      );
+
+      const result = loadConfig(rcPath);
+
+      expect(result?.config).toEqual({
+        codependencies: null,
+        permissive: true,
+      });
+    });
+
     test("should load inline YAML values for the config API", () => {
       const rcPath = join(tmpDir, ".codependencerc.yml");
       writeFileSync(

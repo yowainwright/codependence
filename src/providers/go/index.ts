@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from "fs";
+import { execFileSync } from "child_process";
 import { dirname } from "path";
 import { exec } from "../../utils/exec";
 import { logger } from "../../logger";
@@ -207,10 +208,10 @@ export class GoProvider implements DependencyProvider {
     };
   }
 
-  async writeManifest(
+  writeManifest(
     filePath: string,
     manifest: DependencyManifest,
-  ): Promise<void> {
+  ): void {
     const content = readFileSync(filePath, "utf8");
 
     const { content: inPlaceContent, updatedCount, foundCount } = updateExistingRequireLines(
@@ -220,7 +221,7 @@ export class GoProvider implements DependencyProvider {
 
     if (updatedCount > 0 || foundCount > 0) {
       writeFileSync(filePath, preserveFinalNewline(inPlaceContent));
-      await this.runGoModTidy(filePath);
+      this.runGoModTidy(filePath);
       return;
     }
 
@@ -230,7 +231,7 @@ export class GoProvider implements DependencyProvider {
     if (hasMultiLineRequire) {
       const updated = content.replace(GO_PATTERNS.REQUIRE_BLOCK, requireBlock);
       writeFileSync(filePath, preserveFinalNewline(updated));
-      await this.runGoModTidy(filePath);
+      this.runGoModTidy(filePath);
       return;
     }
 
@@ -238,19 +239,22 @@ export class GoProvider implements DependencyProvider {
     if (hasSingleRequires) {
       const updated = content.replace(GO_PATTERNS.REQUIRE_LINE, "").trim();
       writeFileSync(filePath, `${updated}\n\n${requireBlock}\n`);
-      await this.runGoModTidy(filePath);
+      this.runGoModTidy(filePath);
       return;
     }
 
     writeFileSync(filePath, `${content.trim()}\n\n${requireBlock}\n`);
-    await this.runGoModTidy(filePath);
+    this.runGoModTidy(filePath);
   }
 
-  private async runGoModTidy(filePath: string): Promise<void> {
+  private runGoModTidy(filePath: string): void {
     if (this.options.isTesting) return;
 
     try {
-      await exec(LANGUAGES.GO, ["mod", "tidy"], { cwd: dirname(filePath) });
+      execFileSync(LANGUAGES.GO, ["mod", "tidy"], {
+        cwd: dirname(filePath),
+        stdio: "ignore",
+      });
     } catch (error) {
       if (this.options.debug) {
         logger.error("Failed to run go mod tidy", error as Error);

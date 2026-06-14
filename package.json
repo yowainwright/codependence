@@ -101,6 +101,7 @@
     "lint-src": "oxlint src",
     "lint:fix": "oxlint src --fix",
     "hooks:setup": "sh scripts/setup-hooks.sh",
+    "prepare": "bun run hooks:setup",
     "prepublishOnly": "npm run clean-dist && npm run build-dist",
     "preview": "turbo run preview",
     "release": "bun scripts/release.ts",
