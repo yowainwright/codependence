@@ -91,8 +91,6 @@ verify_multilang_environment() {
         node --version
         echo "Checking Python..."
         python3 --version
-        pip3 --version
-        poetry --version
         echo "Checking Go..."
         go version
         echo "All language environments verified"

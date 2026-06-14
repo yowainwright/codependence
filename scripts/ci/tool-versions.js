@@ -10,6 +10,20 @@ const TOOL_OUTPUT_KEYS = {
   nodeVersion: "node_version",
 };
 
+const NODE_ALPINE_DIGESTS = {
+  "24": "sha256:fb71d01345f11b708a3553c66e7c74074f2d506400ea81973343d915cb64eef0",
+};
+
+const NODE_SLIM_DIGESTS = {
+  "24": "sha256:2c87ef9bd3c6a3bd4b472b4bec2ce9d16354b0c574f736c476489d09f560a203",
+};
+
+function nodeImage({ digestMap, flavor, nodeVersion }) {
+  const tag = `node:${nodeVersion}-${flavor}`;
+  const digest = digestMap[nodeVersion];
+  return digest ? `${tag}@${digest}` : tag;
+}
+
 export function parseMiseTool(miseToml, toolName) {
   const escapedToolName = toolName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = miseToml.match(new RegExp(`^\\s*${escapedToolName}\\s*=\\s*"([^"]+)"`, "m"));
@@ -33,8 +47,11 @@ export function resolveToolVersions({
 
   const versions = {
     bunVersion,
-    nodeAlpineImage: env.NODE_ALPINE_IMAGE || `node:${nodeVersion}-alpine`,
-    nodeSlimImage: env.NODE_SLIM_IMAGE || `node:${nodeVersion}-slim`,
+    nodeAlpineImage:
+      env.NODE_ALPINE_IMAGE ||
+      nodeImage({ digestMap: NODE_ALPINE_DIGESTS, flavor: "alpine", nodeVersion }),
+    nodeSlimImage:
+      env.NODE_SLIM_IMAGE || nodeImage({ digestMap: NODE_SLIM_DIGESTS, flavor: "slim", nodeVersion }),
     nodeVersion,
   };
 

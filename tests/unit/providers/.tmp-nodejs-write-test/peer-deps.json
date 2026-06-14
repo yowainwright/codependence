@@ -1,9 +1,0 @@
-{
-  "name": "lib",
-  "version": "1.0.0",
-  "dependencies": {},
-  "devDependencies": {},
-  "peerDependencies": {
-    "react": "^18.0.0"
-  }
-}

@@ -14,6 +14,11 @@ bun = "1.3.14"
 node = "24"
 `;
 
+const nodeAlpineImage =
+  "node:24-alpine@sha256:fb71d01345f11b708a3553c66e7c74074f2d506400ea81973343d915cb64eef0";
+const nodeSlimImage =
+  "node:24-slim@sha256:2c87ef9bd3c6a3bd4b472b4bec2ce9d16354b0c574f736c476489d09f560a203";
+
 describe("scripts/ci/tool-versions", () => {
   test("parseMiseTool reads quoted tool versions", () => {
     expect(parseMiseTool(miseToml, "bun")).toBe("1.3.14");
@@ -49,15 +54,15 @@ describe("scripts/ci/tool-versions", () => {
     expect(
       formatGitHubOutput({
         bunVersion: "1.3.14",
-        nodeAlpineImage: "node:24-alpine",
-        nodeSlimImage: "node:24-slim",
+        nodeAlpineImage,
+        nodeSlimImage,
         nodeVersion: "24",
       }),
     ).toBe(
       [
         "bun_version=1.3.14",
-        "node_alpine_image=node:24-alpine",
-        "node_slim_image=node:24-slim",
+        `node_alpine_image=${nodeAlpineImage}`,
+        `node_slim_image=${nodeSlimImage}`,
         "node_version=24",
       ].join("\n"),
     );
@@ -67,8 +72,8 @@ describe("scripts/ci/tool-versions", () => {
     expect(() =>
       resolveToolVersionValue("missing", {
         bunVersion: "1.3.14",
-        nodeAlpineImage: "node:24-alpine",
-        nodeSlimImage: "node:24-slim",
+        nodeAlpineImage,
+        nodeSlimImage,
         nodeVersion: "24",
       }),
     ).toThrow("Unknown tool version key");
@@ -82,6 +87,6 @@ describe("scripts/ci/tool-versions", () => {
 
     expect(result.status).toBe(0);
     expect(result.stderr).toBe("");
-    expect(result.stdout.trim()).toBe("node:24-slim");
+    expect(result.stdout.trim()).toBe(nodeSlimImage);
   });
 });
