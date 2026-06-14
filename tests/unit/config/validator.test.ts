@@ -507,6 +507,56 @@ describe("validateConfig", () => {
     });
   });
 
+  describe("supplemental option validation", () => {
+    it("should reject non-string path fields", () => {
+      const config = {
+        codependencies: ["react"],
+        rootDir: 123,
+        outputFile: false,
+      };
+
+      const result = validateConfig(config);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual([
+        {
+          field: "rootDir",
+          message: '"rootDir" must be a string, got number',
+          suggestion: 'Use a string value for "rootDir"',
+        },
+        {
+          field: "outputFile",
+          message: '"outputFile" must be a string, got boolean',
+          suggestion: 'Use a string value for "outputFile"',
+        },
+      ]);
+    });
+
+    it("should reject non-boolean command option fields", () => {
+      const config = {
+        codependencies: ["react"],
+        update: "yes",
+        noCache: 1,
+      };
+
+      const result = validateConfig(config);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual([
+        {
+          field: "update",
+          message: '"update" must be a boolean, got string',
+          suggestion: 'Use true or false for "update"',
+        },
+        {
+          field: "noCache",
+          message: '"noCache" must be a boolean, got number',
+          suggestion: 'Use true or false for "noCache"',
+        },
+      ]);
+    });
+  });
+
   describe("unknown fields validation", () => {
     it("should reject unknown fields", () => {
       const config = {

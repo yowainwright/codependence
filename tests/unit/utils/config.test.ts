@@ -168,6 +168,42 @@ describe("Config Loading", () => {
         codependencies: [{ lodash: "4.17.21", react: "18.2.0" }],
       });
     });
+
+    test("should strip separated YAML comments and preserve inline hashes", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yml");
+      writeFileSync(
+        rcPath,
+        [
+          "# full-line comment",
+          "codependencies:",
+          "  - lodash # pinned by policy",
+          "  - left#right",
+          "permissive: false # use explicit policies",
+        ].join("\n"),
+      );
+
+      const result = loadConfig(rcPath);
+
+      expect(result?.config).toEqual({
+        codependencies: ["lodash", "left#right"],
+        permissive: false,
+      });
+    });
+
+    test("should preserve invalid JSON escapes in double quoted YAML scalars", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yml");
+      writeFileSync(
+        rcPath,
+        ['rootDir: "bad \\q path"', "permissive: true"].join("\n"),
+      );
+
+      const result = loadConfig(rcPath);
+
+      expect(result?.config).toEqual({
+        rootDir: "bad \\q path",
+        permissive: true,
+      });
+    });
   });
 
   describe("searchForConfig behavior", () => {
