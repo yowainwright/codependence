@@ -12,3 +12,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/tests/e2e"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/tests/release"
+    schedule:
+      interval: "weekly"

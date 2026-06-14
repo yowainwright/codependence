@@ -11,6 +11,9 @@ import {
   runTestPublishedReleaseCli,
 } from "../../../../scripts/ci/published-release.js";
 
+const nodeAlpineImage =
+  "node:24-alpine@sha256:fb71d01345f11b708a3553c66e7c74074f2d506400ea81973343d915cb64eef0";
+
 describe("scripts/ci/published-release_test", () => {
   test("packageSpec formats npm package specs", () => {
     expect(packageSpec("codependence", "1.0.0")).toBe("codependence@1.0.0");
@@ -21,7 +24,7 @@ describe("scripts/ci/published-release_test", () => {
       buildDockerBuildArgs({
         dockerfile: "tests/release/Dockerfile.published",
         image: "codependence-release-test",
-        nodeAlpineImage: "node:24-alpine",
+        nodeAlpineImage,
         version: "1.0.0",
       }),
     ).toEqual([
@@ -29,7 +32,7 @@ describe("scripts/ci/published-release_test", () => {
       "--build-arg",
       "CODEPENDENCE_VERSION=1.0.0",
       "--build-arg",
-      "NODE_ALPINE_IMAGE=node:24-alpine",
+      `NODE_ALPINE_IMAGE=${nodeAlpineImage}`,
       "-f",
       "tests/release/Dockerfile.published",
       "-t",
