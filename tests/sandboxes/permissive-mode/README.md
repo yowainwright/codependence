@@ -15,6 +15,8 @@ Instead of specifying what to update, you specify what to PIN. Everything else u
 ## Commands
 
 ```bash
+cp package-test.json package.json
+
 # Check current status
 npm run check
 
@@ -30,6 +32,8 @@ npm run permissive:interactive
 # Update all except those in config
 npm run permissive:update-all-except
 ```
+
+`package-test.json` is intentionally not committed as `package.json` so repository-wide vulnerability scans do not treat this demo fixture as a real project manifest.
 
 ## Current Setup
 
