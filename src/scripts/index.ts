@@ -179,31 +179,29 @@ const createProvider = (
   }
 };
 
-const loadManifests = async (
+const loadManifests = (
   files: string[],
   rootDir: string,
   options: Pick<CheckFiles, "language" | "debug" | "yarnConfig" | "isTesting">,
-): Promise<LoadedManifest[]> =>
-  Promise.all(
-    files.map(async (file) => {
-      const path = resolveManifestPath(rootDir, file);
-      const language =
-        options.language ||
-        inferLanguageFromFile(file) ||
-        resolveTargetLanguage(dirname(path));
-      const { provider, packageManager } = createProvider(language, path, options);
-      const manifest = await provider.readManifest(path);
+): LoadedManifest[] =>
+  files.map((file) => {
+    const path = resolveManifestPath(rootDir, file);
+    const language =
+      options.language ||
+      inferLanguageFromFile(file) ||
+      resolveTargetLanguage(dirname(path));
+    const { provider, packageManager } = createProvider(language, path, options);
+    const manifest = provider.readManifest(path);
 
-      return {
-        file,
-        path,
-        language,
-        packageManager,
-        provider,
-        manifest,
-      };
-    }),
-  );
+    return {
+      file,
+      path,
+      language,
+      packageManager,
+      provider,
+      manifest,
+    };
+  });
 
 const collectDepNamesFromManifest = (manifest: DependencyManifest): string[] =>
   DEP_SECTIONS.map((section) => manifest[section])
@@ -874,6 +872,7 @@ const checkLoadedManifests = async ({
   permissive = false,
   codependencies,
   level = "major",
+  deferFailure = false,
 }: {
   manifests: LoadedManifest[];
   versionMap: Record<string, string>;
@@ -887,7 +886,8 @@ const checkLoadedManifests = async ({
   permissive?: boolean;
   codependencies?: Array<string>;
   level?: Level;
-}): Promise<void> => {
+  deferFailure?: boolean;
+}): Promise<boolean> => {
   const options = {
     isUpdating,
     isDebugging,
@@ -918,16 +918,24 @@ const checkLoadedManifests = async ({
 
   const isOutOfDate = packagesNeedingUpdate.length > 0;
   if (isOutOfDate && !isUpdating) {
-    logger.error("Dependencies are not correct.");
-    if (isCLI) process.exit(1);
-    else throw new Error("Dependencies are not correct.");
+    if (!isSilent && !isQuiet) {
+      logger.error("Dependencies are not correct.");
+    }
+    if (!deferFailure) {
+      if (isCLI) process.exit(1);
+      else throw new Error("Dependencies are not correct.");
+    }
   } else if (isOutOfDate) {
-    logger.info(
-      "Dependencies were not correct but should be updated! Check your git status.",
-    );
-  } else {
+    if (!isSilent && !isQuiet) {
+      logger.info(
+        "Dependencies were not correct but should be updated! Check your git status.",
+      );
+    }
+  } else if (!isSilent && !isQuiet) {
     logger.info("No dependency issues found!");
   }
+
+  return isOutOfDate;
 };
 
 const extractDepNamesFromFile = (rootDir: string, file: string): string[] => {
@@ -1105,11 +1113,11 @@ export const checkFiles = async ({
   try {
     const resolvedRootDir = resolve(rootDir);
     const effectiveMatchers = resolveMatchers(resolvedRootDir, matchers, language);
-    const files = await glob(effectiveMatchers, {
+    const files = glob(effectiveMatchers, {
       cwd: resolvedRootDir,
       ignore,
     });
-    const manifests = await loadManifests(files, resolvedRootDir, {
+    const manifests = loadManifests(files, resolvedRootDir, {
       language,
       debug,
       yarnConfig,
@@ -1205,22 +1213,25 @@ export const checkFiles = async ({
       versionMap = result.versionMap;
     }
 
-    const shouldCheckMatches = format === undefined;
-    if (shouldCheckMatches) {
-      await checkLoadedManifests({
-        manifests,
-        versionMap,
-        isCLI,
-        isSilent: silent,
-        isVerbose: verbose,
-        isQuiet: quiet,
-        isUpdating: shouldUpdate,
-        isDebugging: debug,
-        isTesting,
-        permissive: isPreciseMode,
-        codependencies: depNames,
-        level,
-      });
+    const shouldDeferFailure = format !== undefined;
+    const isOutOfDate = await checkLoadedManifests({
+      manifests,
+      versionMap,
+      isCLI,
+      isSilent: silent || format !== undefined,
+      isVerbose: verbose,
+      isQuiet: quiet,
+      isUpdating: shouldUpdate,
+      isDebugging: debug,
+      isTesting,
+      permissive: isPreciseMode,
+      codependencies: depNames,
+      level,
+      deferFailure: shouldDeferFailure,
+    });
+
+    if (shouldDeferFailure && isCLI && isOutOfDate && !shouldUpdate) {
+      process.exitCode = 1;
     }
 
     return allDiffs;

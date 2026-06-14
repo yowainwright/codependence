@@ -2,11 +2,28 @@
 
 import { copyFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { runCliEntrypoint } from "./cli-entrypoint.js";
+import { isDirectCliExecution, runCliEntrypoint } from "./cli-entrypoint.js";
+
+const SUPPORTED_PRERELEASES = new Set(["alpha", "beta", "rc"]);
+const RELEASE_VERSION_PATTERN =
+  /^v?\d+\.\d+\.\d+(?:-([0-9A-Za-z-]+)(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z.-]+)?$/;
+
+export function validateReleaseVersion(version) {
+  if (RELEASE_VERSION_PATTERN.test(version)) return;
+  throw new Error(`Invalid release version: ${version}`);
+}
+
+export function readPrereleaseIdentifier(version) {
+  const match = version.match(RELEASE_VERSION_PATTERN);
+  return match?.[1];
+}
 
 export function resolveDistTag(version) {
-  const prerelease = version.match(/-(alpha|beta|rc)(?:[.-]|$)/)?.[1];
-  return prerelease ?? "latest";
+  validateReleaseVersion(version);
+  const prerelease = readPrereleaseIdentifier(version);
+  if (!prerelease) return "latest";
+  if (SUPPORTED_PRERELEASES.has(prerelease)) return prerelease;
+  throw new Error(`Unsupported prerelease identifier: ${prerelease}`);
 }
 
 export function parseNpmPackFilename(output) {
@@ -22,7 +39,7 @@ export function stripTagPrefix(version) {
 }
 
 export function isPrereleaseVersion(version) {
-  return /-(alpha|beta|rc)(?:[.-]|$)/.test(version);
+  return readPrereleaseIdentifier(version) !== undefined;
 }
 
 export function buildNpmPublishArgs({ distTag, tarball }) {
@@ -154,6 +171,6 @@ export function runPublishReleaseCli({
   );
 }
 
-if (import.meta.main) {
+if (isDirectCliExecution(import.meta.url)) {
   runCliEntrypoint(runPublishReleaseCli);
 }

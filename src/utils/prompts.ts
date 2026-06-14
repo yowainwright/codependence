@@ -21,7 +21,7 @@ export class Prompt {
     }
   }
 
-  async input(message: string, defaultValue?: string): Promise<string> {
+  input(message: string, defaultValue?: string): Promise<string> {
     return new Promise((resolve) => {
       const prompt = defaultValue
         ? `${message} (${defaultValue}): `
@@ -33,7 +33,7 @@ export class Prompt {
     });
   }
 
-  async confirm(message: string, defaultValue = true): Promise<boolean> {
+  confirm(message: string, defaultValue = true): Promise<boolean> {
     return new Promise((resolve) => {
       const defaultText = defaultValue ? "Y/n" : "y/N";
       this.ensureCookedMode();
@@ -48,7 +48,7 @@ export class Prompt {
     });
   }
 
-  async list(message: string, choices: PromptChoice[]): Promise<string> {
+  list(message: string, choices: PromptChoice[]): Promise<string> {
     console.log(`\n${message}`);
 
     choices.forEach((choice, index) => {
@@ -76,7 +76,7 @@ export class Prompt {
     });
   }
 
-  async checkbox(message: string, choices: PromptChoice[]): Promise<string[]> {
+  checkbox(message: string, choices: PromptChoice[]): Promise<string[]> {
     console.log(`\n${message}`);
     console.log("(Use comma-separated numbers, e.g., 1,3,5)\n");
 

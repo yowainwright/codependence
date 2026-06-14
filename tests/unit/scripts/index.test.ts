@@ -991,6 +991,29 @@ test("checkFiles => defaults codependencies to 0.x compatible verbose mode", asy
   expect(diffs?.map((diff) => diff.package)).toEqual(["lodash"]);
 });
 
+test("checkFiles => sets exit code for formatted CLI failures", async () => {
+  const previousExitCode = process.exitCode;
+  process.exitCode = undefined;
+
+  try {
+    const codependencies = [{ lodash: "4.18.0" }];
+    const rootDir = "./tests/unit/fixtures/";
+    const files = ["test-fail-package.json"];
+    const diffs = await checkFiles({
+      codependencies,
+      rootDir,
+      files,
+      format: "json",
+      isCLI: true,
+    });
+
+    expect(diffs?.map((diff) => diff.package)).toEqual(["lodash"]);
+    expect(process.exitCode).toBe(1);
+  } finally {
+    process.exitCode = previousExitCode ?? 0;
+  }
+});
+
 test("checkFiles => with permissive mode only", async () => {
   const logCheckFilesPermissive = jest.spyOn(console, "error");
   const codependencies = null;

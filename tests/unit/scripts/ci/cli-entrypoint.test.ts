@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { errorMessage, runCliEntrypoint } from "../../../../scripts/ci/cli-entrypoint.js";
+import {
+  errorMessage,
+  isDirectCliExecution,
+  runCliEntrypoint,
+} from "../../../../scripts/ci/cli-entrypoint.js";
 
 describe("scripts/ci/cli-entrypoint", () => {
   test("errorMessage formats Error instances", () => {
@@ -34,5 +38,13 @@ describe("scripts/ci/cli-entrypoint", () => {
 
     expect(errors).toEqual(["VERSION is required"]);
     expect(processRef.exitCode).toBe(1);
+  });
+
+  test("isDirectCliExecution detects Node ESM script invocation", () => {
+    const metaUrl = new URL("../../../../scripts/ci/tool-versions.js", import.meta.url).href;
+
+    expect(isDirectCliExecution(metaUrl, ["node", "scripts/ci/tool-versions.js"])).toBe(true);
+    expect(isDirectCliExecution(metaUrl, ["node", "scripts/ci/publish-release.js"])).toBe(false);
+    expect(isDirectCliExecution(metaUrl, ["node"])).toBe(false);
   });
 });

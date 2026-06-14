@@ -1,5 +1,5 @@
 # Multi-language Dockerfile for testing codependence with Python and Go
-ARG NODE_SLIM_IMAGE
+ARG NODE_SLIM_IMAGE=node:24-slim
 FROM ${NODE_SLIM_IMAGE} AS builder
 
 ARG BUN_VERSION
@@ -49,9 +49,16 @@ RUN apt-get update && apt-get install -y \
 
 # Install Go
 ARG GO_VERSION=1.21.5
-RUN wget -q https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz && \
-    rm go${GO_VERSION}.linux-amd64.tar.gz
+ARG TARGETARCH
+RUN set -eu; \
+    go_arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
+    case "$go_arch" in \
+        amd64|arm64) ;; \
+        *) echo "Unsupported Go architecture: $go_arch" >&2; exit 1 ;; \
+    esac; \
+    wget -q "https://go.dev/dl/go${GO_VERSION}.linux-${go_arch}.tar.gz"; \
+    tar -C /usr/local -xzf "go${GO_VERSION}.linux-${go_arch}.tar.gz"; \
+    rm "go${GO_VERSION}.linux-${go_arch}.tar.gz"
 
 ENV PATH="/usr/local/go/bin:$PATH"
 ENV GOPATH="/go"

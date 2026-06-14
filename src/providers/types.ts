@@ -26,8 +26,8 @@ export interface DependencyProvider {
 
   getLatestVersion(packageName: string): Promise<string>;
   getAllVersions(packageName: string): Promise<string[]>;
-  readManifest(filePath: string): Promise<DependencyManifest>;
-  writeManifest(filePath: string, manifest: DependencyManifest): Promise<void>;
+  readManifest(filePath: string): DependencyManifest;
+  writeManifest(filePath: string, manifest: DependencyManifest): void | Promise<void>;
   validatePackageName(packageName: string): boolean;
 }
 

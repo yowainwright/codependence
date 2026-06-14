@@ -153,6 +153,29 @@ describe("validateConfig", () => {
       expect(result.valid).toBe(false);
       expect(result.errors[0].field).toBe("root");
     });
+
+    it("should allow supplemental config when policy is not required", () => {
+      const config = {
+        files: ["package.json"],
+        rootDir: ".",
+      };
+
+      const result = validateConfig(config, { requirePolicy: false });
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+    });
+
+    it("should still validate supplemental config shape when policy is not required", () => {
+      const config = {
+        files: "package.json",
+      };
+
+      const result = validateConfig(config, { requirePolicy: false });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].field).toBe("files");
+    });
   });
 
   describe("codependencies validation", () => {
@@ -484,6 +507,56 @@ describe("validateConfig", () => {
     });
   });
 
+  describe("supplemental option validation", () => {
+    it("should reject non-string path fields", () => {
+      const config = {
+        codependencies: ["react"],
+        rootDir: 123,
+        outputFile: false,
+      };
+
+      const result = validateConfig(config);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual([
+        {
+          field: "rootDir",
+          message: '"rootDir" must be a string, got number',
+          suggestion: 'Use a string value for "rootDir"',
+        },
+        {
+          field: "outputFile",
+          message: '"outputFile" must be a string, got boolean',
+          suggestion: 'Use a string value for "outputFile"',
+        },
+      ]);
+    });
+
+    it("should reject non-boolean command option fields", () => {
+      const config = {
+        codependencies: ["react"],
+        update: "yes",
+        noCache: 1,
+      };
+
+      const result = validateConfig(config);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual([
+        {
+          field: "update",
+          message: '"update" must be a boolean, got string',
+          suggestion: 'Use true or false for "update"',
+        },
+        {
+          field: "noCache",
+          message: '"noCache" must be a boolean, got number',
+          suggestion: 'Use true or false for "noCache"',
+        },
+      ]);
+    });
+  });
+
   describe("unknown fields validation", () => {
     it("should reject unknown fields", () => {
       const config = {
@@ -497,7 +570,9 @@ describe("validateConfig", () => {
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].field).toBe("root");
       expect(result.errors[0].message).toBe("Unknown field(s): unknown");
-      expect(result.errors[0].suggestion).toBe("Remove unknown fields. Valid fields are: codependencies, permissive, language, files, ignore, level, mode");
+      expect(result.errors[0].suggestion).toContain("Valid fields are:");
+      expect(result.errors[0].suggestion).toContain("codependencies");
+      expect(result.errors[0].suggestion).toContain("outputFile");
     });
 
     it("should reject multiple unknown fields", () => {

@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { describe, expect, test } from "bun:test";
 import {
   formatGitHubOutput,
@@ -71,5 +72,16 @@ describe("scripts/ci/tool-versions", () => {
         nodeVersion: "24",
       }),
     ).toThrow("Unknown tool version key");
+  });
+
+  test("direct Node CLI prints requested tool versions", () => {
+    const result = spawnSync("node", ["scripts/ci/tool-versions.js", "node-slim-image"], {
+      cwd: new URL("../../../../", import.meta.url),
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("node:24-slim");
   });
 });

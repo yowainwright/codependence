@@ -3,6 +3,8 @@ import { LANGUAGES, MANIFEST_FILES } from "../providers/constants";
 export const CONFIG_FILES = [
   ".codependencerc",
   ".codependencerc.json",
+  ".codependencerc.yaml",
+  ".codependencerc.yml",
   MANIFEST_FILES.PACKAGE_JSON,
 ] as const;
 
@@ -15,6 +17,7 @@ export const VALID_LANGUAGES = [
 ] as const;
 export const VALID_LEVELS = ["patch", "minor", "major"] as const;
 export const VALID_MODES = ["verbose", "precise"] as const;
+export const VALID_FORMATS = ["json", "markdown", "table"] as const;
 export const KNOWN_FIELDS = [
   "codependencies",
   "permissive",
@@ -23,4 +26,17 @@ export const KNOWN_FIELDS = [
   "ignore",
   "level",
   "mode",
+  "rootDir",
+  "update",
+  "debug",
+  "silent",
+  "verbose",
+  "quiet",
+  "yarnConfig",
+  "dryRun",
+  "interactive",
+  "watch",
+  "noCache",
+  "format",
+  "outputFile",
 ] as const;
