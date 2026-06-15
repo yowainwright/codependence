@@ -19,7 +19,7 @@
     "@tailwindcss/vite": "^4.3.0",
     "astro": "^6.3.3",
     "fuse.js": "^7.3.0",
-    "lucide-react": "^0.554.0",
+    "lucide-react": "^1.18.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },
