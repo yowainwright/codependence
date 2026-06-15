@@ -1,9 +1,12 @@
-<h1><a href="https://www.npmjs.com/package/codependence" target="_blank">Codependence</a></h1>
+# [Codependence](https://jeffry.in/codependence/)
 
-[![npm version](https://badge.fury.io/js/codependence.svg)](https://badge.fury.io/js/codependence)
-![ci](https://github.com/yowainwright/codependence/actions/workflows/ci.yml/badge.svg)
-![e2e](https://github.com/yowainwright/codependence/actions/workflows/e2e.yml/badge.svg)
+[![npm version](https://img.shields.io/npm/v/codependence.svg)](https://www.npmjs.com/package/codependence)
+[![npm downloads](https://img.shields.io/npm/dm/codependence.svg)](https://www.npmjs.com/package/codependence)
+[![TypeScript](https://img.shields.io/badge/TypeScript-types%20included-blue)](https://www.typescriptlang.org/)
+![CI](https://github.com/yowainwright/codependence/actions/workflows/ci.yml/badge.svg)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/yowainwright/codependence/badge)](https://scorecard.dev/viewer/?uri=github.com/yowainwright/codependence)
 [![codecov](https://codecov.io/gh/yowainwright/codependence/branch/main/graph/badge.svg)](https://codecov.io/gh/yowainwright/codependence)
+[![GitHub stars](https://img.shields.io/github/stars/yowainwright/codependence?style=social)](https://github.com/yowainwright/codependence)
 
 #### Enforce dependency version policy wherever your project needs it.
 
@@ -575,12 +578,22 @@ bun run release:alpha:dry
 bun run release:beta:dry
 bun run release:rc:dry
 bun run release
+bun run release:tag
 ```
 
 The release helper creates the release commit locally, pushes only the version tag,
 and restores local `main` to its starting commit. The tag triggers the publish
-workflow, which packs the npm tarball, attests it, publishes it, and uploads the
-tarball plus attestation to the GitHub release.
+workflow, which packs the npm tarball, attests it, publishes it with npm
+provenance, and uploads the tarball plus attestation to the GitHub release.
+Use `bun run release:tag` when `package.json` already has the version you want
+to publish.
+
+Publishing follows the same posture as Pastoralist: GitHub Actions publishes
+through npm Trusted Publishing/OIDC, not a long-lived npm token. Configure the
+`codependence` package on npm with a trusted publisher for
+`yowainwright/codependence`, workflow file `publish.yml`, environment
+`npm-publish`, and allowed action `npm publish`. After the trusted publisher is
+working, npm package settings should require 2FA and disallow token publishing.
 
 ## Contributing
 
