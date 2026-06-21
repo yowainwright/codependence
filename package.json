@@ -14,6 +14,7 @@
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "devDependencies": {
+    "@socketsecurity/bun-security-scanner": "^1.1.2",
     "bun-types": "1.3.14",
     "oxfmt": "^0.54.0",
     "oxlint": "^1.69.0",
@@ -93,7 +94,8 @@
     "docs:build": "turbo run build --filter=@codependence/docs",
     "docs:preview": "turbo run preview --filter=@codependence/docs",
     "deps:overrides": "pastoralist --remove-unused --summary",
-    "deps:security": "pastoralist --checkSecurity --securityProvider osv --hasWorkspaceSecurityChecks --summary --strict && bun audit",
+    "deps:socket": "bun pm scan",
+    "deps:security": "bun run deps:socket && pastoralist --checkSecurity --securityProvider osv --hasWorkspaceSecurityChecks --summary --strict && bun audit",
     "format-src": "oxfmt --write src",
     "format-test": "oxfmt --write tests",
     "format-app": "prettier --write page/app",
@@ -134,7 +136,7 @@
     "appendix": {
       "esbuild@0.28.1": {
         "dependents": {
-          "@codependence/docs": "astro/vite transitive esbuild audit override",
+          "@codependence/docs": "vite transitive esbuild audit override",
           "codependence": "esbuild (unused override)"
         },
         "ledger": {

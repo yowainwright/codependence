@@ -20,7 +20,6 @@ jobs:
       actions: read
       contents: read
       id-token: write
-      security-events: write
 
     steps:
       - name: Checkout
@@ -31,11 +30,6 @@ jobs:
       - name: Run Scorecard
         uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
         with:
-          results_file: scorecard.sarif
-          results_format: sarif
+          results_file: scorecard.json
+          results_format: json
           publish_results: true
-
-      - name: Upload Scorecard SARIF
-        uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4.35.4
-        with:
-          sarif_file: scorecard.sarif

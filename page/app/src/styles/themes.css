@@ -49,6 +49,11 @@
   --color-error-rgb: 244 63 94;
   --color-error-content: #ffffff;
   --color-error-content-rgb: 255 255 255;
+
+  --gradient-start: #9B4D5A;
+  --gradient-mid: #0C4A6E;
+  --gradient-end: #EAB308;
+  --gradient-action-content: #ffffff;
 }
 
 [data-theme="codependence-dark"] {
@@ -102,4 +107,9 @@
   --color-error-rgb: 251 113 133;
   --color-error-content: #881337;
   --color-error-content-rgb: 136 19 55;
+
+  --gradient-start: #7DD3FC;
+  --gradient-mid: #38BDF8;
+  --gradient-end: #C4B5FD;
+  --gradient-action-content: #07131f;
 }

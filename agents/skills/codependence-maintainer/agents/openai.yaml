@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codependence Maintainer"
+  short_description: "Maintain Codependence PRs and security checks"
+  default_prompt: "Use $codependence-maintainer to triage Codependence PRs, security alerts, and dependency policy cleanup."

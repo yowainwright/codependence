@@ -1,3 +1,6 @@
+[install.security]
+scanner = "@socketsecurity/bun-security-scanner"
+
 [test]
 coverage = true
 coverageThreshold = { line = 80 }

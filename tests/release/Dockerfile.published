@@ -7,7 +7,7 @@ WORKDIR /app
 
 ARG CODEPENDENCE_VERSION
 RUN echo "Installing codependence@${CODEPENDENCE_VERSION}" && \
-    npm install -g codependence@${CODEPENDENCE_VERSION}
+    npm install -g --ignore-scripts codependence@${CODEPENDENCE_VERSION}
 
 RUN mkdir -p dist tests/e2e/fixtures/dist tests/release/fixtures
 COPY tests/e2e/fixtures/ ./tests/e2e/fixtures/

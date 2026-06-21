@@ -7,28 +7,36 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "astro dev --open",
-    "start": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
+    "dev": "vite",
+    "start": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "serve": "vite preview --port 5174"
   },
   "dependencies": {
-    "@astrojs/mdx": "^5.0.6",
-    "@astrojs/react": "^5.0.5",
+    "@mdx-js/mdx": "^3.1.1",
     "@tailwindcss/vite": "^4.3.0",
-    "astro": "^6.3.3",
+    "@tanstack/react-router": "^1.170.15",
+    "@vitejs/plugin-react": "^6.0.2",
+    "@xstate/react": "^6.1.0",
+    "effect": "^3.21.2",
     "fuse.js": "^7.3.0",
-    "lucide-react": "^0.554.0",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "lucide-react": "^1.18.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "rehype-slug": "^6.0.0",
+    "remark-gfm": "^4.0.1",
+    "unist-util-visit": "^5.0.0",
+    "xstate": "^5.32.0"
   },
   "devDependencies": {
-    "@tailwindcss/typography": "^0.5.19",
+    "@tailwindcss/typography": "^0.5.20",
+    "@types/node": "^25.9.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "daisyui": "^5.5.19",
     "tailwindcss": "^4.3.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^8.0.16"
   }
 }

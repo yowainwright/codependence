@@ -1,261 +1,262 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
-const codeSnippets = [
-  {
-    id: "policy",
-    title: "Policy",
-    lines: [
-      { text: "$ ", color: "text-secondary" },
-      {
-        text: "codependence --dryRun --format table",
-        color: "text-base-content",
-      },
-      { text: "\n\n", color: "" },
-      { text: "Policy: ", color: "text-base-content/70" },
-      { text: ".codependencerc", color: "text-primary" },
-      { text: "\nStrategy: ", color: "text-base-content/70" },
-      { text: "permissive", color: "text-accent" },
-      { text: " (pin listed, update the rest)", color: "text-base-content/50" },
-      { text: "\nFiles: ", color: "text-base-content/70" },
-      { text: "package.json packages/*/package.json", color: "text-info" },
-      { text: "\n\n", color: "" },
-      { text: "No files changed in dry run", color: "text-success" },
-    ],
-  },
-  {
-    id: "config",
-    title: "Config",
-    lines: [
-      { text: "// .codependencerc", color: "text-base-content/50" },
-      { text: "\n", color: "" },
-      { text: "{", color: "text-base-content" },
-      { text: "\n  ", color: "" },
-      { text: '"permissive"', color: "text-primary" },
-      { text: ": ", color: "text-base-content" },
-      { text: "true", color: "text-secondary" },
-      { text: ",", color: "text-base-content" },
-      { text: "\n  ", color: "" },
-      { text: '"codependencies"', color: "text-primary" },
-      { text: ": [", color: "text-base-content" },
-      { text: "\n    ", color: "" },
-      { text: "{ ", color: "text-base-content" },
-      { text: '"react"', color: "text-primary" },
-      { text: ": ", color: "text-base-content" },
-      { text: '"^18.3.1"', color: "text-success" },
-      { text: " },", color: "text-base-content" },
-      { text: "\n    ", color: "" },
-      { text: "{ ", color: "text-base-content" },
-      { text: '"typescript"', color: "text-primary" },
-      { text: ": ", color: "text-base-content" },
-      { text: '"^5.9.3"', color: "text-success" },
-      { text: " }", color: "text-base-content" },
-      { text: "\n  ],", color: "text-base-content" },
-      { text: "\n  ", color: "" },
-      { text: '"files"', color: "text-primary" },
-      {
-        text: ': ["package.json", "packages/*/package.json"]',
-        color: "text-base-content",
-      },
-      { text: "\n}", color: "text-base-content" },
-    ],
-  },
+type TranscriptSegment = {
+  text: string;
+  className?: string;
+};
+
+type TranscriptLine = {
+  segments: TranscriptSegment[];
+};
+
+const snippets: Array<{
+  id: string;
+  title: string;
+  command: string;
+  output: TranscriptLine[];
+}> = [
   {
     id: "check",
-    title: "CI Check",
-    lines: [
-      { text: "$ ", color: "text-secondary" },
-      { text: "codependence", color: "text-base-content" },
-      { text: "\n\n", color: "" },
-      { text: "Found 2 dependency issues", color: "text-warning" },
-      { text: "\n", color: "" },
-      {
-        text: "1. react: found 19.0.0, expected ^18.3.1",
-        color: "text-base-content",
-      },
-      { text: "\n", color: "" },
-      {
-        text: "2. typescript: found 5.7.0, expected ^5.9.3",
-        color: "text-base-content",
-      },
-      { text: "\n", color: "" },
-      { text: "\n", color: "" },
-      { text: "Dependencies are not correct.", color: "text-error" },
-      { text: "\n", color: "" },
-      { text: "\nCI result: ", color: "text-base-content/70" },
-      { text: "fail on drift", color: "text-error" },
+    title: "Check",
+    command: "codependence --files test-fail-package.json --rootDir ./tests/unit/fixtures/",
+    output: [
+      line("codependence", "font-semibold text-cyan-400"),
+      line("  🤼‍♀️  Found 2 dependency issues"),
+      line("    1. lodash: found 4.17.0, expected 4.17.21"),
+      line("    2. fs-extra: found 10.0.0, expected 10.1.0"),
+      line(""),
+      line("codependence", "text-error"),
+      line("  ✗  Dependencies are not correct."),
+      line("Error: Dependencies are not correct."),
     ],
   },
   {
-    id: "apply",
-    title: "Apply",
-    lines: [
-      { text: "$ ", color: "text-secondary" },
-      { text: "codependence --update", color: "text-base-content" },
-      { text: "\n\n", color: "" },
-      { text: "Applying version policy...", color: "text-base-content/70" },
-      { text: "\n\n", color: "" },
-      { text: "react ", color: "text-base-content" },
-      { text: "19.0.0", color: "text-warning" },
-      { text: " -> ", color: "text-base-content/50" },
-      { text: "^18.3.1", color: "text-success" },
-      { text: "\n", color: "" },
-      { text: "typescript ", color: "text-base-content" },
-      { text: "5.7.0", color: "text-warning" },
-      { text: " -> ", color: "text-base-content/50" },
-      { text: "^5.9.3", color: "text-success" },
-      { text: "\n", color: "" },
-      { text: "\n\n", color: "" },
-      { text: "Updated ", color: "text-success" },
-      { text: "2", color: "text-accent" },
-      { text: " dependencies in ", color: "text-base-content" },
-      { text: "package.json", color: "text-info" },
+    id: "dry-run",
+    title: "Dry Run",
+    command:
+      "codependence --files test-fail-package.json --rootDir ./tests/unit/fixtures/ --update --dryRun",
+    output: [
+      cliHeader("Dependencies that would be updated:"),
+      line("┌──────────────────────┬──────────────┬──────────────┬──────────────┐"),
+      segments([
+        ["│ "],
+        ["Package", "text-cyan-400"],
+        ["              │ "],
+        ["Current", "text-cyan-400"],
+        ["      │ "],
+        ["Latest", "text-cyan-400"],
+        ["       │ "],
+        ["Action", "text-cyan-400"],
+        ["       │"],
+      ]),
+      line("├──────────────────────┼──────────────┼──────────────┼──────────────┤"),
+      segments([
+        ["│ lodash               │ "],
+        ["4.17.0", "text-base-content/50"],
+        ["       │ 4.17.21      │ "],
+        ["Pinned ■", "text-warning"],
+        ["     │"],
+      ]),
+      segments([
+        ["│ fs-extra             │ "],
+        ["10.0.0", "text-base-content/50"],
+        ["       │ 10.1.0       │ "],
+        ["Pinned ■", "text-warning"],
+        ["     │"],
+      ]),
+      line("└──────────────────────┴──────────────┴──────────────┴──────────────┘"),
+      line(""),
+      line("codependence", "font-semibold text-cyan-400"),
+      line("  🤼‍♀️  Found 2 dependency issues"),
+      line("    1. lodash: found 4.17.0, expected 4.17.21"),
+      line("    2. fs-extra: found 10.0.0, expected 10.1.0"),
+      line(""),
+      line("codependence", "text-error"),
+      line("  ✗  Dependencies are not correct."),
+      line("Error: Dependencies are not correct."),
+    ],
+  },
+  {
+    id: "update",
+    title: "Update",
+    command:
+      "codependence --files test-fail-package.json --rootDir ./tests/unit/fixtures/ --update --isTesting",
+    output: [
+      cliHeader("Dependency Updates Available:"),
+      line("┌──────────────────────┬──────────────┬──────────────┬──────────────┐"),
+      segments([
+        ["│ "],
+        ["Package", "text-cyan-400"],
+        ["              │ "],
+        ["Current", "text-cyan-400"],
+        ["      │ "],
+        ["Latest", "text-cyan-400"],
+        ["       │ "],
+        ["Action", "text-cyan-400"],
+        ["       │"],
+      ]),
+      line("├──────────────────────┼──────────────┼──────────────┼──────────────┤"),
+      segments([
+        ["│ lodash               │ "],
+        ["4.17.0", "text-base-content/50"],
+        ["       │ 4.17.21      │ "],
+        ["Pinned ■", "text-warning"],
+        ["     │"],
+      ]),
+      segments([
+        ["│ fs-extra             │ "],
+        ["10.0.0", "text-base-content/50"],
+        ["       │ 10.1.0       │ "],
+        ["Pinned ■", "text-warning"],
+        ["     │"],
+      ]),
+      line("└──────────────────────┴──────────────┴──────────────┴──────────────┘"),
+      line(""),
+      line("codependence", "font-semibold text-cyan-400"),
+      line("  🤼‍♀️  Found 2 dependency issues"),
+      line("    1. lodash: found 4.17.0, expected 4.17.21"),
+      line("    2. fs-extra: found 10.0.0, expected 10.1.0"),
+      line(""),
+      line("codependence", "font-semibold text-cyan-400"),
+      line(
+        "  🤼‍♀️  test-writeFileSync: /Users/jeffrywainwright/code/oss/codependence/tests/unit/fixtures/test-fail-package.json",
+      ),
+      line("codependence", "font-semibold text-cyan-400"),
+      line("  🤼‍♀️  Dependencies were not correct but should be updated! Check your git status."),
     ],
   },
 ];
 
-const TYPING_SPEED = 12;
-const PAUSE_BETWEEN_TABS = 2500;
+const pauseBetweenTabs = 4600;
 
-export default function SpotlightCode() {
+export function SpotlightCode() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [displayedChars, setDisplayedChars] = useState(0);
-  const [isTyping, setIsTyping] = useState(true);
+  const [started, setStarted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const hasStarted = useRef(false);
+  const activeSnippet = snippets[activeIndex];
 
-  const activeSnippet = codeSnippets[activeIndex];
-  const fullText = activeSnippet.lines.map((l) => l.text).join("");
-  const totalChars = fullText.length;
-
-  // Start animation when component enters viewport
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && !hasStarted.current) {
-          hasStarted.current = true;
-          setIsTyping(true);
-        }
+        if (entries[0]?.isIntersecting) setStarted(true);
       },
-      { threshold: 0.3 },
+      { threshold: 0.25 },
     );
 
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
-
+    if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, []);
 
-  // Typing animation
   useEffect(() => {
-    if (!isTyping) return;
+    if (!started) return;
 
-    if (displayedChars < totalChars) {
-      const timeout = setTimeout(() => {
-        setDisplayedChars((prev) => prev + 1);
-      }, TYPING_SPEED);
-      return () => clearTimeout(timeout);
-    }
+    const timeout = window.setTimeout(() => {
+      setActiveIndex((index) => (index + 1) % snippets.length);
+    }, pauseBetweenTabs);
 
-    // Finished typing current tab
-    const pauseTimeout = setTimeout(() => {
-      const nextIndex = (activeIndex + 1) % codeSnippets.length;
-      setActiveIndex(nextIndex);
-      setDisplayedChars(0);
-    }, PAUSE_BETWEEN_TABS);
+    return () => window.clearTimeout(timeout);
+  }, [activeIndex, started]);
 
-    return () => clearTimeout(pauseTimeout);
-  }, [displayedChars, totalChars, isTyping, activeIndex]);
-
-  // Reset when tab changes manually
-  const handleTabClick = (index: number) => {
+  const switchTab = (index: number) => {
     setActiveIndex(index);
-    setDisplayedChars(0);
-    setIsTyping(true);
+    setStarted(true);
   };
-
-  const tabs = codeSnippets.map((snippet, index) => {
-    const isActive = activeIndex === index;
-    const baseClass =
-      "px-3 py-1 text-xs font-medium rounded-md transition-all duration-200";
-    const activeClass = "bg-primary/20 text-primary";
-    const inactiveClass =
-      "text-base-content/50 hover:text-base-content/80 hover:bg-base-content/5";
-
-    return (
-      <button
-        key={snippet.id}
-        onClick={() => handleTabClick(index)}
-        className={`${baseClass} ${isActive ? activeClass : inactiveClass}`}
-      >
-        {snippet.title}
-      </button>
-    );
-  });
-
-  // Build displayed content with proper coloring
-  const buildDisplayedContent = () => {
-    let charCount = 0;
-    const elements: React.ReactNode[] = [];
-
-    for (let i = 0; i < activeSnippet.lines.length; i++) {
-      const line = activeSnippet.lines[i];
-      const lineStart = charCount;
-      const lineEnd = charCount + line.text.length;
-
-      if (lineStart >= displayedChars) break;
-
-      const visibleLength = Math.min(
-        displayedChars - lineStart,
-        line.text.length,
-      );
-      const visibleText = line.text.slice(0, visibleLength);
-
-      elements.push(
-        <span key={i} className={line.color || "text-base-content"}>
-          {visibleText}
-        </span>,
-      );
-
-      charCount = lineEnd;
-    }
-
-    return elements;
-  };
-
-  const isComplete = displayedChars >= totalChars;
 
   return (
     <div
       ref={containerRef}
-      className="w-full max-w-3xl xl:w-[48rem] mt-10 xl:mt-0"
+      className="spotlight-frame w-full min-w-0 max-w-full"
     >
-      <div className="relative overflow-hidden rounded-xl border border-base-content/10 shadow-2xl">
-        <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-accent/20 to-secondary/20 rounded-xl blur-xl opacity-50" />
-
-        <div className="relative">
-          <div className="bg-base-200 px-4 py-3 flex items-center justify-between">
-            <div className="flex gap-2">
-              <div className="w-3 h-3 rounded-full bg-error/80" />
-              <div className="w-3 h-3 rounded-full bg-warning/80" />
-              <div className="w-3 h-3 rounded-full bg-success/80" />
-            </div>
-            <div className="flex gap-1">{tabs}</div>
-            <div className="w-[52px]" />
+      <div className="terminal-window w-full">
+        <div className="terminal-header terminal-header-with-tabs">
+          <div className="flex items-center gap-2">
+            <span className="terminal-dot terminal-dot-red" aria-hidden="true" />
+            <span className="terminal-dot terminal-dot-yellow" aria-hidden="true" />
+            <span className="terminal-dot terminal-dot-green" aria-hidden="true" />
+            <span className="ml-3 hidden text-xs text-slate-400 sm:inline">terminal</span>
           </div>
-
-          <div className="bg-base-300/80 backdrop-blur-sm p-6 min-h-[320px]">
-            <pre className="text-sm font-mono leading-relaxed">
-              <code>
-                {buildDisplayedContent()}
-                {!isComplete && (
-                  <span className="inline-block w-2 h-4 ml-0.5 bg-primary animate-pulse" />
-                )}
-              </code>
-            </pre>
+          <div className="terminal-tabs">
+            {snippets.map((snippet, index) => (
+              <button
+                key={snippet.id}
+                type="button"
+                onClick={() => switchTab(index)}
+                aria-pressed={activeIndex === index}
+                className={activeIndex === index ? "terminal-tab active" : "terminal-tab"}
+              >
+                {snippet.title}
+              </button>
+            ))}
           </div>
+        </div>
+
+        <div className="terminal-content max-h-[420px] min-h-[300px]">
+          <pre className="w-max whitespace-pre">
+            {renderTerminal(activeSnippet)}
+          </pre>
         </div>
       </div>
     </div>
   );
+}
+
+function renderTerminal(snippet: (typeof snippets)[number]) {
+  const rendered: ReactNode[] = [];
+
+  rendered.push(
+    <span key="prompt" className="text-base-content/50">
+      $
+    </span>,
+    <span key="prompt-space"> </span>,
+    <span key="command" className="text-base-content">
+      {snippet.command}
+    </span>,
+  );
+
+  if (snippet.output.length > 0) {
+    rendered.push(<span key="command-gap">{"\n\n"}</span>);
+  }
+
+  snippet.output.forEach((lineSegments, lineIndex) => {
+    lineSegments.segments.forEach(({ text, className }, segmentIndex) => {
+      rendered.push(
+        <span
+          key={`${lineIndex}-${segmentIndex}`}
+          className={className || "text-base-content"}
+        >
+          {text}
+        </span>,
+      );
+    });
+
+    if (lineIndex < snippet.output.length - 1) {
+      rendered.push(<span key={`${lineIndex}-line-break`}>{"\n"}</span>);
+    }
+  });
+
+  return rendered;
+}
+
+function line(text: string, className?: string): TranscriptLine {
+  return segmentsList([[text, className]]);
+}
+
+function cliHeader(text: string): TranscriptLine {
+  return segmentsList([
+    ["◆", "text-cyan-400"],
+    [` ${text}`],
+  ]);
+}
+
+function segments(entries: Array<[text: string, className?: string]>): TranscriptLine {
+  return segmentsList(entries);
+}
+
+function segmentsList(entries: Array<[text: string, className?: string]>): TranscriptLine {
+  return {
+    segments: entries.map(([text, className]) => ({
+      text,
+      ...(className ? { className } : {}),
+    })),
+  };
 }

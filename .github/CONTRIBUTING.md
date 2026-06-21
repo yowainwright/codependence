@@ -2,7 +2,7 @@
 
 ## Setup
 
-- Use Node.js 18 or newer.
+- Use Node.js 20 or newer.
 - Install Bun from https://bun.sh.
 - Run `bun install`.
 
@@ -15,6 +15,7 @@ bun run build
 bun run lint
 bun run typecheck
 bun run test
+bun run deps:security
 ```
 
 Use `bun run coverage` for changes that affect dependency parsing, update

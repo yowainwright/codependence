@@ -6,7 +6,7 @@ RUN apk add --no-cache bash
 WORKDIR /app
 
 ARG CODEPENDENCE_VERSION
-RUN npm install -g codependence@${CODEPENDENCE_VERSION}
+RUN npm install -g --ignore-scripts codependence@${CODEPENDENCE_VERSION}
 
 COPY tests/release/fixtures/smoke-package.json ./package.json
 COPY tests/release/fixtures/smoke-codependencerc.json ./.codependencerc

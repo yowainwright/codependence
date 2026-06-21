@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codependence Docs Flow"
+  short_description: "Migrate and maintain the Codependence docs app"
+  default_prompt: "Use $codependence-docs-flow to work on the Codependence docs app migration and site flow."

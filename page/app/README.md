@@ -4,7 +4,7 @@ This is the documentation website for Codependence, a CLI and Node API for enfor
 
 ## Features
 
-- Built with Astro, React, Tailwind CSS, and MDX
+- Built with Vite, React, Tailwind CSS, and MDX
 - Free search functionality using Fuse.js
 - SEO friendly, lightweight and fast
 - Dark mode and light mode support
@@ -32,7 +32,7 @@ bun run build
 
 ## Project Structure
 
-- `/src/pages/` - Main pages (home, documentation)
+- `/src/pages/` - Main React pages (home, documentation)
 - `/src/components/` - Reusable components
 - `/src/content/docs/` - Documentation content in MDX format
 - `/src/layouts/` - Page layouts
