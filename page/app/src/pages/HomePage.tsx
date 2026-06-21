@@ -23,7 +23,7 @@ function HeroSection() {
   return (
     <section className="relative isolate flex min-h-[calc(100vh-68px)] items-start justify-center overflow-hidden px-4 pb-16 pt-6 md:px-8 md:pb-20 md:pt-8">
       <HeroBackground />
-      <article className="relative z-10 w-full max-w-2xl md:max-w-5xl xl:max-w-7xl">
+      <article className="relative z-10 w-full max-w-2xl md:max-w-5xl xl:max-w-[88rem]">
         <header className="mb-10 text-center md:mb-12">
           <img
             src={`${import.meta.env.BASE_URL}logos/codependence.svg`}
@@ -33,19 +33,20 @@ function HeroSection() {
         </header>
 
         <div className="flex flex-col-reverse gap-10 lg:flex-row lg:items-center lg:justify-between xl:gap-12">
-          <aside className="mt-6 w-full text-left lg:mt-0 lg:flex-[1.08]">
-            <div className="mx-auto w-full max-w-3xl lg:mx-0 xl:max-w-[44rem]">
+          <aside className="mt-6 w-full text-left lg:mt-0 lg:flex-[1.05]">
+            <div className="mx-auto w-full max-w-2xl lg:mx-0">
               <SpotlightCode />
             </div>
           </aside>
 
           <header className="text-center lg:max-w-xl lg:flex-[0.92] lg:text-left">
             <h1 className="mb-8 text-3xl font-black leading-[1.05] tracking-tight sm:text-4xl md:text-5xl lg:text-[3.35rem]">
-              <span className="font-bold gradient-text">Codependence</span> enforces dependency
-              version policy across every repo and CI run
+              <span className="font-bold gradient-text">Codependence</span>{" "}
+              enforces dependency version policy across every repo and CI run
             </h1>
             <p className="mx-auto max-w-xl text-lg leading-8 text-base-content/75 lg:mx-0">
-              Keep package versions aligned, preview drift, and apply pinned policies with one CLI.
+              Keep package versions aligned, preview drift, and apply pinned
+              policies with one CLI.
             </p>
             <nav className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:items-stretch sm:justify-center lg:justify-start">
               <Link
@@ -72,18 +73,23 @@ function HeroSection() {
 
 function WorkflowSection() {
   return (
-    <section className="mx-auto grid max-w-7xl gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[minmax(0,1.18fr)_minmax(320px,0.82fr)] lg:px-10 xl:px-16">
+    <section className="mx-auto grid max-w-[88rem] gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[minmax(0,42rem)_minmax(320px,1fr)] lg:px-10 xl:px-16">
       <SpotlightCode />
       <div className="flex flex-col justify-center">
         <h2 className="text-3xl font-black sm:text-5xl">
           Fits your <span className="gradient-text">workflow</span>
         </h2>
         <p className="mt-6 text-lg leading-8 text-base-content/75">
-          Run checks in terminals, package scripts, GitHub Actions, or any CI system. Use dry runs
-          to preview drift and update mode to apply policy intentionally.
+          Run checks in terminals, package scripts, GitHub Actions, or any CI
+          system. Use dry runs to preview drift and update mode to apply policy
+          intentionally.
         </p>
         <div className="mt-8 flex flex-wrap gap-4">
-          <Link to="/docs/$slug" params={{ slug: "cli" }} className="btn btn-primary rounded-2xl">
+          <Link
+            to="/docs/$slug"
+            params={{ slug: "cli" }}
+            className="btn btn-primary rounded-2xl"
+          >
             CLI docs
           </Link>
           <Link
@@ -105,9 +111,13 @@ function InstallSection() {
       <h2 className="text-3xl font-black sm:text-5xl">
         Install <span className="gradient-text">Codependence</span>
       </h2>
-      <p className="mt-5 text-base-content/70">Get started with a dev dependency and one script.</p>
+      <p className="mt-5 text-base-content/70">
+        Get started with a dev dependency and one script.
+      </p>
       <div className="mt-6 flex items-center rounded-lg border border-base-content/10 bg-base-200 text-left shadow-sm">
-        <code className="min-w-0 flex-1 truncate px-4 py-3 text-sm">{installCommand}</code>
+        <code className="min-w-0 flex-1 truncate px-4 py-3 text-sm">
+          {installCommand}
+        </code>
         <CopyButton text={installCommand} />
       </div>
       <Link

@@ -9,7 +9,9 @@
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
 }
 
 *,
@@ -30,12 +32,11 @@ body {
 body {
   min-height: 100vh;
   overflow-x: hidden;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-base-100) 96%, var(--gradient-mid)),
-      var(--color-base-100) 42rem
-    );
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-base-100) 96%, var(--gradient-mid)),
+    var(--color-base-100) 42rem
+  );
   color: var(--color-base-content);
   font-family: var(--font-sans);
 }
@@ -45,7 +46,12 @@ body {
 }
 
 .gradient-text {
-  background: linear-gradient(90deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+  background: linear-gradient(
+    90deg,
+    var(--gradient-start),
+    var(--gradient-mid),
+    var(--gradient-end)
+  );
   background-clip: text;
   color: transparent;
   -webkit-background-clip: text;
@@ -54,7 +60,18 @@ body {
 
 .hero-blob {
   display: block;
-  background: linear-gradient(135deg, #ef4444 0%, #f97316 12%, #eab308 24%, #22c55e 36%, #14b8a6 48%, #3b82f6 60%, #7c3aed 75%, #a855f7 85%, #ec4899 100%);
+  background: linear-gradient(
+    135deg,
+    #ef4444 0%,
+    #f97316 12%,
+    #eab308 24%,
+    #22c55e 36%,
+    #14b8a6 48%,
+    #3b82f6 60%,
+    #7c3aed 75%,
+    #a855f7 85%,
+    #ec4899 100%
+  );
   opacity: 0.18;
 }
 
@@ -140,7 +157,12 @@ body {
   height: 6rem;
   z-index: -1;
   border-radius: 999px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--gradient-start) 18%, transparent), color-mix(in srgb, var(--gradient-mid) 12%, transparent), color-mix(in srgb, var(--gradient-end) 16%, transparent));
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--gradient-start) 18%, transparent),
+    color-mix(in srgb, var(--gradient-mid) 12%, transparent),
+    color-mix(in srgb, var(--gradient-end) 16%, transparent)
+  );
   content: "";
   filter: blur(32px);
 }
@@ -263,8 +285,8 @@ body {
   overflow-y: auto;
   color: #1e293b;
   font-family:
-    ui-monospace, SFMono-Regular, "SF Mono", Monaco, "Cascadia Mono", "Roboto Mono", Consolas,
-    "Courier New", monospace;
+    ui-monospace, SFMono-Regular, "SF Mono", Monaco, "Cascadia Mono",
+    "Roboto Mono", Consolas, "Courier New", monospace;
   font-size: 14px;
   line-height: 1.4;
   padding: 1rem;
@@ -277,6 +299,13 @@ body {
 
 .terminal-content pre {
   margin: 0;
+}
+
+.terminal-code {
+  display: block;
+  min-width: 100%;
+  width: max-content;
+  white-space: pre;
 }
 
 .terminal-content .cursor {
@@ -389,19 +418,25 @@ body {
 
 .docs-prose :where(a) {
   color: var(--color-primary);
-  text-decoration-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+  text-decoration-color: color-mix(
+    in srgb,
+    var(--color-primary) 35%,
+    transparent
+  );
   text-underline-offset: 0.2em;
 }
 
 .docs-prose :where(pre) {
   overflow-x: auto;
-  border: 1px solid color-mix(in srgb, var(--color-base-content) 12%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--color-base-content) 12%, transparent);
   border-radius: 0.5rem;
   background: var(--color-base-200);
 }
 
 .docs-prose :where(:not(pre) > code) {
-  border: 1px solid color-mix(in srgb, var(--color-base-content) 12%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--color-base-content) 12%, transparent);
   border-radius: 0.25rem;
   background: var(--color-base-200);
   color: var(--color-primary);

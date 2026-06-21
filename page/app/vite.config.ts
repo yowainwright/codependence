@@ -8,7 +8,23 @@ import { defineConfig, type Plugin } from "vite";
 
 const FRONTMATTER_REGEX = /^---\n[\s\S]*?\n---\n?/;
 
-const stripFrontmatter = (source: string): string => source.replace(FRONTMATTER_REGEX, "");
+const manualChunkPackages: Record<string, string[]> = {
+  motion: ["framer-motion"],
+  state: ["xstate", "@xstate/react"],
+};
+
+const manualChunks = (id: string) => {
+  if (!id.includes("node_modules")) return;
+
+  for (const [chunkName, packages] of Object.entries(manualChunkPackages)) {
+    if (packages.some((pkg) => id.includes(`/node_modules/${pkg}/`))) {
+      return chunkName;
+    }
+  }
+};
+
+const stripFrontmatter = (source: string): string =>
+  source.replace(FRONTMATTER_REGEX, "");
 
 const codependenceMdx = (): Plugin => ({
   name: "codependence-mdx",
@@ -39,5 +55,10 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 650,
+    rollupOptions: {
+      output: {
+        manualChunks,
+      },
+    },
   },
 });
