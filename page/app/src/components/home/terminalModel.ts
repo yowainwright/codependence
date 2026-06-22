@@ -1,18 +1,9 @@
-export type AnsiColor = "cyan" | "gray" | "green" | "red" | "yellow";
-
-export type TerminalSegment = {
-  text: string;
-  className?: string;
-  ansiColor?: AnsiColor;
-};
-
-export type TerminalLine = TerminalSegment[];
-
-export type SegmentEntry = [
-  text: string,
-  className?: string,
-  ansiColor?: AnsiColor,
-];
+import { ANSI_CLASS_NAMES } from "@/components/TerminalWindow";
+import type {
+  AnsiColor,
+  SegmentEntry,
+  TerminalLine,
+} from "@/components/TerminalWindow";
 
 export type MaintenanceMode = "check" | "dry-run" | "update";
 
@@ -23,11 +14,6 @@ export type VersionRow = {
   current: string;
   latest: string;
   isPinned?: boolean;
-};
-
-export type TerminalTab = {
-  id: string;
-  title: string;
 };
 
 export type SpotlightSnippetId = MaintenanceMode;
@@ -47,22 +33,20 @@ export type LanguageDemo = {
   rows: VersionRow[];
 };
 
-export const ANSI_CLASS_NAMES: Record<AnsiColor | "boldCyan" | "base", string> =
-  {
-    base: "text-base-content",
-    boldCyan: "font-semibold text-cyan-400",
-    cyan: "text-cyan-400",
-    gray: "text-base-content/50",
-    green: "text-success",
-    red: "text-error",
-    yellow: "text-warning",
-  };
-
-export const TERMINAL_FRAME_MAX_WIDTH_CLASS = "max-w-[46rem]";
-export const TERMINAL_FRAME_CLASS = `spotlight-frame w-full min-w-0 ${TERMINAL_FRAME_MAX_WIDTH_CLASS}`;
-export const SPOTLIGHT_TERMINAL_CONTENT_CLASS = "h-[420px]";
-export const LANGUAGE_TERMINAL_CONTENT_CLASS = "h-[390px]";
-export const TERMINAL_TARGET_COLUMNS = 80;
+export {
+  ANSI_CLASS_NAMES,
+  LANGUAGE_TERMINAL_CONTENT_CLASS,
+  SPOTLIGHT_TERMINAL_CONTENT_CLASS,
+  TERMINAL_DEFAULT_CONTENT_CLASS,
+  TERMINAL_FRAME_CLASS,
+  TERMINAL_FRAME_MAX_WIDTH_CLASS,
+  TERMINAL_TARGET_COLUMNS,
+} from "@/components/TerminalWindow";
+export type {
+  AnsiColor,
+  SegmentEntry,
+  TerminalLine,
+} from "@/components/TerminalWindow";
 
 export const CODEPENDENCE_COMMAND = "codependence";
 export const SPOTLIGHT_TAB_DELAY_MS = 4600;

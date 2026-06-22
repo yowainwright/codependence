@@ -3,13 +3,16 @@ import { useMachine } from "@xstate/react";
 import {
   LANGUAGE_TERMINAL_CONTENT_CLASS,
   TERMINAL_FRAME_CLASS,
+  TerminalTranscript,
+  TerminalWindow,
+  type TerminalLine,
+} from "@/components/TerminalWindow";
+import {
   createLanguageTranscript,
   languages,
   maintenanceModes,
   type MaintenanceMode,
-  type TerminalLine,
 } from "@/components/home/terminalModel";
-import { TerminalWindow } from "@/components/home/terminalTranscript";
 import { TERMINAL_FLOW_EVENTS } from "@/machines/terminalFlow/constants";
 import { maintenanceModeMachine } from "@/machines/terminalFlow/machine";
 
@@ -88,12 +91,13 @@ function LanguageTerminal({
 }) {
   return (
     <article className={TERMINAL_FRAME_CLASS}>
-      <TerminalWindow
-        title={title}
-        lines={lines}
-        contentClassName={LANGUAGE_TERMINAL_CONTENT_CLASS}
-        contentKey={`${title}-${mode}`}
-      />
+      <TerminalWindow fileName={title}>
+        <TerminalTranscript
+          lines={lines}
+          className={LANGUAGE_TERMINAL_CONTENT_CLASS}
+          contentKey={`${title}-${mode}`}
+        />
+      </TerminalWindow>
     </article>
   );
 }

@@ -3,11 +3,14 @@ import { useMachine } from "@xstate/react";
 import {
   SPOTLIGHT_TERMINAL_CONTENT_CLASS,
   TERMINAL_FRAME_CLASS,
+  TerminalTranscript,
+  TerminalWindow,
+} from "@/components/TerminalWindow";
+import {
   getSpotlightSnippet,
   spotlightSnippets,
   type SpotlightSnippetId,
 } from "@/components/home/terminalModel";
-import { TerminalWindow } from "@/components/home/terminalTranscript";
 import { TERMINAL_FLOW_EVENTS } from "@/machines/terminalFlow/constants";
 import { spotlightTerminalMachine } from "@/machines/terminalFlow/machine";
 
@@ -38,14 +41,17 @@ export function SpotlightCode() {
   return (
     <div ref={containerRef} className={TERMINAL_FRAME_CLASS}>
       <TerminalWindow
-        title="terminal"
-        lines={activeSnippet.lines}
-        tabs={spotlightSnippets.map(({ id, title }) => ({ id, title }))}
-        activeTabId={activeSnippet.id}
-        onTabClick={switchTabById}
-        contentClassName={SPOTLIGHT_TERMINAL_CONTENT_CLASS}
-        contentKey={activeSnippet.id}
-      />
+        fileName="terminal"
+        tabs={spotlightSnippets.map(({ id, title }) => ({ id, label: title }))}
+        activeTab={activeSnippet.id}
+        onTabChange={switchTabById}
+      >
+        <TerminalTranscript
+          lines={activeSnippet.lines}
+          className={SPOTLIGHT_TERMINAL_CONTENT_CLASS}
+          contentKey={activeSnippet.id}
+        />
+      </TerminalWindow>
     </div>
   );
 }

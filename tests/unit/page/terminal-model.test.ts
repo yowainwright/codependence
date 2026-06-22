@@ -6,6 +6,8 @@ import {
   SPOTLIGHT_TERMINAL_CONTENT_CLASS,
   TERMINAL_FRAME_MAX_WIDTH_CLASS,
   TERMINAL_TARGET_COLUMNS,
+} from "../../../page/app/src/components/TerminalWindow/constants";
+import {
   createLanguageTranscript,
   createSpotlightTranscript,
   createVersionTable,
