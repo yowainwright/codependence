@@ -16,6 +16,13 @@ import {
 import { TERMINAL_FLOW_EVENTS } from "@/machines/terminalFlow/constants";
 import { maintenanceModeMachine } from "@/machines/terminalFlow/machine";
 
+const upcomingProviders = [
+  { name: "Rust", manifest: "Cargo.toml" },
+  { name: "Ruby", manifest: "Gemfile" },
+  { name: "Java", manifest: "pom.xml" },
+  { name: "Docker", manifest: "image tags" },
+];
+
 export function LanguageExamples() {
   const [snapshot, send] = useMachine(maintenanceModeMachine);
   const activeMode = snapshot.context.activeMode;
@@ -74,6 +81,7 @@ export function LanguageExamples() {
               mode={activeMode}
             />
           ))}
+          <ProviderRoadmapCard />
         </div>
       </div>
     </section>
@@ -98,6 +106,45 @@ function LanguageTerminal({
           contentKey={`${title}-${mode}`}
         />
       </TerminalWindow>
+    </article>
+  );
+}
+
+function ProviderRoadmapCard() {
+  return (
+    <article className={TERMINAL_FRAME_CLASS}>
+      <div className="flex min-h-[436px] w-full flex-col rounded-lg border border-dashed border-base-content/20 bg-base-200/45 p-6">
+        <div>
+          <p className="text-xs font-semibold uppercase text-base-content/50">
+            Provider roadmap
+          </p>
+          <h3 className="mt-3 text-2xl font-black">More ecosystems next</h3>
+          <p className="mt-3 max-w-md text-sm leading-6 text-base-content/70">
+            The provider model is built around the same check, dry-run, and
+            update loop across manifest formats.
+          </p>
+        </div>
+
+        <div className="mt-8 grid gap-3 sm:grid-cols-2">
+          {upcomingProviders.map((provider) => (
+            <div
+              key={provider.name}
+              className="rounded-lg border border-base-content/10 bg-base-100 p-4"
+            >
+              <p className="font-semibold">{provider.name}</p>
+              <p className="mt-1 font-mono text-xs text-base-content/60">
+                {provider.manifest}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-auto border-t border-base-content/10 pt-5">
+          <p className="text-sm font-semibold text-primary">
+            Node.js, Python, and Go are already wired into the demo flow.
+          </p>
+        </div>
+      </div>
     </article>
   );
 }
