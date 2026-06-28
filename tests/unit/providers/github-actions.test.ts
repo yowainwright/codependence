@@ -12,6 +12,16 @@ describe("GitHubActionsProvider", () => {
     mkdirSync(tmpDir, { recursive: true });
   });
 
+  test("should expose provider metadata", async () => {
+    const provider = new GitHubActionsProvider();
+
+    expect(provider.language).toBe("github-actions");
+    expect(await provider.getLatestVersion("actions/checkout")).toBe("");
+    expect(await provider.getAllVersions("actions/checkout")).toEqual([]);
+    expect(provider.validatePackageName("actions/checkout")).toBe(true);
+    expect(provider.validatePackageName("local-action")).toBe(false);
+  });
+
   test("should read external action refs", () => {
     const content = `name: ci
 jobs:

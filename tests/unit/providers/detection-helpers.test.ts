@@ -207,6 +207,13 @@ describe("detectPythonPackageManagerForManifest", () => {
     expect(detectPythonPackageManagerForManifest(manifestPath)).toBe("pip");
   });
 
+  test("returns conda for environment.yml", () => {
+    const manifestPath = join(tmpDir, "environment.yml");
+    writeFileSync(manifestPath, "");
+
+    expect(detectPythonPackageManagerForManifest(manifestPath)).toBe("conda");
+  });
+
   test("returns uv for requirements.txt when uv.lock exists", () => {
     const manifestPath = join(tmpDir, "requirements.txt");
     writeFileSync(manifestPath, "");
@@ -229,6 +236,13 @@ describe("detectPythonPackageManagerForManifest", () => {
 
     expect(isPoetryPyproject(manifestPath)).toBe(true);
     expect(detectPythonPackageManagerForManifest(manifestPath)).toBe("poetry");
+  });
+
+  test("returns false for unreadable pyproject.toml", () => {
+    const manifestPath = join(tmpDir, "pyproject.toml");
+    mkdirSync(manifestPath);
+
+    expect(isPoetryPyproject(manifestPath)).toBe(false);
   });
 
   test("returns uv for non-Poetry pyproject.toml when uv.lock exists", () => {

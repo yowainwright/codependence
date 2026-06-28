@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, mock, test } from "bun:test";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { RustProvider } from "../../../src/providers/rust";
@@ -7,9 +7,60 @@ describe("RustProvider", () => {
   const tmpDir = join(__dirname, ".tmp-rust-test");
   const cargoPath = join(tmpDir, "Cargo.toml");
 
+  afterEach(() => {
+    mock.restore();
+  });
+
   beforeEach(() => {
     rmSync(tmpDir, { recursive: true, force: true });
     mkdirSync(tmpDir, { recursive: true });
+  });
+
+  test("should expose provider metadata", async () => {
+    const provider = new RustProvider({ isTesting: true });
+
+    expect(provider.language).toBe("rust");
+    expect(await provider.getAllVersions("serde")).toEqual([]);
+    expect(provider.validatePackageName("serde_json")).toBe(true);
+    expect(provider.validatePackageName("serde json")).toBe(false);
+  });
+
+  test("should read latest version from cargo search output", async () => {
+    const execMock = jest.fn(() => ({
+      stdout: 'other = "2.0.0"\nserde = "1.0.210"',
+      stderr: "",
+    })) as any;
+
+    const provider = new RustProvider({ isTesting: true });
+    mock.module("../../../src/utils/exec", () => ({
+      exec: execMock,
+    }));
+
+    const version = await provider.getLatestVersion("serde");
+
+    expect(version).toBe("1.0.210");
+    expect(execMock).toHaveBeenCalledWith("cargo", [
+      "search",
+      "serde",
+      "--limit",
+      "1",
+    ]);
+  });
+
+  test("should return empty latest version for unmatched cargo output", async () => {
+    const execMock = jest.fn(() => ({
+      stdout: 'not a result\nother = "2.0.0"',
+      stderr: "",
+    })) as any;
+
+    const provider = new RustProvider({ isTesting: true });
+    mock.module("../../../src/utils/exec", () => ({
+      exec: execMock,
+    }));
+
+    const version = await provider.getLatestVersion("serde");
+
+    expect(version).toBe("");
   });
 
   test("should read Cargo.toml dependency sections", () => {

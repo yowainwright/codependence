@@ -12,6 +12,16 @@ describe("DockerProvider", () => {
     mkdirSync(tmpDir, { recursive: true });
   });
 
+  test("should expose provider metadata", async () => {
+    const provider = new DockerProvider();
+
+    expect(provider.language).toBe("docker");
+    expect(await provider.getLatestVersion("node")).toBe("");
+    expect(await provider.getAllVersions("node")).toEqual([]);
+    expect(provider.validatePackageName("ghcr.io/org/image")).toBe(true);
+    expect(provider.validatePackageName("bad image")).toBe(false);
+  });
+
   test("should read Dockerfile image tags", () => {
     const content = `FROM node:20.11.1 AS build
 FROM --platform=linux/amd64 nginx:1.25

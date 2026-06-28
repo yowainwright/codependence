@@ -331,6 +331,15 @@ describe("Language Detection", () => {
       expect(result).toBeNull();
     });
 
+    test("should ignore unreadable GitHub workflow paths", () => {
+      mkdirSync(join(tmpDir, ".github"));
+      writeFileSync(join(tmpDir, ".github", "workflows"), "not a directory");
+
+      const result = detectPrimaryLanguage(tmpDir);
+
+      expect(result).toBeNull();
+    });
+
     test("should prefer Node.js in mixed projects", () => {
       writeFileSync(join(tmpDir, "package.json"), "{}");
       writeFileSync(join(tmpDir, "requirements.txt"), "");
