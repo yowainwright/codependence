@@ -1,4 +1,4 @@
-import{j as e}from"./jsx-runtime.u17CrQMm.js";import{r as x}from"./index.CO9X3OiW.js";const h=["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"],j=15,g=80,v=3e3,N=[{type:"type",lines:[{text:"$ ",color:"text-secondary"},{text:"codependence",color:"text-base-content"}]},{type:"pause",duration:300},{type:"spinner",duration:2e3,text:"checking version policy..."},{type:"type",lines:[{text:`
+import{j as e}from"./jsx-runtime.u17CrQMm.js";import{r as x}from"./index.saqyeS7l.js";const h=["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"],j=15,g=80,v=3e3,N=[{type:"type",lines:[{text:"$ ",color:"text-secondary"},{text:"codependence",color:"text-base-content"}]},{type:"pause",duration:300},{type:"spinner",duration:2e3,text:"checking version policy..."},{type:"type",lines:[{text:`
 
 `,color:""},{text:"Policy drift detected",color:"text-warning"}]},{type:"pause",duration:150},{type:"type",lines:[{text:`
 `,color:""},{text:"react ",color:"text-base-content"},{text:"19.0.0",color:"text-warning"},{text:" -> ",color:"text-base-content/50"},{text:"^18.3.1",color:"text-success"},{text:" pinned",color:"text-base-content/50"}]},{type:"pause",duration:150},{type:"type",lines:[{text:`

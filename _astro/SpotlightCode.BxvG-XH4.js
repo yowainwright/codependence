@@ -1,4 +1,4 @@
-import{j as t}from"./jsx-runtime.u17CrQMm.js";import{r as c}from"./index.CO9X3OiW.js";const u=[{id:"policy",title:"Policy",lines:[{text:"$ ",color:"text-secondary"},{text:"codependence --dryRun --format table",color:"text-base-content"},{text:`
+import{j as t}from"./jsx-runtime.u17CrQMm.js";import{r as c}from"./index.saqyeS7l.js";const u=[{id:"policy",title:"Policy",lines:[{text:"$ ",color:"text-secondary"},{text:"codependence --dryRun --format table",color:"text-base-content"},{text:`
 
 `,color:""},{text:"Policy: ",color:"text-base-content/70"},{text:".codependencerc",color:"text-primary"},{text:`
 Strategy: `,color:"text-base-content/70"},{text:"permissive",color:"text-accent"},{text:" (pin listed, update the rest)",color:"text-base-content/50"},{text:`
