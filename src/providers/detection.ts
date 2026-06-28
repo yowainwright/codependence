@@ -1,8 +1,11 @@
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync, readdirSync } from "fs";
 import { basename, dirname, join } from "path";
+import { DockerProvider } from "./docker";
 import { GoProvider } from "./go";
+import { GitHubActionsProvider } from "./github-actions";
 import { NodeJSProvider } from "./nodejs";
 import { PythonProvider } from "./python";
+import { RustProvider } from "./rust";
 import {
   CONDA_MANIFEST_FILES,
   LANGUAGES,
@@ -18,7 +21,10 @@ import type { Language, LanguageDetectionResult } from "./types";
 type LanguageProvider =
   | typeof NodeJSProvider
   | typeof GoProvider
-  | typeof PythonProvider;
+  | typeof PythonProvider
+  | typeof RustProvider
+  | typeof DockerProvider
+  | typeof GitHubActionsProvider;
 
 const hasAnyFile = (rootDir: string, files: readonly string[]): boolean =>
   files.some((file) => existsSync(join(rootDir, file)));
@@ -28,6 +34,31 @@ const isKnownNodePackageManager = (managerName: string): boolean =>
 
 const isCondaManifestFile = (manifestName: string): boolean =>
   CONDA_MANIFEST_FILES.some((name) => name === manifestName);
+
+const hasGithubWorkflow = (rootDir: string): boolean => {
+  const workflowDir = join(rootDir, ".github", "workflows");
+  if (!existsSync(workflowDir)) return false;
+
+  try {
+    return readdirSync(workflowDir).some((file) => {
+      const isYaml = file.endsWith(".yml") || file.endsWith(".yaml");
+      return isYaml;
+    });
+  } catch {
+    return false;
+  }
+};
+
+const cargoManifestFiles = (rootDir: string): string[] => {
+  const manifestFiles: string[] = [MANIFEST_FILES.CARGO_TOML];
+  const hasCargoLock = existsSync(join(rootDir, MANIFEST_FILES.CARGO_LOCK));
+
+  if (hasCargoLock) {
+    manifestFiles.push(MANIFEST_FILES.CARGO_LOCK);
+  }
+
+  return manifestFiles;
+};
 
 const readNodePackageManagerField = (rootDir: string): string | null => {
   const packageJsonPath = join(rootDir, MANIFEST_FILES.PACKAGE_JSON);
@@ -157,6 +188,35 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
     });
   }
 
+  const hasCargoToml = existsSync(join(rootDir, MANIFEST_FILES.CARGO_TOML));
+  if (hasCargoToml) {
+    detections.push({
+      language: LANGUAGES.RUST,
+      manifestFiles: cargoManifestFiles(rootDir),
+      packageManager: LANGUAGES.RUST,
+    });
+  }
+
+  const hasDockerfile = existsSync(join(rootDir, MANIFEST_FILES.DOCKERFILE));
+  if (hasDockerfile) {
+    detections.push({
+      language: LANGUAGES.DOCKER,
+      manifestFiles: [MANIFEST_FILES.DOCKERFILE],
+      packageManager: LANGUAGES.DOCKER,
+    });
+  }
+
+  if (hasGithubWorkflow(rootDir)) {
+    detections.push({
+      language: LANGUAGES.GITHUB_ACTIONS,
+      manifestFiles: [
+        MANIFEST_FILES.GITHUB_WORKFLOW_YML,
+        MANIFEST_FILES.GITHUB_WORKFLOW_YAML,
+      ],
+      packageManager: LANGUAGES.GITHUB_ACTIONS,
+    });
+  }
+
   const foundPythonManifests = PYTHON_MANIFEST_FILES.filter((f) =>
     existsSync(join(rootDir, f)),
   );
@@ -187,6 +247,12 @@ export const getLanguageProvider = (language: Language): LanguageProvider => {
       return GoProvider;
     case LANGUAGES.PYTHON:
       return PythonProvider;
+    case LANGUAGES.RUST:
+      return RustProvider;
+    case LANGUAGES.DOCKER:
+      return DockerProvider;
+    case LANGUAGES.GITHUB_ACTIONS:
+      return GitHubActionsProvider;
     default:
       throw new Error(`Unsupported language: ${language}`);
   }

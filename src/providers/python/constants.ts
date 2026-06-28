@@ -29,11 +29,14 @@ export const PYTHON_MANIFEST_TYPES = {
 
 export const PYTHON_PATTERNS = {
   REQUIREMENT_LINE: new RegExp(
-    `^([a-zA-Z0-9_.-]+)(${PYTHON_REQUIREMENT_PREFIX_PATTERN})([0-9.]+)`,
+    `^([a-zA-Z0-9_.-]+)(?:\\[[^\\]]+\\])?(${PYTHON_REQUIREMENT_PREFIX_PATTERN})([0-9.]+)`,
   ),
   COMMENT: /^#/,
   POETRY_DEPS: /\[tool\.poetry\.dependencies\]([\s\S]*?)(?=\[|$)/,
   POETRY_LINE: /^([a-zA-Z0-9_.-]+)\s*=\s*"([^"]+)"/,
+  PYPROJECT_SECTION: /^\s*\[([^\]]+)\]\s*$/,
+  PYPROJECT_ARRAY_START: /^\s*([A-Za-z0-9_.-]+)\s*=\s*\[/,
+  PYPROJECT_QUOTED_DEPENDENCY: /"([^"]+)"/g,
   PIPFILE_PACKAGES: /\[packages\]([\s\S]*?)(?=\[|$)/,
   PIPFILE_LINE: /^([a-zA-Z0-9_.-]+)\s*=\s*"([^"]+)"/,
   CONDA_DEPENDENCIES_SECTION: /^\s*dependencies:\s*$/,

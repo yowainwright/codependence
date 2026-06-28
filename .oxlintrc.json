@@ -1,0 +1,23 @@
+{
+  "jsPlugins": [
+    {
+      "name": "legibility",
+      "specifier": "eslint-plugin-legibility"
+    }
+  ],
+  "rules": {
+    "legibility/max-array-chain-depth": [
+      "warn",
+      {
+        "max": 2
+      }
+    ],
+    "legibility/max-expression-operators": [
+      "warn",
+      {
+        "max": 4
+      }
+    ],
+    "legibility/no-quadratic-patterns": "warn"
+  }
+}

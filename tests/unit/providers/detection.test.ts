@@ -7,6 +7,9 @@ import {
 import { NodeJSProvider } from "../../../src/providers/nodejs";
 import { GoProvider } from "../../../src/providers/go";
 import { PythonProvider } from "../../../src/providers/python";
+import { RustProvider } from "../../../src/providers/rust";
+import { DockerProvider } from "../../../src/providers/docker";
+import { GitHubActionsProvider } from "../../../src/providers/github-actions";
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 
@@ -108,6 +111,59 @@ describe("Language Detection", () => {
       const result = detectLanguage(tmpDir);
 
       expect(result[0].manifestFiles).toEqual(["go.mod", "go.sum"]);
+    });
+  });
+
+  describe("detectLanguage - Rust", () => {
+    test("should detect Rust with Cargo.toml", () => {
+      writeFileSync(join(tmpDir, "Cargo.toml"), "[package]");
+
+      const result = detectLanguage(tmpDir);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].language).toBe("rust");
+      expect(result[0].manifestFiles).toEqual(["Cargo.toml"]);
+      expect(result[0].packageManager).toBe("rust");
+    });
+
+    test("should detect Rust with Cargo.lock", () => {
+      writeFileSync(join(tmpDir, "Cargo.toml"), "[package]");
+      writeFileSync(join(tmpDir, "Cargo.lock"), "");
+
+      const result = detectLanguage(tmpDir);
+
+      expect(result[0].manifestFiles).toEqual(["Cargo.toml", "Cargo.lock"]);
+    });
+  });
+
+  describe("detectLanguage - Docker", () => {
+    test("should detect Dockerfile", () => {
+      writeFileSync(join(tmpDir, "Dockerfile"), "FROM node:20");
+
+      const result = detectLanguage(tmpDir);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].language).toBe("docker");
+      expect(result[0].manifestFiles).toEqual(["Dockerfile"]);
+      expect(result[0].packageManager).toBe("docker");
+    });
+  });
+
+  describe("detectLanguage - GitHub Actions", () => {
+    test("should detect workflow files", () => {
+      const workflowsDir = join(tmpDir, ".github", "workflows");
+      mkdirSync(workflowsDir, { recursive: true });
+      writeFileSync(join(workflowsDir, "ci.yml"), "name: ci");
+
+      const result = detectLanguage(tmpDir);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].language).toBe("github-actions");
+      expect(result[0].manifestFiles).toEqual([
+        ".github/workflows/*.yml",
+        ".github/workflows/*.yaml",
+      ]);
+      expect(result[0].packageManager).toBe("github-actions");
     });
   });
 
@@ -275,6 +331,15 @@ describe("Language Detection", () => {
       expect(result).toBeNull();
     });
 
+    test("should ignore unreadable GitHub workflow paths", () => {
+      mkdirSync(join(tmpDir, ".github"));
+      writeFileSync(join(tmpDir, ".github", "workflows"), "not a directory");
+
+      const result = detectPrimaryLanguage(tmpDir);
+
+      expect(result).toBeNull();
+    });
+
     test("should prefer Node.js in mixed projects", () => {
       writeFileSync(join(tmpDir, "package.json"), "{}");
       writeFileSync(join(tmpDir, "requirements.txt"), "");
@@ -304,9 +369,27 @@ describe("Language Detection", () => {
       expect(Provider).toBe(PythonProvider);
     });
 
+    test("should get RustProvider for rust", () => {
+      const Provider = getLanguageProvider("rust");
+
+      expect(Provider).toBe(RustProvider);
+    });
+
+    test("should get DockerProvider for docker", () => {
+      const Provider = getLanguageProvider("docker");
+
+      expect(Provider).toBe(DockerProvider);
+    });
+
+    test("should get GitHubActionsProvider for github-actions", () => {
+      const Provider = getLanguageProvider("github-actions");
+
+      expect(Provider).toBe(GitHubActionsProvider);
+    });
+
     test("should throw error for unsupported language", () => {
-      expect(() => getLanguageProvider("rust" as any)).toThrow(
-        "Unsupported language: rust",
+      expect(() => getLanguageProvider("ruby" as any)).toThrow(
+        "Unsupported language: ruby",
       );
     });
   });

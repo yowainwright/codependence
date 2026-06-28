@@ -1,9 +1,6 @@
 import type { LANGUAGES } from "./constants";
 
-export type Language =
-  | (typeof LANGUAGES)[keyof typeof LANGUAGES]
-  | "rust"
-  | "php";
+export type Language = (typeof LANGUAGES)[keyof typeof LANGUAGES] | "php";
 
 export interface LanguageDetectionResult {
   language: Language;
@@ -29,6 +26,7 @@ export interface DependencyProvider {
   readManifest(filePath: string): DependencyManifest;
   writeManifest(filePath: string, manifest: DependencyManifest): void | Promise<void>;
   validatePackageName(packageName: string): boolean;
+  normalizePackageName?(packageName: string): string;
 }
 
 export interface ProviderOptions {

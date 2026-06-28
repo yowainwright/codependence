@@ -2,13 +2,16 @@ import { readFileSync, writeFileSync } from "fs";
 import { basename, dirname, resolve } from "path";
 import {
   DEFAULT_LANGUAGE_MANIFESTS,
+  DockerProvider,
   GoProvider,
+  GitHubActionsProvider,
   LANGUAGES,
   MANIFEST_FILES,
   NODE_PACKAGE_MANAGERS,
   NodeJSProvider,
   PYTHON_MANIFEST_FILES,
   PythonProvider,
+  RustProvider,
   detectNodePackageManager,
   detectPrimaryLanguage,
   detectPythonPackageManagerForManifest,
@@ -48,10 +51,25 @@ const DEFAULT_FILE_MATCHERS: Record<SupportedLanguage, string[]> = {
   [LANGUAGES.NODEJS]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.NODEJS]],
   [LANGUAGES.GO]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.GO]],
   [LANGUAGES.PYTHON]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.PYTHON]],
+  [LANGUAGES.RUST]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.RUST]],
+  [LANGUAGES.DOCKER]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.DOCKER]],
+  [LANGUAGES.GITHUB_ACTIONS]: [
+    ...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.GITHUB_ACTIONS],
+  ],
 };
 
 const PYTHON_MANIFEST_NAMES = new Set<string>(PYTHON_MANIFEST_FILES);
 const VERSION_RESOLUTION_CONCURRENCY = 8;
+const SUPPORTED_LANGUAGE_NAMES = new Set<string>(Object.values(LANGUAGES));
+
+const isSupportedLanguageName = (
+  language: string | undefined,
+): language is SupportedLanguage => {
+  if (!language) return false;
+
+  const isSupported = SUPPORTED_LANGUAGE_NAMES.has(language);
+  return isSupported;
+};
 
 type LoadedManifest = {
   file: string;
@@ -100,9 +118,19 @@ const resolveManifestPath = (rootDir: string, file: string): string =>
 
 const inferLanguageFromFile = (file: string): SupportedLanguage | null => {
   const manifestName = basename(file);
+  const normalizedFile = file.replace(/\\/g, "/");
+  const normalizedDir = dirname(normalizedFile).replace(/\\/g, "/");
+  const isGithubWorkflow =
+    normalizedDir === ".github/workflows" ||
+    normalizedDir.endsWith("/.github/workflows");
 
   if (manifestName === MANIFEST_FILES.PACKAGE_JSON) return LANGUAGES.NODEJS;
   if (manifestName === MANIFEST_FILES.GO_MOD) return LANGUAGES.GO;
+  if (manifestName === MANIFEST_FILES.CARGO_TOML) return LANGUAGES.RUST;
+  if (manifestName === MANIFEST_FILES.DOCKERFILE) return LANGUAGES.DOCKER;
+  if (isGithubWorkflow) {
+    return LANGUAGES.GITHUB_ACTIONS;
+  }
   if (PYTHON_MANIFEST_NAMES.has(manifestName)) return LANGUAGES.PYTHON;
 
   return null;
@@ -115,11 +143,7 @@ const resolveTargetLanguage = (
   if (language) return language;
 
   const detected = detectPrimaryLanguage(rootDir)?.language;
-  if (
-    detected === LANGUAGES.NODEJS ||
-    detected === LANGUAGES.GO ||
-    detected === LANGUAGES.PYTHON
-  ) {
+  if (isSupportedLanguageName(detected)) {
     return detected;
   }
 
@@ -166,6 +190,21 @@ const createProvider = (
       return {
         provider: new GoProvider(providerOptions),
         packageManager: LANGUAGES.GO,
+      };
+    case LANGUAGES.RUST:
+      return {
+        provider: new RustProvider(providerOptions),
+        packageManager: LANGUAGES.RUST,
+      };
+    case LANGUAGES.DOCKER:
+      return {
+        provider: new DockerProvider(),
+        packageManager: LANGUAGES.DOCKER,
+      };
+    case LANGUAGES.GITHUB_ACTIONS:
+      return {
+        provider: new GitHubActionsProvider(),
+        packageManager: LANGUAGES.GITHUB_ACTIONS,
       };
     case LANGUAGES.PYTHON: {
       const packageManager = detectPythonPackageManagerForManifest(
@@ -215,6 +254,89 @@ const collectAllDepNamesFromManifests = (
 ): string[] =>
   Array.from(
     new Set(manifests.flatMap(({ manifest }) => collectDepNamesFromManifest(manifest))),
+  );
+
+type PackageNormalizer = (packageName: string) => string;
+
+const getPackageNormalizer = (
+  provider: DependencyProvider,
+): PackageNormalizer | null => {
+  if (!provider.normalizePackageName) return null;
+  return (packageName: string) => provider.normalizePackageName!(packageName);
+};
+
+const createNormalizedVersionLookup = (
+  versionMap: Record<string, string>,
+  normalize: PackageNormalizer,
+): Map<string, string> => {
+  const lookup = new Map<string, string>();
+  Object.entries(versionMap).forEach(([name, version]) => {
+    lookup.set(normalize(name), version);
+  });
+  return lookup;
+};
+
+const aliasVersionMapForManifest = (
+  versionMap: Record<string, string>,
+  loadedManifest: LoadedManifest,
+): Record<string, string> => {
+  const normalize = getPackageNormalizer(loadedManifest.provider);
+  if (!normalize) return versionMap;
+
+  const aliasedMap = { ...versionMap };
+  const versionLookup = createNormalizedVersionLookup(versionMap, normalize);
+  const depNames = collectDepNamesFromManifest(loadedManifest.manifest);
+
+  depNames.forEach((name) => {
+    if (aliasedMap[name]) return;
+
+    const version = versionLookup.get(normalize(name));
+    if (version) aliasedMap[name] = version;
+  });
+
+  return aliasedMap;
+};
+
+const aliasVersionMapForManifests = (
+  versionMap: Record<string, string>,
+  manifests: LoadedManifest[],
+): Record<string, string> =>
+  manifests.reduce(
+    (aliasedMap, manifest) => aliasVersionMapForManifest(aliasedMap, manifest),
+    versionMap,
+  );
+
+const createNormalizedNameSet = (
+  names: string[],
+  normalize: PackageNormalizer,
+): Set<string> => new Set(names.map((name) => normalize(name)));
+
+const aliasCodependenciesForManifest = (
+  codependencies: string[] = [],
+  loadedManifest: LoadedManifest,
+): string[] => {
+  const normalize = getPackageNormalizer(loadedManifest.provider);
+  if (!normalize || codependencies.length === 0) return codependencies;
+
+  const aliases = new Set(codependencies);
+  const normalizedCodependencies = createNormalizedNameSet(codependencies, normalize);
+  const depNames = collectDepNamesFromManifest(loadedManifest.manifest);
+
+  depNames.forEach((name) => {
+    const normalizedName = normalize(name);
+    if (normalizedCodependencies.has(normalizedName)) aliases.add(name);
+  });
+
+  return Array.from(aliases);
+};
+
+const aliasCodependenciesForManifests = (
+  codependencies: string[],
+  manifests: LoadedManifest[],
+): string[] =>
+  manifests.reduce(
+    (aliases, manifest) => aliasCodependenciesForManifest(aliases, manifest),
+    codependencies,
   );
 
 const detectStaleCodependenciesFromManifests = (
@@ -901,11 +1023,16 @@ const checkLoadedManifests = async ({
 
   const packagesNeedingUpdate: string[] = [];
   for (const manifest of manifests) {
+    const effectiveVersionMap = aliasVersionMapForManifest(versionMap, manifest);
+    const effectiveCodependencies = aliasCodependenciesForManifest(
+      codependencies,
+      manifest,
+    );
     const needsUpdate = await checkManifestDependenciesForVersion(
-      versionMap,
+      effectiveVersionMap,
       manifest,
       options,
-      codependencies,
+      effectiveCodependencies,
     );
     if (needsUpdate) {
       packagesNeedingUpdate.push(manifest.file);
@@ -1054,9 +1181,10 @@ const resolvePreciseModeDeps = async (
   },
 ): Promise<Record<string, string>> => {
   const allDepNames = collectAllDepNamesFromManifests(manifests);
-  const unresolvedDeps = allDepNames.filter((name) => !versionMap[name]);
+  const aliasedVersionMap = aliasVersionMapForManifests(versionMap, manifests);
+  const unresolvedDeps = allDepNames.filter((name) => !aliasedVersionMap[name]);
 
-  if (unresolvedDeps.length === 0) return versionMap;
+  if (unresolvedDeps.length === 0) return aliasedVersionMap;
 
   const additionalMap = await constructVersionMap({
     codependencies: unresolvedDeps,
@@ -1070,7 +1198,7 @@ const resolvePreciseModeDeps = async (
     validate: options.validate,
   });
 
-  return { ...versionMap, ...additionalMap };
+  return { ...aliasedVersionMap, ...additionalMap };
 };
 
 const resolveEffectiveMode = ({
@@ -1185,6 +1313,9 @@ export const checkFiles = async ({
         validate,
       });
     }
+
+    versionMap = aliasVersionMapForManifests(versionMap, manifests);
+    depNames = aliasCodependenciesForManifests(depNames, manifests);
 
     const hasOutputChanges = (update || dryRun) && !silent && !quiet;
     const shouldCollectDiffs = format !== undefined || hasOutputChanges;

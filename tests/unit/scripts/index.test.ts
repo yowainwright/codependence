@@ -1557,3 +1557,156 @@ require (
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test("checkFiles => auto-detects rust manifests", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-rust-detect");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(
+    join(tempDir, "Cargo.toml"),
+    '[package]\nname = "rust-detect"\n\n[dependencies]\nserde = "1.0.190"\n',
+  );
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: [{ serde: "1.0.190" }],
+        rootDir: tempDir,
+        files: ["Cargo.toml"],
+        permissive: false,
+        isTesting: true,
+        silent: true,
+      }),
+    ).resolves.toEqual([]);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => updates rust manifests with normalized package names", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-rust-normalized");
+  const cargoPath = join(tempDir, "Cargo.toml");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(
+    cargoPath,
+    '[package]\nname = "rust-normalized"\n\n[dependencies]\nserde_json = "1.0.100"\n',
+  );
+
+  try {
+    await checkFiles({
+      codependencies: [{ "serde-json": "1.0.145" }],
+      rootDir: tempDir,
+      files: ["Cargo.toml"],
+      update: true,
+      silent: true,
+    });
+
+    const updated = fs.readFileSync(cargoPath, "utf8");
+    expect(updated).toContain('serde_json = "1.0.145"');
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => auto-detects Docker manifests", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-detect");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(join(tempDir, "Dockerfile"), "FROM node:20.11.1\n");
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: [{ node: "20.11.1" }],
+        rootDir: tempDir,
+        files: ["Dockerfile"],
+        permissive: false,
+        isTesting: true,
+        silent: true,
+      }),
+    ).resolves.toEqual([]);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => auto-detects GitHub Actions manifests", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-detect");
+  const workflowDir = join(tempDir, ".github", "workflows");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(workflowDir, { recursive: true });
+  writeFileSync(
+    join(workflowDir, "ci.yml"),
+    "name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
+  );
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: [{ "actions/checkout": "v4" }],
+        rootDir: tempDir,
+        files: [".github/workflows/ci.yml"],
+        permissive: false,
+        isTesting: true,
+        silent: true,
+      }),
+    ).resolves.toEqual([]);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => auto-detects absolute GitHub Actions manifest paths", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-absolute");
+  const workflowDir = join(tempDir, ".github", "workflows");
+  const workflowPath = join(workflowDir, "ci.yml");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(workflowDir, { recursive: true });
+  writeFileSync(
+    workflowPath,
+    "name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
+  );
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: [{ "actions/checkout": "v4" }],
+        rootDir: process.cwd(),
+        files: [workflowPath],
+        permissive: false,
+        isTesting: true,
+        silent: true,
+      }),
+    ).resolves.toEqual([]);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => logs thrown errors in debug mode", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-debug-error");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(join(tempDir, "package.json"), "{ invalid json");
+
+  const debugSpy = jest.spyOn(logger, "debug").mockImplementation(() => {});
+  try {
+    await expect(
+      checkFiles({
+        codependencies: [{ lodash: "4.17.21" }],
+        rootDir: tempDir,
+        files: ["package.json"],
+        debug: true,
+        permissive: false,
+        isTesting: true,
+      }),
+    ).rejects.toThrow();
+    expect(debugSpy).toHaveBeenCalledWith(
+      expect.stringContaining("SyntaxError"),
+    );
+  } finally {
+    debugSpy.mockRestore();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});

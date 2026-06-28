@@ -370,6 +370,66 @@ version = "0.1.0"
 
       expect(manifest.dependencies).toEqual({});
     });
+
+    test("should read PEP 621 and uv dependency groups", async () => {
+      const pyprojectPath = join(tmpDir, "pyproject.toml");
+      const content = `[project]
+dependencies = [
+  "requests>=2.31.0",
+  "flask==3.0.0",
+]
+
+[project.optional-dependencies]
+docs = [
+  "mkdocs>=1.5.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0.0",
+]
+bench = [
+  "pytest-benchmark>=4.0.0",
+]
+`;
+
+      writeFileSync(pyprojectPath, content);
+
+      const provider = new PythonProvider(pyprojectPath, "uv");
+      const manifest = await provider.readManifest(pyprojectPath);
+
+      expect(manifest.dependencies).toEqual({
+        requests: ">=2.31.0",
+        flask: "==3.0.0",
+      });
+      expect(manifest.devDependencies).toEqual({
+        pytest: ">=8.0.0",
+      });
+      expect(manifest.optionalDependencies).toEqual({
+        mkdocs: ">=1.5.0",
+        "pytest-benchmark": ">=4.0.0",
+      });
+    });
+
+    test("should keep reading PEP 621 dependencies after extras", async () => {
+      const pyprojectPath = join(tmpDir, "pyproject.toml");
+      const content = `[project]
+dependencies = [
+  "requests[security]>=2.31.0",
+  "boto3>=1.26.0",
+]
+`;
+
+      writeFileSync(pyprojectPath, content);
+
+      const provider = new PythonProvider(pyprojectPath, "uv");
+      const manifest = await provider.readManifest(pyprojectPath);
+
+      expect(manifest.dependencies).toEqual({
+        requests: ">=2.31.0",
+        boto3: ">=1.26.0",
+      });
+    });
   });
 
   describe("readManifest - Pipfile", () => {
@@ -544,6 +604,81 @@ pytest = "^7.0.0"
       expect(content).toContain('flask = "~2.0.0"');
       expect(content).not.toContain("old-package");
       expect(content).toContain('[tool.poetry.dev-dependencies]');
+    });
+
+    test("should update PEP 621 and uv dependency groups", async () => {
+      const pyprojectPath = join(tmpDir, "pyproject.toml");
+      const original = `[project]
+dependencies = [
+  "requests>=2.31.0",
+  "flask==3.0.0",
+]
+
+[project.optional-dependencies]
+docs = [
+  "mkdocs>=1.5.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0.0",
+]
+bench = [
+  "pytest-benchmark>=4.0.0",
+]
+`;
+
+      writeFileSync(pyprojectPath, original);
+
+      const provider = new PythonProvider(pyprojectPath, "uv");
+      await provider.writeManifest(pyprojectPath, {
+        filePath: pyprojectPath,
+        dependencies: {
+          requests: ">=2.32.0",
+          flask: "==3.0.0",
+        },
+        devDependencies: {
+          pytest: ">=8.1.0",
+        },
+        optionalDependencies: {
+          mkdocs: ">=1.6.0",
+          "pytest-benchmark": ">=4.1.0",
+        },
+      });
+
+      const content = readFileSync(pyprojectPath, "utf8");
+
+      expect(content).toContain('"requests>=2.32.0"');
+      expect(content).toContain('"flask==3.0.0"');
+      expect(content).toContain('"mkdocs>=1.6.0"');
+      expect(content).toContain('"pytest>=8.1.0"');
+      expect(content).toContain('"pytest-benchmark>=4.1.0"');
+    });
+
+    test("should keep updating PEP 621 dependencies after extras", async () => {
+      const pyprojectPath = join(tmpDir, "pyproject.toml");
+      const original = `[project]
+dependencies = [
+  "requests[security]>=2.31.0",
+  "boto3>=1.26.0",
+]
+`;
+
+      writeFileSync(pyprojectPath, original);
+
+      const provider = new PythonProvider(pyprojectPath, "uv");
+      await provider.writeManifest(pyprojectPath, {
+        filePath: pyprojectPath,
+        dependencies: {
+          requests: ">=2.32.0",
+          boto3: ">=1.34.0",
+        },
+      });
+
+      const content = readFileSync(pyprojectPath, "utf8");
+
+      expect(content).toContain('"requests[security]>=2.32.0"');
+      expect(content).toContain('"boto3>=1.34.0"');
     });
   });
 

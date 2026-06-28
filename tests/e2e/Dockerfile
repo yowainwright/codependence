@@ -71,8 +71,12 @@ COPY --from=builder /app/bun.lock ./bun.lock
 COPY --from=builder /app/bunfig.toml ./bunfig.toml
 COPY --from=builder /app/page ./page
 
-# Install only production dependencies (skip prepare scripts)
-RUN bun install --production --frozen-lockfile --ignore-scripts
+# Install only production dependencies when they exist
+RUN if node -e "const pkg = require('./package.json'); process.exit(Object.keys(pkg.dependencies || {}).length === 0 ? 0 : 1)"; then \
+        echo "No production dependencies to install"; \
+    else \
+        bun install --production --frozen-lockfile --ignore-scripts; \
+    fi
 
 # Copy test fixtures
 COPY tests/e2e/fixtures/* ./
