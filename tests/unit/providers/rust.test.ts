@@ -47,6 +47,22 @@ describe("RustProvider", () => {
     ]);
   });
 
+  test("should read latest version for normalized cargo package names", async () => {
+    const execMock = jest.fn(() => ({
+      stdout: 'serde_json = "1.0.145"',
+      stderr: "",
+    })) as any;
+
+    const provider = new RustProvider({ isTesting: true });
+    mock.module("../../../src/utils/exec", () => ({
+      exec: execMock,
+    }));
+
+    const version = await provider.getLatestVersion("serde-json");
+
+    expect(version).toBe("1.0.145");
+  });
+
   test("should return empty latest version for unmatched cargo output", async () => {
     const execMock = jest.fn(() => ({
       stdout: 'not a result\nother = "2.0.0"',

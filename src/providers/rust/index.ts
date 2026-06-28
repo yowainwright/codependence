@@ -84,11 +84,17 @@ const assignDependency = (
   manifest[target] = targetDependencies;
 };
 
+const normalizeCargoPackageName = (packageName: string): string =>
+  packageName.replace(/[-_]/g, "-");
+
+const cargoPackageNamesMatch = (left: string, right: string): boolean =>
+  normalizeCargoPackageName(left) === normalizeCargoPackageName(right);
+
 const readLatestCargoVersion = (stdout: string, packageName: string): string => {
   for (const line of stdout.split("\n")) {
     const match = line.match(/^([A-Za-z0-9_-]+)\s*=\s*"([^"]+)"/);
     if (!match) continue;
-    if (match[1] !== packageName) continue;
+    if (!cargoPackageNamesMatch(match[1], packageName)) continue;
 
     const latestVersion = match[2];
     return latestVersion;
