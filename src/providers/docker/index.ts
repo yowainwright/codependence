@@ -16,6 +16,8 @@ const emptyManifest = (filePath: string): DependencyManifest => {
   return manifest;
 };
 
+const isScratchImage = (image: DockerImage): boolean => image.name === "scratch";
+
 const splitDockerImage = (image: string): DockerImage => {
   const lastSlash = image.lastIndexOf("/");
   const lastColon = image.lastIndexOf(":");
@@ -38,6 +40,8 @@ const readDockerFromLine = (line: string): DockerImage | null => {
   if (match[3].trimStart().startsWith("@")) return null;
 
   const imageSpec = splitDockerImage(match[2]);
+  if (isScratchImage(imageSpec)) return null;
+
   return imageSpec;
 };
 
@@ -50,6 +54,8 @@ export const updateDockerFromLine = (
   if (match[3].trimStart().startsWith("@")) return line;
 
   const imageSpec = splitDockerImage(match[2]);
+  if (isScratchImage(imageSpec)) return line;
+
   const version = dependencies[imageSpec.name];
   if (!version) return line;
 

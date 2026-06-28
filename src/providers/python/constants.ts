@@ -29,7 +29,7 @@ export const PYTHON_MANIFEST_TYPES = {
 
 export const PYTHON_PATTERNS = {
   REQUIREMENT_LINE: new RegExp(
-    `^([a-zA-Z0-9_.-]+)(${PYTHON_REQUIREMENT_PREFIX_PATTERN})([0-9.]+)`,
+    `^([a-zA-Z0-9_.-]+)(?:\\[[^\\]]+\\])?(${PYTHON_REQUIREMENT_PREFIX_PATTERN})([0-9.]+)`,
   ),
   COMMENT: /^#/,
   POETRY_DEPS: /\[tool\.poetry\.dependencies\]([\s\S]*?)(?=\[|$)/,

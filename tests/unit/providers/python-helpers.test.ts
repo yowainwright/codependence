@@ -42,6 +42,12 @@ describe("parseRequirementLine", () => {
     expect(result).toEqual(["scipy", "<=1.11.0"]);
   });
 
+  test("parses extras as the base package", () => {
+    const result = parseRequirementLine("requests[security]>=2.31.0");
+
+    expect(result).toEqual(["requests", ">=2.31.0"]);
+  });
+
   test("returns null for comment lines", () => {
     expect(parseRequirementLine("# This is a comment")).toBeNull();
   });

@@ -19,6 +19,9 @@ describe("DockerProvider", () => {
     expect(await provider.getLatestVersion("node")).toBe("");
     expect(await provider.getAllVersions("node")).toEqual([]);
     expect(provider.validatePackageName("ghcr.io/org/image")).toBe(true);
+    expect(provider.validatePackageName("registry.internal:5000/org/image")).toBe(
+      true,
+    );
     expect(provider.validatePackageName("bad image")).toBe(false);
   });
 
@@ -35,7 +38,6 @@ FROM scratch
     expect(manifest.dependencies).toEqual({
       node: "20.11.1",
       nginx: "1.25",
-      scratch: "latest",
     });
   });
 
@@ -43,6 +45,7 @@ FROM scratch
     const content = `FROM node:20.11.1 AS build
 FROM --platform=linux/amd64 nginx:1.25
 FROM alpine@sha256:abc123
+FROM scratch
 `;
     writeFileSync(dockerfilePath, content);
 
@@ -53,6 +56,7 @@ FROM alpine@sha256:abc123
         node: "22.0.0",
         nginx: "1.27",
         alpine: "3.20",
+        scratch: "latest",
       },
     });
 
@@ -61,5 +65,6 @@ FROM alpine@sha256:abc123
     expect(updated).toContain("FROM node:22.0.0 AS build");
     expect(updated).toContain("FROM --platform=linux/amd64 nginx:1.27");
     expect(updated).toContain("FROM alpine@sha256:abc123");
+    expect(updated).toContain("FROM scratch");
   });
 });

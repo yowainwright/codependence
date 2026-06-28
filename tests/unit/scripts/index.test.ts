@@ -1631,6 +1631,33 @@ test("checkFiles => auto-detects GitHub Actions manifests", async () => {
   }
 });
 
+test("checkFiles => auto-detects absolute GitHub Actions manifest paths", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-absolute");
+  const workflowDir = join(tempDir, ".github", "workflows");
+  const workflowPath = join(workflowDir, "ci.yml");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(workflowDir, { recursive: true });
+  writeFileSync(
+    workflowPath,
+    "name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
+  );
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: [{ "actions/checkout": "v4" }],
+        rootDir: process.cwd(),
+        files: [workflowPath],
+        permissive: false,
+        isTesting: true,
+        silent: true,
+      }),
+    ).resolves.toEqual([]);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("checkFiles => logs thrown errors in debug mode", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-debug-error");
   rmSync(tempDir, { recursive: true, force: true });

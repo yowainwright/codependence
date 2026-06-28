@@ -410,6 +410,26 @@ bench = [
         "pytest-benchmark": ">=4.0.0",
       });
     });
+
+    test("should keep reading PEP 621 dependencies after extras", async () => {
+      const pyprojectPath = join(tmpDir, "pyproject.toml");
+      const content = `[project]
+dependencies = [
+  "requests[security]>=2.31.0",
+  "boto3>=1.26.0",
+]
+`;
+
+      writeFileSync(pyprojectPath, content);
+
+      const provider = new PythonProvider(pyprojectPath, "uv");
+      const manifest = await provider.readManifest(pyprojectPath);
+
+      expect(manifest.dependencies).toEqual({
+        requests: ">=2.31.0",
+        boto3: ">=1.26.0",
+      });
+    });
   });
 
   describe("readManifest - Pipfile", () => {
@@ -633,6 +653,32 @@ bench = [
       expect(content).toContain('"mkdocs>=1.6.0"');
       expect(content).toContain('"pytest>=8.1.0"');
       expect(content).toContain('"pytest-benchmark>=4.1.0"');
+    });
+
+    test("should keep updating PEP 621 dependencies after extras", async () => {
+      const pyprojectPath = join(tmpDir, "pyproject.toml");
+      const original = `[project]
+dependencies = [
+  "requests[security]>=2.31.0",
+  "boto3>=1.26.0",
+]
+`;
+
+      writeFileSync(pyprojectPath, original);
+
+      const provider = new PythonProvider(pyprojectPath, "uv");
+      await provider.writeManifest(pyprojectPath, {
+        filePath: pyprojectPath,
+        dependencies: {
+          requests: ">=2.32.0",
+          boto3: ">=1.34.0",
+        },
+      });
+
+      const content = readFileSync(pyprojectPath, "utf8");
+
+      expect(content).toContain('"requests[security]>=2.32.0"');
+      expect(content).toContain('"boto3>=1.34.0"');
     });
   });
 

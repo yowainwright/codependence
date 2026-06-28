@@ -119,12 +119,16 @@ const resolveManifestPath = (rootDir: string, file: string): string =>
 const inferLanguageFromFile = (file: string): SupportedLanguage | null => {
   const manifestName = basename(file);
   const normalizedFile = file.replace(/\\/g, "/");
+  const normalizedDir = dirname(normalizedFile).replace(/\\/g, "/");
+  const isGithubWorkflow =
+    normalizedDir === ".github/workflows" ||
+    normalizedDir.endsWith("/.github/workflows");
 
   if (manifestName === MANIFEST_FILES.PACKAGE_JSON) return LANGUAGES.NODEJS;
   if (manifestName === MANIFEST_FILES.GO_MOD) return LANGUAGES.GO;
   if (manifestName === MANIFEST_FILES.CARGO_TOML) return LANGUAGES.RUST;
   if (manifestName === MANIFEST_FILES.DOCKERFILE) return LANGUAGES.DOCKER;
-  if (normalizedFile.startsWith(".github/workflows/")) {
+  if (isGithubWorkflow) {
     return LANGUAGES.GITHUB_ACTIONS;
   }
   if (PYTHON_MANIFEST_NAMES.has(manifestName)) return LANGUAGES.PYTHON;

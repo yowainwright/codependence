@@ -117,7 +117,11 @@ const readPyprojectArrayContext = (
   return context;
 };
 
-const lineClosesPyprojectArray = (line: string): boolean => line.includes("]");
+const stripQuotedPyprojectText = (line: string): string =>
+  line.replace(/"([^"\\]|\\.)*"|'([^'\\]|\\.)*'/g, "");
+
+const lineClosesPyprojectArray = (line: string): boolean =>
+  stripQuotedPyprojectText(line).includes("]");
 
 const assignPyprojectDependency = (
   manifest: DependencyManifest,
