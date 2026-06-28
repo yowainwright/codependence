@@ -21,6 +21,8 @@ jobs:
 
 ## Inputs
 
+<!-- inputs from action.yml -->
+
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `codependencies` | Space-separated dependencies to check | No | - |
@@ -31,7 +33,7 @@ jobs:
 | `permissive` | Update all except pinned | No | `false` |
 | `mode` | Policy mode: `verbose` or `precise` | No | - |
 | `level` | Allowed update level: `patch`, `minor`, or `major` | No | - |
-| `language` | Target language: `nodejs`, `go`, or `python` | No | - |
+| `language` | Target language: `nodejs`, `go`, `python`, `rust`, `docker`, or `github-actions` | No | - |
 | `fail-on-outdated` | Fail if outdated | No | `true` |
 | `rootDir` | Root directory | No | - |
 | `ignore` | Ignore patterns (space-separated) | No | - |
@@ -79,12 +81,33 @@ jobs:
     files: 'package.json **/package.json'
 ```
 
-### Python or Go
+### Multi-language
 
 ```yaml
 - uses: yowainwright/codependence@v1
   with:
     language: python
+    config: '.codependencerc'
+```
+
+```yaml
+- uses: yowainwright/codependence@v1
+  with:
+    language: rust
+    config: '.codependencerc'
+```
+
+```yaml
+- uses: yowainwright/codependence@v1
+  with:
+    language: docker
+    config: '.codependencerc'
+```
+
+```yaml
+- uses: yowainwright/codependence@v1
+  with:
+    language: github-actions
     config: '.codependencerc'
 ```
 

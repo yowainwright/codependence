@@ -27,13 +27,17 @@ description: Enforce dependency version policy locally, in CI, and across worksp
 
 ## Introduction
 
-Codependence is a CLI and Node API for enforcing dependency version policy. It checks, reports, and can update dependency versions so important packages stay current, pinned, or consistent across your project.
+Codependence is an app, CLI, GitHub Action, and Node API for enforcing dependency version policy. Use the app to design policy, then enforce it locally or in CI.
 
 ## Synopsis
 
-Checks your `codependencies` policy against `package.json` dependencies, verifies each dependency is at the expected version, and can fail CI or update mismatched manifests.
+Checks your `codependencies` policy against supported manifests, verifies each dependency is at the expected version, and can fail CI or update mismatched manifests.
 
 See [Policy Surface](/docs/policy-surface/) for what Codependence supports today and where the same policy model can expand next.
+
+## App handoff
+
+Paste a public GitHub repo URL into the homepage builder to detect supported manifests, draft a `.codependencerc`, and copy the CLI or GitHub Action command.
 
 ## Why use Codependence?
 

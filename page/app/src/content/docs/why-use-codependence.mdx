@@ -10,8 +10,10 @@ description: Codependence enforces dependency version policy where your code run
 Use Codependence when dependency versions need a policy, not just occasional update PRs.
 
 - Define which packages must stay current or pinned
+- Design policy in the app before installing anything
 - Fail CI when a manifest drifts from policy
 - Update only listed packages, or update everything except listed packages
+- Cover Node.js, Python, Go, Rust, Dockerfile, and GitHub Actions manifests
 - Handle package-specific policy in monorepos
 - Run locally, in npm scripts, in GitHub Actions, or through the Node API
 - Pair with Dependabot or Renovate instead of replacing them

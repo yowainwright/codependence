@@ -4,9 +4,12 @@ import {
   detectPrimaryLanguage,
   getLanguageProvider,
 } from "../../../src/providers/detection";
+import { DockerProvider } from "../../../src/providers/docker";
+import { GitHubActionsProvider } from "../../../src/providers/github-actions";
 import { NodeJSProvider } from "../../../src/providers/nodejs";
 import { GoProvider } from "../../../src/providers/go";
 import { PythonProvider } from "../../../src/providers/python";
+import { RustProvider } from "../../../src/providers/rust";
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 
@@ -67,10 +70,7 @@ describe("Language Detection", () => {
     });
 
     test("should detect Node.js from packageManager field", () => {
-      writeFileSync(
-        join(tmpDir, "package.json"),
-        JSON.stringify({ packageManager: "pnpm@9.0.0" }),
-      );
+      writeFileSync(join(tmpDir, "package.json"), JSON.stringify({ packageManager: "pnpm@9.0.0" }));
 
       const result = detectLanguage(tmpDir);
 
@@ -111,6 +111,55 @@ describe("Language Detection", () => {
     });
   });
 
+  describe("detectLanguage - Rust", () => {
+    test("should detect Rust with Cargo.toml", () => {
+      writeFileSync(join(tmpDir, "Cargo.toml"), "[dependencies]");
+
+      const result = detectLanguage(tmpDir);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].language).toBe("rust");
+      expect(result[0].manifestFiles).toEqual(["Cargo.toml"]);
+      expect(result[0].packageManager).toBe("rust");
+    });
+
+    test("should detect Rust with Cargo.toml and Cargo.lock", () => {
+      writeFileSync(join(tmpDir, "Cargo.toml"), "[dependencies]");
+      writeFileSync(join(tmpDir, "Cargo.lock"), "");
+
+      const result = detectLanguage(tmpDir);
+
+      expect(result[0].manifestFiles).toEqual(["Cargo.toml", "Cargo.lock"]);
+    });
+  });
+
+  describe("detectLanguage - Docker and GitHub Actions", () => {
+    test("should detect Dockerfile", () => {
+      writeFileSync(join(tmpDir, "Dockerfile"), "FROM node:20");
+
+      const result = detectLanguage(tmpDir);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].language).toBe("docker");
+      expect(result[0].manifestFiles).toEqual(["Dockerfile"]);
+    });
+
+    test("should detect GitHub Actions workflows", () => {
+      const workflowDir = join(tmpDir, ".github", "workflows");
+      mkdirSync(workflowDir, { recursive: true });
+      writeFileSync(join(workflowDir, "ci.yml"), "name: ci");
+
+      const result = detectLanguage(tmpDir);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].language).toBe("github-actions");
+      expect(result[0].manifestFiles).toEqual([
+        ".github/workflows/*.yml",
+        ".github/workflows/*.yaml",
+      ]);
+    });
+  });
+
   describe("detectLanguage - Python", () => {
     test("should detect Python with requirements.txt", () => {
       writeFileSync(join(tmpDir, "requirements.txt"), "requests==2.31.0");
@@ -132,10 +181,7 @@ describe("Language Detection", () => {
     });
 
     test("should detect Python with poetry", () => {
-      writeFileSync(
-        join(tmpDir, "pyproject.toml"),
-        "[tool.poetry.dependencies]\\npython = '^3.8'",
-      );
+      writeFileSync(join(tmpDir, "pyproject.toml"), "[tool.poetry.dependencies]\\npython = '^3.8'");
 
       const result = detectLanguage(tmpDir);
 
@@ -292,6 +338,18 @@ describe("Language Detection", () => {
       expect(Provider).toBe(NodeJSProvider);
     });
 
+    test("should get DockerProvider for docker", () => {
+      const Provider = getLanguageProvider("docker");
+
+      expect(Provider).toBe(DockerProvider);
+    });
+
+    test("should get GitHubActionsProvider for github-actions", () => {
+      const Provider = getLanguageProvider("github-actions");
+
+      expect(Provider).toBe(GitHubActionsProvider);
+    });
+
     test("should get GoProvider for go", () => {
       const Provider = getLanguageProvider("go");
 
@@ -304,10 +362,14 @@ describe("Language Detection", () => {
       expect(Provider).toBe(PythonProvider);
     });
 
+    test("should get RustProvider for rust", () => {
+      const Provider = getLanguageProvider("rust");
+
+      expect(Provider).toBe(RustProvider);
+    });
+
     test("should throw error for unsupported language", () => {
-      expect(() => getLanguageProvider("rust" as any)).toThrow(
-        "Unsupported language: rust",
-      );
+      expect(() => getLanguageProvider("php" as any)).toThrow("Unsupported language: php");
     });
   });
 
@@ -334,10 +396,7 @@ describe("Language Detection", () => {
 
     test("should prioritize pipenv over poetry for Python", () => {
       writeFileSync(join(tmpDir, "Pipfile"), "");
-      writeFileSync(
-        join(tmpDir, "pyproject.toml"),
-        "[tool.poetry]\\nname = 'test'",
-      );
+      writeFileSync(join(tmpDir, "pyproject.toml"), "[tool.poetry]\\nname = 'test'");
 
       const result = detectLanguage(tmpDir);
 

@@ -23,11 +23,7 @@ describe("PythonProvider", () => {
       const version = await provider.getLatestVersion("requests");
 
       expect(version).toBe("2.31.0");
-      expect(execMock).toHaveBeenCalledWith("pip", [
-        "index",
-        "versions",
-        "requests",
-      ]);
+      expect(execMock).toHaveBeenCalledWith("pip", ["index", "versions", "requests"]);
     });
 
     test("should handle pip with no versions", async () => {
@@ -83,19 +79,12 @@ describe("PythonProvider", () => {
     test("should get version using conda", async () => {
       const execMock = jest.fn(() => ({
         stdout: JSON.stringify({
-          numpy: [
-            { version: "1.24.0" },
-            { version: "1.24.1" },
-            { version: "1.25.0" },
-          ],
+          numpy: [{ version: "1.24.0" }, { version: "1.24.1" }, { version: "1.25.0" }],
         }),
         stderr: "",
       })) as any;
 
-      const provider = new PythonProvider(
-        "environment.yml",
-        "conda",
-      );
+      const provider = new PythonProvider("environment.yml", "conda");
       mock.module("../../../src/utils/exec", () => ({
         exec: execMock,
       }));
@@ -103,11 +92,7 @@ describe("PythonProvider", () => {
       const version = await provider.getLatestVersion("numpy");
 
       expect(version).toBe("1.25.0");
-      expect(execMock).toHaveBeenCalledWith("conda", [
-        "search",
-        "numpy",
-        "--json",
-      ]);
+      expect(execMock).toHaveBeenCalledWith("conda", ["search", "numpy", "--json"]);
     });
 
     test("should handle conda with no packages", async () => {
@@ -158,12 +143,7 @@ describe("PythonProvider", () => {
       const version = await provider.getLatestVersion("django");
 
       expect(version).toBe("3.0.0");
-      expect(execMock).toHaveBeenCalledWith("uv", [
-        "pip",
-        "index",
-        "versions",
-        "django",
-      ]);
+      expect(execMock).toHaveBeenCalledWith("uv", ["pip", "index", "versions", "django"]);
     });
 
     test("should handle uv with malformed output", async () => {
@@ -230,12 +210,7 @@ describe("PythonProvider", () => {
       const versions = await provider.getAllVersions("django");
 
       expect(versions).toEqual(["3.0.0", "2.9.0"]);
-      expect(execMock).toHaveBeenCalledWith("uv", [
-        "pip",
-        "index",
-        "versions",
-        "django",
-      ]);
+      expect(execMock).toHaveBeenCalledWith("uv", ["pip", "index", "versions", "django"]);
     });
   });
 
@@ -369,6 +344,38 @@ version = "0.1.0"
       const manifest = await provider.readManifest(pyprojectPath);
 
       expect(manifest.dependencies).toEqual({});
+    });
+
+    test("should read uv PEP 621 dependencies and dependency groups", async () => {
+      const pyprojectPath = join(tmpDir, "pyproject.toml");
+      const content = `[project]
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.15",
+]
+
+[project.optional-dependencies]
+docs = [
+  "mkdocs>=1.6",
+]
+`;
+
+      writeFileSync(pyprojectPath, content);
+
+      const provider = new PythonProvider(pyprojectPath, "uv");
+      const manifest = await provider.readManifest(pyprojectPath);
+
+      expect(manifest.dependencies).toEqual({});
+      expect(manifest.devDependencies).toEqual({
+        pytest: ">=8.0",
+        ruff: ">=0.15",
+      });
+      expect(manifest.optionalDependencies).toEqual({
+        mkdocs: ">=1.6",
+      });
     });
   });
 
@@ -538,12 +545,49 @@ pytest = "^7.0.0"
 
       const content = readFileSync(pyprojectPath, "utf8");
 
-      expect(content).toContain('[tool.poetry.dependencies]');
+      expect(content).toContain("[tool.poetry.dependencies]");
       expect(content).toContain('python = "^3.8"');
       expect(content).toContain('requests = "^2.31.0"');
       expect(content).toContain('flask = "~2.0.0"');
       expect(content).not.toContain("old-package");
-      expect(content).toContain('[tool.poetry.dev-dependencies]');
+      expect(content).toContain("[tool.poetry.dev-dependencies]");
+    });
+
+    test("should update uv PEP 621 dependency groups without adding poetry sections", async () => {
+      const pyprojectPath = join(tmpDir, "pyproject.toml");
+      const original = `[project]
+dependencies = [
+  "requests>=2.31",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.15",
+]
+`;
+
+      writeFileSync(pyprojectPath, original);
+
+      const provider = new PythonProvider(pyprojectPath, "uv");
+      await provider.writeManifest(pyprojectPath, {
+        filePath: pyprojectPath,
+        dependencies: {
+          requests: ">=2.32",
+        },
+        devDependencies: {
+          pytest: ">=8.1",
+          ruff: ">=0.16",
+        },
+      });
+
+      const content = readFileSync(pyprojectPath, "utf8");
+
+      expect(content).toContain('"requests>=2.32"');
+      expect(content).toContain('"pytest>=8.1"');
+      expect(content).toContain('"ruff>=0.16"');
+      expect(content).toContain("[dependency-groups]");
+      expect(content).not.toContain("[tool.poetry.dependencies]");
     });
   });
 
@@ -577,11 +621,11 @@ pytest = "==7.4.0"
 
       const content = readFileSync(pipfilePath, "utf8");
 
-      expect(content).toContain('[packages]');
+      expect(content).toContain("[packages]");
       expect(content).toContain('requests = "==2.31.0"');
       expect(content).toContain('flask = ">=2.0.0"');
       expect(content).not.toContain("old-package");
-      expect(content).toContain('[dev-packages]');
+      expect(content).toContain("[dev-packages]");
     });
   });
 
@@ -639,9 +683,7 @@ dependencies:
       expect(provider.validatePackageName("Pillow")).toBe(true);
       expect(provider.validatePackageName("some_package")).toBe(true);
       expect(provider.validatePackageName("zope.interface")).toBe(true);
-      expect(provider.validatePackageName("sphinxcontrib.httpdomain")).toBe(
-        true,
-      );
+      expect(provider.validatePackageName("sphinxcontrib.httpdomain")).toBe(true);
     });
 
     test("should reject invalid Python package names", () => {

@@ -34,7 +34,7 @@ inputs:
     description: 'Allowed update level: patch, minor, or major'
     required: false
   language:
-    description: 'Target language: nodejs, go, or python'
+    description: 'Target language: nodejs, go, python, rust, docker, or github-actions'
     required: false
   fail-on-outdated:
     description: 'Fail the action if dependencies are outdated (true/false)'

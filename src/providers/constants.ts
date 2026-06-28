@@ -1,7 +1,10 @@
 export const LANGUAGES = {
+  DOCKER: "docker",
+  GITHUB_ACTIONS: "github-actions",
   GO: "go",
   NODEJS: "nodejs",
   PYTHON: "python",
+  RUST: "rust",
 } as const;
 
 export const NODE_PACKAGE_MANAGERS = {
@@ -25,6 +28,11 @@ export const MANIFEST_FILES = {
   BUN_LOCK_BINARY: "bun.lockb",
   CONDA_ENVIRONMENT_YAML: "environment.yaml",
   CONDA_ENVIRONMENT_YML: "environment.yml",
+  CARGO_LOCK: "Cargo.lock",
+  CARGO_TOML: "Cargo.toml",
+  DOCKERFILE: "Dockerfile",
+  GITHUB_WORKFLOW_YAML: ".github/workflows/*.yaml",
+  GITHUB_WORKFLOW_YML: ".github/workflows/*.yml",
   GO_MOD: "go.mod",
   GO_SUM: "go.sum",
   NPM_LOCK: "package-lock.json",
@@ -78,7 +86,13 @@ export const CONDA_MANIFEST_FILES = [
 ] as const;
 
 export const DEFAULT_LANGUAGE_MANIFESTS = {
+  [LANGUAGES.DOCKER]: [MANIFEST_FILES.DOCKERFILE, "**/Dockerfile"],
+  [LANGUAGES.GITHUB_ACTIONS]: [
+    MANIFEST_FILES.GITHUB_WORKFLOW_YML,
+    MANIFEST_FILES.GITHUB_WORKFLOW_YAML,
+  ],
   [LANGUAGES.NODEJS]: [MANIFEST_FILES.PACKAGE_JSON],
   [LANGUAGES.GO]: [MANIFEST_FILES.GO_MOD],
   [LANGUAGES.PYTHON]: PYTHON_MANIFEST_FILES,
+  [LANGUAGES.RUST]: [MANIFEST_FILES.CARGO_TOML, "**/Cargo.toml"],
 } as const;

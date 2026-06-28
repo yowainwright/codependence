@@ -37,8 +37,8 @@
     },
     "language": {
       "type": "string",
-      "enum": ["nodejs", "python", "go"],
-      "description": "Target programming language for dependency management (experimental)"
+      "enum": ["nodejs", "python", "go", "rust", "docker", "github-actions"],
+      "description": "Target provider for dependency management"
     },
     "files": {
       "type": "array",

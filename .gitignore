@@ -117,3 +117,7 @@ tmp
 tests/unit/providers/.tmp-*/
 .husky/
 .claude
+
+# Local agent skill installs
+.agents/skills/
+.codex/skills/

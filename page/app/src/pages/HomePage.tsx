@@ -8,6 +8,7 @@ import {
 import { CopyButton } from "@/components/CopyButton";
 import { FeatureShowcase } from "@/components/home/FeatureShowcase";
 import { LanguageExamples } from "@/components/home/LanguageExamples";
+import { PolicyBuilder } from "@/components/home/PolicyBuilder";
 import { SpotlightCode } from "@/components/home/SpotlightCode";
 
 const installCommand = "npm install --save-dev codependence";
@@ -60,8 +61,8 @@ function HeroSection() {
             <span className="gradient-text">Codependence</span>
           </h1>
           <p className="mt-6 max-w-xl text-xl leading-8 text-base-content/75">
-            Keep package versions aligned, preview drift, and apply pinned
-            dependency policy from the CLI or CI.
+            Design dependency policy from a public repo or a hand-picked list,
+            then enforce it from the CLI or CI.
           </p>
           <nav className="mt-8 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
             <Link
@@ -100,7 +101,7 @@ function HeroSection() {
 
         <div className="w-full min-w-0">
           <div className="mx-auto w-full max-w-3xl lg:max-w-none">
-            <SpotlightCode />
+            <PolicyBuilder />
           </div>
         </div>
       </article>

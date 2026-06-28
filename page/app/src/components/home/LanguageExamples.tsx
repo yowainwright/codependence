@@ -17,10 +17,10 @@ import { TERMINAL_FLOW_EVENTS } from "@/machines/terminalFlow/constants";
 import { maintenanceModeMachine } from "@/machines/terminalFlow/machine";
 
 const upcomingProviders = [
-  { name: "Rust", manifest: "Cargo.toml" },
   { name: "Ruby", manifest: "Gemfile" },
   { name: "Java", manifest: "pom.xml" },
-  { name: "Docker", manifest: "image tags" },
+  { name: "Compose", manifest: "compose.yaml" },
+  { name: "Toolchains", manifest: ".tool-versions" },
 ];
 
 export function LanguageExamples() {
@@ -49,8 +49,8 @@ export function LanguageExamples() {
           </h2>
           <p className="mt-5 text-lg leading-8 text-base-content/75">
             Switch between check, dry-run, and update mode to see Codependence
-            execute the same dependency policy workflow against Node.js, Python,
-            and Go manifests.
+            execute the same dependency policy workflow against package, Cargo,
+            Dockerfile, and workflow manifests.
           </p>
         </header>
 
@@ -141,7 +141,8 @@ function ProviderRoadmapCard() {
 
         <div className="mt-auto border-t border-base-content/10 pt-5">
           <p className="text-sm font-semibold text-primary">
-            Node.js, Python, and Go are already wired into the demo flow.
+            Node.js, Python, Go, Rust, Docker, and GitHub Actions are wired into
+            the demo flow.
           </p>
         </div>
       </div>

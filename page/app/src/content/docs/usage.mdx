@@ -7,22 +7,24 @@ description: How to use Codependence
 
 ## Getting Started
 
-Use Codependence as a standalone CLI, in npm scripts, in CI, or as a Node utility.
+Use the homepage builder to design policy, then run Codependence as a standalone CLI, in npm scripts, in CI, or as a Node utility.
 
 ## Installation
 
+Choose the package manager your project already uses:
+
 ```bash
 # Using npm
-npm install codependence --save-dev
+npm install --save-dev codependence
 
-# Using bun
-bun add codependence --dev
+# Using pnpm
+pnpm add --save-dev codependence
 
 # Using yarn
 yarn add codependence --dev
 
-# Using pnpm
-pnpm add codependence --save-dev
+# Using bun
+bun add codependence --dev
 ```
 
 ## Quick Setup
@@ -31,6 +33,12 @@ Check only selected dependencies:
 
 ```bash
 codependence --codependencies 'fs-extra' 'lodash'
+```
+
+Check another provider:
+
+```bash
+codependence --language rust --codependencies serde pyo3 --dryRun
 ```
 
 Or use it with a config in the root package.json file

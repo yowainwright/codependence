@@ -12,11 +12,7 @@ import {
   type PythonManifestType,
   type PythonPackageManager,
 } from "./constants";
-import type {
-  DependencyProvider,
-  DependencyManifest,
-  ProviderOptions,
-} from "../types";
+import type { DependencyProvider, DependencyManifest, ProviderOptions } from "../types";
 
 export const parseRequirementLine = (line: string): [string, string] | null => {
   const trimmed = line.trim();
@@ -46,9 +42,7 @@ type ParsedCondaDependencyLine = {
   readonly suffix: string;
 };
 
-const parseCondaDependencySpec = (
-  spec: string,
-): ParsedCondaDependencyLine | null => {
+const parseCondaDependencySpec = (spec: string): ParsedCondaDependencyLine | null => {
   const trimmed = spec.trim();
   if (!trimmed || trimmed.endsWith(":")) return null;
 
@@ -62,9 +56,7 @@ const parseCondaDependencySpec = (
   };
 };
 
-export const parseCondaDependencyLine = (
-  line: string,
-): [string, string] | null => {
+export const parseCondaDependencyLine = (line: string): [string, string] | null => {
   const itemMatch = line.match(PYTHON_PATTERNS.CONDA_DEPENDENCY_ITEM);
   if (!itemMatch) return null;
 
@@ -73,6 +65,67 @@ export const parseCondaDependencyLine = (
 
   return [parsed.name, parsed.version];
 };
+
+type PyprojectDependencySection = "dependencies" | "devDependencies" | "optionalDependencies";
+
+const parsePyprojectDependencySpec = (spec: string): [string, string] | null => {
+  return parseRequirementLine(spec);
+};
+
+const readQuotedPyprojectDependencies = (line: string): Array<[string, string]> => {
+  const dependencies: Array<[string, string]> = [];
+  const matches = line.matchAll(PYTHON_PATTERNS.PYPROJECT_QUOTED_DEPENDENCY);
+
+  for (const match of matches) {
+    const parsed = parsePyprojectDependencySpec(match[1]);
+    if (!parsed) continue;
+    dependencies.push(parsed);
+  }
+
+  return dependencies;
+};
+
+const pyprojectTargetForKey = (section: string, key: string): PyprojectDependencySection | null => {
+  if (section === "project" && key === "dependencies") return "dependencies";
+  if (section === "project.optional-dependencies") return "optionalDependencies";
+  if (section !== "dependency-groups") return null;
+  if (key === "dev") return "devDependencies";
+  return "optionalDependencies";
+};
+
+const startsPyprojectArray = (line: string): { key: string; isOpen: boolean } | null => {
+  const match = line.match(PYTHON_PATTERNS.PYPROJECT_ARRAY_START);
+  if (!match) return null;
+
+  const hasClose = line.includes("]");
+  return {
+    key: match[1],
+    isOpen: !hasClose,
+  };
+};
+
+const updatePyprojectDependencySpec = (
+  spec: string,
+  dependencies: Record<string, string>,
+): string => {
+  const parsed = parsePyprojectDependencySpec(spec);
+  if (!parsed) return spec;
+
+  const [name] = parsed;
+  const version = dependencies[name];
+  if (!version) return spec;
+
+  return name + version;
+};
+
+const updateQuotedPyprojectDependencies = (
+  line: string,
+  dependencies: Record<string, string>,
+): string =>
+  line.replace(PYTHON_PATTERNS.PYPROJECT_QUOTED_DEPENDENCY, (_match, spec) => {
+    const updatedSpec = updatePyprojectDependencySpec(spec, dependencies);
+    return `"${updatedSpec}"`;
+  });
 
 export class PythonProvider implements DependencyProvider {
   readonly language = LANGUAGES.PYTHON;
@@ -248,7 +301,7 @@ export class PythonProvider implements DependencyProvider {
     const dependencies: Record<string, string> = {};
 
     const depSection = content.match(PYTHON_PATTERNS.POETRY_DEPS);
-    if (!depSection) return { filePath, dependencies };
+    if (!depSection) return this.readPep621PyprojectToml(filePath, content);
 
     const lines = depSection[1].split("\n");
     lines.forEach((line) => {
@@ -258,6 +311,45 @@ export class PythonProvider implements DependencyProvider {
     });
 
     return { filePath, dependencies };
+  }
+
+  private readPep621PyprojectToml(filePath: string, content: string): DependencyManifest {
+    const manifest: DependencyManifest = {
+      filePath,
+      dependencies: {},
+      devDependencies: {},
+      optionalDependencies: {},
+    };
+    let section = "";
+    let activeTarget: PyprojectDependencySection | null = null;
+
+    content.split("\n").forEach((line) => {
+      const sectionMatch = line.match(PYTHON_PATTERNS.PYPROJECT_SECTION);
+      if (sectionMatch) {
+        section = sectionMatch[1];
+        activeTarget = null;
+        return;
+      }
+
+      const arrayStart = startsPyprojectArray(line);
+      if (arrayStart) {
+        activeTarget = pyprojectTargetForKey(section, arrayStart.key);
+      }
+
+      if (!activeTarget) return;
+
+      const deps = readQuotedPyprojectDependencies(line);
+      const target = activeTarget;
+      deps.forEach(([name, version]) => {
+        manifest[target]![name] = version;
+      });
+
+      if (line.includes("]")) {
+        activeTarget = null;
+      }
+    });
+
+    return manifest;
   }
 
   private readPipfile(filePath: string): DependencyManifest {
@@ -309,10 +401,7 @@ export class PythonProvider implements DependencyProvider {
     return { filePath, dependencies };
   }
 
-  writeManifest(
-    filePath: string,
-    manifest: DependencyManifest,
-  ): void {
+  writeManifest(filePath: string, manifest: DependencyManifest): void {
     if (this.manifestType === PYTHON_MANIFEST_TYPES.REQUIREMENTS) {
       this.writeRequirementsTxt(filePath, manifest);
       return;
@@ -331,27 +420,66 @@ export class PythonProvider implements DependencyProvider {
     this.writePipfile(filePath, manifest);
   }
 
-  private writeRequirementsTxt(
-    filePath: string,
-    manifest: DependencyManifest,
-  ): void {
+  private writeRequirementsTxt(filePath: string, manifest: DependencyManifest): void {
     const lines = Object.entries(manifest.dependencies)
       .map(([name, version]) => `${name}${version}`)
       .join("\n");
     writeFileSync(filePath, lines + "\n");
   }
 
-  private writePyprojectToml(
-    filePath: string,
-    manifest: DependencyManifest,
-  ): void {
+  private writePyprojectToml(filePath: string, manifest: DependencyManifest): void {
     const content = readFileSync(filePath, "utf8");
+    const hasPoetryDeps = PYTHON_PATTERNS.POETRY_DEPS.test(content);
+    if (!hasPoetryDeps) {
+      this.writePep621PyprojectToml(filePath, content, manifest);
+      return;
+    }
+
     const depEntries = Object.entries(manifest.dependencies)
       .map(([name, version]) => `${name} = "${version}"`)
       .join("\n");
 
     const replacement = `[tool.poetry.dependencies]\npython = "^3.8"\n${depEntries}\n\n`;
     const updated = content.replace(PYTHON_PATTERNS.POETRY_DEPS, replacement);
+
+    writeFileSync(filePath, updated);
+  }
+
+  private writePep621PyprojectToml(
+    filePath: string,
+    content: string,
+    manifest: DependencyManifest,
+  ): void {
+    let section = "";
+    let activeTarget: PyprojectDependencySection | null = null;
+
+    const updated = content
+      .split("\n")
+      .map((line) => {
+        const sectionMatch = line.match(PYTHON_PATTERNS.PYPROJECT_SECTION);
+        if (sectionMatch) {
+          section = sectionMatch[1];
+          activeTarget = null;
+          return line;
+        }
+
+        const arrayStart = startsPyprojectArray(line);
+        if (arrayStart) {
+          activeTarget = pyprojectTargetForKey(section, arrayStart.key);
+        }
+
+        if (!activeTarget) return line;
+
+        const dependencies = manifest[activeTarget] || {};
+        const updatedLine = updateQuotedPyprojectDependencies(line, dependencies);
+
+        if (line.includes("]")) {
+          activeTarget = null;
+        }
+
+        return updatedLine;
+      })
+      .join("\n");
 
     writeFileSync(filePath, updated);
   }
@@ -363,18 +491,12 @@ export class PythonProvider implements DependencyProvider {
       .join("\n");
 
     const replacement = `[packages]\n${depEntries}\n\n`;
-    const updated = content.replace(
-      PYTHON_PATTERNS.PIPFILE_PACKAGES,
-      replacement,
-    );
+    const updated = content.replace(PYTHON_PATTERNS.PIPFILE_PACKAGES, replacement);
 
     writeFileSync(filePath, updated);
   }
 
-  private writeCondaEnvironment(
-    filePath: string,
-    manifest: DependencyManifest,
-  ): void {
+  private writeCondaEnvironment(filePath: string, manifest: DependencyManifest): void {
     const content = readFileSync(filePath, "utf8");
     let inDependencies = false;
     let dependencyItemIndent: number | null = null;

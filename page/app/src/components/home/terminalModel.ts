@@ -7,7 +7,13 @@ import type {
 
 export type MaintenanceMode = "check" | "dry-run" | "update";
 
-export type LanguageId = "nodejs" | "python" | "go";
+export type LanguageId =
+  | "nodejs"
+  | "python"
+  | "go"
+  | "rust"
+  | "docker"
+  | "github-actions";
 
 export type VersionRow = {
   packageName: string;
@@ -126,6 +132,78 @@ export const languages: LanguageDemo[] = [
         packageName: "golang.org/x/crypto",
         current: "v0.10.0",
         latest: "v0.11.0",
+        isPinned: true,
+      },
+    ],
+  },
+  {
+    id: "rust",
+    title: "Rust Cargo.toml",
+    language: "rust",
+    issueSummary: "Found 2 dependency issues",
+    issues: [
+      "    1. serde: found 1.0.190, expected 1.0.210",
+      "    2. pyo3: found 0.22.0, expected 0.23.0",
+    ],
+    rows: [
+      {
+        packageName: "serde",
+        current: "1.0.190",
+        latest: "1.0.210",
+        isPinned: true,
+      },
+      {
+        packageName: "pyo3",
+        current: "0.22.0",
+        latest: "0.23.0",
+        isPinned: true,
+      },
+    ],
+  },
+  {
+    id: "docker",
+    title: "Dockerfile",
+    language: "docker",
+    issueSummary: "Found 2 dependency issues",
+    issues: [
+      "    1. node: found 22-slim, expected 24-slim",
+      "    2. ubuntu: found 22.04, expected 24.04",
+    ],
+    rows: [
+      {
+        packageName: "node",
+        current: "22-slim",
+        latest: "24-slim",
+        isPinned: true,
+      },
+      {
+        packageName: "ubuntu",
+        current: "22.04",
+        latest: "24.04",
+        isPinned: true,
+      },
+    ],
+  },
+  {
+    id: "github-actions",
+    title: "GitHub Actions workflow",
+    language: "github-actions",
+    issueSummary: "Found 2 dependency issues",
+    issues: [
+      "    1. actions/checkout: found v4, expected v5",
+      "    2. actions/setup-node: found v5.0.0, expected v6.4.0",
+    ],
+    rows: [
+      {
+        packageName: "actions/checkout",
+        current: "v4",
+        latest: "v5",
+        isPinned: true,
+      },
+      {
+        packageName: "actions/setup-node",
+        current: "v5.0.0",
+        latest: "v6.4.0",
         isPinned: true,
       },
     ],

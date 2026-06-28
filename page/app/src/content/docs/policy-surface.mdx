@@ -7,18 +7,21 @@ description: What Codependence checks today and where version policy can expand 
 
 ## Policy Surface
 
-Codependence is strongest when it treats versions as project policy. Some
-surfaces are supported today; others are roadmap targets that should stay
-clearly marked until implemented.
+Codependence is strongest when it treats versions as project policy. Supported
+surfaces can run from the app handoff, CLI, or GitHub Action.
 
 ## Supported Today
 
 - `package.json` dependency sections for Node.js projects
+- `pyproject.toml`, `requirements.txt`, `Pipfile`, and conda environment files
+- `go.mod` module dependencies
+- `Cargo.toml` registry dependencies
+- `Dockerfile` `FROM` image tags
+- GitHub Actions workflow `uses:` refs
 - Root and child package `codependence` config in monorepos
 - Check-only, dry-run, interactive, and update modes
 - Patch, minor, or major update limits
 - Table, JSON, and Markdown output for scripts and CI
-- Experimental Python and Go manifest checks
 
 ## Good Next Targets
 
@@ -26,8 +29,8 @@ These are natural extensions of the same policy model:
 
 - Local repository scan: report version drift across a directory such as `~/code`
 - Toolchain files: `.nvmrc`, `.node-version`, `.tool-versions`, and `.mise.toml`
-- Container files: `Dockerfile`, `Containerfile`, and compose image tags
-- CI workflow files: GitHub Actions, GitLab CI, CircleCI, and similar YAML
+- Container files: `Containerfile` and compose image tags
+- CI workflow files: GitLab CI, CircleCI, and similar YAML
 - Runtime images: `node`, `bun`, `python`, `golang`, `ubuntu`, and other common base images
 
 ## Product Boundary

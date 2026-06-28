@@ -10,7 +10,7 @@
 
 #### Enforce dependency version policy wherever your project needs it.
 
-**Codependence** is a CLI and Node API for checking, reporting, and updating dependency versions from a project-defined policy. Use it when versions need to be consistent across package manifests, monorepos, local development, or CI jobs.
+**Codependence** is an app, CLI, GitHub Action, and Node API for checking, reporting, and updating dependency versions from a project-defined policy. Use the app to design policy, then enforce it locally or in CI.
 
 ---
 
@@ -37,7 +37,17 @@ Read more about [Codependence](#synopsis) and why you might want to use it [belo
 #### Install
 
 ```sh
-npm install codependence --save-dev
+# npm
+npm install --save-dev codependence
+
+# pnpm
+pnpm add --save-dev codependence
+
+# bun
+bun add --dev codependence
+
+# yarn
+yarn add --dev codependence
 ```
 
 #### Quick setup
@@ -147,7 +157,7 @@ Options:
   -y, --yarnConfig                  Enable yarn config support
   --level <level>                   Update level: patch, minor, or major (default: major)
   -m, --mode <mode>                verbose: only listed packages; precise: all except listed
-  -l, --language <lang>            Target language (nodejs, go, python) (experimental)
+  -l, --language <lang>            Target language (nodejs, go, python, rust, docker, github-actions)
   -h, --help                        Show this help message
   --dryRun                          Show what would change without modifying files
   --interactive                     Choose which packages to update interactively
@@ -400,16 +410,21 @@ An **optional** path to write formatted output to a file instead of stdout. Requ
 
 ---
 
-### Multi-language support (experimental)
+### Multi-language support
 
-Codependence includes experimental support for Python and Go dependency manifests via the `--language` flag:
+<!-- supported provider languages from src/providers/constants.ts -->
+
+Codependence includes support for multiple dependency and version surfaces via the `--language` flag:
 
 ```sh
-codependence --language python    # Check requirements.txt / pyproject.toml
-codependence --language go        # Check go.mod dependencies
+codependence --language python            # Check requirements.txt / pyproject.toml
+codependence --language go                # Check go.mod dependencies
+codependence --language rust              # Check Cargo.toml dependencies
+codependence --language docker            # Check Dockerfile image tags
+codependence --language github-actions    # Check workflow action refs
 ```
 
-This feature is under active development. For stable usage, omit `--language` (defaults to Node.js).
+Node.js remains the default when `--language` is omitted.
 
 ---
 
@@ -443,7 +458,7 @@ codependence --permissive --codependencies 'react' 'lodash' --update
 
 ## Synopsis
 
-Codependence is a JavaScript utility CLI and Node tool that compares a `codependencies` policy against `package.json` `dependencies`, `devDependencies`, `peerDependencies`, and `optionalDependencies`.
+Codependence is an app, CLI, GitHub Action, and Node tool that compares a `codependencies` policy against supported dependency manifests.
 
 For each dependency included in the `codependencies` array, Codependence will either **a)** check that versions are at `latest` or **b)** check that a specified version is matched within manifest files. Codependence can either **a)** return a pass/fail result _or_ **b)** update dependency versions in manifest file(s).
 
@@ -457,16 +472,20 @@ This utility is built to work alongside dependency automation tools like [Depend
 
 ## Policy Surface
 
-Codependence currently focuses on package manifests and dependency sections. The same policy model can expand to other version surfaces over time.
+<!-- supported policy surfaces from src/providers/constants.ts -->
+
+Codependence checks package manifests, Cargo dependencies, Dockerfile base images, and GitHub Actions refs. The same policy model can expand to other version surfaces over time.
 
 | Surface | Status | Purpose |
 | --- | --- | --- |
 | `package.json` dependencies | Supported | Enforce dependency policy in Node.js projects and monorepos |
-| Python and Go manifests | Experimental | Apply the same check/update workflow outside Node.js |
+| Python, Go, and Rust manifests | Supported | Apply the same check/update workflow outside Node.js |
+| Dockerfiles | Supported | Check base image versions in `FROM` lines |
+| GitHub Actions workflows | Supported | Check action refs in workflow YAML |
 | Local repository scans | Roadmap | Report drift across a directory of projects, such as `~/code` |
 | Toolchain files | Roadmap | Keep `.nvmrc`, `.node-version`, `.tool-versions`, and `.mise.toml` aligned |
-| Docker and compose files | Roadmap | Check base image and service image versions |
-| CI workflow YAML | Roadmap | Check action, image, and runtime versions in pipeline files |
+| Compose files | Roadmap | Check service image versions |
+| Other CI workflow YAML | Roadmap | Check action, image, and runtime versions in pipeline files |
 
 ---
 
@@ -551,6 +570,36 @@ mise install
 bun install
 ```
 
+### Agent skills
+
+Install the legibility skill for the agent you use. Global installs write to
+your home directory.
+
+```sh
+# Generic agent skill root: ~/.agents/skills
+bun run skills:install
+
+# Codex: ~/.codex/skills or $CODEX_HOME/skills
+bun run skills:install:codex
+
+# Claude: ~/.claude/rules
+bun run skills:install:claude
+```
+
+Project-local installs write to ignored folders, so each contributor can keep
+only their agent's files.
+
+```sh
+# .agents/skills
+bun run skills:install:local
+
+# .codex/skills
+bun run skills:install:codex:local
+
+# .claude/rules
+bun run skills:install:claude:local
+```
+
 ### Setup without mise
 
 ```sh
@@ -618,10 +667,11 @@ Thank you!
 ## Roadmap
 
 - **Policy Surface:**
+  <!-- provider roadmap items not yet represented by src/providers/constants.ts -->
   - scan a directory of local repositories and report version drift
   - extend policy checks beyond package manifests to toolchain files such as `.nvmrc`, `.node-version`, `.tool-versions`, and `.mise.toml`
-  - explore Docker image version checks for `Dockerfile`, `Containerfile`, and compose files
-  - explore CI pipeline version checks for GitHub Actions and other workflow YAML
+  - extend Docker image checks to `Containerfile` and compose files
+  - extend CI pipeline checks beyond GitHub Actions workflow YAML
 - **Code:**
   - add better spying/mocking (in progress)
   - add utils functions to be executed with the cli cmd (monorepo, cadence, all deps)

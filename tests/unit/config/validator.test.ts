@@ -17,10 +17,7 @@ describe("validateConfig", () => {
 
     it("should validate config with codependencies objects", () => {
       const config = {
-        codependencies: [
-          { react: "^18.0.0" },
-          { lodash: "4.17.21" },
-        ],
+        codependencies: [{ react: "^18.0.0" }, { lodash: "4.17.21" }],
       };
 
       const result = validateConfig(config);
@@ -31,11 +28,7 @@ describe("validateConfig", () => {
 
     it("should validate config with mixed codependencies format", () => {
       const config = {
-        codependencies: [
-          "react",
-          { lodash: "4.17.21" },
-          "typescript",
-        ],
+        codependencies: ["react", { lodash: "4.17.21" }, "typescript"],
       };
 
       const result = validateConfig(config);
@@ -142,7 +135,9 @@ describe("validateConfig", () => {
       const requiredError = result.errors.find((e) => e.message.includes("either"));
       expect(requiredError).toBeDefined();
       expect(requiredError?.field).toBe("root");
-      expect(requiredError?.suggestion).toBe('Add {"codependencies": ["package-name"]}, {"permissive": true}, or {"mode": "precise"}');
+      expect(requiredError?.suggestion).toBe(
+        'Add {"codependencies": ["package-name"]}, {"permissive": true}, or {"mode": "precise"}',
+      );
     });
 
     it("should reject empty object config", () => {
@@ -190,7 +185,9 @@ describe("validateConfig", () => {
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].field).toBe("codependencies");
       expect(result.errors[0].message).toBe('"codependencies" must be an array, got string');
-      expect(result.errors[0].suggestion).toBe('Change to array format: {"codependencies": ["package1", "package2"]}');
+      expect(result.errors[0].suggestion).toBe(
+        'Change to array format: {"codependencies": ["package1", "package2"]}',
+      );
     });
 
     it("should reject object codependencies", () => {
@@ -216,7 +213,9 @@ describe("validateConfig", () => {
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].field).toBe("codependencies[1]");
       expect(result.errors[0].message).toBe("Package name cannot be empty string");
-      expect(result.errors[0].suggestion).toBe("Remove empty strings from the codependencies array");
+      expect(result.errors[0].suggestion).toBe(
+        "Remove empty strings from the codependencies array",
+      );
     });
 
     it("should reject empty objects in codependencies", () => {
@@ -228,30 +227,30 @@ describe("validateConfig", () => {
 
       expect(result.valid).toBe(false);
       expect(result.errors[0].field).toBe("codependencies[0]");
-      expect(result.errors[0].message).toBe("Object in codependencies must have exactly one key, found 0");
+      expect(result.errors[0].message).toBe(
+        "Object in codependencies must have exactly one key, found 0",
+      );
       expect(result.errors[0].suggestion).toBe("Remove empty objects from codependencies array");
     });
 
     it("should reject objects with multiple keys", () => {
       const config = {
-        codependencies: [
-          { react: "^18.0.0", lodash: "4.17.21" },
-        ],
+        codependencies: [{ react: "^18.0.0", lodash: "4.17.21" }],
       };
 
       const result = validateConfig(config);
 
       expect(result.valid).toBe(false);
       expect(result.errors[0].field).toBe("codependencies[0]");
-      expect(result.errors[0].message).toBe("Object in codependencies must have exactly one key, found 2");
-      expect(result.errors[0].suggestion).toContain('Split into multiple objects');
+      expect(result.errors[0].message).toBe(
+        "Object in codependencies must have exactly one key, found 2",
+      );
+      expect(result.errors[0].suggestion).toContain("Split into multiple objects");
     });
 
     it("should reject non-string version values", () => {
       const config = {
-        codependencies: [
-          { react: 18 },
-        ],
+        codependencies: [{ react: 18 }],
       };
 
       const result = validateConfig(config);
@@ -299,7 +298,9 @@ describe("validateConfig", () => {
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].field).toBe("permissive");
       expect(result.errors[0].message).toBe('"permissive" must be a boolean, got string');
-      expect(result.errors[0].suggestion).toBe('Change to: {"permissive": true} or {"permissive": false}');
+      expect(result.errors[0].suggestion).toBe(
+        'Change to: {"permissive": true} or {"permissive": false}',
+      );
     });
 
     it("should reject number permissive", () => {
@@ -328,7 +329,9 @@ describe("validateConfig", () => {
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].field).toBe("language");
       expect(result.errors[0].message).toBe('"language" must be a string, got number');
-      expect(result.errors[0].suggestion).toBe("Use one of: nodejs, python, go");
+      expect(result.errors[0].suggestion).toBe(
+        "Use one of: nodejs, python, go, rust, docker, github-actions",
+      );
     });
 
     it("should reject invalid language value", () => {
@@ -342,7 +345,9 @@ describe("validateConfig", () => {
       expect(result.valid).toBe(false);
       expect(result.errors[0].field).toBe("language");
       expect(result.errors[0].message).toBe('Invalid language "ruby"');
-      expect(result.errors[0].suggestion).toBe("Must be one of: nodejs, python, go");
+      expect(result.errors[0].suggestion).toBe(
+        "Must be one of: nodejs, python, go, rust, docker, github-actions",
+      );
     });
 
     it("should reject boolean language", () => {
@@ -416,7 +421,9 @@ describe("validateConfig", () => {
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].field).toBe("ignore");
       expect(result.errors[0].message).toBe('"ignore" must be an array, got string');
-      expect(result.errors[0].suggestion).toBe('Use array format: {"ignore": ["**/node_modules/**"]}');
+      expect(result.errors[0].suggestion).toBe(
+        'Use array format: {"ignore": ["**/node_modules/**"]}',
+      );
     });
 
     it("should reject non-string values in ignore array", () => {
@@ -662,10 +669,7 @@ describe("validateConfig", () => {
 
     it("should handle all valid fields together", () => {
       const config = {
-        codependencies: [
-          "react",
-          { "react-dom": "^18.0.0" },
-        ],
+        codependencies: ["react", { "react-dom": "^18.0.0" }],
         permissive: true,
         language: "nodejs",
         files: ["packages/**/package.json"],

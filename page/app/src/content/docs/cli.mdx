@@ -38,7 +38,7 @@ Options:
   --permissive                      Update all deps except those in codependencies
   --level <level>                   Update level: patch, minor, or major (default: major)
   -m, --mode <mode>                verbose: only listed packages; precise: all except listed
-  -l, --language <lang>            Target language (nodejs, go, python) (experimental)
+  -l, --language <lang>            Target language (nodejs, go, python, rust, docker, github-actions)
   -h, --help                        Show this help message
   --dryRun                          Show what would change without modifying files
   --interactive                     Choose which packages to update interactively
@@ -98,7 +98,13 @@ codependence init
 
 ### Language Options
 
-- `-l, --language <lang>` - Target language: `nodejs`, `go`, or `python` (experimental)
+- `-l, --language <lang>` - Target language: `nodejs`, `go`, `python`, `rust`, `docker`, or `github-actions`
+
+```bash
+codependence --language rust
+codependence --language docker --dryRun
+codependence --language github-actions --format markdown
+```
 
 ### Testing Options
 
