@@ -108,9 +108,8 @@ run_agent_skill_tests() {
 verify_init_environment() {
     docker run --rm --entrypoint=/bin/sh codependence-test:latest -c '
         set -e
-        ls -la dist/
-        ls -la node_modules/
-        echo "Environment setup verified"
+        test -x dist/cli.js
+        test -f package.json
     '
 }
 
