@@ -46,6 +46,15 @@ type ParsedCondaDependencyLine = {
   readonly suffix: string;
 };
 
+type PyprojectDependencySection =
+  | "dependencies"
+  | "devDependencies"
+  | "optionalDependencies";
+
+type PyprojectArrayContext = {
+  readonly target: PyprojectDependencySection;
+};
+
 const parseCondaDependencySpec = (
   spec: string,
 ): ParsedCondaDependencyLine | null => {
@@ -72,6 +81,114 @@ export const parseCondaDependencyLine = (
   if (!parsed) return null;
 
   return [parsed.name, parsed.version];
+};
+
+const pyprojectTargetForKey = (
+  section: string | null,
+  key: string,
+): PyprojectDependencySection | null => {
+  if (section === "project" && key === "dependencies") {
+    return "dependencies";
+  }
+  if (section === "project.optional-dependencies") {
+    return "optionalDependencies";
+  }
+  if (section === "dependency-groups" && key === "dev") {
+    return "devDependencies";
+  }
+  if (section === "dependency-groups") {
+    return "optionalDependencies";
+  }
+
+  return null;
+};
+
+const readPyprojectArrayContext = (
+  section: string | null,
+  line: string,
+): PyprojectArrayContext | null => {
+  const match = line.match(PYTHON_PATTERNS.PYPROJECT_ARRAY_START);
+  if (!match) return null;
+
+  const target = pyprojectTargetForKey(section, match[1]);
+  if (!target) return null;
+
+  const context = { target };
+  return context;
+};
+
+const lineClosesPyprojectArray = (line: string): boolean => line.includes("]");
+
+const assignPyprojectDependency = (
+  manifest: DependencyManifest,
+  target: PyprojectDependencySection,
+  name: string,
+  version: string,
+): void => {
+  const dependencies = manifest[target] || {};
+  dependencies[name] = version;
+  manifest[target] = dependencies;
+};
+
+const assignPyprojectDependencies = (
+  manifest: DependencyManifest,
+  target: PyprojectDependencySection,
+  dependencies: Array<readonly [string, string]>,
+): void => {
+  dependencies.forEach(([name, version]) => {
+    assignPyprojectDependency(manifest, target, name, version);
+  });
+};
+
+const readQuotedPyprojectDependencies = (
+  line: string,
+): Array<readonly [string, string]> => {
+  const dependencies: Array<readonly [string, string]> = [];
+  const matches = line.matchAll(PYTHON_PATTERNS.PYPROJECT_QUOTED_DEPENDENCY);
+
+  for (const match of matches) {
+    const parsed = parseRequirementLine(match[1]);
+    if (!parsed) continue;
+
+    dependencies.push(parsed);
+  }
+
+  return dependencies;
+};
+
+const updatePyprojectDependencySpec = (
+  spec: string,
+  dependencies: Record<string, string>,
+): string => {
+  const parsed = parseRequirementLine(spec);
+  if (!parsed) return spec;
+
+  const [name, currentVersion] = parsed;
+  const nextVersion = dependencies[name];
+  if (!nextVersion) return spec;
+
+  const versionIndex = spec.indexOf(currentVersion, name.length);
+  if (versionIndex < 0) return spec;
+
+  const prefix = spec.slice(0, versionIndex);
+  const suffix = spec.slice(versionIndex + currentVersion.length);
+  const updatedSpec = `${prefix}${nextVersion}${suffix}`;
+  return updatedSpec;
+};
+
+const updatePyprojectDependencyLine = (
+  line: string,
+  dependencies: Record<string, string>,
+): string => {
+  const updatedLine = line.replace(
+    PYTHON_PATTERNS.PYPROJECT_QUOTED_DEPENDENCY,
+    (_quoted, spec: string) => {
+      const updatedSpec = updatePyprojectDependencySpec(spec, dependencies);
+      const quotedSpec = `"${updatedSpec}"`;
+      return quotedSpec;
+    },
+  );
+  return updatedLine;
 };
 
 export class PythonProvider implements DependencyProvider {
@@ -248,7 +365,9 @@ export class PythonProvider implements DependencyProvider {
     const dependencies: Record<string, string> = {};
 
     const depSection = content.match(PYTHON_PATTERNS.POETRY_DEPS);
-    if (!depSection) return { filePath, dependencies };
+    if (!depSection) {
+      return this.readPep621PyprojectToml(filePath, content);
+    }
 
     const lines = depSection[1].split("\n");
     lines.forEach((line) => {
@@ -258,6 +377,43 @@ export class PythonProvider implements DependencyProvider {
     });
 
     return { filePath, dependencies };
+  }
+
+  private readPep621PyprojectToml(
+    filePath: string,
+    content: string,
+  ): DependencyManifest {
+    const manifest: DependencyManifest = {
+      filePath,
+      dependencies: {},
+      devDependencies: {},
+      optionalDependencies: {},
+    };
+    let currentSection: string | null = null;
+    let currentArray: PyprojectArrayContext | null = null;
+
+    for (const line of content.split("\n")) {
+      const sectionMatch = line.match(PYTHON_PATTERNS.PYPROJECT_SECTION);
+      if (sectionMatch) {
+        currentSection = sectionMatch[1];
+        currentArray = null;
+        continue;
+      }
+
+      const nextArray = readPyprojectArrayContext(currentSection, line);
+      if (nextArray) {
+        currentArray = nextArray;
+      }
+      if (!currentArray) continue;
+
+      const dependencies = readQuotedPyprojectDependencies(line);
+      assignPyprojectDependencies(manifest, currentArray.target, dependencies);
+      if (lineClosesPyprojectArray(line)) {
+        currentArray = null;
+      }
+    }
+
+    return manifest;
   }
 
   private readPipfile(filePath: string): DependencyManifest {
@@ -346,6 +502,12 @@ export class PythonProvider implements DependencyProvider {
     manifest: DependencyManifest,
   ): void {
     const content = readFileSync(filePath, "utf8");
+    const hasPoetryDependencies = PYTHON_PATTERNS.POETRY_DEPS.test(content);
+    if (!hasPoetryDependencies) {
+      this.writePep621PyprojectToml(filePath, content, manifest);
+      return;
+    }
+
     const depEntries = Object.entries(manifest.dependencies)
       .map(([name, version]) => `${name} = "${version}"`)
       .join("\n");
@@ -353,6 +515,46 @@ export class PythonProvider implements DependencyProvider {
     const replacement = `[tool.poetry.dependencies]\npython = "^3.8"\n${depEntries}\n\n`;
     const updated = content.replace(PYTHON_PATTERNS.POETRY_DEPS, replacement);
 
+    writeFileSync(filePath, updated);
+  }
+
+  private writePep621PyprojectToml(
+    filePath: string,
+    content: string,
+    manifest: DependencyManifest,
+  ): void {
+    let currentSection: string | null = null;
+    let currentArray: PyprojectArrayContext | null = null;
+    const updatedLines: string[] = [];
+
+    for (const line of content.split("\n")) {
+      const sectionMatch = line.match(PYTHON_PATTERNS.PYPROJECT_SECTION);
+      if (sectionMatch) {
+        currentSection = sectionMatch[1];
+        currentArray = null;
+        updatedLines.push(line);
+        continue;
+      }
+
+      const nextArray = readPyprojectArrayContext(currentSection, line);
+      if (nextArray) {
+        currentArray = nextArray;
+      }
+      if (!currentArray) {
+        updatedLines.push(line);
+        continue;
+      }
+
+      const dependencies = manifest[currentArray.target] || {};
+      const updatedLine = updatePyprojectDependencyLine(line, dependencies);
+      updatedLines.push(updatedLine);
+
+      if (lineClosesPyprojectArray(line)) {
+        currentArray = null;
+      }
+    }
+
+    const updated = updatedLines.join("\n");
     writeFileSync(filePath, updated);
   }
 

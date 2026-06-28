@@ -95,6 +95,20 @@ describe("validateConfig", () => {
       expect(result.valid).toBe(true);
       expect(result.errors).toEqual([]);
     });
+
+    it("should validate config with new provider languages", () => {
+      const languages = ["rust", "docker", "github-actions"];
+
+      languages.forEach((language) => {
+        const config = {
+          codependencies: ["example"],
+          language,
+        };
+        const result = validateConfig(config);
+
+        expect(result.valid).toBe(true);
+      });
+    });
   });
 
   describe("root object validation", () => {
@@ -328,7 +342,9 @@ describe("validateConfig", () => {
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].field).toBe("language");
       expect(result.errors[0].message).toBe('"language" must be a string, got number');
-      expect(result.errors[0].suggestion).toBe("Use one of: nodejs, python, go");
+      expect(result.errors[0].suggestion).toBe(
+        "Use one of: nodejs, python, go, rust, docker, github-actions",
+      );
     });
 
     it("should reject invalid language value", () => {
@@ -342,7 +358,9 @@ describe("validateConfig", () => {
       expect(result.valid).toBe(false);
       expect(result.errors[0].field).toBe("language");
       expect(result.errors[0].message).toBe('Invalid language "ruby"');
-      expect(result.errors[0].suggestion).toBe("Must be one of: nodejs, python, go");
+      expect(result.errors[0].suggestion).toBe(
+        "Must be one of: nodejs, python, go, rust, docker, github-actions",
+      );
     });
 
     it("should reject boolean language", () => {

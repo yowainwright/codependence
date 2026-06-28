@@ -14,6 +14,9 @@ export const VALID_LANGUAGES = [
   LANGUAGES.NODEJS,
   LANGUAGES.PYTHON,
   LANGUAGES.GO,
+  LANGUAGES.RUST,
+  LANGUAGES.DOCKER,
+  LANGUAGES.GITHUB_ACTIONS,
 ] as const;
 export const VALID_LEVELS = ["patch", "minor", "major"] as const;
 export const VALID_MODES = ["verbose", "precise"] as const;

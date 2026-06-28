@@ -18,7 +18,9 @@ clearly marked until implemented.
 - Check-only, dry-run, interactive, and update modes
 - Patch, minor, or major update limits
 - Table, JSON, and Markdown output for scripts and CI
-- Experimental Python and Go manifest checks
+- Experimental Python, Go, and Rust manifest checks
+- Experimental Dockerfile checks
+- Experimental GitHub Actions workflow checks
 
 ## Good Next Targets
 
@@ -26,8 +28,8 @@ These are natural extensions of the same policy model:
 
 - Local repository scan: report version drift across a directory such as `~/code`
 - Toolchain files: `.nvmrc`, `.node-version`, `.tool-versions`, and `.mise.toml`
-- Container files: `Dockerfile`, `Containerfile`, and compose image tags
-- CI workflow files: GitHub Actions, GitLab CI, CircleCI, and similar YAML
+- Container files beyond `Dockerfile`: `Containerfile` and compose image tags
+- CI workflow files beyond GitHub Actions: GitLab CI, CircleCI, and similar YAML
 - Runtime images: `node`, `bun`, `python`, `golang`, `ubuntu`, and other common base images
 
 ## Product Boundary

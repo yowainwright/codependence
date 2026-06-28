@@ -1,0 +1,19 @@
+[project]
+name = "codependence-e2e"
+version = "0.1.0"
+dependencies = [
+  "requests==2.31.0",
+  "flask>=2.2.0",
+]
+
+[project.optional-dependencies]
+docs = [
+  "mkdocs==1.5.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest==7.4.0",
+  "ruff==0.1.0",
+]
+typing = ["mypy==1.7.0"]

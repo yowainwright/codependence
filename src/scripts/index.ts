@@ -2,13 +2,16 @@ import { readFileSync, writeFileSync } from "fs";
 import { basename, dirname, resolve } from "path";
 import {
   DEFAULT_LANGUAGE_MANIFESTS,
+  DockerProvider,
   GoProvider,
+  GitHubActionsProvider,
   LANGUAGES,
   MANIFEST_FILES,
   NODE_PACKAGE_MANAGERS,
   NodeJSProvider,
   PYTHON_MANIFEST_FILES,
   PythonProvider,
+  RustProvider,
   detectNodePackageManager,
   detectPrimaryLanguage,
   detectPythonPackageManagerForManifest,
@@ -48,10 +51,25 @@ const DEFAULT_FILE_MATCHERS: Record<SupportedLanguage, string[]> = {
   [LANGUAGES.NODEJS]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.NODEJS]],
   [LANGUAGES.GO]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.GO]],
   [LANGUAGES.PYTHON]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.PYTHON]],
+  [LANGUAGES.RUST]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.RUST]],
+  [LANGUAGES.DOCKER]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.DOCKER]],
+  [LANGUAGES.GITHUB_ACTIONS]: [
+    ...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.GITHUB_ACTIONS],
+  ],
 };
 
 const PYTHON_MANIFEST_NAMES = new Set<string>(PYTHON_MANIFEST_FILES);
 const VERSION_RESOLUTION_CONCURRENCY = 8;
+const SUPPORTED_LANGUAGE_NAMES = new Set<string>(Object.values(LANGUAGES));
+
+const isSupportedLanguageName = (
+  language: string | undefined,
+): language is SupportedLanguage => {
+  if (!language) return false;
+
+  const isSupported = SUPPORTED_LANGUAGE_NAMES.has(language);
+  return isSupported;
+};
 
 type LoadedManifest = {
   file: string;
@@ -100,9 +118,15 @@ const resolveManifestPath = (rootDir: string, file: string): string =>
 
 const inferLanguageFromFile = (file: string): SupportedLanguage | null => {
   const manifestName = basename(file);
+  const normalizedFile = file.replace(/\\/g, "/");
 
   if (manifestName === MANIFEST_FILES.PACKAGE_JSON) return LANGUAGES.NODEJS;
   if (manifestName === MANIFEST_FILES.GO_MOD) return LANGUAGES.GO;
+  if (manifestName === MANIFEST_FILES.CARGO_TOML) return LANGUAGES.RUST;
+  if (manifestName === MANIFEST_FILES.DOCKERFILE) return LANGUAGES.DOCKER;
+  if (normalizedFile.startsWith(".github/workflows/")) {
+    return LANGUAGES.GITHUB_ACTIONS;
+  }
   if (PYTHON_MANIFEST_NAMES.has(manifestName)) return LANGUAGES.PYTHON;
 
   return null;
@@ -115,11 +139,7 @@ const resolveTargetLanguage = (
   if (language) return language;
 
   const detected = detectPrimaryLanguage(rootDir)?.language;
-  if (
-    detected === LANGUAGES.NODEJS ||
-    detected === LANGUAGES.GO ||
-    detected === LANGUAGES.PYTHON
-  ) {
+  if (isSupportedLanguageName(detected)) {
     return detected;
   }
 
@@ -166,6 +186,21 @@ const createProvider = (
       return {
         provider: new GoProvider(providerOptions),
         packageManager: LANGUAGES.GO,
+      };
+    case LANGUAGES.RUST:
+      return {
+        provider: new RustProvider(providerOptions),
+        packageManager: LANGUAGES.RUST,
+      };
+    case LANGUAGES.DOCKER:
+      return {
+        provider: new DockerProvider(),
+        packageManager: LANGUAGES.DOCKER,
+      };
+    case LANGUAGES.GITHUB_ACTIONS:
+      return {
+        provider: new GitHubActionsProvider(),
+        packageManager: LANGUAGES.GITHUB_ACTIONS,
       };
     case LANGUAGES.PYTHON: {
       const packageManager = detectPythonPackageManagerForManifest(

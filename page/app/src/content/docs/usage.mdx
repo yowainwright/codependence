@@ -12,17 +12,36 @@ Use Codependence as a standalone CLI, in npm scripts, in CI, or as a Node utilit
 ## Installation
 
 ```bash
-# Using npm
 npm install codependence --save-dev
-
-# Using bun
-bun add codependence --dev
-
-# Using yarn
-yarn add codependence --dev
-
-# Using pnpm
 pnpm add codependence --save-dev
+bun add codependence --dev
+yarn add codependence --dev
+```
+
+## Agent Skills
+
+Install the legibility skill directly:
+
+```bash
+npx eslint-plugin-legibility-install-skill
+npx eslint-plugin-legibility-install-skill --target codex
+npx eslint-plugin-legibility-install-skill --target claude
+```
+
+This repo also has wrapper scripts:
+
+```bash
+bun run skills:install
+bun run skills:install:codex
+bun run skills:install:claude
+```
+
+Install into ignored project-local folders:
+
+```bash
+bun run skills:install:local
+bun run skills:install:codex:local
+bun run skills:install:claude:local
 ```
 
 ## Quick Setup

@@ -58,7 +58,7 @@ Options:
   -y, --yarnConfig                  Enable yarn config support
   --level <level>                   Update level: patch, minor, or major (default: major)
   -m, --mode <mode>                verbose: only listed packages; precise: all except listed
-  -l, --language <lang>            Target language (nodejs, go, python) (experimental)
+  -l, --language <lang>            Target language (nodejs, go, python, rust, docker, github-actions)
   -h, --help                        Show this help message
   --dryRun                          Show what would change without modifying files
   --interactive                     Choose which packages to update interactively
@@ -102,6 +102,9 @@ Examples:
   codependence --files '**/package.json'      Update all package.json files in monorepo
   codependence --language python              Check Python requirements.txt/pyproject.toml
   codependence --language go                  Check Go go.mod dependencies
+  codependence --language rust                Check Cargo.toml dependencies
+  codependence --language docker              Check Dockerfile image tags
+  codependence --language github-actions      Check workflow action refs
 
   # Development
   codependence --watch                        Watch mode - check every 30 seconds

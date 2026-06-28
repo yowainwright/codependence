@@ -81,6 +81,30 @@ run_go_update_tests() {
     run_step "Go update tests passed!" docker run --rm codependence-multilang-test:latest ./test-go-update.sh
 }
 
+run_provider_update_tests() {
+    run_step "Provider update tests passed!" docker run --rm codependence-multilang-test:latest ./provider/all.sh
+}
+
+run_provider_rust_tests() {
+    run_step "Rust provider e2e passed!" docker run --rm codependence-multilang-test:latest ./provider/rust.sh
+}
+
+run_provider_docker_tests() {
+    run_step "Docker provider e2e passed!" docker run --rm codependence-multilang-test:latest ./provider/docker.sh
+}
+
+run_provider_github_actions_tests() {
+    run_step "GitHub Actions provider e2e passed!" docker run --rm codependence-multilang-test:latest ./provider/github-actions.sh
+}
+
+run_provider_uv_tests() {
+    run_step "uv pyproject provider e2e passed!" docker run --rm codependence-multilang-test:latest ./provider/uv.sh
+}
+
+run_agent_skill_tests() {
+    run_step "Agent skill install tests passed!" docker run --rm codependence-multilang-test:latest ./test-agent-skill-install.sh
+}
+
 verify_init_environment() {
     docker run --rm --entrypoint=/bin/sh codependence-test:latest -c '
         set -e
@@ -133,6 +157,42 @@ case "${1:-all}" in
         run_go_update_tests
         ;;
 
+    "provider-updates")
+        print_status "Running provider update tests..."
+        build_multilang_image
+        run_provider_update_tests
+        ;;
+
+    "rust")
+        print_status "Running Rust provider e2e..."
+        build_multilang_image
+        run_provider_rust_tests
+        ;;
+
+    "docker")
+        print_status "Running Docker provider e2e..."
+        build_multilang_image
+        run_provider_docker_tests
+        ;;
+
+    "github-actions")
+        print_status "Running GitHub Actions provider e2e..."
+        build_multilang_image
+        run_provider_github_actions_tests
+        ;;
+
+    "uv")
+        print_status "Running uv pyproject provider e2e..."
+        build_multilang_image
+        run_provider_uv_tests
+        ;;
+
+    "agent-skills")
+        print_status "Running agent skill install tests..."
+        build_multilang_image
+        run_agent_skill_tests
+        ;;
+
     "verify-init-env")
         print_status "Verifying Node.js init Docker environment..."
         verify_init_environment
@@ -146,16 +206,22 @@ case "${1:-all}" in
     "all")
         print_status "Running all e2e tests..."
 
-        print_status "1/3: Node.js init tests..."
+        print_status "1/5: Node.js init tests..."
         build_init_image
         run_init_tests
 
-        print_status "2/3: Multi-language tests..."
+        print_status "2/5: Multi-language tests..."
         build_multilang_image
         run_multilang_tests
 
-        print_status "3/3: Go update tests..."
+        print_status "3/5: Go update tests..."
         run_go_update_tests
+
+        print_status "4/5: Provider update tests..."
+        run_provider_update_tests
+
+        print_status "5/5: Agent skill install tests..."
+        run_agent_skill_tests
 
         print_success "All e2e tests passed!"
         ;;
@@ -176,6 +242,12 @@ case "${1:-all}" in
         echo "  python      Run Python + Go tests only (alias)"
         echo "  go          Run Python + Go tests only (alias)"
         echo "  go-update   Run Go update/preserve tests only"
+        echo "  provider-updates Run Rust/Docker/GitHub Actions/uv update tests"
+        echo "  rust             Run Rust provider e2e only"
+        echo "  docker           Run Docker provider e2e only"
+        echo "  github-actions   Run GitHub Actions provider e2e only"
+        echo "  uv               Run uv pyproject provider e2e only"
+        echo "  agent-skills     Run packaged agent skill install tests"
         echo "  verify-init-env       Verify the Node.js init Docker image"
         echo "  verify-multilang-env  Verify the Python + Go Docker image"
         echo "  clean       Clean up Docker resources"

@@ -1,4 +1,4 @@
-# Multi-language Dockerfile for testing codependence with Python and Go
+# Multi-language Dockerfile for testing provider support
 ARG NODE_SLIM_IMAGE=node:24-slim@sha256:2c87ef9bd3c6a3bd4b472b4bec2ce9d16354b0c574f736c476489d09f560a203
 FROM ${NODE_SLIM_IMAGE} AS builder
 
@@ -96,18 +96,29 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/bun.lock ./bun.lock
 COPY --from=builder /app/bunfig.toml ./bunfig.toml
 COPY --from=builder /app/page ./page
+RUN mkdir -p scripts
+COPY --from=builder /app/scripts/install-legibility-skill.js ./scripts/install-legibility-skill.js
 
-# Install production dependencies
-RUN bun install --production --frozen-lockfile --ignore-scripts
+# Install production dependencies when they exist
+RUN if node -e "const pkg = require('./package.json'); process.exit(Object.keys(pkg.dependencies || {}).length === 0 ? 0 : 1)"; then \
+        echo "No production dependencies to install"; \
+    else \
+        bun install --production --frozen-lockfile --ignore-scripts; \
+    fi
+
+COPY --from=builder /app/node_modules/eslint-plugin-legibility ./node_modules/eslint-plugin-legibility
+COPY --from=builder /app/node_modules/.bin ./node_modules/.bin
 
 # Copy all test fixtures
 COPY tests/e2e/fixtures/ ./
 
 # Copy e2e test scripts
 COPY tests/e2e/test-go-update.sh ./
+COPY tests/e2e/test-agent-skill-install.sh ./
+COPY tests/e2e/provider/ ./provider/
 
 # Make all test scripts executable
-RUN chmod +x *.sh
+RUN chmod +x *.sh provider/*.sh
 
 # Change ownership
 RUN chown -R testuser:testuser /test

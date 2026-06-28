@@ -38,6 +38,35 @@ Read more about [Codependence](#synopsis) and why you might want to use it [belo
 
 ```sh
 npm install codependence --save-dev
+pnpm add codependence --save-dev
+bun add codependence --dev
+yarn add codependence --dev
+```
+
+#### Agent skills
+
+Install the `eslint-plugin-legibility` agent skill directly:
+
+```sh
+npx eslint-plugin-legibility-install-skill
+npx eslint-plugin-legibility-install-skill --target codex
+npx eslint-plugin-legibility-install-skill --target claude
+```
+
+This repo also has wrapper scripts for contributor setup:
+
+```sh
+bun run skills:install        # default shared agent skills location
+bun run skills:install:codex  # Codex global skill location
+bun run skills:install:claude # Claude rules location
+```
+
+For project-local installs, generated files are ignored by git:
+
+```sh
+bun run skills:install:local
+bun run skills:install:codex:local
+bun run skills:install:claude:local
 ```
 
 #### Quick setup
@@ -112,7 +141,12 @@ bun test --coverage        # Run with coverage report
 
 **E2E Tests:**
 ```sh
-./tests/e2e/test-multilang.sh all    # Run all e2e tests (Node.js, Python, Go)
+./tests/e2e/test-multilang.sh all    # Run all e2e tests
+./tests/e2e/test-multilang.sh rust
+./tests/e2e/test-multilang.sh docker
+./tests/e2e/test-multilang.sh github-actions
+./tests/e2e/test-multilang.sh uv
+./tests/e2e/test-multilang.sh agent-skills
 ```
 
 ---
@@ -147,7 +181,7 @@ Options:
   -y, --yarnConfig                  Enable yarn config support
   --level <level>                   Update level: patch, minor, or major (default: major)
   -m, --mode <mode>                verbose: only listed packages; precise: all except listed
-  -l, --language <lang>            Target language (nodejs, go, python) (experimental)
+  -l, --language <lang>            Target language (nodejs, go, python, rust, docker, github-actions)
   -h, --help                        Show this help message
   --dryRun                          Show what would change without modifying files
   --interactive                     Choose which packages to update interactively
@@ -402,11 +436,14 @@ An **optional** path to write formatted output to a file instead of stdout. Requ
 
 ### Multi-language support (experimental)
 
-Codependence includes experimental support for Python and Go dependency manifests via the `--language` flag:
+Codependence includes experimental support for non-Node dependency manifests via the `--language` flag:
 
 ```sh
-codependence --language python    # Check requirements.txt / pyproject.toml
-codependence --language go        # Check go.mod dependencies
+codependence --language python
+codependence --language go
+codependence --language rust
+codependence --language docker
+codependence --language github-actions
 ```
 
 This feature is under active development. For stable usage, omit `--language` (defaults to Node.js).
@@ -462,11 +499,12 @@ Codependence currently focuses on package manifests and dependency sections. The
 | Surface | Status | Purpose |
 | --- | --- | --- |
 | `package.json` dependencies | Supported | Enforce dependency policy in Node.js projects and monorepos |
-| Python and Go manifests | Experimental | Apply the same check/update workflow outside Node.js |
+| Python, Go, and Rust manifests | Experimental | Apply the same check/update workflow outside Node.js |
+| Dockerfiles | Experimental | Check base image versions |
+| GitHub Actions workflows | Experimental | Check action refs in workflow YAML |
 | Local repository scans | Roadmap | Report drift across a directory of projects, such as `~/code` |
 | Toolchain files | Roadmap | Keep `.nvmrc`, `.node-version`, `.tool-versions`, and `.mise.toml` aligned |
-| Docker and compose files | Roadmap | Check base image and service image versions |
-| CI workflow YAML | Roadmap | Check action, image, and runtime versions in pipeline files |
+| Compose and other CI YAML | Roadmap | Check service images, actions, and runtime versions in pipeline files |
 
 ---
 
@@ -620,8 +658,8 @@ Thank you!
 - **Policy Surface:**
   - scan a directory of local repositories and report version drift
   - extend policy checks beyond package manifests to toolchain files such as `.nvmrc`, `.node-version`, `.tool-versions`, and `.mise.toml`
-  - explore Docker image version checks for `Dockerfile`, `Containerfile`, and compose files
-  - explore CI pipeline version checks for GitHub Actions and other workflow YAML
+  - extend Docker image version checks beyond `Dockerfile` to `Containerfile` and compose files
+  - extend CI pipeline version checks beyond GitHub Actions to other workflow YAML
 - **Code:**
   - add better spying/mocking (in progress)
   - add utils functions to be executed with the cli cmd (monorepo, cadence, all deps)
