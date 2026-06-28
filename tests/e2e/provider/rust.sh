@@ -10,7 +10,7 @@ require_built_cli
 make_tmp_dir
 cp "$FIXTURE_DIR/rust-Cargo.toml.fixture" "$WORK_DIR/Cargo.toml"
 cat > "$WORK_DIR/.codependencerc" <<'JSON'
-{"mode":"verbose","codependencies":[{"serde":"1.0.210"},{"tokio":"1.40.0"},{"pretty_assertions":"1.4.1"},{"cc":"1.1.30"},{"libc":"0.2.155"}]}
+{"mode":"verbose","codependencies":[{"serde":"1.0.210"},{"tokio":"1.40.0"},{"pretty-assertions":"1.4.1"},{"cc":"1.1.30"},{"libc":"0.2.155"}]}
 JSON
 
 run_update "$WORK_DIR"

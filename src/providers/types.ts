@@ -26,6 +26,7 @@ export interface DependencyProvider {
   readManifest(filePath: string): DependencyManifest;
   writeManifest(filePath: string, manifest: DependencyManifest): void | Promise<void>;
   validatePackageName(packageName: string): boolean;
+  normalizePackageName?(packageName: string): string;
 }
 
 export interface ProviderOptions {

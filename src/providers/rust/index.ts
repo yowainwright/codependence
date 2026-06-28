@@ -84,7 +84,7 @@ const assignDependency = (
   manifest[target] = targetDependencies;
 };
 
-const normalizeCargoPackageName = (packageName: string): string =>
+export const normalizeCargoPackageName = (packageName: string): string =>
   packageName.replace(/[-_]/g, "-");
 
 const cargoPackageNamesMatch = (left: string, right: string): boolean =>
@@ -159,6 +159,10 @@ export class RustProvider implements DependencyProvider {
   readonly language = LANGUAGES.RUST;
 
   constructor(_options: ProviderOptions = {}) {}
+
+  normalizePackageName(packageName: string): string {
+    return normalizeCargoPackageName(packageName);
+  }
 
   async getLatestVersion(packageName: string): Promise<string> {
     const args = ["search", packageName, "--limit", "1"];

@@ -1583,6 +1583,32 @@ test("checkFiles => auto-detects rust manifests", async () => {
   }
 });
 
+test("checkFiles => updates rust manifests with normalized package names", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-rust-normalized");
+  const cargoPath = join(tempDir, "Cargo.toml");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(
+    cargoPath,
+    '[package]\nname = "rust-normalized"\n\n[dependencies]\nserde_json = "1.0.100"\n',
+  );
+
+  try {
+    await checkFiles({
+      codependencies: [{ "serde-json": "1.0.145" }],
+      rootDir: tempDir,
+      files: ["Cargo.toml"],
+      update: true,
+      silent: true,
+    });
+
+    const updated = fs.readFileSync(cargoPath, "utf8");
+    expect(updated).toContain('serde_json = "1.0.145"');
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("checkFiles => auto-detects Docker manifests", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-detect");
   rmSync(tempDir, { recursive: true, force: true });
