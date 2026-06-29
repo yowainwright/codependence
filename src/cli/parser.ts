@@ -1,19 +1,33 @@
 import { OPTION_DEFINITIONS, HELP_TEXT, ARGS_START_INDEX } from "./constants";
-import type {
-  ParsedArgs,
-  OptionDefinition,
-  ParsedFlag,
-  CollectedValue,
-} from "./types";
+import type { ParsedArgs, OptionDefinition, ParsedFlag, CollectedValue } from "./types";
 
 const findOptionDef = (flag: string): OptionDefinition | undefined =>
   OPTION_DEFINITIONS.find((def) => def.flags.includes(flag));
 
+const stripFlagPrefix = (flag: string): string => {
+  if (flag.startsWith("--")) return flag.slice(2);
+  if (flag.startsWith("-")) return flag.slice(1);
+
+  return flag;
+};
+
+const capitalizeSegment = (segment: string): string => {
+  if (segment.length === 0) return segment;
+
+  return `${segment[0].toUpperCase()}${segment.slice(1)}`;
+};
+
+const camelCaseFlagName = (name: string): string =>
+  name
+    .split("-")
+    .map((segment, index) => (index === 0 ? segment : capitalizeSegment(segment)))
+    .join("");
+
 const getOptionKey = (def: OptionDefinition): string => {
   const longFlag = def.flags.find((f) => f.startsWith("--")) || def.flags[0];
-  return longFlag
-    .replace(/^--?/, "")
-    .replace(/-([a-z])/g, (_, char) => char.toUpperCase());
+  const flagName = stripFlagPrefix(longFlag);
+
+  return camelCaseFlagName(flagName);
 };
 
 const parseFlag = (arg: string): ParsedFlag => {
@@ -27,10 +41,7 @@ const parseFlag = (arg: string): ParsedFlag => {
 
 const isFlag = (arg: string): boolean => arg.startsWith("-");
 
-const collectArrayValue = (
-  args: string[],
-  startIndex: number,
-): CollectedValue => {
+const collectArrayValue = (args: string[], startIndex: number): CollectedValue => {
   const values: string[] = [];
   let currentIndex = startIndex + 1;
 
@@ -45,30 +56,17 @@ const collectArrayValue = (
   return { value: hasValues ? values : undefined, consumed };
 };
 
-const collectSingleValue = (
-  args: string[],
-  startIndex: number,
-): CollectedValue => {
+const collectSingleValue = (args: string[], startIndex: number): CollectedValue => {
   const nextArg = args[startIndex + 1];
   const hasNextValue = nextArg && !isFlag(nextArg);
 
-  return hasNextValue
-    ? { value: nextArg, consumed: 1 }
-    : { value: true, consumed: 0 };
+  return hasNextValue ? { value: nextArg, consumed: 1 } : { value: true, consumed: 0 };
 };
 
-const collectValue = (
-  args: string[],
-  index: number,
-  def: OptionDefinition,
-): CollectedValue =>
-  def.isArray
-    ? collectArrayValue(args, index)
-    : collectSingleValue(args, index);
+const collectValue = (args: string[], index: number, def: OptionDefinition): CollectedValue =>
+  def.isArray ? collectArrayValue(args, index) : collectSingleValue(args, index);
 
-const applyDefaults = (
-  options: Record<string, unknown>,
-): Record<string, unknown> =>
+const applyDefaults = (options: Record<string, unknown>): Record<string, unknown> =>
   OPTION_DEFINITIONS.reduce((acc, def) => {
     const key = getOptionKey(def);
     const hasValue = acc[key] !== undefined;

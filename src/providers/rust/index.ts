@@ -1,17 +1,24 @@
 import { readFileSync, writeFileSync } from "fs";
 import { exec } from "../../utils/exec";
 import { LANGUAGES } from "../constants";
-import type {
-  DependencyManifest,
-  DependencyProvider,
-  ProviderOptions,
-} from "../types";
-import {
-  CARGO_PACKAGE_MANAGER,
-  CARGO_PATTERNS,
-} from "./constants";
+import type { DependencyManifest, DependencyProvider, ProviderOptions } from "../types";
+import { CARGO_PACKAGE_MANAGER } from "./constants";
 
 type CargoSectionTarget = "dependencies" | "devDependencies";
+
+type CargoAssignment = {
+  readonly aliasName: string;
+  readonly prefix: string;
+  readonly value: string;
+  readonly suffix: string;
+};
+
+type InlineField = {
+  readonly name: string;
+  readonly value: string;
+  readonly quoteStart: number;
+  readonly quoteEnd: number;
+};
 
 const emptyManifest = (filePath: string): DependencyManifest => {
   const manifest = {
@@ -44,37 +51,166 @@ const parseCargoSection = (section: string): CargoSectionTarget | null => {
   return null;
 };
 
+const isCargoNameCharacter = (char: string): boolean => {
+  const isLowercase = char >= "a" && char <= "z";
+  const isUppercase = char >= "A" && char <= "Z";
+  const isDigit = char >= "0" && char <= "9";
+  const isLetter = isLowercase || isUppercase;
+  const isSeparator = char === "_" || char === "-";
+  return isLetter || isDigit || isSeparator;
+};
+
+const isCargoPackageName = (packageName: string): boolean =>
+  packageName.length > 0 && packageName.split("").every(isCargoNameCharacter);
+
+const countLeadingWhitespace = (value: string): number => {
+  let index = 0;
+  while (value[index] === " " || value[index] === "\t") index++;
+  return index;
+};
+
+const readCargoSectionName = (line: string): string | null => {
+  const trimmed = line.trim();
+  const hasSectionBrackets = trimmed.startsWith("[") && trimmed.endsWith("]");
+  if (!hasSectionBrackets) return null;
+
+  return trimmed.slice(1, -1).trim();
+};
+
+const readCargoKeyName = (key: string): string | null => {
+  const trimmed = key.trim();
+  const isQuoted = trimmed.startsWith('"') && trimmed.endsWith('"');
+  const name = isQuoted ? trimmed.slice(1, -1) : trimmed;
+
+  return isCargoPackageName(name) ? name : null;
+};
+
+const readQuotedCargoValueRange = (source: string): { value: string; suffix: string } | null => {
+  if (!source.startsWith('"')) return null;
+
+  const quoteEnd = source.indexOf('"', 1);
+  if (quoteEnd === -1) return null;
+
+  return {
+    value: source.slice(0, quoteEnd + 1),
+    suffix: source.slice(quoteEnd + 1),
+  };
+};
+
+const readInlineCargoValueRange = (source: string): { value: string; suffix: string } | null => {
+  if (!source.startsWith("{")) return null;
+
+  const tableEnd = source.indexOf("}");
+  if (tableEnd === -1) return null;
+
+  return {
+    value: source.slice(0, tableEnd + 1),
+    suffix: source.slice(tableEnd + 1),
+  };
+};
+
+const readCargoValueRange = (source: string): { value: string; suffix: string } | null =>
+  readQuotedCargoValueRange(source) || readInlineCargoValueRange(source);
+
+const parseCargoAssignmentLine = (line: string): CargoAssignment | null => {
+  const equalsIndex = line.indexOf("=");
+  if (equalsIndex === -1) return null;
+
+  const aliasName = readCargoKeyName(line.slice(0, equalsIndex));
+  if (!aliasName) return null;
+
+  const afterEquals = line.slice(equalsIndex + 1);
+  const valueStart = equalsIndex + 1 + countLeadingWhitespace(afterEquals);
+  const range = readCargoValueRange(line.slice(valueStart));
+  if (!range) return null;
+
+  return {
+    aliasName,
+    prefix: line.slice(0, valueStart),
+    value: range.value,
+    suffix: range.suffix,
+  };
+};
+
+const parseInlineField = (part: string): InlineField | null => {
+  const equalsIndex = part.indexOf("=");
+  if (equalsIndex === -1) return null;
+
+  const name = part.slice(0, equalsIndex).replaceAll("{", "").trim();
+  if (!isCargoPackageName(name)) return null;
+
+  const afterEquals = part.slice(equalsIndex + 1);
+  const quoteStartOffset = afterEquals.indexOf('"');
+  if (quoteStartOffset === -1) return null;
+
+  const quoteStart = equalsIndex + 1 + quoteStartOffset;
+  const quoteEnd = part.indexOf('"', quoteStart + 1);
+  if (quoteEnd === -1) return null;
+
+  return {
+    name,
+    value: part.slice(quoteStart + 1, quoteEnd),
+    quoteStart,
+    quoteEnd,
+  };
+};
+
+const isInlineField = (field: InlineField | null): field is InlineField => field !== null;
+
+const inlineFields = (value: string): InlineField[] =>
+  value.split(",").map(parseInlineField).filter(isInlineField);
+
+const readInlineStringField = (value: string, field: string): string | null => {
+  const found = inlineFields(value).find((candidate) => candidate.name === field);
+  return found?.value || null;
+};
+
+const replaceInlinePart = (part: string, field: string, replacement: string): string => {
+  const parsed = parseInlineField(part);
+  if (!parsed) return part;
+  if (parsed.name !== field) return part;
+
+  return `${part.slice(0, parsed.quoteStart + 1)}${replacement}${part.slice(parsed.quoteEnd)}`;
+};
+
+const replaceInlineStringField = (
+  value: string,
+  field: string,
+  replacement: string,
+): string | null => {
+  const parts = value.split(",");
+  const updatedParts = parts.map((part) => replaceInlinePart(part, field, replacement));
+  const hasUpdatedPart = updatedParts.some((part, index) => part !== parts[index]);
+
+  return hasUpdatedPart ? updatedParts.join(",") : null;
+};
+
+const isLocalCargoDependency = (value: string): boolean =>
+  readInlineStringField(value, "git") !== null || readInlineStringField(value, "path") !== null;
+
 const readCargoDependencyVersion = (value: string): string | null => {
-  const isLocalDependency = CARGO_PATTERNS.INLINE_GIT_OR_PATH.test(value);
-  if (isLocalDependency) return null;
+  if (isLocalCargoDependency(value)) return null;
 
   if (value.startsWith('"')) {
     const quotedVersion = value.slice(1, -1);
     return quotedVersion;
   }
 
-  const versionMatch = value.match(CARGO_PATTERNS.INLINE_VERSION);
-  if (!versionMatch) return null;
-
-  const inlineVersion = versionMatch[1];
-  return inlineVersion;
+  return readInlineStringField(value, "version");
 };
 
 const readCargoPackageName = (name: string, value: string): string => {
-  const packageMatch = value.match(CARGO_PATTERNS.INLINE_PACKAGE);
-  return packageMatch?.[1] || name;
+  return readInlineStringField(value, "package") || name;
 };
 
-const parseCargoDependencyLine = (
-  line: string,
-): readonly [string, string] | null => {
-  const match = line.match(CARGO_PATTERNS.SIMPLE_DEPENDENCY);
-  if (!match) return null;
+const parseCargoDependencyLine = (line: string): readonly [string, string] | null => {
+  const assignment = parseCargoAssignmentLine(line);
+  if (!assignment) return null;
 
-  const version = readCargoDependencyVersion(match[5]);
+  const version = readCargoDependencyVersion(assignment.value);
   if (!version) return null;
 
-  const packageName = readCargoPackageName(match[3], match[5]);
+  const packageName = readCargoPackageName(assignment.aliasName, assignment.value);
   const parsed = [packageName, version] as const;
   return parsed;
 };
@@ -91,61 +227,50 @@ const assignDependency = (
 };
 
 export const normalizeCargoPackageName = (packageName: string): string =>
-  packageName.replace(/[-_]/g, "-");
+  packageName.replaceAll("_", "-");
 
 const cargoPackageNamesMatch = (left: string, right: string): boolean =>
   normalizeCargoPackageName(left) === normalizeCargoPackageName(right);
 
 const readLatestCargoVersion = (stdout: string, packageName: string): string => {
   for (const line of stdout.split("\n")) {
-    const match = line.match(/^([A-Za-z0-9_-]+)\s*=\s*"([^"]+)"/);
-    if (!match) continue;
-    if (!cargoPackageNamesMatch(match[1], packageName)) continue;
+    const assignment = parseCargoAssignmentLine(line);
+    if (!assignment) continue;
+    if (!cargoPackageNamesMatch(assignment.aliasName, packageName)) continue;
 
-    const latestVersion = match[2];
-    return latestVersion;
+    const latestVersion = readCargoDependencyVersion(assignment.value);
+    if (latestVersion) return latestVersion;
   }
 
   return "";
 };
 
-const updateCargoDependencyValue = (
-  value: string,
-  version: string,
-): string | null => {
-  const isLocalDependency = CARGO_PATTERNS.INLINE_GIT_OR_PATH.test(value);
-  if (isLocalDependency) return null;
+const updateCargoDependencyValue = (value: string, version: string): string | null => {
+  if (isLocalCargoDependency(value)) return null;
 
   if (value.startsWith('"')) {
     const quotedVersion = `"${version}"`;
     return quotedVersion;
   }
 
-  const updatedValue = value.replace(
-    CARGO_PATTERNS.INLINE_VERSION,
-    `version = "${version}"`,
-  );
-  return updatedValue;
+  return replaceInlineStringField(value, "version", version);
 };
 
 export const updateCargoDependencyLine = (
   line: string,
   dependencies: Record<string, string>,
 ): string => {
-  const match = line.match(CARGO_PATTERNS.SIMPLE_DEPENDENCY);
-  if (!match) return line;
+  const assignment = parseCargoAssignmentLine(line);
+  if (!assignment) return line;
 
-  const aliasName = match[3];
-  const packageName = readCargoPackageName(aliasName, match[5]);
+  const { aliasName, value, prefix, suffix } = assignment;
+  const packageName = readCargoPackageName(aliasName, value);
   const version = dependencies[packageName] || dependencies[aliasName];
   if (!version) return line;
 
-  const updatedValue = updateCargoDependencyValue(match[5], version);
+  const updatedValue = updateCargoDependencyValue(value, version);
   if (!updatedValue) return line;
 
-  const key = `${match[2]}${aliasName}${match[2]}`;
-  const prefix = `${match[1]}${key}${match[4]}`;
-  const suffix = match[7] || "";
   const updatedLine = `${prefix}${updatedValue}${suffix}`;
   return updatedLine;
 };
@@ -160,6 +285,35 @@ const updateCargoLine = (
   const dependencies = manifest[section] || {};
   const updatedLine = updateCargoDependencyLine(line, dependencies);
   return updatedLine;
+};
+
+const readCargoManifestLine = (
+  manifest: DependencyManifest,
+  currentSection: CargoSectionTarget | null,
+  line: string,
+): CargoSectionTarget | null => {
+  const sectionName = readCargoSectionName(line);
+  if (sectionName) return parseCargoSection(sectionName);
+  if (!currentSection) return currentSection;
+
+  const parsed = parseCargoDependencyLine(line);
+  if (!parsed) return currentSection;
+
+  const [name, version] = parsed;
+  assignDependency(manifest, currentSection, name, version);
+  return currentSection;
+};
+
+const updateCargoManifestLine = (
+  line: string,
+  currentSection: CargoSectionTarget | null,
+  manifest: DependencyManifest,
+): { line: string; currentSection: CargoSectionTarget | null } => {
+  const sectionName = readCargoSectionName(line);
+  const nextSection = sectionName ? parseCargoSection(sectionName) : currentSection;
+  const updatedLine = sectionName ? line : updateCargoLine(line, currentSection, manifest);
+
+  return { line: updatedLine, currentSection: nextSection };
 };
 
 export class RustProvider implements DependencyProvider {
@@ -193,20 +347,9 @@ export class RustProvider implements DependencyProvider {
     let currentSection: CargoSectionTarget | null = null;
     const content = readFileSync(filePath, "utf8");
 
-    for (const line of content.split("\n")) {
-      const sectionMatch = line.match(CARGO_PATTERNS.SECTION);
-      if (sectionMatch) {
-        currentSection = parseCargoSection(sectionMatch[1]);
-        continue;
-      }
-      if (!currentSection) continue;
-
-      const parsed = parseCargoDependencyLine(line);
-      if (!parsed) continue;
-
-      const [name, version] = parsed;
-      assignDependency(manifest, currentSection, name, version);
-    }
+    content.split("\n").forEach((line) => {
+      currentSection = readCargoManifestLine(manifest, currentSection, line);
+    });
 
     return manifest;
   }
@@ -216,24 +359,18 @@ export class RustProvider implements DependencyProvider {
     const content = readFileSync(filePath, "utf8");
     const updatedLines: string[] = [];
 
-    for (const line of content.split("\n")) {
-      const sectionMatch = line.match(CARGO_PATTERNS.SECTION);
-      if (sectionMatch) {
-        currentSection = parseCargoSection(sectionMatch[1]);
-        updatedLines.push(line);
-        continue;
-      }
-
-      const updatedLine = updateCargoLine(line, currentSection, manifest);
-      updatedLines.push(updatedLine);
-    }
+    content.split("\n").forEach((line) => {
+      const result = updateCargoManifestLine(line, currentSection, manifest);
+      currentSection = result.currentSection;
+      updatedLines.push(result.line);
+    });
 
     const updated = updatedLines.join("\n");
     writeFileSync(filePath, updated);
   }
 
   validatePackageName(packageName: string): boolean {
-    const isValid = CARGO_PATTERNS.PACKAGE_NAME.test(packageName);
+    const isValid = isCargoPackageName(packageName);
     return isValid;
   }
 }

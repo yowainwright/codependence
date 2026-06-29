@@ -117,7 +117,7 @@ export class DockerProvider implements DependencyProvider {
   }
 
   validatePackageName(packageName: string): boolean {
-    const isValid = DOCKER_PATTERNS.PACKAGE_NAME.test(packageName);
+    const isValid = packageName.match(DOCKER_PATTERNS.PACKAGE_NAME) !== null;
     return isValid;
   }
 }

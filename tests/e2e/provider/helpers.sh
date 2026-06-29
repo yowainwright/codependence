@@ -28,6 +28,7 @@ resolve_fixture_dir() {
 ROOT_DIR="$(resolve_root_dir)"
 FIXTURE_DIR="$(resolve_fixture_dir "$ROOT_DIR")"
 CLI="$ROOT_DIR/dist/cli.js"
+BINARY_CLI="${CODEPENDENCE_E2E_BINARY:-}"
 
 pass() {
   printf '[PASS] %s\n' "$1"
@@ -50,11 +51,28 @@ cleanup_provider_e2e() {
 }
 
 require_built_cli() {
+  if [ -n "$BINARY_CLI" ]; then
+    if [ -x "$BINARY_CLI" ]; then
+      return
+    fi
+
+    fail "$BINARY_CLI not found or not executable"
+  fi
+
   if [ -f "$CLI" ]; then
     return
   fi
 
   fail "dist/cli.js not found - run bun run build-dist first"
+}
+
+run_cli() {
+  if [ -n "$BINARY_CLI" ]; then
+    "$BINARY_CLI" "$@"
+    return
+  fi
+
+  node "$CLI" "$@"
 }
 
 assert_file_contains() {
@@ -136,7 +154,7 @@ run_update() {
   output=""
   exit_code=0
 
-  output=$(node "$CLI" --rootDir "$root" --config "$root/.codependencerc" --update --quiet 2>&1) || exit_code=$?
+  output=$(run_cli --rootDir "$root" --config "$root/.codependencerc" --update --quiet 2>&1) || exit_code=$?
   if [ "$exit_code" -ne 0 ]; then
     printf '%s\n' "$output"
     fail "codependence --update exited with $exit_code"
@@ -155,7 +173,7 @@ run_update_expect_failure() {
   output=""
   exit_code=0
 
-  output=$(node "$CLI" --rootDir "$root" --config "$root/.codependencerc" --update 2>&1) || exit_code=$?
+  output=$(run_cli --rootDir "$root" --config "$root/.codependencerc" --update 2>&1) || exit_code=$?
   if [ "$exit_code" -eq 0 ]; then
     printf '%s\n' "$output"
     fail "$label should fail"

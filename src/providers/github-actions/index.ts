@@ -25,7 +25,11 @@ const isExternalAction = (name: string): boolean => {
 };
 
 const isShaPinnedRef = (version: string): boolean =>
-  /^[a-f0-9]{40}$/i.test(version);
+  version.length === 40 &&
+  version
+    .toLowerCase()
+    .split("")
+    .every((char) => "0123456789abcdef".includes(char));
 
 const unsupportedActionsResolution = (): Error =>
   new Error(
@@ -97,10 +101,7 @@ export class GitHubActionsProvider implements DependencyProvider {
     const updatedLines: string[] = [];
 
     for (const line of content.split("\n")) {
-      const updatedLine = updateGitHubActionsUsesLine(
-        line,
-        manifest.dependencies,
-      );
+      const updatedLine = updateGitHubActionsUsesLine(line, manifest.dependencies);
       updatedLines.push(updatedLine);
     }
 
@@ -109,7 +110,7 @@ export class GitHubActionsProvider implements DependencyProvider {
   }
 
   validatePackageName(packageName: string): boolean {
-    const isValid = GITHUB_ACTIONS_PATTERNS.PACKAGE_NAME.test(packageName);
+    const isValid = packageName.match(GITHUB_ACTIONS_PATTERNS.PACKAGE_NAME) !== null;
     return isValid;
   }
 }
