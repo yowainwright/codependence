@@ -1867,6 +1867,32 @@ test("checkFiles => rejects mixed-provider precise mode", async () => {
   }
 });
 
+test("checkFiles => rejects mixed-provider string codependencies", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-mixed-provider-latest");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(join(tempDir, "package.json"), '{"dependencies":{"lodash":"4.17.21"}}\n');
+  writeFileSync(
+    join(tempDir, "Cargo.toml"),
+    '[package]\nname = "mixed-provider"\n\n[dependencies]\nserde = "1.0.0"\n',
+  );
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: ["lodash"],
+        rootDir: tempDir,
+        files: ["package.json", "Cargo.toml"],
+        mode: "verbose",
+        isTesting: true,
+        silent: true,
+      }),
+    ).rejects.toThrow("Latest resolution currently supports one provider");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("checkFiles => allows mixed-provider explicit pins", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-mixed-provider-explicit");
   const workflowDir = join(tempDir, ".github", "workflows");

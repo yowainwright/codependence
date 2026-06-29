@@ -5,22 +5,19 @@ const findOptionDef = (flag: string): OptionDefinition | undefined =>
   OPTION_DEFINITIONS.find((def) => def.flags.includes(flag));
 
 const stripFlagPrefix = (flag: string): string => {
-  if (flag.startsWith("--")) return flag.slice(2);
-  if (flag.startsWith("-")) return flag.slice(1);
+  const prefixLength = flag.startsWith("--") ? 2 : Number(flag.startsWith("-"));
 
-  return flag;
-};
-
-const capitalizeSegment = (segment: string): string => {
-  if (segment.length === 0) return segment;
-
-  return `${segment[0].toUpperCase()}${segment.slice(1)}`;
+  return flag.slice(prefixLength);
 };
 
 const camelCaseFlagName = (name: string): string =>
   name
     .split("-")
-    .map((segment, index) => (index === 0 ? segment : capitalizeSegment(segment)))
+    .map((segment, index) => {
+      if (index === 0) return segment;
+
+      return `${segment.charAt(0).toUpperCase()}${segment.slice(1)}`;
+    })
     .join("");
 
 const getOptionKey = (def: OptionDefinition): string => {

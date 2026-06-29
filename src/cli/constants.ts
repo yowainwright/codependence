@@ -22,7 +22,7 @@ export const OPTION_DEFINITIONS: OptionDefinition[] = [
   { flags: ["--permissive"], hasValue: false },
   { flags: ["-l", "--language"], hasValue: true },
   { flags: ["-h", "--help"], hasValue: false },
-  { flags: ["--dryRun", "--dry-run"], hasValue: false },
+  { flags: ["--dry-run", "--dryRun"], hasValue: false },
   { flags: ["--interactive"], hasValue: false },
   { flags: ["--watch"], hasValue: false },
   { flags: ["--noCache", "--no-cache"], hasValue: false },
