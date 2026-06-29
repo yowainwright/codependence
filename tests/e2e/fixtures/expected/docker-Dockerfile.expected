@@ -1,11 +1,11 @@
-FROM node:20-slim AS builder
+FROM node:24-slim AS builder
 WORKDIR /app
 RUN npm ci
 ARG ALPINE_VERSION=3.19
 FROM alpine:${ALPINE_VERSION} AS variable-tag
 RUN echo variable
 
-FROM nginx:1.25-alpine
+FROM nginx:1.27-alpine
 FROM alpine@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 FROM scratch AS empty-root
 COPY --from=builder /app/dist /usr/share/nginx/html

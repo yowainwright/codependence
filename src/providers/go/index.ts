@@ -158,6 +158,11 @@ export const buildRequireBlock = (dependencies: Record<string, string>): string 
 
 export class GoProvider implements DependencyProvider {
   readonly language = LANGUAGES.GO;
+  readonly capabilities = {
+    supportsLatestResolution: true,
+    supportsPreciseMode: true,
+    versionStrategy: "semver",
+  } as const;
   private options: ProviderOptions;
 
   constructor(options: ProviderOptions = {}) {

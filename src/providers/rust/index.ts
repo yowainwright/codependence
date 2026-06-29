@@ -60,6 +60,11 @@ const readCargoDependencyVersion = (value: string): string | null => {
   return inlineVersion;
 };
 
+const readCargoPackageName = (name: string, value: string): string => {
+  const packageMatch = value.match(CARGO_PATTERNS.INLINE_PACKAGE);
+  return packageMatch?.[1] || name;
+};
+
 const parseCargoDependencyLine = (
   line: string,
 ): readonly [string, string] | null => {
@@ -69,7 +74,8 @@ const parseCargoDependencyLine = (
   const version = readCargoDependencyVersion(match[5]);
   if (!version) return null;
 
-  const parsed = [match[3], version] as const;
+  const packageName = readCargoPackageName(match[3], match[5]);
+  const parsed = [packageName, version] as const;
   return parsed;
 };
 
@@ -129,14 +135,15 @@ export const updateCargoDependencyLine = (
   const match = line.match(CARGO_PATTERNS.SIMPLE_DEPENDENCY);
   if (!match) return line;
 
-  const packageName = match[3];
-  const version = dependencies[packageName];
+  const aliasName = match[3];
+  const packageName = readCargoPackageName(aliasName, match[5]);
+  const version = dependencies[packageName] || dependencies[aliasName];
   if (!version) return line;
 
   const updatedValue = updateCargoDependencyValue(match[5], version);
   if (!updatedValue) return line;
 
-  const key = `${match[2]}${packageName}${match[2]}`;
+  const key = `${match[2]}${aliasName}${match[2]}`;
   const prefix = `${match[1]}${key}${match[4]}`;
   const suffix = match[7] || "";
   const updatedLine = `${prefix}${updatedValue}${suffix}`;
@@ -157,6 +164,11 @@ const updateCargoLine = (
 
 export class RustProvider implements DependencyProvider {
   readonly language = LANGUAGES.RUST;
+  readonly capabilities = {
+    supportsLatestResolution: true,
+    supportsPreciseMode: true,
+    versionStrategy: "semver",
+  } as const;
 
   constructor(_options: ProviderOptions = {}) {}
 

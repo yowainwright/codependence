@@ -18,6 +18,13 @@ const emptyManifest = (filePath: string): DependencyManifest => {
 
 const isScratchImage = (image: DockerImage): boolean => image.name === "scratch";
 
+const hasDockerVariable = (image: string): boolean => image.includes("$");
+
+const unsupportedDockerResolution = (): Error =>
+  new Error(
+    'Docker provider requires explicit version pins, e.g. {"node":"24-slim"}; latest resolution and precise mode are not supported yet.',
+  );
+
 const splitDockerImage = (image: string): DockerImage => {
   const lastSlash = image.lastIndexOf("/");
   const lastColon = image.lastIndexOf(":");
@@ -37,6 +44,7 @@ const splitDockerImage = (image: string): DockerImage => {
 const readDockerFromLine = (line: string): DockerImage | null => {
   const match = line.match(DOCKER_PATTERNS.FROM_LINE);
   if (!match) return null;
+  if (hasDockerVariable(match[2])) return null;
   if (match[3].trimStart().startsWith("@")) return null;
 
   const imageSpec = splitDockerImage(match[2]);
@@ -51,6 +59,7 @@ export const updateDockerFromLine = (
 ): string => {
   const match = line.match(DOCKER_PATTERNS.FROM_LINE);
   if (!match) return line;
+  if (hasDockerVariable(match[2])) return line;
   if (match[3].trimStart().startsWith("@")) return line;
 
   const imageSpec = splitDockerImage(match[2]);
@@ -66,14 +75,18 @@ export const updateDockerFromLine = (
 
 export class DockerProvider implements DependencyProvider {
   readonly language = LANGUAGES.DOCKER;
+  readonly capabilities = {
+    supportsLatestResolution: false,
+    supportsPreciseMode: false,
+    versionStrategy: "exact",
+  } as const;
 
   async getLatestVersion(_packageName: string): Promise<string> {
-    return "";
+    throw unsupportedDockerResolution();
   }
 
   async getAllVersions(_packageName: string): Promise<string[]> {
-    const versions: string[] = [];
-    return versions;
+    throw unsupportedDockerResolution();
   }
 
   readManifest(filePath: string): DependencyManifest {

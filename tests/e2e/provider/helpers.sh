@@ -72,6 +72,65 @@ assert_file_contains() {
   fail "$label"
 }
 
+assert_file_equals() {
+  expected="$1"
+  actual="$2"
+  label="$3"
+
+  if cmp -s "$expected" "$actual"; then
+    pass "$label"
+    return
+  fi
+
+  printf 'Expected file to match: %s\n' "$expected"
+  printf 'Actual file: %s\n' "$actual"
+  diff -u "$expected" "$actual" || true
+  fail "$label"
+}
+
+assert_file_unchanged_after_update() {
+  root="$1"
+  file="$2"
+  label="$3"
+  before_file="$(mktemp)"
+  cp "$file" "$before_file"
+
+  run_update "$root"
+
+  if cmp -s "$before_file" "$file"; then
+    rm -f "$before_file"
+    pass "$label"
+    return
+  fi
+
+  printf 'Expected file to remain unchanged after second update: %s\n' "$file"
+  diff -u "$before_file" "$file" || true
+  rm -f "$before_file"
+  fail "$label"
+}
+
+assert_update_fails_unchanged() {
+  root="$1"
+  file="$2"
+  expected_message="$3"
+  label="$4"
+  before_file="$(mktemp)"
+  cp "$file" "$before_file"
+
+  run_update_expect_failure "$root" "$expected_message" "$label"
+
+  if cmp -s "$before_file" "$file"; then
+    rm -f "$before_file"
+    pass "$label leaves file unchanged"
+    return
+  fi
+
+  printf 'Expected file to remain unchanged after failed update: %s\n' "$file"
+  diff -u "$before_file" "$file" || true
+  rm -f "$before_file"
+  fail "$label leaves file unchanged"
+}
+
 run_update() {
   root="$1"
   output=""
@@ -87,4 +146,27 @@ run_update() {
     printf '%s\n' "$output"
     fail "codependence --update had resolver errors"
   fi
+}
+
+run_update_expect_failure() {
+  root="$1"
+  expected_message="$2"
+  label="$3"
+  output=""
+  exit_code=0
+
+  output=$(node "$CLI" --rootDir "$root" --config "$root/.codependencerc" --update 2>&1) || exit_code=$?
+  if [ "$exit_code" -eq 0 ]; then
+    printf '%s\n' "$output"
+    fail "$label should fail"
+  fi
+
+  if printf '%s\n' "$output" | grep -Fq "$expected_message"; then
+    pass "$label fails with expected error"
+    return
+  fi
+
+  printf '%s\n' "$output"
+  printf 'Expected failure message: %s\n' "$expected_message"
+  fail "$label failure message"
 }

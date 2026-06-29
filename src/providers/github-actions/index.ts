@@ -24,12 +24,21 @@ const isExternalAction = (name: string): boolean => {
   return true;
 };
 
+const isShaPinnedRef = (version: string): boolean =>
+  /^[a-f0-9]{40}$/i.test(version);
+
+const unsupportedActionsResolution = (): Error =>
+  new Error(
+    'GitHub Actions provider requires explicit version pins, e.g. {"actions/checkout":"v5"}; latest resolution and precise mode are not supported yet.',
+  );
+
 const readUsesLine = (line: string): GitHubActionRef | null => {
   const match = line.match(GITHUB_ACTIONS_PATTERNS.USES_LINE);
   if (!match) return null;
 
   const name = match[3];
   if (!isExternalAction(name)) return null;
+  if (isShaPinnedRef(match[4])) return null;
 
   const actionRef = { name, version: match[4] };
   return actionRef;
@@ -44,6 +53,7 @@ export const updateGitHubActionsUsesLine = (
 
   const name = match[3];
   if (!isExternalAction(name)) return line;
+  if (isShaPinnedRef(match[4])) return line;
 
   const version = dependencies[name];
   if (!version) return line;
@@ -54,14 +64,18 @@ export const updateGitHubActionsUsesLine = (
 
 export class GitHubActionsProvider implements DependencyProvider {
   readonly language = LANGUAGES.GITHUB_ACTIONS;
+  readonly capabilities = {
+    supportsLatestResolution: false,
+    supportsPreciseMode: false,
+    versionStrategy: "exact",
+  } as const;
 
   async getLatestVersion(_packageName: string): Promise<string> {
-    return "";
+    throw unsupportedActionsResolution();
   }
 
   async getAllVersions(_packageName: string): Promise<string[]> {
-    const versions: string[] = [];
-    return versions;
+    throw unsupportedActionsResolution();
   }
 
   readManifest(filePath: string): DependencyManifest {

@@ -16,8 +16,17 @@ describe("DockerProvider", () => {
     const provider = new DockerProvider();
 
     expect(provider.language).toBe("docker");
-    expect(await provider.getLatestVersion("node")).toBe("");
-    expect(await provider.getAllVersions("node")).toEqual([]);
+    expect(provider.capabilities).toEqual({
+      supportsLatestResolution: false,
+      supportsPreciseMode: false,
+      versionStrategy: "exact",
+    });
+    await expect(provider.getLatestVersion("node")).rejects.toThrow(
+      "Docker provider requires explicit version pins",
+    );
+    await expect(provider.getAllVersions("node")).rejects.toThrow(
+      "Docker provider requires explicit version pins",
+    );
     expect(provider.validatePackageName("ghcr.io/org/image")).toBe(true);
     expect(provider.validatePackageName("registry.internal:5000/org/image")).toBe(
       true,
@@ -28,6 +37,8 @@ describe("DockerProvider", () => {
   test("should read Dockerfile image tags", () => {
     const content = `FROM node:20.11.1 AS build
 FROM --platform=linux/amd64 nginx:1.25
+FROM alpine:\${ALPINE_VERSION}
+FROM alpine@sha256:abc123
 FROM scratch
 `;
     writeFileSync(dockerfilePath, content);
@@ -44,6 +55,7 @@ FROM scratch
   test("should update Dockerfile image tags", () => {
     const content = `FROM node:20.11.1 AS build
 FROM --platform=linux/amd64 nginx:1.25
+FROM alpine:\${ALPINE_VERSION}
 FROM alpine@sha256:abc123
 FROM scratch
 `;
@@ -64,6 +76,7 @@ FROM scratch
 
     expect(updated).toContain("FROM node:22.0.0 AS build");
     expect(updated).toContain("FROM --platform=linux/amd64 nginx:1.27");
+    expect(updated).toContain("FROM alpine:${ALPINE_VERSION}");
     expect(updated).toContain("FROM alpine@sha256:abc123");
     expect(updated).toContain("FROM scratch");
   });

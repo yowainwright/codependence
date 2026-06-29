@@ -4,9 +4,11 @@
   "workspaces": {
     "": {
       "name": "codependence",
+      "dependencies": {
+        "eslint-plugin-legibility": "^0.1.12",
+      },
       "devDependencies": {
         "bun-types": "1.3.14",
-        "eslint-plugin-legibility": "^0.1.12",
         "oxfmt": "^0.54.0",
         "oxlint": "^1.69.0",
         "pastoralist": "^1.12.3",

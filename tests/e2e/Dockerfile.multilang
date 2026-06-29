@@ -106,15 +106,13 @@ RUN if node -e "const pkg = require('./package.json'); process.exit(Object.keys(
         bun install --production --frozen-lockfile --ignore-scripts; \
     fi
 
-COPY --from=builder /app/node_modules/eslint-plugin-legibility ./node_modules/eslint-plugin-legibility
-COPY --from=builder /app/node_modules/.bin ./node_modules/.bin
-
 # Copy all test fixtures
 COPY tests/e2e/fixtures/ ./
 
 # Copy e2e test scripts
 COPY tests/e2e/test-go-update.sh ./
 COPY tests/e2e/test-agent-skill-install.sh ./
+COPY tests/e2e/test-packed-install.sh ./
 COPY tests/e2e/provider/ ./provider/
 
 # Make all test scripts executable

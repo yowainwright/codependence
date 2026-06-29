@@ -1,4 +1,5 @@
 import type { Level } from "../types";
+import type { VersionStrategy } from "../providers/types";
 import { VERSION_PREFIX_PATTERN } from "./constants";
 
 export const parseSemver = (
@@ -13,7 +14,9 @@ export const isWithinLevel = (
   current: string,
   latest: string,
   level: Level,
+  versionStrategy: VersionStrategy = "semver",
 ): boolean => {
+  if (versionStrategy === "exact") return true;
   if (level === "major") return true;
 
   const [curMajor, curMinor] = parseSemver(current);
