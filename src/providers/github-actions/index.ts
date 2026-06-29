@@ -25,7 +25,7 @@ const isExternalAction = (name: string): boolean => {
 };
 
 const isShaPinnedRef = (version: string): boolean =>
-  version.length === 40 &&
+  (version.length === 40 || version.length === 64) &&
   version
     .toLowerCase()
     .split("")

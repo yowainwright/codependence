@@ -5,7 +5,7 @@ import {
   VERSION_COMPARISON_PREFIXES,
 } from "./constants";
 
-const stripRepeatingVersionPrefixes = (version: string): string => {
+export const stripRepeatingVersionPrefixes = (version: string): string => {
   let index = 0;
   while (REPEATING_VERSION_PREFIXES.includes(version[index] as "^" | "~")) {
     index++;

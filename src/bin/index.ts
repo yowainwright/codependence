@@ -3,7 +3,18 @@ import { run } from "../program";
 import type { BinaryArgv } from "./types";
 
 const BINARY_SCRIPT_NAME = "codependence";
-const KNOWN_COMMANDS = new Set(["init"]);
+const SCRIPT_PATH_EXTENSIONS = [".cjs", ".js", ".mjs", ".ts", ".tsx"] as const;
+
+const hasPathSegment = (value: string): boolean => value.includes("/") || value.includes("\\");
+
+const hasScriptExtension = (value: string): boolean =>
+  SCRIPT_PATH_EXTENSIONS.some((extension) => value.endsWith(extension));
+
+const isScriptPathArg = (value: string | undefined): boolean => {
+  if (!value) return false;
+
+  return hasPathSegment(value) || hasScriptExtension(value);
+};
 
 export const normalizeBinaryArgv = (argv: BinaryArgv): string[] => {
   const firstArg = argv[0] || BINARY_SCRIPT_NAME;
@@ -14,9 +25,7 @@ export const normalizeBinaryArgv = (argv: BinaryArgv): string[] => {
     return [firstArg, BINARY_SCRIPT_NAME, ...argv.slice(2)];
   }
 
-  const hasOptionAsSecondArg = secondArg?.startsWith("-") === true;
-  const hasCommandAsSecondArg = secondArg !== undefined && KNOWN_COMMANDS.has(secondArg);
-  const needsScriptArg = secondArg === undefined || hasOptionAsSecondArg || hasCommandAsSecondArg;
+  const needsScriptArg = secondArg === undefined || !isScriptPathArg(secondArg);
 
   if (needsScriptArg) {
     return [firstArg, BINARY_SCRIPT_NAME, ...argv.slice(1)];

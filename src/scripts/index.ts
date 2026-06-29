@@ -27,13 +27,9 @@ import { versionCache, requestDeduplicator } from "../utils/cache";
 import { formatEnhancedError } from "../utils/suggestions";
 import { collectDiffsFromManifests, displayVersionDiffs } from "../utils/diff";
 import { Prompt } from "../utils/prompts";
-import { isWithinLevel } from "../utils/semver";
+import { isWithinLevel, stripRepeatingVersionPrefixes } from "../utils/semver";
 import { DEP_SECTIONS } from "./constants";
-import {
-  REPEATING_VERSION_PREFIXES,
-  STRICT_INEQUALITY_VERSION_PREFIXES,
-  VERSION_PREFIXES,
-} from "../utils/constants";
+import { STRICT_INEQUALITY_VERSION_PREFIXES, VERSION_PREFIXES } from "../utils/constants";
 import {
   CheckFiles,
   ConstructVersionMapOptions,
@@ -60,14 +56,6 @@ const DEFAULT_FILE_MATCHERS: Record<SupportedLanguage, string[]> = {
 const PYTHON_MANIFEST_NAMES = new Set<string>(PYTHON_MANIFEST_FILES);
 const VERSION_RESOLUTION_CONCURRENCY = 8;
 const SUPPORTED_LANGUAGE_NAMES = new Set<string>(Object.values(LANGUAGES));
-
-const stripRepeatingVersionPrefixes = (version: string): string => {
-  let index = 0;
-  while (REPEATING_VERSION_PREFIXES.includes(version[index] as "^" | "~")) {
-    index++;
-  }
-  return version.slice(index);
-};
 
 const isSupportedLanguageName = (language: string | undefined): language is SupportedLanguage => {
   if (!language) return false;

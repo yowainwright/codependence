@@ -6,6 +6,9 @@ import { GitHubActionsProvider } from "../../../src/providers/github-actions";
 describe("GitHubActionsProvider", () => {
   const tmpDir = join(__dirname, ".tmp-github-actions-test");
   const workflowPath = join(tmpDir, "ci.yml");
+  const shaSegment = "0123456789abcdef";
+  const sha1Ref = `${shaSegment}${shaSegment}01234567`;
+  const sha256Ref = shaSegment.repeat(4);
 
   beforeEach(() => {
     rmSync(tmpDir, { recursive: true, force: true });
@@ -38,7 +41,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: "actions/setup-node@v4"
-      - uses: actions/cache@0123456789abcdef0123456789abcdef01234567
+      - uses: actions/cache@${sha1Ref}
+      - uses: actions/upload-artifact@${sha256Ref}
       - uses: ./local-action
       - uses: docker://alpine:3.20
 `;
@@ -57,7 +61,8 @@ jobs:
     const content = `steps:
   - uses: actions/checkout@v3
   - uses: "actions/setup-node@v3"
-  - uses: actions/cache@0123456789abcdef0123456789abcdef01234567
+  - uses: actions/cache@${sha1Ref}
+  - uses: actions/upload-artifact@${sha256Ref}
   - uses: ./local-action
 `;
     writeFileSync(workflowPath, content);
@@ -69,6 +74,7 @@ jobs:
         "actions/checkout": "v4",
         "actions/setup-node": "v4",
         "actions/cache": "v5",
+        "actions/upload-artifact": "v5",
       },
     });
 
@@ -76,9 +82,8 @@ jobs:
 
     expect(updated).toContain("uses: actions/checkout@v4");
     expect(updated).toContain('uses: "actions/setup-node@v4"');
-    expect(updated).toContain(
-      "uses: actions/cache@0123456789abcdef0123456789abcdef01234567",
-    );
+    expect(updated).toContain(`uses: actions/cache@${sha1Ref}`);
+    expect(updated).toContain(`uses: actions/upload-artifact@${sha256Ref}`);
     expect(updated).toContain("uses: ./local-action");
   });
 });
