@@ -105,6 +105,9 @@ RUN if node -e "const pkg = require('./package.json'); process.exit(Object.keys(
     else \
         bun install --production --frozen-lockfile --ignore-scripts; \
     fi
+RUN mkdir -p node_modules/.bin
+COPY --from=builder /app/node_modules/eslint-plugin-legibility ./node_modules/eslint-plugin-legibility
+COPY --from=builder /app/node_modules/.bin/eslint-plugin-legibility-install-skill ./node_modules/.bin/eslint-plugin-legibility-install-skill
 
 # Copy all test fixtures
 COPY tests/e2e/fixtures/ ./
