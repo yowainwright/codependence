@@ -18,8 +18,17 @@ export interface DependencyManifest {
   optionalDependencies?: Record<string, string>;
 }
 
+export type VersionStrategy = "semver" | "exact";
+
+export interface ProviderCapabilities {
+  readonly supportsLatestResolution: boolean;
+  readonly supportsPreciseMode: boolean;
+  readonly versionStrategy: VersionStrategy;
+}
+
 export interface DependencyProvider {
   readonly language: Language;
+  readonly capabilities: ProviderCapabilities;
 
   getLatestVersion(packageName: string): Promise<string>;
   getAllVersions(packageName: string): Promise<string[]>;

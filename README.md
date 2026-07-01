@@ -446,6 +446,11 @@ codependence --language docker
 codependence --language github-actions
 ```
 
+Docker and GitHub Actions providers currently support explicit pinned updates
+only. Use object codependencies such as `{"node":"24-slim"}` or
+`{"actions/checkout":"v5"}` with `mode: "verbose"`. Latest resolution and
+`mode: "precise"` are not enabled for those providers yet.
+
 This feature is under active development. For stable usage, omit `--language` (defaults to Node.js).
 
 ---

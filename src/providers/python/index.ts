@@ -197,6 +197,11 @@ const updatePyprojectDependencyLine = (
 
 export class PythonProvider implements DependencyProvider {
   readonly language = LANGUAGES.PYTHON;
+  readonly capabilities = {
+    supportsLatestResolution: true,
+    supportsPreciseMode: true,
+    versionStrategy: "semver",
+  } as const;
   private options: ProviderOptions;
   private manifestType: PythonManifestType;
   private packageManager: PythonPackageManager;

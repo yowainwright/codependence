@@ -88,7 +88,7 @@ const toProjectPattern = (pattern: string, cwd: string): string => {
 
 const matchesPattern = (filePath: string, pattern: string): boolean => {
   if (isLiteralPattern(pattern)) return filePath === pattern;
-  return patternToRegex(pattern).test(filePath);
+  return filePath.match(patternToRegex(pattern)) !== null;
 };
 
 const matchesAnyIgnore = (filePath: string, ignorePatterns: string[]): boolean =>
@@ -144,10 +144,10 @@ const findLiteralPrefixLength = (segments: string[]): number => {
 };
 
 const matchSegment = (value: string, pattern: string): boolean =>
-  patternToRegex(pattern).test(value);
+  value.match(patternToRegex(pattern)) !== null;
 
 const resolvePatternRoot = (cwd: string, prefixSegments: string[]): string =>
-  prefixSegments.length > 0 ? resolve(cwd, ...prefixSegments) : cwd;
+  prefixSegments.reduce((path, segment) => resolve(path, segment), cwd);
 
 const createDirectMatchPlan = (pattern: string, cwd: string): DirectMatchPlan | undefined => {
   const segments = splitPattern(pattern);
@@ -217,9 +217,7 @@ const canEnterPatternDirectory = (
   step: DirectMatchStep,
   relativePath: string,
   ignorePatterns: string[],
-): boolean =>
-  !step.isLast &&
-  shouldIncludeRelativePath(relativePath, ignorePatterns);
+): boolean => !step.isLast && shouldIncludeRelativePath(relativePath, ignorePatterns);
 
 const collectPatternEntryMatches = (
   entry: Dirent,

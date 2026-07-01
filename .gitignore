@@ -107,6 +107,7 @@ dist
 docs/app/page
 .pnpm-store
 .turbo
+.perry-cache/
 .vscode
 .astro
 .DS_Store

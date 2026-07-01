@@ -105,6 +105,10 @@ run_agent_skill_tests() {
     run_step "Agent skill install tests passed!" docker run --rm codependence-multilang-test:latest ./test-agent-skill-install.sh
 }
 
+run_packed_install_tests() {
+    run_step "Packed install smoke tests passed!" docker run --rm codependence-multilang-test:latest ./test-packed-install.sh
+}
+
 verify_init_environment() {
     docker run --rm --entrypoint=/bin/sh codependence-test:latest -c '
         set -e
@@ -192,6 +196,12 @@ case "${1:-all}" in
         run_agent_skill_tests
         ;;
 
+    "packed-install")
+        print_status "Running packed install smoke tests..."
+        build_multilang_image
+        run_packed_install_tests
+        ;;
+
     "verify-init-env")
         print_status "Verifying Node.js init Docker environment..."
         verify_init_environment
@@ -205,22 +215,25 @@ case "${1:-all}" in
     "all")
         print_status "Running all e2e tests..."
 
-        print_status "1/5: Node.js init tests..."
+        print_status "1/6: Node.js init tests..."
         build_init_image
         run_init_tests
 
-        print_status "2/5: Multi-language tests..."
+        print_status "2/6: Multi-language tests..."
         build_multilang_image
         run_multilang_tests
 
-        print_status "3/5: Go update tests..."
+        print_status "3/6: Go update tests..."
         run_go_update_tests
 
-        print_status "4/5: Provider update tests..."
+        print_status "4/6: Provider update tests..."
         run_provider_update_tests
 
-        print_status "5/5: Agent skill install tests..."
+        print_status "5/6: Agent skill install tests..."
         run_agent_skill_tests
+
+        print_status "6/6: Packed install smoke tests..."
+        run_packed_install_tests
 
         print_success "All e2e tests passed!"
         ;;
@@ -247,6 +260,7 @@ case "${1:-all}" in
         echo "  github-actions   Run GitHub Actions provider e2e only"
         echo "  uv               Run uv pyproject provider e2e only"
         echo "  agent-skills     Run packaged agent skill install tests"
+        echo "  packed-install   Run packed package install smoke tests"
         echo "  verify-init-env       Verify the Node.js init Docker image"
         echo "  verify-multilang-env  Verify the Python + Go Docker image"
         echo "  clean       Clean up Docker resources"

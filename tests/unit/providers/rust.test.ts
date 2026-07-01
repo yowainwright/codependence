@@ -20,6 +20,11 @@ describe("RustProvider", () => {
     const provider = new RustProvider({ isTesting: true });
 
     expect(provider.language).toBe("rust");
+    expect(provider.capabilities).toEqual({
+      supportsLatestResolution: true,
+      supportsPreciseMode: true,
+      versionStrategy: "semver",
+    });
     expect(await provider.getAllVersions("serde")).toEqual([]);
     expect(provider.validatePackageName("serde_json")).toBe(true);
     expect(provider.validatePackageName("serde json")).toBe(false);
@@ -86,6 +91,7 @@ name = "demo"
 [dependencies]
 serde = "1.0.190"
 tokio = { version = "1.32.0", features = ["full"] }
+serde_json_renamed = { package = "serde_json", version = "1.0.100" }
 local = { path = "../local" }
 
 [dev-dependencies]
@@ -102,6 +108,7 @@ nix = "0.27.1"
     expect(manifest.dependencies).toEqual({
       serde: "1.0.190",
       tokio: "1.32.0",
+      serde_json: "1.0.100",
       nix: "0.27.1",
     });
     expect(manifest.devDependencies).toEqual({
@@ -113,6 +120,7 @@ nix = "0.27.1"
     const content = `[dependencies]
 serde = "1.0.190"
 tokio = { version = "1.32.0", features = ["full"] }
+serde_json_renamed = { package = "serde_json", version = "1.0.100" }
 local = { path = "../local" }
 
 [dev-dependencies]
@@ -126,6 +134,7 @@ pretty_assertions = "1.4.0"
       dependencies: {
         serde: "1.0.200",
         tokio: "1.35.0",
+        serde_json: "1.0.145",
         local: "9.9.9",
       },
       devDependencies: {
@@ -137,6 +146,9 @@ pretty_assertions = "1.4.0"
 
     expect(updated).toContain('serde = "1.0.200"');
     expect(updated).toContain('version = "1.35.0"');
+    expect(updated).toContain(
+      'serde_json_renamed = { package = "serde_json", version = "1.0.145" }',
+    );
     expect(updated).toContain('local = { path = "../local" }');
     expect(updated).toContain('pretty_assertions = "1.4.1"');
   });
