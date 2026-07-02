@@ -1,4 +1,5 @@
 import type { LANGUAGES } from "./providers/constants";
+import type { VersionStrategy } from "./providers/types";
 
 export type CodeDependenciesItem = string | Record<string, string>;
 export type CodeDependencies = Array<CodeDependenciesItem>;
@@ -69,6 +70,7 @@ export type CheckDependenciesForVersionOptions = {
   isTesting?: boolean;
   permissive?: boolean;
   level?: Level;
+  versionStrategy?: VersionStrategy;
 };
 
 export type CheckMatches = {

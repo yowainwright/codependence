@@ -31,6 +31,12 @@ jobs:
       - name: Run Go update e2e tests
         run: ./tests/e2e/test-multilang.sh go-update
 
+      - name: Run provider update e2e tests
+        run: ./tests/e2e/test-multilang.sh provider-updates
+
+      - name: Run packed install smoke tests
+        run: ./tests/e2e/test-multilang.sh packed-install
+
       - name: Test Docker environment (Python + Go)
         run: ./tests/e2e/test-multilang.sh verify-multilang-env
 

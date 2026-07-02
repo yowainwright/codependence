@@ -17,7 +17,7 @@ import {
   detectPythonPackageManagerForManifest,
 } from "../providers";
 import type { PythonPackageManager } from "../providers/python/constants";
-import type { DependencyManifest, DependencyProvider } from "../providers/types";
+import type { DependencyManifest, DependencyProvider, VersionStrategy } from "../providers/types";
 import { validatePackageName } from "../utils/validate-package";
 import { exec } from "../utils/exec";
 import { glob } from "../utils/glob";
@@ -27,12 +27,9 @@ import { versionCache, requestDeduplicator } from "../utils/cache";
 import { formatEnhancedError } from "../utils/suggestions";
 import { collectDiffsFromManifests, displayVersionDiffs } from "../utils/diff";
 import { Prompt } from "../utils/prompts";
-import { isWithinLevel } from "../utils/semver";
+import { isWithinLevel, stripRepeatingVersionPrefixes } from "../utils/semver";
 import { DEP_SECTIONS } from "./constants";
-import {
-  STRICT_INEQUALITY_VERSION_PREFIXES,
-  VERSION_PREFIXES,
-} from "../utils/constants";
+import { STRICT_INEQUALITY_VERSION_PREFIXES, VERSION_PREFIXES } from "../utils/constants";
 import {
   CheckFiles,
   ConstructVersionMapOptions,
@@ -53,18 +50,14 @@ const DEFAULT_FILE_MATCHERS: Record<SupportedLanguage, string[]> = {
   [LANGUAGES.PYTHON]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.PYTHON]],
   [LANGUAGES.RUST]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.RUST]],
   [LANGUAGES.DOCKER]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.DOCKER]],
-  [LANGUAGES.GITHUB_ACTIONS]: [
-    ...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.GITHUB_ACTIONS],
-  ],
+  [LANGUAGES.GITHUB_ACTIONS]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.GITHUB_ACTIONS]],
 };
 
 const PYTHON_MANIFEST_NAMES = new Set<string>(PYTHON_MANIFEST_FILES);
 const VERSION_RESOLUTION_CONCURRENCY = 8;
 const SUPPORTED_LANGUAGE_NAMES = new Set<string>(Object.values(LANGUAGES));
 
-const isSupportedLanguageName = (
-  language: string | undefined,
-): language is SupportedLanguage => {
+const isSupportedLanguageName = (language: string | undefined): language is SupportedLanguage => {
   if (!language) return false;
 
   const isSupported = SUPPORTED_LANGUAGE_NAMES.has(language);
@@ -106,23 +99,19 @@ const mapWithConcurrency = async <T, R>(
   };
 
   const workerCount = Math.min(limit, items.length);
-  await Promise.all(
-    Array.from({ length: workerCount }, () => runWorker()),
-  );
+  await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
 
   return results;
 };
 
-const resolveManifestPath = (rootDir: string, file: string): string =>
-  resolve(rootDir, file);
+const resolveManifestPath = (rootDir: string, file: string): string => resolve(rootDir, file);
 
 const inferLanguageFromFile = (file: string): SupportedLanguage | null => {
   const manifestName = basename(file);
-  const normalizedFile = file.replace(/\\/g, "/");
-  const normalizedDir = dirname(normalizedFile).replace(/\\/g, "/");
+  const normalizedFile = file.replaceAll("\\", "/");
+  const normalizedDir = dirname(normalizedFile).replaceAll("\\", "/");
   const isGithubWorkflow =
-    normalizedDir === ".github/workflows" ||
-    normalizedDir.endsWith("/.github/workflows");
+    normalizedDir === ".github/workflows" || normalizedDir.endsWith("/.github/workflows");
 
   if (manifestName === MANIFEST_FILES.PACKAGE_JSON) return LANGUAGES.NODEJS;
   if (manifestName === MANIFEST_FILES.GO_MOD) return LANGUAGES.GO;
@@ -226,9 +215,7 @@ const loadManifests = (
   files.map((file) => {
     const path = resolveManifestPath(rootDir, file);
     const language =
-      options.language ||
-      inferLanguageFromFile(file) ||
-      resolveTargetLanguage(dirname(path));
+      options.language || inferLanguageFromFile(file) || resolveTargetLanguage(dirname(path));
     const { provider, packageManager } = createProvider(language, path, options);
     const manifest = provider.readManifest(path);
 
@@ -242,25 +229,20 @@ const loadManifests = (
     };
   });
 
-const collectDepNamesFromManifest = (manifest: DependencyManifest): string[] =>
-  DEP_SECTIONS.map((section) => manifest[section])
-    .filter(
-      (section): section is Record<string, string> => section !== undefined,
-    )
-    .flatMap((section) => Object.keys(section));
-
-const collectAllDepNamesFromManifests = (
-  manifests: LoadedManifest[],
-): string[] =>
-  Array.from(
-    new Set(manifests.flatMap(({ manifest }) => collectDepNamesFromManifest(manifest))),
+const collectDepNamesFromManifest = (manifest: DependencyManifest): string[] => {
+  const sections = DEP_SECTIONS.map((section) => manifest[section]);
+  const dependencySections = sections.filter(
+    (section): section is Record<string, string> => section !== undefined,
   );
+  return dependencySections.flatMap((section) => Object.keys(section));
+};
+
+const collectAllDepNamesFromManifests = (manifests: LoadedManifest[]): string[] =>
+  Array.from(new Set(manifests.flatMap(({ manifest }) => collectDepNamesFromManifest(manifest))));
 
 type PackageNormalizer = (packageName: string) => string;
 
-const getPackageNormalizer = (
-  provider: DependencyProvider,
-): PackageNormalizer | null => {
+const getPackageNormalizer = (provider: DependencyProvider): PackageNormalizer | null => {
   if (!provider.normalizePackageName) return null;
   return (packageName: string) => provider.normalizePackageName!(packageName);
 };
@@ -306,10 +288,8 @@ const aliasVersionMapForManifests = (
     versionMap,
   );
 
-const createNormalizedNameSet = (
-  names: string[],
-  normalize: PackageNormalizer,
-): Set<string> => new Set(names.map((name) => normalize(name)));
+const createNormalizedNameSet = (names: string[], normalize: PackageNormalizer): Set<string> =>
+  new Set(names.map((name) => normalize(name)));
 
 const aliasCodependenciesForManifest = (
   codependencies: string[] = [],
@@ -362,7 +342,14 @@ const createVersionResolver = (
   resolveVersion: (packageName: string) => Promise<string>;
   cachePrefix: string;
 } => {
-  const language = resolveTargetLanguage(rootDir, options.language);
+  const singleManifestLanguage = manifests[0]?.language;
+  const hasSingleManifestLanguage =
+    singleManifestLanguage &&
+    manifests.every((manifest) => manifest.language === singleManifestLanguage);
+  const language =
+    options.language ||
+    (hasSingleManifestLanguage ? singleManifestLanguage : undefined) ||
+    resolveTargetLanguage(rootDir);
   const existingManifest = manifests.find((manifest) => manifest.language === language);
   const { provider, packageManager } =
     existingManifest ||
@@ -379,23 +366,71 @@ const createVersionResolver = (
   };
 };
 
-const createPackageValidator = (
-  provider: DependencyProvider,
-): NonNullable<ConstructVersionMapOptions["validate"]> => (
-  packageName: string,
-) => {
-  const isValid = provider.validatePackageName(packageName);
+const createPackageValidator =
+  (provider: DependencyProvider): NonNullable<ConstructVersionMapOptions["validate"]> =>
+  (packageName: string) => {
+    const isValid = provider.validatePackageName(packageName);
 
-  return {
-    validForNewPackages: isValid,
-    validForOldPackages: isValid,
-    errors: isValid ? [] : [`Invalid ${provider.language} package name`],
+    return {
+      validForNewPackages: isValid,
+      validForOldPackages: isValid,
+      errors: isValid ? [] : [`Invalid ${provider.language} package name`],
+    };
   };
+
+const hasStringCodependencies = (
+  codependencies: import("../types").CodeDependencies | undefined,
+): boolean => codependencies?.some((dep) => typeof dep === "string") || false;
+
+const collectResolutionProviders = (
+  manifests: LoadedManifest[],
+  fallback: DependencyProvider,
+): DependencyProvider[] => {
+  if (manifests.length === 0) return [fallback];
+
+  const providers = new Map<string, DependencyProvider>();
+  manifests.forEach(({ provider }) => {
+    providers.set(provider.language, provider);
+  });
+  return Array.from(providers.values());
 };
 
-export const resolveObjectDep = (
-  dep: Record<string, string>,
-): Record<string, string> | null => {
+const unsupportedResolutionMessage = (language: string): string =>
+  `${language} provider requires explicit version pins and does not support latest resolution or precise mode yet. Use mode "verbose" with object codependencies such as {"name":"version"}.`;
+
+const unsupportedMixedResolutionMessage = (): string =>
+  "Latest resolution currently supports one provider at a time. Use explicit object pins or run one provider language per invocation.";
+
+const assertProviderResolutionSupport = (
+  manifests: LoadedManifest[],
+  fallbackProvider: DependencyProvider,
+  codependencies: import("../types").CodeDependencies | undefined,
+  isPreciseMode: boolean,
+): void => {
+  const providers = collectResolutionProviders(manifests, fallbackProvider);
+  const needsLatestResolution = hasStringCodependencies(codependencies);
+
+  if (isPreciseMode && providers.length > 1) {
+    throw new Error(unsupportedMixedResolutionMessage());
+  }
+
+  if (needsLatestResolution && providers.length > 1) {
+    throw new Error(unsupportedMixedResolutionMessage());
+  }
+
+  providers.forEach((provider) => {
+    const { capabilities } = provider;
+    if (isPreciseMode && !capabilities.supportsPreciseMode) {
+      throw new Error(unsupportedResolutionMessage(provider.language));
+    }
+
+    if (needsLatestResolution && !capabilities.supportsLatestResolution) {
+      throw new Error(unsupportedResolutionMessage(provider.language));
+    }
+  });
+};
+
+export const resolveObjectDep = (dep: Record<string, string>): Record<string, string> | null => {
   const hasOneKey = Object.keys(dep).length === 1;
   return hasOneKey ? dep : null;
 };
@@ -426,10 +461,7 @@ export const validateStringDep = (
   }
 };
 
-export const resolveFromCache = (
-  cacheKey: string,
-  noCache: boolean,
-): string | null => {
+export const resolveFromCache = (cacheKey: string, noCache: boolean): string | null => {
   const shouldUseCache = !noCache;
   if (!shouldUseCache) return null;
 
@@ -442,9 +474,7 @@ export const resolveFromRegistry = async (
   yarnConfig: boolean,
   execFn: ConstructVersionMapOptions["exec"],
 ): Promise<string> => {
-  const runner = !yarnConfig
-    ? NODE_PACKAGE_MANAGERS.NPM
-    : NODE_PACKAGE_MANAGERS.YARN;
+  const runner = !yarnConfig ? NODE_PACKAGE_MANAGERS.NPM : NODE_PACKAGE_MANAGERS.YARN;
   const cmd = !yarnConfig
     ? ["view", dep, "version", "latest"]
     : [NODE_PACKAGE_MANAGERS.NPM, "info", dep, "--fields", "version", "--json"];
@@ -479,8 +509,7 @@ const handleVersionMapError = (
       err.message.includes("ETIMEDOUT") ||
       err.message.includes("EAI_AGAIN"));
 
-  const isValidationError =
-    err instanceof Error && err.message.includes("Invalid package");
+  const isValidationError = err instanceof Error && err.message.includes("Invalid package");
 
   const packageName = typeof dep === "string" ? dep : "unknown";
 
@@ -518,8 +547,7 @@ export const constructVersionMap = async ({
     resolveVersion ||
     ((packageName: string) => resolveFromRegistry(packageName, yarnConfig, execFn));
   const cacheNamespace =
-    cachePrefix ||
-    `${yarnConfig ? NODE_PACKAGE_MANAGERS.YARN : NODE_PACKAGE_MANAGERS.NPM}`;
+    cachePrefix || `${yarnConfig ? NODE_PACKAGE_MANAGERS.YARN : NODE_PACKAGE_MANAGERS.NPM}`;
 
   const updatedCodeDependencies = await mapWithConcurrency(
     codependencies,
@@ -574,12 +602,8 @@ export const constructVersionMap = async ({
   return versionMap;
 };
 
-export const constructVersionTypes = (
-  version: string,
-): Record<string, string> => {
-  const prefix = VERSION_PREFIXES.find((candidate) =>
-    version.startsWith(candidate),
-  );
+export const constructVersionTypes = (version: string): Record<string, string> => {
+  const prefix = VERSION_PREFIXES.find((candidate) => version.startsWith(candidate));
 
   if (!prefix) {
     return { bumpCharacter: "", bumpVersion: version, exactVersion: version };
@@ -595,7 +619,7 @@ export const constructVersionTypes = (
       : prefix;
   const exactVersion =
     prefix === "^" || prefix === "~"
-      ? version.replace(/^[~^]+/, "")
+      ? stripRepeatingVersionPrefixes(version)
       : version.slice(prefix.length);
 
   return { bumpCharacter, bumpVersion: version, exactVersion };
@@ -606,10 +630,7 @@ const isExplicitTargetSpec = (version: string): boolean => {
   return bumpVersion !== exactVersion;
 };
 
-const constructExpectedVersion = (
-  currentBumpCharacter: string,
-  targetVersion: string,
-): string => {
+const constructExpectedVersion = (currentBumpCharacter: string, targetVersion: string): string => {
   const target = constructVersionTypes(targetVersion);
   if (isExplicitTargetSpec(targetVersion)) return target.bumpVersion;
   return `${currentBumpCharacter}${target.exactVersion}`;
@@ -621,6 +642,7 @@ const isUpdatablePermissiveDep = (
   exactVersion: string,
   versionMap: Record<string, string>,
   level: Level,
+  versionStrategy: VersionStrategy,
 ): boolean => {
   const latestVersion = versionMap[name];
   if (!latestVersion) return false;
@@ -628,7 +650,7 @@ const isUpdatablePermissiveDep = (
   const isDifferent = isExplicitTargetSpec(latestVersion)
     ? currentVersion !== latestVersion
     : exactVersion !== normalizedLatestVersion;
-  const isAllowed = isWithinLevel(exactVersion, normalizedLatestVersion, level);
+  const isAllowed = isWithinLevel(exactVersion, normalizedLatestVersion, level, versionStrategy);
   return isDifferent && isAllowed;
 };
 
@@ -637,6 +659,7 @@ export const constructPermissiveDepsToUpdateList = (
   codependencies: Array<string> = [],
   versionMap: Record<string, string> = {},
   level: Level = "major",
+  versionStrategy: VersionStrategy = "semver",
 ): Array<DepToUpdateItem> => {
   if (!Object.keys(dep).length) return [];
 
@@ -647,7 +670,7 @@ export const constructPermissiveDepsToUpdateList = (
       return { name, version, exactVersion, bumpCharacter };
     })
     .filter(({ name, version, exactVersion }) =>
-      isUpdatablePermissiveDep(name, version, exactVersion, versionMap, level),
+      isUpdatablePermissiveDep(name, version, exactVersion, versionMap, level, versionStrategy),
     )
     .map(({ name, version, bumpCharacter }) => ({
       name,
@@ -663,6 +686,7 @@ const isUpdatableDep = (
   exactVersion: string,
   versionMap: Record<string, string>,
   level: Level,
+  versionStrategy: VersionStrategy,
 ): boolean => {
   const latestVersion = versionMap[name];
   if (!latestVersion) return false;
@@ -670,7 +694,7 @@ const isUpdatableDep = (
   const isDifferent = isExplicitTargetSpec(latestVersion)
     ? latestVersion !== currentVersion
     : normalizedLatestVersion !== exactVersion;
-  const isAllowed = isWithinLevel(exactVersion, normalizedLatestVersion, level);
+  const isAllowed = isWithinLevel(exactVersion, normalizedLatestVersion, level, versionStrategy);
   return isDifferent && isAllowed;
 };
 
@@ -678,17 +702,17 @@ export const constructDepsToUpdateList = (
   dep = {} as Record<string, string>,
   versionMap: Record<string, string>,
   level: Level = "major",
+  versionStrategy: VersionStrategy = "semver",
 ): Array<DepToUpdateItem> => {
   if (!Object.keys(dep).length) return [];
 
   return Object.entries(dep)
     .map(([name, version]) => {
-      const { exactVersion, bumpCharacter, bumpVersion } =
-        constructVersionTypes(version);
+      const { exactVersion, bumpCharacter, bumpVersion } = constructVersionTypes(version);
       return { name, exactVersion, bumpCharacter, bumpVersion };
     })
     .filter(({ name, bumpVersion, exactVersion }) =>
-      isUpdatableDep(name, bumpVersion, exactVersion, versionMap, level),
+      isUpdatableDep(name, bumpVersion, exactVersion, versionMap, level, versionStrategy),
     )
     .map(({ name, bumpVersion, bumpCharacter }) => ({
       name,
@@ -705,10 +729,7 @@ export const constructDeps = <T extends DependencySections>(
 ) =>
   depList?.length
     ? depList.reduce(
-        (
-          newJson: Record<string, string>,
-          { name, expected: version }: DepToUpdateItem,
-        ) => {
+        (newJson: Record<string, string>, { name, expected: version }: DepToUpdateItem) => {
           return {
             ...json[depName],
             ...newJson,
@@ -730,7 +751,12 @@ export const constructJson = <T extends DependencySections>(
   const peerDependencies = constructDeps(json, "peerDependencies", peerDepList);
   const optionalDependencies = constructDeps(json, "optionalDependencies", optionalDepList);
   if (isDebugging) {
-    logger.debug("constructJson debug info", { dependencies, devDependencies, peerDependencies, optionalDependencies });
+    logger.debug("constructJson debug info", {
+      dependencies,
+      devDependencies,
+      peerDependencies,
+      optionalDependencies,
+    });
   }
   return {
     ...json,
@@ -748,30 +774,62 @@ export const buildUpdateLists = <T extends DependencySections>(
   codependencies?: Array<string>,
 ): DepsToUpdate => {
   const { dependencies, devDependencies, peerDependencies, optionalDependencies } = json;
-  const { permissive, level = "major" } = options;
+  const { permissive, level = "major", versionStrategy = "semver" } = options;
 
   if (permissive) {
     const coDeps = codependencies || [];
     return {
-      depList: constructPermissiveDepsToUpdateList(dependencies, coDeps, versionMap, level),
-      devDepList: constructPermissiveDepsToUpdateList(devDependencies, coDeps, versionMap, level),
-      peerDepList: constructPermissiveDepsToUpdateList(peerDependencies, coDeps, versionMap, level),
-      optionalDepList: constructPermissiveDepsToUpdateList(optionalDependencies, coDeps, versionMap, level),
+      depList: constructPermissiveDepsToUpdateList(
+        dependencies,
+        coDeps,
+        versionMap,
+        level,
+        versionStrategy,
+      ),
+      devDepList: constructPermissiveDepsToUpdateList(
+        devDependencies,
+        coDeps,
+        versionMap,
+        level,
+        versionStrategy,
+      ),
+      peerDepList: constructPermissiveDepsToUpdateList(
+        peerDependencies,
+        coDeps,
+        versionMap,
+        level,
+        versionStrategy,
+      ),
+      optionalDepList: constructPermissiveDepsToUpdateList(
+        optionalDependencies,
+        coDeps,
+        versionMap,
+        level,
+        versionStrategy,
+      ),
     };
   }
 
   return {
-    depList: constructDepsToUpdateList(dependencies, versionMap, level),
-    devDepList: constructDepsToUpdateList(devDependencies, versionMap, level),
-    peerDepList: constructDepsToUpdateList(peerDependencies, versionMap, level),
-    optionalDepList: constructDepsToUpdateList(optionalDependencies, versionMap, level),
+    depList: constructDepsToUpdateList(dependencies, versionMap, level, versionStrategy),
+    devDepList: constructDepsToUpdateList(devDependencies, versionMap, level, versionStrategy),
+    peerDepList: constructDepsToUpdateList(peerDependencies, versionMap, level, versionStrategy),
+    optionalDepList: constructDepsToUpdateList(
+      optionalDependencies,
+      versionMap,
+      level,
+      versionStrategy,
+    ),
   };
 };
 
-const logDependencyIssues = (
-  depsToUpdate: DepsToUpdate,
-): void => {
-  const allLists = [depsToUpdate.depList, depsToUpdate.devDepList, depsToUpdate.peerDepList, depsToUpdate.optionalDepList];
+const logDependencyIssues = (depsToUpdate: DepsToUpdate): void => {
+  const allLists = [
+    depsToUpdate.depList,
+    depsToUpdate.devDepList,
+    depsToUpdate.peerDepList,
+    depsToUpdate.optionalDepList,
+  ];
   allLists.forEach((list) => {
     if (!list.length) return;
 
@@ -807,8 +865,7 @@ const constructUpdatedManifest = (
   manifest: DependencyManifest,
   depsToUpdate: DepsToUpdate,
   isDebugging: boolean,
-): DependencyManifest =>
-  constructJson(manifest, depsToUpdate, isDebugging);
+): DependencyManifest => constructJson(manifest, depsToUpdate, isDebugging);
 
 const applyManifestUpdates = async (
   loadedManifest: LoadedManifest,
@@ -875,11 +932,7 @@ const checkManifestDependenciesForVersion = async (
     loadedManifest.manifest;
   const { isUpdating, isDebugging, isSilent, isTesting } = options;
 
-  const hasNoDeps =
-    !dependencies &&
-    !devDependencies &&
-    !peerDependencies &&
-    !optionalDependencies;
+  const hasNoDeps = !dependencies && !devDependencies && !peerDependencies && !optionalDependencies;
   if (hasNoDeps) return false;
 
   const depsToUpdate = buildUpdateLists(
@@ -959,7 +1012,16 @@ export const checkMatches = ({
   codependencies?: Array<string>;
   level?: Level;
 }): void => {
-  const options = { isUpdating, isDebugging, isSilent, isVerbose, isQuiet, isTesting, permissive, level };
+  const options = {
+    isUpdating,
+    isDebugging,
+    isSilent,
+    isVerbose,
+    isQuiet,
+    isTesting,
+    permissive,
+    level,
+  };
 
   const packagesNeedingUpdate = files.filter((file) =>
     processMatchedFile(file, rootDir, versionMap, options, codependencies),
@@ -1023,15 +1085,16 @@ const checkLoadedManifests = async ({
 
   const packagesNeedingUpdate: string[] = [];
   for (const manifest of manifests) {
+    const manifestOptions = {
+      ...options,
+      versionStrategy: manifest.provider.capabilities.versionStrategy,
+    };
     const effectiveVersionMap = aliasVersionMapForManifest(versionMap, manifest);
-    const effectiveCodependencies = aliasCodependenciesForManifest(
-      codependencies,
-      manifest,
-    );
+    const effectiveCodependencies = aliasCodependenciesForManifest(codependencies, manifest);
     const needsUpdate = await checkManifestDependenciesForVersion(
       effectiveVersionMap,
       manifest,
-      options,
+      manifestOptions,
       effectiveCodependencies,
     );
     if (needsUpdate) {
@@ -1054,9 +1117,7 @@ const checkLoadedManifests = async ({
     }
   } else if (isOutOfDate) {
     if (!isSilent && !isQuiet) {
-      logger.info(
-        "Dependencies were not correct but should be updated! Check your git status.",
-      );
+      logger.info("Dependencies were not correct but should be updated! Check your git status.");
     }
   } else if (!isSilent && !isQuiet) {
     logger.info("No dependency issues found!");
@@ -1069,8 +1130,7 @@ const extractDepNamesFromFile = (rootDir: string, file: string): string[] => {
   const path = resolveManifestPath(rootDir, file);
   try {
     const json = JSON.parse(readFileSync(path, "utf8"));
-    return DEP_SECTIONS
-      .map((section) => json[section])
+    return DEP_SECTIONS.map((section) => json[section])
       .filter(Boolean)
       .flatMap((section: Record<string, string>) => Object.keys(section));
   } catch {
@@ -1078,10 +1138,7 @@ const extractDepNamesFromFile = (rootDir: string, file: string): string[] => {
   }
 };
 
-const collectAllDepNames = (
-  files: string[],
-  rootDir: string,
-): string[] => {
+const collectAllDepNames = (files: string[], rootDir: string): string[] => {
   const allNames = files.flatMap((file) => extractDepNamesFromFile(rootDir, file));
   return Array.from(new Set(allNames));
 };
@@ -1101,9 +1158,7 @@ export const detectStaleCodependencies = (
   return pinnedNames.filter((name) => !allDepNames.has(name));
 };
 
-const promptForSelection = async (
-  allDiffs: VersionDiff[],
-): Promise<string[]> => {
+const promptForSelection = async (allDiffs: VersionDiff[]): Promise<string[]> => {
   const diffsNeedingUpdate = allDiffs.filter((d) => d.willUpdate);
 
   if (diffsNeedingUpdate.length === 0) return [];
@@ -1130,14 +1185,11 @@ export const filterSelectedDeps = (
   }
 
   const filteredDepNames = depNames.filter((dep) => selected.includes(dep));
-  const filteredVersionMap = filteredDepNames.reduce(
-    (acc: Record<string, string>, dep) => {
-      const version = versionMap[dep];
-      if (version) acc[dep] = version;
-      return acc;
-    },
-    {},
-  );
+  const filteredVersionMap = filteredDepNames.reduce((acc: Record<string, string>, dep) => {
+    const version = versionMap[dep];
+    if (version) acc[dep] = version;
+    return acc;
+  }, {});
 
   return { shouldUpdate: true, depNames: filteredDepNames, versionMap: filteredVersionMap };
 };
@@ -1210,9 +1262,7 @@ const resolveEffectiveMode = ({
   if (permissive === true) return "precise";
   if (permissive === false) return "verbose";
 
-  return Array.isArray(codependencies) && codependencies.length > 0
-    ? "verbose"
-    : "precise";
+  return Array.isArray(codependencies) && codependencies.length > 0 ? "verbose" : "precise";
 };
 
 export const checkFiles = async ({
@@ -1264,6 +1314,12 @@ export const checkFiles = async ({
       permissive,
     });
     const isPreciseMode = effectiveMode === "precise";
+    assertProviderResolutionSupport(
+      manifests,
+      versionResolver.provider,
+      codependencies,
+      isPreciseMode,
+    );
 
     const hasNoDepsAndNotPrecise = !codependencies && !isPreciseMode;
     if (hasNoDepsAndNotPrecise) {
@@ -1317,12 +1373,17 @@ export const checkFiles = async ({
     versionMap = aliasVersionMapForManifests(versionMap, manifests);
     depNames = aliasCodependenciesForManifests(depNames, manifests);
 
-    const hasOutputChanges = (update || dryRun) && !silent && !quiet;
+    const isOutputEnabled = !silent && !quiet;
+    const hasUpdateOutput = update || dryRun;
+    const hasOutputChanges = hasUpdateOutput && isOutputEnabled;
     const shouldCollectDiffs = format !== undefined || hasOutputChanges;
     const allDiffs = shouldCollectDiffs
       ? collectDiffsFromManifests(
           versionMap,
-          manifests.map(({ manifest }) => manifest),
+          manifests.map(({ manifest, provider }) => ({
+            ...manifest,
+            versionStrategy: provider.capabilities.versionStrategy,
+          })),
           depNames,
           isPreciseMode,
           level,
@@ -1336,7 +1397,8 @@ export const checkFiles = async ({
 
     let shouldUpdate = update && !dryRun;
 
-    const isInteractiveUpdate = interactive && update && !dryRun && !isTesting;
+    const canPromptInteractively = !dryRun && !isTesting;
+    const isInteractiveUpdate = interactive && update && canPromptInteractively;
     if (isInteractiveUpdate) {
       const result = await applyInteractiveSelection(allDiffs, depNames, versionMap);
       shouldUpdate = result.shouldUpdate;

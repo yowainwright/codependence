@@ -11,6 +11,7 @@ export const CARGO_PATTERNS = {
   SIMPLE_DEPENDENCY:
     /^(\s*)("?)([A-Za-z0-9_-]+)\2(\s*=\s*)("([^"]+)"|\{[^}]*\})(.*)$/,
   INLINE_VERSION: /version\s*=\s*"([^"]+)"/,
+  INLINE_PACKAGE: /package\s*=\s*"([^"]+)"/,
   INLINE_GIT_OR_PATH: /\b(git|path)\s*=/,
   PACKAGE_NAME: /^[A-Za-z0-9_-]+$/,
 } as const;

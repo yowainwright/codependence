@@ -17,6 +17,8 @@ describe("glob", () => {
     mkdirSync(join(testDir, "dist"), { recursive: true });
     mkdirSync(join(testDir, "packages", "app"), { recursive: true });
     mkdirSync(join(testDir, "packages", "api"), { recursive: true });
+    mkdirSync(join(testDir, "packages", "app", "config"), { recursive: true });
+    mkdirSync(join(testDir, "packages", "api", "config"), { recursive: true });
     mkdirSync(join(testDir, "node_modules", "pkg"), { recursive: true });
 
     writeFile("file1.ts");
@@ -26,6 +28,8 @@ describe("glob", () => {
     writeFile("package.json");
     writeFile("packages/app/package.json");
     writeFile("packages/api/package.json");
+    writeFile("packages/app/config/deps.json");
+    writeFile("packages/api/config/deps.json");
     writeFile("node_modules/pkg/package.json");
     writeFile("README.md");
   });
@@ -96,6 +100,15 @@ describe("glob", () => {
     const files = sync("packages/*/package.json", { cwd: testDir });
 
     expect(files).toEqual(["packages/api/package.json", "packages/app/package.json"]);
+  });
+
+  it("matches wildcard directories followed by literal child segments", () => {
+    const files = sync("packages/*/config/deps.json", { cwd: testDir });
+
+    expect(files).toEqual([
+      "packages/api/config/deps.json",
+      "packages/app/config/deps.json",
+    ]);
   });
 
   it("supports question mark patterns", () => {

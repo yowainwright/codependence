@@ -4,16 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-serde = "1.0.190"
-tokio = { version = "1.35.0", features = ["full"] }
-serde_json_renamed = { package = "serde_json", version = "1.0.100" }
+serde = "1.0.210"
+tokio = { version = "1.40.0", features = ["full"] }
+serde_json_renamed = { package = "serde_json", version = "1.0.145" }
 local-crate = { path = "../local-crate" }
 
 [dev-dependencies]
-pretty_assertions = "1.4.0"
+pretty_assertions = "1.4.1"
 
 [build-dependencies]
-cc = "1.0.83"
+cc = "1.1.30"
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2.150"
+libc = "0.2.155"

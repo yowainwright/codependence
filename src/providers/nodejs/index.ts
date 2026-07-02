@@ -10,6 +10,11 @@ import type {
 
 export class NodeJSProvider implements DependencyProvider {
   readonly language = LANGUAGES.NODEJS;
+  readonly capabilities = {
+    supportsLatestResolution: true,
+    supportsPreciseMode: true,
+    versionStrategy: "semver",
+  } as const;
   private options: ProviderOptions;
 
   constructor(options: ProviderOptions = {}) {

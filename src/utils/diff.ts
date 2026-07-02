@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import type { DependencyManifest } from "../providers/types";
+import type { VersionStrategy } from "../providers/types";
 import type { Level, VersionDiff } from "../types";
 import { DEP_SECTIONS } from "../scripts/constants";
 import { formatVersionTable } from "./table";
@@ -11,7 +12,7 @@ const extractDepsFromSection = (
   packageJson: Pick<
     DependencyManifest,
     "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies"
-  >,
+  > & { versionStrategy?: VersionStrategy },
   section: keyof Pick<
     DependencyManifest,
     "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies"
@@ -39,8 +40,14 @@ const toVersionDiff = (
   codependencies: string[],
   permissive: boolean,
   level: Level,
+  versionStrategy: VersionStrategy,
 ): VersionDiff => {
-  const withinLevel = isWithinLevel(currentVersion, latestVersion, level);
+  const withinLevel = isWithinLevel(
+    currentVersion,
+    latestVersion,
+    level,
+    versionStrategy,
+  );
   const isPinned = codependencies.includes(pkgName);
   const isPermissiveUpdate = !isPinned && withinLevel;
   const isStandardUpdate = isPinned && withinLevel;
@@ -60,10 +67,11 @@ export const buildVersionDiff = (
   packageJson: Pick<
     DependencyManifest,
     "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies"
-  > & { path?: string },
+  > & { path?: string; versionStrategy?: VersionStrategy },
   codependencies: string[],
   permissive: boolean,
   level: Level = "major",
+  versionStrategy: VersionStrategy = packageJson.versionStrategy || "semver",
 ): VersionDiff[] =>
   extractAllDeps(packageJson)
     .filter(([pkgName]) => versionMap[pkgName] !== undefined)
@@ -75,6 +83,7 @@ export const buildVersionDiff = (
         codependencies,
         permissive,
         level,
+        versionStrategy,
       ),
     );
 
@@ -126,7 +135,7 @@ export const deduplicateVersionDiffs = (diffs: VersionDiff[]): VersionDiff[] => 
 
 export const collectDiffsFromManifests = (
   versionMap: Record<string, string>,
-  manifests: DependencyManifest[],
+  manifests: Array<DependencyManifest & { versionStrategy?: VersionStrategy }>,
   codependencies: string[],
   permissive: boolean,
   level: Level = "major",

@@ -24,12 +24,25 @@ const isExternalAction = (name: string): boolean => {
   return true;
 };
 
+const isShaPinnedRef = (version: string): boolean =>
+  (version.length === 40 || version.length === 64) &&
+  version
+    .toLowerCase()
+    .split("")
+    .every((char) => "0123456789abcdef".includes(char));
+
+const unsupportedActionsResolution = (): Error =>
+  new Error(
+    'GitHub Actions provider requires explicit version pins, e.g. {"actions/checkout":"v5"}; latest resolution and precise mode are not supported yet.',
+  );
+
 const readUsesLine = (line: string): GitHubActionRef | null => {
   const match = line.match(GITHUB_ACTIONS_PATTERNS.USES_LINE);
   if (!match) return null;
 
   const name = match[3];
   if (!isExternalAction(name)) return null;
+  if (isShaPinnedRef(match[4])) return null;
 
   const actionRef = { name, version: match[4] };
   return actionRef;
@@ -44,6 +57,7 @@ export const updateGitHubActionsUsesLine = (
 
   const name = match[3];
   if (!isExternalAction(name)) return line;
+  if (isShaPinnedRef(match[4])) return line;
 
   const version = dependencies[name];
   if (!version) return line;
@@ -54,14 +68,18 @@ export const updateGitHubActionsUsesLine = (
 
 export class GitHubActionsProvider implements DependencyProvider {
   readonly language = LANGUAGES.GITHUB_ACTIONS;
+  readonly capabilities = {
+    supportsLatestResolution: false,
+    supportsPreciseMode: false,
+    versionStrategy: "exact",
+  } as const;
 
   async getLatestVersion(_packageName: string): Promise<string> {
-    return "";
+    throw unsupportedActionsResolution();
   }
 
   async getAllVersions(_packageName: string): Promise<string[]> {
-    const versions: string[] = [];
-    return versions;
+    throw unsupportedActionsResolution();
   }
 
   readManifest(filePath: string): DependencyManifest {
@@ -83,10 +101,7 @@ export class GitHubActionsProvider implements DependencyProvider {
     const updatedLines: string[] = [];
 
     for (const line of content.split("\n")) {
-      const updatedLine = updateGitHubActionsUsesLine(
-        line,
-        manifest.dependencies,
-      );
+      const updatedLine = updateGitHubActionsUsesLine(line, manifest.dependencies);
       updatedLines.push(updatedLine);
     }
 
@@ -95,7 +110,7 @@ export class GitHubActionsProvider implements DependencyProvider {
   }
 
   validatePackageName(packageName: string): boolean {
-    const isValid = GITHUB_ACTIONS_PATTERNS.PACKAGE_NAME.test(packageName);
+    const isValid = packageName.match(GITHUB_ACTIONS_PATTERNS.PACKAGE_NAME) !== null;
     return isValid;
   }
 }

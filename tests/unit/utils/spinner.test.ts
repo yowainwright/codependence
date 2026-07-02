@@ -1,10 +1,16 @@
-import { describe, it, expect } from "bun:test";
+import { afterEach, describe, it, expect, jest } from "bun:test";
 import { createSpinner } from "../../../src/utils/spinner";
+
+afterEach(() => {
+  jest.useRealTimers();
+  jest.restoreAllMocks();
+});
 
 describe("createSpinner", () => {
   it("should create a spinner with text", () => {
     const spinner = createSpinner("Loading...");
     expect(spinner).toBeDefined();
+    expect(spinner.text).toBe("Loading...");
     expect(spinner.start).toBeDefined();
     expect(spinner.stop).toBeDefined();
     expect(spinner.succeed).toBeDefined();
@@ -43,5 +49,44 @@ describe("createSpinner", () => {
 
     const result4 = spinner.warn("Warning!");
     expect(result4.start).toBeDefined();
+  });
+
+  it("updates spinner text", () => {
+    const spinner = createSpinner("Loading...");
+
+    spinner.text = "Still loading...";
+
+    expect(spinner.text).toBe("Still loading...");
+  });
+
+  it("renders frames while spinning", () => {
+    jest.useFakeTimers();
+    const writeSpy = jest.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const spinner = createSpinner("Loading...");
+
+    const started = spinner.start();
+    jest.advanceTimersByTime(80);
+    started.stop();
+
+    const output = writeSpy.mock.calls.flat().join("");
+    expect(output).toContain("Loading...");
+  });
+
+  it("keeps spinner methods stable when start is called twice", () => {
+    const spinner = createSpinner("Loading...");
+
+    const started = spinner.start();
+    const startedAgain = started.start();
+    const stopped = startedAgain.stop();
+
+    expect(stopped.succeed).toBeDefined();
+  });
+
+  it("allows stop before start", () => {
+    const spinner = createSpinner("Loading...");
+
+    const stopped = spinner.stop();
+
+    expect(stopped.start).toBeDefined();
   });
 });

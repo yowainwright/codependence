@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const TARGETS = new Set(["agents", "claude", "codex"]);
+const require = createRequire(import.meta.url);
 
 const LOCAL_PATHS = {
   agents: ".agents/skills",
@@ -23,14 +25,16 @@ if (!TARGETS.has(target)) {
   process.exit(1);
 }
 
-const installer = join(
-  process.cwd(),
-  "node_modules",
-  "eslint-plugin-legibility",
-  "bin",
-  "agent",
-  "install.js",
-);
+const resolveInstaller = () => {
+  try {
+    const packageJsonPath = require.resolve("eslint-plugin-legibility/package.json");
+    return join(dirname(packageJsonPath), "bin", "agent", "install.js");
+  } catch {
+    return "";
+  }
+};
+
+const installer = resolveInstaller();
 
 if (!existsSync(installer)) {
   console.error("eslint-plugin-legibility is not installed. Run bun install first.");

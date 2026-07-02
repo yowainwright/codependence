@@ -1158,6 +1158,20 @@ test("constructDepsToUpdateList => respects level=patch constraint", () => {
   ]);
 });
 
+test("constructDepsToUpdateList => exact strategy ignores semver level", () => {
+  const dep = { "actions/checkout": "v4" };
+  const versionMap = { "actions/checkout": "v5" };
+  const result = constructDepsToUpdateList(dep, versionMap, "patch", "exact");
+  expect(result).toEqual([
+    {
+      name: "actions/checkout",
+      actual: "v4",
+      exact: "v5",
+      expected: "v5",
+    },
+  ]);
+});
+
 test("constructPermissiveDepsToUpdateList => respects level=minor constraint", () => {
   const deps = { lodash: "^4.0.0", express: "^3.0.0" };
   const codependencies: string[] = [];
@@ -1631,6 +1645,72 @@ test("checkFiles => auto-detects Docker manifests", async () => {
   }
 });
 
+test("checkFiles => rejects Docker precise mode", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-precise");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(join(tempDir, "Dockerfile"), "FROM node:20.11.1\n");
+
+  try {
+    await expect(
+      checkFiles({
+        rootDir: tempDir,
+        files: ["Dockerfile"],
+        mode: "precise",
+        isTesting: true,
+        silent: true,
+      }),
+    ).rejects.toThrow("docker provider requires explicit version pins");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => rejects Docker string codependencies", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-string-deps");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(join(tempDir, "Dockerfile"), "FROM node:20.11.1\n");
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: ["node"],
+        rootDir: tempDir,
+        files: ["Dockerfile"],
+        mode: "verbose",
+        isTesting: true,
+        silent: true,
+      }),
+    ).rejects.toThrow("docker provider requires explicit version pins");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => rejects Docker string codependencies in Node roots", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-node-root");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(join(tempDir, "package.json"), '{"dependencies":{"lodash":"4.17.21"}}\n');
+  writeFileSync(join(tempDir, "Dockerfile"), "FROM node:20.11.1\n");
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: ["node"],
+        rootDir: tempDir,
+        files: ["Dockerfile"],
+        mode: "verbose",
+        isTesting: true,
+        silent: true,
+      }),
+    ).rejects.toThrow("docker provider requires explicit version pins");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("checkFiles => auto-detects GitHub Actions manifests", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-detect");
   const workflowDir = join(tempDir, ".github", "workflows");
@@ -1657,6 +1737,84 @@ test("checkFiles => auto-detects GitHub Actions manifests", async () => {
   }
 });
 
+test("checkFiles => rejects GitHub Actions precise mode", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-precise");
+  const workflowDir = join(tempDir, ".github", "workflows");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(workflowDir, { recursive: true });
+  writeFileSync(
+    join(workflowDir, "ci.yml"),
+    "name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
+  );
+
+  try {
+    await expect(
+      checkFiles({
+        rootDir: tempDir,
+        files: [".github/workflows/ci.yml"],
+        mode: "precise",
+        isTesting: true,
+        silent: true,
+      }),
+    ).rejects.toThrow("github-actions provider requires explicit version pins");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => rejects GitHub Actions string codependencies", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-string-deps");
+  const workflowDir = join(tempDir, ".github", "workflows");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(workflowDir, { recursive: true });
+  writeFileSync(
+    join(workflowDir, "ci.yml"),
+    "name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
+  );
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: ["actions/checkout"],
+        rootDir: tempDir,
+        files: [".github/workflows/ci.yml"],
+        mode: "verbose",
+        isTesting: true,
+        silent: true,
+      }),
+    ).rejects.toThrow("github-actions provider requires explicit version pins");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => rejects GitHub Actions string codependencies in Node roots", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-node-root");
+  const workflowDir = join(tempDir, ".github", "workflows");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(workflowDir, { recursive: true });
+  writeFileSync(join(tempDir, "package.json"), '{"dependencies":{"lodash":"4.17.21"}}\n');
+  writeFileSync(
+    join(workflowDir, "ci.yml"),
+    "name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
+  );
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: ["actions/checkout"],
+        rootDir: tempDir,
+        files: [".github/workflows/ci.yml"],
+        mode: "verbose",
+        isTesting: true,
+        silent: true,
+      }),
+    ).rejects.toThrow("github-actions provider requires explicit version pins");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("checkFiles => auto-detects absolute GitHub Actions manifest paths", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-absolute");
   const workflowDir = join(tempDir, ".github", "workflows");
@@ -1675,6 +1833,89 @@ test("checkFiles => auto-detects absolute GitHub Actions manifest paths", async 
         rootDir: process.cwd(),
         files: [workflowPath],
         permissive: false,
+        isTesting: true,
+        silent: true,
+      }),
+    ).resolves.toEqual([]);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => rejects mixed-provider precise mode", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-mixed-provider-precise");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(join(tempDir, "package.json"), '{"dependencies":{"lodash":"4.17.21"}}\n');
+  writeFileSync(
+    join(tempDir, "Cargo.toml"),
+    '[package]\nname = "mixed-provider"\n\n[dependencies]\nserde = "1.0.0"\n',
+  );
+
+  try {
+    await expect(
+      checkFiles({
+        rootDir: tempDir,
+        files: ["package.json", "Cargo.toml"],
+        mode: "precise",
+        isTesting: true,
+        silent: true,
+      }),
+    ).rejects.toThrow("Latest resolution currently supports one provider");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => rejects mixed-provider string codependencies", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-mixed-provider-latest");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(join(tempDir, "package.json"), '{"dependencies":{"lodash":"4.17.21"}}\n');
+  writeFileSync(
+    join(tempDir, "Cargo.toml"),
+    '[package]\nname = "mixed-provider"\n\n[dependencies]\nserde = "1.0.0"\n',
+  );
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: ["lodash"],
+        rootDir: tempDir,
+        files: ["package.json", "Cargo.toml"],
+        mode: "verbose",
+        isTesting: true,
+        silent: true,
+      }),
+    ).rejects.toThrow("Latest resolution currently supports one provider");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => allows mixed-provider explicit pins", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-mixed-provider-explicit");
+  const workflowDir = join(tempDir, ".github", "workflows");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(workflowDir, { recursive: true });
+  writeFileSync(join(tempDir, "package.json"), '{"dependencies":{"lodash":"4.17.21"}}\n');
+  writeFileSync(join(tempDir, "Dockerfile"), "FROM alpine:3.20\n");
+  writeFileSync(
+    join(workflowDir, "ci.yml"),
+    "name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
+  );
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: [
+          { lodash: "4.17.21" },
+          { alpine: "3.20" },
+          { "actions/checkout": "v4" },
+        ],
+        rootDir: tempDir,
+        files: ["package.json", "Dockerfile", ".github/workflows/ci.yml"],
+        mode: "verbose",
         isTesting: true,
         silent: true,
       }),
