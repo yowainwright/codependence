@@ -31,7 +31,7 @@ jobs:
 | `permissive` | Update all except pinned | No | `false` |
 | `mode` | Policy mode: `verbose` or `precise` | No | - |
 | `level` | Allowed update level: `patch`, `minor`, or `major` | No | - |
-| `language` | Target language: `nodejs`, `go`, or `python` | No | - |
+| `language` | Target language: `nodejs` (stable), or experimental `go`, `python`, `rust`, `docker`, `github-actions` | No | - |
 | `fail-on-outdated` | Fail if outdated | No | `true` |
 | `rootDir` | Root directory | No | - |
 | `ignore` | Ignore patterns (space-separated) | No | - |
@@ -47,6 +47,15 @@ jobs:
 | Output | Description |
 |--------|-------------|
 | `outdated` | Whether dependencies were outdated (`true`/`false`) |
+
+## Experimental Language Providers
+
+Node.js package manifests are the stable default. The `go`, `python`, `rust`,
+`docker`, and `github-actions` providers are experimental while their manifest
+coverage and update semantics settle.
+
+Docker and GitHub Actions require explicit object pins in verbose mode. They do
+not resolve latest versions or support precise mode yet.
 
 ## Examples
 
@@ -79,7 +88,7 @@ jobs:
     files: 'package.json **/package.json'
 ```
 
-### Python or Go
+### Experimental Python or Go
 
 ```yaml
 - uses: yowainwright/codependence@v1

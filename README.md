@@ -436,7 +436,9 @@ An **optional** path to write formatted output to a file instead of stdout. Requ
 
 ### Multi-language support (experimental)
 
-Codependence includes experimental support for non-Node dependency manifests via the `--language` flag:
+Node.js package manifests are the stable default. Codependence includes
+experimental support for non-Node dependency manifests via the `--language`
+flag:
 
 ```sh
 codependence --language python
@@ -451,7 +453,8 @@ only. Use object codependencies such as `{"node":"24-slim"}` or
 `{"actions/checkout":"v5"}` with `mode: "verbose"`. Latest resolution and
 `mode: "precise"` are not enabled for those providers yet.
 
-This feature is under active development. For stable usage, omit `--language` (defaults to Node.js).
+These providers are under active development. For stable usage, omit
+`--language` to use the default Node.js provider.
 
 ---
 

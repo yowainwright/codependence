@@ -140,7 +140,9 @@ Write output to a file instead of stdout. Default: `undefined`
 
 ### `language`: `string`
 
-Target language for dependency checking: `nodejs`, `go`, `python`, `rust`, `docker`, or `github-actions`. Default: `nodejs` (experimental).
+Target language for dependency checking: `nodejs`, `go`, `python`, `rust`, `docker`, or `github-actions`. Default: `nodejs`.
+
+Node.js package manifests are stable. The `go`, `python`, `rust`, `docker`, and `github-actions` providers are experimental while manifest coverage and update semantics settle.
 
 Docker and GitHub Actions require explicit object pins in verbose mode. They do not resolve latest versions yet.
 
