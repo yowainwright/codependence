@@ -20,7 +20,7 @@
     "oxfmt": "^0.54.0",
     "oxlint": "^1.69.0",
     "pastoralist": "^1.12.3",
-    "prettier": "^3.8.4",
+    "prettier": "^3.9.4",
     "release-it": "20.2.0",
     "turbo": "^2.9.18",
     "typescript": "^5.9.3"
@@ -30,7 +30,7 @@
     "esbuild": "0.28.1",
     "js-yaml": "4.3.0",
     "undici": "7.28.0",
-    "vite": "7.3.6"
+    "vite": "8.1.3"
   },
   "exports": {
     ".": {
@@ -150,7 +150,7 @@
       "esbuild@0.28.1": {
         "dependents": {
           "@codependence/docs": "esbuild (required by astro)",
-          "codependence": "esbuild (required by astro, vite)"
+          "codependence": "esbuild (required by astro)"
         },
         "ledger": {
           "addedDate": "2026-06-14T00:00:00.000Z",
@@ -175,7 +175,7 @@
       },
       "js-yaml@4.3.0": {
         "dependents": {
-          "codependence": "js-yaml (required by @astrojs/internal-helpers, @astrojs/markdown-remark, astro)",
+          "codependence": "js-yaml (required by @astrojs/internal-helpers, astro)",
           "@codependence/docs": "js-yaml (required by astro)"
         },
         "ledger": {
@@ -190,13 +190,13 @@
           "addedDate": "2026-06-28T00:00:00.000Z"
         }
       },
-      "vite@7.3.6": {
+      "vite@8.1.3": {
         "dependents": {
           "codependence": "vite (required by @astrojs/react, astro)",
           "@codependence/docs": "vite (required by @astrojs/react, astro)"
         },
         "ledger": {
-          "addedDate": "2026-06-28T00:00:00.000Z"
+          "addedDate": "2026-07-02T00:00:00.000Z"
         }
       }
     },
