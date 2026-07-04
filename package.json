@@ -190,22 +190,13 @@
           "addedDate": "2026-06-28T00:00:00.000Z"
         }
       },
-      "vite@7.3.6": {
-        "dependents": {
-          "codependence": "vite (required by @astrojs/react, astro)",
-          "@codependence/docs": "vite (required by @astrojs/react, astro)"
-        },
-        "ledger": {
-          "addedDate": "2026-06-28T00:00:00.000Z"
-        }
-      },
       "vite@8.1.3": {
         "dependents": {
           "codependence": "vite (required by @astrojs/react, astro)",
           "@codependence/docs": "vite (required by @astrojs/react, astro)"
         },
         "ledger": {
-          "addedDate": "2022-06-13T19:05:47-07:00"
+          "addedDate": "2026-07-02T00:00:00.000Z"
         }
       }
     },
