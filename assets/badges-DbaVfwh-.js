@@ -1,0 +1,17 @@
+import{p as e}from"./index-C6Txvpzt.js";var t=e();function n(e){let n={code:`code`,h2:`h2`,h3:`h3`,p:`p`,pre:`pre`,span:`span`,...e.components};return(0,t.jsxs)(t.Fragment,{children:[(0,t.jsx)(n.h2,{id:`project-badges`,children:`Project Badges`}),`
+`,(0,t.jsx)(n.p,{children:`Add these badges to your README to show the status and information about Codependence.`}),`
+`,(0,t.jsxs)(`section`,{className:`grid grid-flow-col-dense justify-start gap-x-2 mb-8`,children:[(0,t.jsx)(`img`,{src:`https://flat.badgen.net/badge/icon/Typed?icon=typescript&label&labelColor=blue&color=555555`}),(0,t.jsx)(`a`,{href:`https://badge.fury.io/js/codependence`,children:(0,t.jsx)(`img`,{alt:`npm version`,src:`https://badge.fury.io/js/codependence.svg`})}),(0,t.jsx)(`img`,{src:`https://github.com/yowainwright/codependence/actions/workflows/ci.yml/badge.svg`}),(0,t.jsx)(`a`,{href:`https://github.com/yowainwright/codependence`,children:(0,t.jsx)(`img`,{src:`https://badgen.net/badge/icon/github?icon=github&label&color=black`})}),(0,t.jsx)(`img`,{src:`https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fyowainwright%2Fcodependence`})]}),`
+`,(0,t.jsx)(n.h2,{id:`badge-types`,children:`Badge Types`}),`
+`,(0,t.jsx)(n.h3,{id:`typescript-support`,children:`TypeScript Support`}),`
+`,(0,t.jsx)(n.p,{children:`Shows that Codependence is fully typed with TypeScript for better IDE support and type safety.`}),`
+`,(0,t.jsx)(n.h3,{id:`npm-version`,children:`NPM Version`}),`
+`,(0,t.jsx)(n.p,{children:`Displays the current version of Codependence available on npm.`}),`
+`,(0,t.jsx)(n.h3,{id:`ci-status`,children:`CI Status`}),`
+`,(0,t.jsx)(n.p,{children:`Shows the current build status from GitHub Actions.`}),`
+`,(0,t.jsx)(n.h3,{id:`github-repository`,children:`GitHub Repository`}),`
+`,(0,t.jsx)(n.p,{children:`Links to the Codependence GitHub repository for source code and issues.`}),`
+`,(0,t.jsx)(n.h3,{id:`social-sharing`,children:`Social Sharing`}),`
+`,(0,t.jsx)(n.p,{children:`Twitter/X badge for sharing Codependence with others.`}),`
+`,(0,t.jsx)(n.h2,{id:`using-badges-in-your-project`,children:`Using Badges in Your Project`}),`
+`,(0,t.jsx)(n.p,{children:`To add Codependence status badges to your project's README, you can use the following markdown:`}),`
+`,(0,t.jsx)(t.Fragment,{children:(0,t.jsx)(n.pre,{className:`shiki shiki-themes github-light github-dark`,style:{"--shiki-light":`#24292e`,"--shiki-dark":`#e1e4e8`,"--shiki-light-bg":`#fff`,"--shiki-dark-bg":`#24292e`},tabIndex:`0`,children:(0,t.jsx)(n.code,{children:(0,t.jsxs)(n.span,{className:`line`,children:[(0,t.jsx)(n.span,{style:{"--shiki-light":`#24292E`,"--shiki-dark":`#E1E4E8`},children:`[`}),(0,t.jsx)(n.span,{style:{"--shiki-light":`#032F62`,"--shiki-light-text-decoration":`underline`,"--shiki-dark":`#DBEDFF`,"--shiki-dark-text-decoration":`underline`},children:`![Codependence Status](https://img.shields.io/badge/codependence-passing-green)`}),(0,t.jsx)(n.span,{style:{"--shiki-light":`#24292E`,"--shiki-dark":`#E1E4E8`},children:`](`}),(0,t.jsx)(n.span,{style:{"--shiki-light":`#24292E`,"--shiki-light-text-decoration":`underline`,"--shiki-dark":`#E1E4E8`,"--shiki-dark-text-decoration":`underline`},children:`https://github.com/yowainwright/codependence`}),(0,t.jsx)(n.span,{style:{"--shiki-light":`#24292E`,"--shiki-dark":`#E1E4E8`},children:`)`})]})})})})]})}function r(e={}){let{wrapper:r}=e.components||{};return r?(0,t.jsx)(r,{...e,children:(0,t.jsx)(n,{...e})}):n(e)}export{r as default};

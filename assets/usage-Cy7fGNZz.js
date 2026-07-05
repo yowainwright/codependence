@@ -1,0 +1,101 @@
+var e=`---
+title: Usage
+description: How to use Codependence
+---
+
+<section>
+
+## Getting Started
+
+Use Codependence as a standalone CLI, in npm scripts, in CI, or as a Node utility.
+
+## Installation
+
+\`\`\`bash
+npm install codependence --save-dev
+pnpm add codependence --save-dev
+bun add codependence --dev
+yarn add codependence --dev
+\`\`\`
+
+## Agent Skills
+
+Install the legibility skill directly:
+
+\`\`\`bash
+npx eslint-plugin-legibility-install-skill
+npx eslint-plugin-legibility-install-skill --target codex
+npx eslint-plugin-legibility-install-skill --target claude
+\`\`\`
+
+This repo also has wrapper scripts:
+
+\`\`\`bash
+bun run skills:install
+bun run skills:install:codex
+bun run skills:install:claude
+\`\`\`
+
+Install into ignored project-local folders:
+
+\`\`\`bash
+bun run skills:install:local
+bun run skills:install:codex:local
+bun run skills:install:claude:local
+\`\`\`
+
+## Quick Setup
+
+Check only selected dependencies:
+
+\`\`\`bash
+codependence --codependencies 'fs-extra' 'lodash'
+\`\`\`
+
+Or use it with a config in the root package.json file
+
+\`\`\`js
+{
+  "codependence": {
+    "codependencies": ["fs-extra", "lodash"]
+  },
+  "scripts": {
+    "update-codependencies": "codependence --update",
+    "prepare": "bun run update-codependencies"
+  }
+}
+\`\`\`
+
+Pin selected packages while updating the rest:
+
+\`\`\`bash
+codependence --permissive --codependencies 'react' 'lodash' --update
+\`\`\`
+
+## Initialize Codependence
+
+Quickly set up Codependence in your project with the interactive init command:
+
+\`\`\`bash
+# Interactive setup with permissive mode by default - recommended!
+codependence init
+
+# Create .codependencerc with all dependencies pinned (legacy mode)
+codependence init rc
+
+# Add configuration to package.json with all dependencies pinned (legacy mode)
+codependence init package
+\`\`\`
+
+Init command:
+
+- Interactive setup can create permissive mode configs (update all, pin specific ones)
+- Scans \`package.json\` for dependencies
+- Choose strategy: 🚀 Permissive (recommended) or 🔒 Pin all
+- Creates \`.codependencerc\` or updates \`package.json\`
+- Handles missing files and invalid JSON
+
+---
+
+</section>
+`;export{e as default};

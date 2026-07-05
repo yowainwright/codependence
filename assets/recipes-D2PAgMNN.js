@@ -1,0 +1,75 @@
+var e=`---
+title: Recipes
+description: Common patterns and usage examples for Codependence.
+---
+<section>
+
+# Recipes
+
+## CLI-only (no config)
+
+\`\`\`sh
+codependence --codependencies 'lodash' '{ \\"fs-extra\\": \\"10.0.1\\" }'
+\`\`\`
+
+## Wildcard patterns (latest for all matches)
+
+\`\`\`sh
+codependence --codependencies '@foo/*' --update
+\`\`\`
+
+## Permissive mode (update all except specific)
+
+\`\`\`sh
+codependence --codependencies 'react' 'lodash' --permissive --update
+\`\`\`
+
+## Permissive config setup
+
+\`.codependencerc\`:
+\`\`\`json
+{
+  "permissive": true,
+  "codependencies": ["react", "@types/node"]
+}
+\`\`\`
+
+Run:
+\`\`\`sh
+codependence --update
+\`\`\`
+
+## Preview changes without modifying files
+
+\`\`\`sh
+codependence --update --dryRun
+\`\`\`
+
+## Output as JSON for CI/CD
+
+\`\`\`sh
+codependence --format json
+\`\`\`
+
+## Save output to a file
+
+\`\`\`sh
+codependence --format json --outputFile deps.json
+\`\`\`
+
+## Bypass cache for fresh results
+
+\`\`\`sh
+codependence --noCache
+\`\`\`
+
+## Watch mode
+
+\`\`\`sh
+codependence --watch
+\`\`\`
+
+---
+
+</section>
+`;export{e as default};

@@ -1,0 +1,20 @@
+var e=`---
+title: Why not use Codependence?
+description: Reasons why Codependence might not be the right choice for your project.
+---
+
+<section>
+
+## Why not use Codependence?
+
+Skip if:
+
+- Dependabot or Renovate already cover your dependency workflow
+- You do not need local or CI checks for version drift
+- You prefer manual pinning without automated enforcement
+- You do not need package-specific or workspace-specific policy
+
+---
+
+</section>
+`;export{e as default};

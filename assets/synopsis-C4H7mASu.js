@@ -1,0 +1,21 @@
+var e=`---
+title: Synopsis
+description: "A summary of Codependence"
+---
+
+<section>
+
+## Synopsis
+
+CLI and Node tool that compares a \`codependencies\` policy against \`package.json\` dependencies, devDependencies, peerDependencies, and optionalDependencies.
+
+For each dependency: checks if versions are current or match specified versions. Returns pass/fail or auto-updates manifest files.
+
+Ensures important dependency versions are intentional: current where they should move, pinned where they should not, and consistent across a repo or monorepo.
+
+**Codependencies:** Project dependencies that must stay current or set to a specific version. When \`latest\` cannot be specified in \`package.json\`, Codependence ensures the actual latest semver version is set.
+
+---
+
+</section>
+`;export{e as default};

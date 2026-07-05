@@ -1,0 +1,123 @@
+var e=`---
+title: Codependence in Node
+description: How to use Codependence as a Node.js utility.
+---
+
+<section>
+
+## Overview
+
+Although Codependence is built primarily as a CLI utility, it can also be used as a Node.js module for custom policy checks and internal tooling.
+
+\`\`\`ts
+import { checkFiles } from "codependence";
+
+const checkPolicy = async () => {
+  try {
+    await checkFiles({
+      codependencies: ["fs-extra", "lodash"],
+    });
+    console.log("Dependency policy passed");
+  } catch (error) {
+    console.error("Dependency policy failed", error);
+  }
+};
+
+checkPolicy();
+\`\`\`
+
+To pin selected packages while updating everything else, enable permissive mode:
+
+\`\`\`ts
+import { codependence } from "codependence";
+
+await codependence({
+  codependencies: ["fs-extra", "lodash"],
+  permissive: true,
+  update: true,
+});
+\`\`\`
+
+## API Reference
+
+### Basic Usage
+
+The \`codependence\` function accepts an options object with the same parameters as the CLI:
+
+\`\`\`ts
+interface CodependenceOptions {
+  codependencies?: Array<string | Record<string, string>>;
+  files?: string[];
+  update?: boolean;
+  rootDir?: string;
+  ignore?: string[];
+  debug?: boolean;
+  silent?: boolean;
+  verbose?: boolean;
+  quiet?: boolean;
+  config?: string;
+  searchPath?: string;
+  yarnConfig?: boolean;
+  permissive?: boolean;
+}
+\`\`\`
+
+## Examples
+
+### Check Specific Dependencies
+
+\`\`\`ts
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ react: "^18.0.0" }, { typescript: "^5.0.0" }],
+  update: false,
+});
+\`\`\`
+
+### Update Dependencies in Monorepo
+
+\`\`\`ts
+import { codependence } from "codependence";
+
+await codependence({
+  files: ["packages/*/package.json"],
+  codependencies: ["eslint", "prettier"],
+  permissive: true,
+  update: true,
+  rootDir: process.cwd(),
+});
+\`\`\`
+
+### Using with Configuration File
+
+\`\`\`ts
+import { codependence } from "codependence";
+
+await codependence({
+  config: "./codependence.config.json",
+});
+\`\`\`
+
+## Return Values
+
+The function resolves when the policy passes or updates complete. When \`format\`, \`dryRun\`, or update output is enabled, it can return version-diff data for reporting.
+
+## Error Handling
+
+Wrap calls in try-catch blocks to handle errors:
+
+\`\`\`ts
+import { codependence } from "codependence";
+
+try {
+  await codependence({
+    codependencies: ["lodash"],
+  });
+} catch (error) {
+  console.error("Codependence check failed:", error);
+}
+\`\`\`
+
+</section>
+`;export{e as default};

@@ -1,0 +1,27 @@
+var e=`---
+title: Main Use Case
+description: Keep important versions intentional
+---
+
+<section>
+
+## Main Use Case
+
+Use Codependence when dependency versions are part of your project policy. It can check only the dependencies you list, or pin listed dependencies while updating everything else.
+
+## Key Features
+
+- **Policy checks:** Fail when versions drift from your \`codependencies\` policy
+- **Version pinning:** Keep selected packages at exact, \`~\`, or \`^\` versions
+- **Permissive updates:** Pin critical packages while the rest move forward
+- **Monorepo support:** Apply root and package-specific policies across workspaces
+
+## Why This Matters
+
+- Keep dependency decisions explicit
+- Catch drift before it lands in main
+- Maintain consistency across packages
+- Run the same policy locally, in scripts, or in CI/CD
+
+</section>
+`;export{e as default};

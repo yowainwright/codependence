@@ -1,0 +1,51 @@
+var e=`---
+title: Introduction
+description: Enforce dependency version policy locally, in CI, and across workspaces.
+---
+
+<section className="grid grid-flow-col-dense justify-start gap-x-2 mb-8">
+
+<img src="https://flat.badgen.net/badge/icon/Typed?icon=typescript&label&labelColor=blue&color=555555" />
+
+<a href="https://badge.fury.io/js/codependence">
+  <img alt="npm version" src="https://badge.fury.io/js/codependence.svg" />
+</a>
+
+<img src="https://github.com/yowainwright/codependence/actions/workflows/ci.yml/badge.svg" />
+
+<a href="https://codecov.io/gh/yowainwright/codependence">
+  <img src="https://codecov.io/gh/yowainwright/codependence/branch/main/graph/badge.svg" />
+</a>
+
+<a href="https://github.com/yowainwright/codependence">
+  <img src="https://badgen.net/badge/icon/github?icon=github&label&color=black" />
+</a>
+
+</section>
+
+<section>
+
+## Introduction
+
+Codependence is a CLI and Node API for enforcing dependency version policy. It checks, reports, and can update dependency versions so important packages stay current, pinned, or consistent across your project.
+
+## Synopsis
+
+Checks your \`codependencies\` policy against \`package.json\` dependencies, verifies each dependency is at the expected version, and can fail CI or update mismatched manifests.
+
+See [Policy Surface](/docs/policy-surface/) for what Codependence supports today and where the same policy model can expand next.
+
+## Why use Codependence?
+
+- Define the versions that must stay current or pinned
+- Fail local checks or CI when dependency versions drift
+- Update only listed packages, or update everything except listed packages
+- Apply package-specific policy across monorepos
+- Run from npm scripts, GitHub Actions, or custom Node tooling
+
+## Why not use Codependence?
+
+Skip it if hosted dependency PRs from Dependabot or Renovate already cover your workflow and you do not need local or CI policy enforcement.
+
+</section>
+`;export{e as default};

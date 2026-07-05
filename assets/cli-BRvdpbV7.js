@@ -1,0 +1,113 @@
+var e=`---
+title: CLI
+description: Command Line Interface for Codependence
+---
+
+<section>
+
+## Overview
+
+CLI-first policy tool for checking, reporting, and updating dependency versions.
+
+Install as a devDependency and use a \`codependence.codependencies\` array to define dependencies to keep updated or pinned.
+
+For monorepos, add \`codependence.codependencies\` arrays to child packages for package-specific version control.
+
+## Command Line Usage
+
+\`\`\`bash
+Usage: codependence [command] [options]
+
+Commands:
+  init [type]                       Initialize codependence configuration
+                                    Types: rc, package, default
+
+Options:
+  -f, --files [files...]           File glob pattern
+  -u, --update                      Update dependencies based on check
+  -r, --rootDir <rootDir>          Root directory to start search
+  -i, --ignore [ignore...]         Ignore glob pattern
+  --debug                           Enable debugging
+  --silent                          Enable mainly silent logging
+  -v, --verbose                     Enable verbose logging (shows debug info)
+  -q, --quiet                       Suppress all output except errors
+  -cds, --codependencies [deps...] Dependencies to check
+  -c, --config <config>            Path to a config file
+  -s, --searchPath <searchPath>    Path to do a config file search
+  -y, --yarnConfig                  Enable yarn config support
+  --permissive                      Update all deps except those in codependencies
+  --level <level>                   Update level: patch, minor, or major (default: major)
+  -m, --mode <mode>                verbose: only listed packages; precise: all except listed
+  -l, --language <lang>            Target language (nodejs, go, python, rust, docker, github-actions)
+  -h, --help                        Show this help message
+  --dryRun                          Show what would change without modifying files
+  --interactive                     Choose which packages to update interactively
+  --watch                           Watch for changes and re-check continuously
+  --noCache                         Disable version caching for fresh results
+  --format <type>                   Output format: json, markdown, or table (default: table)
+  --outputFile <path>               Write output to file instead of stdout
+\`\`\`
+
+## Commands
+
+### init
+
+Initialize codependence configuration interactively. This command helps you set up Codependence in your project.
+
+\`\`\`bash
+codependence init
+\`\`\`
+
+## Options Reference
+
+### File and Directory Options
+
+- \`-f, --files [files...]\` - Specify file glob patterns to check
+- \`-r, --rootDir <rootDir>\` - Set the root directory to start search
+- \`-i, --ignore [ignore...]\` - Specify glob patterns to ignore
+- \`-s, --searchPath <searchPath>\` - Path to search for config files
+
+### Update Options
+
+- \`-u, --update\` - Automatically update dependencies based on check results
+- \`--permissive\` - Update all dependencies to latest except those specified in codependencies
+- \`--dryRun\` - Preview what would change without modifying files
+- \`--interactive\` - Choose which packages to update interactively
+- \`--level <level>\` - Update level: \`patch\`, \`minor\`, or \`major\` (default: \`major\`)
+- \`-m, --mode <mode>\` - \`verbose\`: only listed packages; \`precise\`: all except listed
+
+### Configuration Options
+
+- \`-c, --config <config>\` - Path to a configuration file
+- \`-cds, --codependencies [deps...]\` - Specify dependencies to check inline
+- \`-y, --yarnConfig\` - Enable yarn configuration support
+
+### Output Options
+
+- \`--debug\` - Enable debugging output
+- \`--silent\` - Enable mainly silent logging
+- \`-v, --verbose\` - Enable verbose logging (shows debug info)
+- \`-q, --quiet\` - Suppress all output except errors
+- \`--format <type>\` - Output format: \`json\`, \`markdown\`, or \`table\` (default: \`table\`)
+- \`--outputFile <path>\` - Write output to a file instead of stdout
+
+### Performance Options
+
+- \`--noCache\` - Disable version caching for fresh results
+- \`--watch\` - Watch for changes and re-check continuously
+
+### Language Options
+
+- \`-l, --language <lang>\` - Target language: \`nodejs\`, \`go\`, \`python\`, \`rust\`, \`docker\`, or \`github-actions\`
+
+Node.js package manifests are stable. The \`go\`, \`python\`, \`rust\`, \`docker\`, and \`github-actions\` providers are experimental while manifest coverage and update semantics settle.
+
+Docker and GitHub Actions require explicit object pins in verbose mode. They do not resolve latest versions yet.
+
+### Testing Options
+
+- \`-t, --isTestingCLI\` - Enable CLI only testing
+- \`--isTesting\` - Enable running function tests without overwriting
+
+</section>
+`;export{e as default};

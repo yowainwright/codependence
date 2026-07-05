@@ -1,0 +1,22 @@
+var e=`---
+title: Why use Codependence?
+description: Codependence enforces dependency version policy where your code runs.
+---
+
+<section>
+
+## Why use Codependence?
+
+Use Codependence when dependency versions need a policy, not just occasional update PRs.
+
+- Define which packages must stay current or pinned
+- Fail CI when a manifest drifts from policy
+- Update only listed packages, or update everything except listed packages
+- Handle package-specific policy in monorepos
+- Run locally, in npm scripts, in GitHub Actions, or through the Node API
+- Pair with Dependabot or Renovate instead of replacing them
+
+---
+
+</section>
+`;export{e as default};
