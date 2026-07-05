@@ -16,12 +16,17 @@ function SideBarItem({ href, title, isActive }: { href: string; title: string; i
   const baseClass = "block py-1.5 pl-[20px] -ml-[10px] -mr-[16px] transition text-sm";
   const activeClass = "text-primary border-l-2 border-primary";
   const inactiveClass = "hover:text-primary border-l-2 border-transparent hover:border-base-content/30";
+  const slug = href.split("/").pop() ?? "";
 
   return (
     <li>
-      <a href={href} className={`${baseClass} ${isActive ? activeClass : inactiveClass}`}>
+      <Link
+        to="/docs/$slug"
+        params={{ slug }}
+        className={`${baseClass} ${isActive ? activeClass : inactiveClass}`}
+      >
         {title}
-      </a>
+      </Link>
     </li>
   );
 }

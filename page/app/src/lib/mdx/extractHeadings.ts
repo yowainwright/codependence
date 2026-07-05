@@ -11,12 +11,17 @@ function buildTree(flat: Heading[]): Heading[] {
 
   flat.forEach((heading) => {
     const node: Heading = { ...heading, subheadings: [] };
-    parentMap.set(node.depth, node);
 
     if (node.depth === 2) {
+      for (const key of parentMap.keys()) {
+        if (key > 2) parentMap.delete(key);
+      }
       tree.push(node);
+      parentMap.set(node.depth, node);
       return;
     }
+
+    parentMap.set(node.depth, node);
 
     let parentDepth = node.depth - 1;
     while (parentDepth >= 2 && !parentMap.has(parentDepth)) {

@@ -31,6 +31,8 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
   const [activeId, setActiveId] = useState<string>('');
 
   useEffect(() => {
+    if (headings.length === 0) return;
+
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
@@ -45,7 +47,7 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
     return () => {
       headingElements.forEach((element) => observer.unobserve(element));
     };
-  }, []);
+  }, [headings]);
 
   return (
     <div className="hidden xl:sticky xl:block xl:top-28">

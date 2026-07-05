@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/common/Icons";
 import { resolveDocsUrl } from "@/utils/urlResolver";
 import SIDEBAR from "@/constants/sidebar";
@@ -9,6 +10,10 @@ interface SidebarItem {
 
 function getAllItems(): SidebarItem[] {
   return SIDEBAR.flatMap((section) => section.items);
+}
+
+function getSlugFromHref(href: string): string {
+  return href.split("/").pop() ?? "";
 }
 
 function getPagination(slug: string): { prevItem?: SidebarItem; nextItem?: SidebarItem } {
@@ -33,21 +38,25 @@ export function Pagination({ slug }: PaginationProps) {
 
   return (
     <div className="flex gap-7">
-      {prevItem?.href && (
-        <a className="mr-auto flex" href={prevItem.href}>
-          <button className="btn btn-ghost rounded-full border-none hover:bg-base-200">
-            <ChevronLeftIcon className="w-5 h-5" />
-            <span className="text-xs md:text-sm font-medium">{prevItem.title}</span>
-          </button>
-        </a>
+      {prevItem && (
+        <Link
+          to="/docs/$slug"
+          params={{ slug: getSlugFromHref(prevItem.href) }}
+          className="mr-auto btn btn-ghost rounded-full border-none hover:bg-base-200"
+        >
+          <ChevronLeftIcon className="w-5 h-5" />
+          <span className="text-xs md:text-sm font-medium">{prevItem.title}</span>
+        </Link>
       )}
-      {nextItem?.href && (
-        <a className="ml-auto flex" href={nextItem.href}>
-          <button className="btn btn-ghost rounded-full border-none hover:bg-base-200">
-            <span className="text-xs md:text-sm font-medium">{nextItem.title}</span>
-            <ChevronRightIcon className="w-5 h-5" />
-          </button>
-        </a>
+      {nextItem && (
+        <Link
+          to="/docs/$slug"
+          params={{ slug: getSlugFromHref(nextItem.href) }}
+          className="ml-auto btn btn-ghost rounded-full border-none hover:bg-base-200"
+        >
+          <span className="text-xs md:text-sm font-medium">{nextItem.title}</span>
+          <ChevronRightIcon className="w-5 h-5" />
+        </Link>
       )}
     </div>
   );
