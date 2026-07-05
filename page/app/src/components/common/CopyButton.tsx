@@ -1,47 +1,40 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Copy, Check } from "lucide-react";
 
-export const CopyButton = () => {
+interface CopyButtonProps {
+  text?: string;
+}
+
+export const CopyButton = ({ text }: CopyButtonProps) => {
   const [isClicked, setIsClicked] = useState(false);
+
+  const getTextToCopy = (button: HTMLButtonElement): string => {
+    if (text) return text;
+    return button.closest("div")?.querySelector("code")?.textContent ?? "";
+  };
 
   const handleCopy = (e: React.MouseEvent<HTMLButtonElement>) => {
     const target = e.currentTarget;
-    const codeElement = target.closest("div")?.querySelector("code");
+    const code = getTextToCopy(target);
+    if (!code) return;
 
-    if (!codeElement) {
-      console.log("Code not found");
-      return;
-    }
-
-    const code = codeElement.textContent || "";
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard
-        .writeText(code)
-        .then(() => {
-          setIsClicked(true);
-          target.disabled = true;
-          setTimeout(() => {
-            setIsClicked(false);
-            target.disabled = false;
-          }, 800);
-        })
-        .catch((error) => {
-          console.error("Failed to save text to clipboard:", error);
-        });
-    } else {
-      console.error("Clipboard API is not supported");
-    }
+    navigator.clipboard
+      .writeText(code)
+      .then(() => {
+        setIsClicked(true);
+        target.disabled = true;
+        setTimeout(() => {
+          setIsClicked(false);
+          target.disabled = false;
+        }, 800);
+      })
+      .catch(() => {});
   };
 
   const Icon = isClicked ? Check : Copy;
 
   return (
-    <button
-      className="btn btn-ghost btn-square rounded-s-none"
-      onClick={handleCopy}
-      aria-label="Copy"
-    >
+    <button className="btn btn-ghost btn-square rounded-s-none" onClick={handleCopy} aria-label="Copy">
       <Icon className="h-5 w-5 pointer-events-none" />
     </button>
   );
