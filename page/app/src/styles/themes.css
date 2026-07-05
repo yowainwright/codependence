@@ -1,5 +1,6 @@
 [data-theme="codependence-light"] {
   --color-scheme: light;
+  --btn-hover-border: var(--color-primary);
 
   --color-primary: #9B4D5A;
   --color-primary-rgb: 155 77 90;
@@ -51,8 +52,13 @@
   --color-error-content-rgb: 255 255 255;
 }
 
+[data-theme="codependence-light"] .btn-ghost {
+  --btn-hover-border: transparent;
+}
+
 [data-theme="codependence-dark"] {
   --color-scheme: dark;
+  --btn-hover-border: var(--color-primary);
 
   --color-primary: #7DD3FC;
   --color-primary-rgb: 125 211 252;
@@ -102,4 +108,8 @@
   --color-error-rgb: 251 113 133;
   --color-error-content: #881337;
   --color-error-content-rgb: 136 19 55;
+}
+
+[data-theme="codependence-dark"] .btn-ghost {
+  --btn-hover-border: transparent;
 }
