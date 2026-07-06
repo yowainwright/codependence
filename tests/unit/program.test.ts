@@ -654,7 +654,7 @@ describe("initAction", () => {
     writeFileSyncSpy.mockRestore();
   });
 
-  test("should allow explicit dependency array without package dependencies", async () => {
+  test("should reject explicit dependency array without matching package dependencies", async () => {
     const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
@@ -666,14 +666,21 @@ describe("initAction", () => {
     const writeFileSyncSpy = jest
       .spyOn(fs, "writeFileSync")
       .mockImplementation(() => {});
+    const errorSpy = jest
+      .spyOn(logger, "error")
+      .mockImplementation(() => {});
 
     await initAction(["lodash"]);
 
-    expect(writeFileSyncSpy).toHaveBeenCalled();
+    expect(writeFileSyncSpy).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Requested dependencies not found in package.json: lodash",
+    );
 
     existsSyncSpy.mockRestore();
     readFileSyncSpy.mockRestore();
     writeFileSyncSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 
   test("should create package.json config with package type", async () => {
