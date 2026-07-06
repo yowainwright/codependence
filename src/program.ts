@@ -14,6 +14,29 @@ import { Options, PackageJSON, CodependenceConfig, DependencyInfo } from "./type
 
 const gradient = (text: string) => bold(cyan(text));
 const CLI_ERROR_EXIT_CODE = 2;
+const INIT_TYPES = ["rc", "package", "default"] as const;
+
+type InitType = (typeof INIT_TYPES)[number];
+type InitInput = InitType | string[];
+
+const isInitType = (value: string | undefined): value is InitType =>
+  INIT_TYPES.includes(value as InitType);
+
+const collectInitDeps = (args: string[]): string[] => {
+  const flagIndex = args.findIndex((arg) => arg.startsWith("-"));
+  const positionalArgs = flagIndex === -1 ? args : args.slice(0, flagIndex);
+
+  return positionalArgs.filter((arg) => !isInitType(arg));
+};
+
+const resolveInitDeps = (
+  optionDeps: unknown,
+  positionalDeps: string[],
+): string[] => {
+  if (Array.isArray(optionDeps)) return optionDeps as string[];
+
+  return positionalDeps;
+};
 
 const errorMessage = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
@@ -267,13 +290,17 @@ const runWatchMode = async (options: Options): Promise<void> => {
 };
 
 export async function initAction(
-  type?: "rc" | "package" | "default",
+  input?: InitInput,
+  codependencies: string[] = [],
 ): Promise<void> {
   const spinner = createSpinner(
     `🤼‍♀️ ${gradient(`codependence`)} initializing...\n`,
   ).start();
 
   try {
+    const hasArrayInput = Array.isArray(input);
+    const type = hasArrayInput ? undefined : input;
+    const requestedDeps = hasArrayInput ? input : codependencies;
     const rcPath = ".codependencerc";
     const packageJsonPath = MANIFEST_FILES.PACKAGE_JSON;
     const hasConfig = existsSync(rcPath);
@@ -313,8 +340,9 @@ export async function initAction(
       ...packageJson.peerDependencies,
     };
 
-    const hasDeps = Object.keys(allDeps).length > 0;
-    if (!hasDeps) {
+    const hasPackageDeps = Object.keys(allDeps).length > 0;
+    const shouldRequirePackageDeps = requestedDeps.length === 0;
+    if (!hasPackageDeps && shouldRequirePackageDeps) {
       throw new Error("No dependencies found in package.json");
     }
 
@@ -328,9 +356,10 @@ export async function initAction(
     let pinnedDeps: string[] = [];
     let outputType: "rc" | "package" = "rc";
     let usePermissive = true;
+    const hasRequestedDeps = requestedDeps.length > 0;
 
-    if (type) {
-      pinnedDeps = Object.keys(allDeps);
+    if (type || hasRequestedDeps) {
+      pinnedDeps = hasRequestedDeps ? requestedDeps : Object.keys(allDeps);
       outputType = type === "package" ? "package" : "rc";
       usePermissive = false;
     } else {
@@ -465,10 +494,12 @@ export async function run(args: string[] = process.argv): Promise<void> {
 
   const isInitCommand = args.includes("init");
   if (isInitCommand) {
-    const initType = args.find(
-      (arg) => arg === "rc" || arg === "package" || arg === "default",
-    ) as "rc" | "package" | "default" | undefined;
-    await initAction(initType);
+    const initType = args.find(isInitType);
+    const initIndex = args.indexOf("init");
+    const initArgs = args.slice(initIndex + 1);
+    const initDeps = collectInitDeps(initArgs);
+    const codependencies = resolveInitDeps(parsed.options.codependencies, initDeps);
+    await initAction(initType, codependencies);
     return;
   }
 

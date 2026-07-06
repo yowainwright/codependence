@@ -38,7 +38,7 @@ Codependence - Enforce dependency version policy across your project
 Usage: codependence [command] [options]
 
 Commands:
-  init [type]                       Initialize codependence configuration
+  init [type] [deps...]             Initialize codependence configuration
                                     Types: rc, package, default
 
 Options:
@@ -71,6 +71,7 @@ Examples:
   # Get started
   codependence init                           Interactive setup wizard
   codependence init rc                        Create .codependencerc with all deps pinned
+  codependence init rc react lodash           Create .codependencerc with listed deps pinned
 
   # Check and update
   codependence                                Check for outdated dependencies
