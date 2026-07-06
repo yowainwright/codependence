@@ -83,6 +83,9 @@ codependence init
 # Create .codependencerc with all dependencies pinned (legacy mode)
 codependence init rc
 
+# Create .codependencerc with listed dependencies pinned
+codependence init rc react lodash
+
 # Add configuration to package.json with all dependencies pinned (legacy mode)
 codependence init package
 ```
@@ -90,6 +93,7 @@ codependence init package
 Init command:
 
 - Interactive setup can create permissive mode configs (update all, pin specific ones)
+- Non-interactive setup can pin all dependencies or a listed dependency array
 - Scans `package.json` for dependencies
 - Choose strategy: 🚀 Permissive (recommended) or 🔒 Pin all
 - Creates `.codependencerc` or updates `package.json`
