@@ -116,6 +116,9 @@ codependence init
 # Create .codependencerc with all dependencies pinned (legacy mode)
 codependence init rc
 
+# Create .codependencerc with listed dependencies pinned
+codependence init rc react lodash
+
 # Add configuration to package.json with all dependencies pinned (legacy mode)
 codependence init package
 ```
@@ -163,7 +166,7 @@ Furthermore, you can add a `codependence.codependencies` array to child packages
 Usage: codependence [command] [options]
 
 Commands:
-  init [type]                       Initialize codependence configuration
+  init [type] [deps...]             Initialize codependence configuration
                                     Types: rc, package, default
 
 Options:

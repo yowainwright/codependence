@@ -19,7 +19,7 @@ For monorepos, add `codependence.codependencies` arrays to child packages for pa
 Usage: codependence [command] [options]
 
 Commands:
-  init [type]                       Initialize codependence configuration
+  init [type] [deps...]             Initialize codependence configuration
                                     Types: rc, package, default
 
 Options:
@@ -56,6 +56,9 @@ Initialize codependence configuration interactively. This command helps you set 
 
 ```bash
 codependence init
+codependence init rc
+codependence init rc react lodash
+codependence init package
 ```
 
 ## Options Reference

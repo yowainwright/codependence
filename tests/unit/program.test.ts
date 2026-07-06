@@ -626,6 +626,56 @@ describe("initAction", () => {
     writeFileSyncSpy.mockRestore();
   });
 
+  test("should create .codependencerc with explicit dependency array", async () => {
+    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+      if (path === ".codependencerc") return false;
+      if (path === "package.json") return true;
+      return false;
+    });
+    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(
+      JSON.stringify({
+        dependencies: { lodash: "4.17.21", react: "18.0.0" },
+      }),
+    );
+    const writeFileSyncSpy = jest
+      .spyOn(fs, "writeFileSync")
+      .mockImplementation(() => {});
+
+    await initAction(["lodash"]);
+
+    const callArgs = writeFileSyncSpy.mock.calls[0];
+    expect(callArgs[0]).toBe(".codependencerc");
+    expect(JSON.parse(callArgs[1] as string)).toEqual({
+      codependencies: ["lodash"],
+    });
+
+    existsSyncSpy.mockRestore();
+    readFileSyncSpy.mockRestore();
+    writeFileSyncSpy.mockRestore();
+  });
+
+  test("should allow explicit dependency array without package dependencies", async () => {
+    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+      if (path === ".codependencerc") return false;
+      if (path === "package.json") return true;
+      return false;
+    });
+    const readFileSyncSpy = jest
+      .spyOn(fs, "readFileSync")
+      .mockReturnValue(JSON.stringify({}));
+    const writeFileSyncSpy = jest
+      .spyOn(fs, "writeFileSync")
+      .mockImplementation(() => {});
+
+    await initAction(["lodash"]);
+
+    expect(writeFileSyncSpy).toHaveBeenCalled();
+
+    existsSyncSpy.mockRestore();
+    readFileSyncSpy.mockRestore();
+    writeFileSyncSpy.mockRestore();
+  });
+
   test("should create package.json config with package type", async () => {
     const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
       if (path === ".codependencerc") return false;
@@ -829,6 +879,70 @@ describe("run", () => {
     await run(["node", "script.js", "init", "default"]);
 
     expect(writeFileSyncSpy).toHaveBeenCalled();
+    existsSyncSpy.mockRestore();
+    readFileSyncSpy.mockRestore();
+    writeFileSyncSpy.mockRestore();
+  });
+
+  test("should handle init command with explicit dependency names", async () => {
+    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+      if (path === ".codependencerc") return false;
+      if (path === "package.json") return true;
+      return false;
+    });
+    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(
+      JSON.stringify({
+        dependencies: { lodash: "4.17.21", react: "18.0.0" },
+      }),
+    );
+    const writeFileSyncSpy = jest
+      .spyOn(fs, "writeFileSync")
+      .mockImplementation(() => {});
+
+    await run(["node", "script.js", "init", "rc", "lodash"]);
+
+    const callArgs = writeFileSyncSpy.mock.calls[0];
+    expect(callArgs[0]).toBe(".codependencerc");
+    expect(JSON.parse(callArgs[1] as string)).toEqual({
+      codependencies: ["lodash"],
+    });
+
+    existsSyncSpy.mockRestore();
+    readFileSyncSpy.mockRestore();
+    writeFileSyncSpy.mockRestore();
+  });
+
+  test("should handle init command with codependencies option", async () => {
+    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+      if (path === ".codependencerc") return false;
+      if (path === "package.json") return true;
+      return false;
+    });
+    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(
+      JSON.stringify({
+        dependencies: { lodash: "4.17.21", react: "18.0.0" },
+      }),
+    );
+    const writeFileSyncSpy = jest
+      .spyOn(fs, "writeFileSync")
+      .mockImplementation(() => {});
+
+    await run([
+      "node",
+      "script.js",
+      "init",
+      "rc",
+      "--codependencies",
+      "lodash",
+      "react",
+    ]);
+
+    const callArgs = writeFileSyncSpy.mock.calls[0];
+    expect(callArgs[0]).toBe(".codependencerc");
+    expect(JSON.parse(callArgs[1] as string)).toEqual({
+      codependencies: ["lodash", "react"],
+    });
+
     existsSyncSpy.mockRestore();
     readFileSyncSpy.mockRestore();
     writeFileSyncSpy.mockRestore();
