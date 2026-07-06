@@ -38,6 +38,18 @@ const resolveInitDeps = (
   return positionalDeps;
 };
 
+const validateRequestedInitDeps = (
+  requestedDeps: string[],
+  allDeps: Record<string, string>,
+): void => {
+  const missingDeps = requestedDeps.filter((dep) => allDeps[dep] === undefined);
+  if (missingDeps.length === 0) return;
+
+  throw new Error(
+    `Requested dependencies not found in package.json: ${missingDeps.join(", ")}`,
+  );
+};
+
 const errorMessage = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
 
@@ -345,6 +357,8 @@ export async function initAction(
     if (!hasPackageDeps && shouldRequirePackageDeps) {
       throw new Error("No dependencies found in package.json");
     }
+
+    validateRequestedInitDeps(requestedDeps, allDeps);
 
     spinner.stop();
 
