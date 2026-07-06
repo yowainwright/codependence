@@ -1,4 +1,4 @@
-import{p as e}from"./index-C6Txvpzt.js";var t=e();function n(e){let n={code:`code`,h2:`h2`,li:`li`,p:`p`,ul:`ul`,...e.components};return(0,t.jsxs)(`section`,{children:[(0,t.jsx)(n.h2,{id:`policy-surface`,children:`Policy Surface`}),(0,t.jsx)(n.p,{children:`Codependence is strongest when it treats versions as project policy. Some
+import{p as e}from"./index-DzNaZBY9.js";var t=e();function n(e){let n={code:`code`,h2:`h2`,li:`li`,p:`p`,ul:`ul`,...e.components};return(0,t.jsxs)(`section`,{children:[(0,t.jsx)(n.h2,{id:`policy-surface`,children:`Policy Surface`}),(0,t.jsx)(n.p,{children:`Codependence is strongest when it treats versions as project policy. Some
 surfaces are supported today; others are roadmap targets that should stay
 clearly marked until implemented.`}),(0,t.jsx)(n.h2,{id:`supported-today`,children:`Supported Today`}),(0,t.jsxs)(n.ul,{children:[`
 `,(0,t.jsxs)(n.li,{children:[(0,t.jsx)(n.code,{children:`package.json`}),` dependency sections for Node.js projects`]}),`

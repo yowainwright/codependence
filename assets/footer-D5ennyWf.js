@@ -1,4 +1,4 @@
-import{p as e}from"./index-C6Txvpzt.js";var t=e(),n=({yearText:e=`-${new Date().getFullYear()}`})=>(0,t.jsx)(t.Fragment,{children:e});function r(e){let r={a:`a`,h2:`h2`,li:`li`,p:`p`,ul:`ul`,...e.components};return(0,t.jsxs)(t.Fragment,{children:[(0,t.jsx)(r.h2,{id:`about-codependence`,children:`About Codependence`}),`
+import{p as e}from"./index-DzNaZBY9.js";var t=e(),n=({yearText:e=`-${new Date().getFullYear()}`})=>(0,t.jsx)(t.Fragment,{children:e});function r(e){let r={a:`a`,h2:`h2`,li:`li`,p:`p`,ul:`ul`,...e.components};return(0,t.jsxs)(t.Fragment,{children:[(0,t.jsx)(r.h2,{id:`about-codependence`,children:`About Codependence`}),`
 `,(0,t.jsx)(`section`,{children:(0,t.jsxs)(r.p,{children:[`Made by `,(0,t.jsx)(r.a,{href:`https://github.com/yowainwright`,children:`@yowainwright`}),` for fun with passion! MIT, 2022`,(0,t.jsx)(n,{})]})}),`
 `,(0,t.jsx)(r.h2,{id:`license`,children:`License`}),`
 `,(0,t.jsx)(r.p,{children:`Codependence is open source software licensed under the MIT License.`}),`
