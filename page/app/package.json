@@ -7,28 +7,33 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "astro dev --open",
-    "start": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@astrojs/mdx": "^7.0.1",
-    "@astrojs/react": "^6.0.0",
+    "@mdx-js/mdx": "^3.1.1",
+    "@shikijs/rehype": "^4.3.0",
     "@tailwindcss/vite": "^4.3.1",
-    "astro": "^7.0.5",
+    "@tanstack/react-router": "^1.170.16",
+    "@vitejs/plugin-react": "^6.0.3",
     "fuse.js": "^7.4.2",
+    "react-icons": "^5.5.0",
     "lucide-react": "^1.23.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "rehype-slug": "^6.0.0",
+    "remark-gfm": "^4.0.1",
+    "shiki": "^4.3.0"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.20",
+    "@types/node": "^26.0.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "daisyui": "^5.6.3",
     "tailwindcss": "^4.3.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^8.1.0"
   }
 }
