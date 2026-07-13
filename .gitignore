@@ -109,7 +109,6 @@ docs/app/page
 .turbo
 .perry-cache/
 .vscode
-.astro
 .DS_Store
 page/app/dist
 .kiro
