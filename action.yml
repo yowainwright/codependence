@@ -106,6 +106,7 @@ runs:
       id: codependence
       shell: bash
       env:
+        GITHUB_TOKEN: ${{ github.token }}
         INPUT_CODEDEPENDENCIES: ${{ inputs.codependencies }}
         INPUT_CONFIG: ${{ inputs.config }}
         INPUT_DRY_RUN: ${{ inputs.dryRun }}

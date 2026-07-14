@@ -24,21 +24,3 @@ assert_file_contains "$WORK_DIR/.github/workflows/ci.yml" "uses: actions/cache@0
 assert_file_contains "$WORK_DIR/.github/workflows/ci.yml" "uses: ./.github/actions/local" "local action preserved"
 assert_file_contains "$WORK_DIR/.github/workflows/ci.yml" "uses: docker://alpine:3.19" "docker action preserved"
 assert_file_unchanged_after_update "$WORK_DIR" "$WORK_DIR/.github/workflows/ci.yml" "github actions update is idempotent"
-
-make_tmp_dir
-mkdir -p "$WORK_DIR/.github/workflows"
-cp "$FIXTURE_DIR/github-actions-workflow.yml.fixture" "$WORK_DIR/.github/workflows/ci.yml"
-cat > "$WORK_DIR/.codependencerc" <<'JSON'
-{"mode":"verbose","codependencies":["actions/checkout"]}
-JSON
-
-assert_update_fails_unchanged "$WORK_DIR" "$WORK_DIR/.github/workflows/ci.yml" "github-actions provider requires explicit version pins" "github actions string codependency"
-
-make_tmp_dir
-mkdir -p "$WORK_DIR/.github/workflows"
-cp "$FIXTURE_DIR/github-actions-workflow.yml.fixture" "$WORK_DIR/.github/workflows/ci.yml"
-cat > "$WORK_DIR/.codependencerc" <<'JSON'
-{"mode":"precise"}
-JSON
-
-assert_update_fails_unchanged "$WORK_DIR" "$WORK_DIR/.github/workflows/ci.yml" "github-actions provider requires explicit version pins" "github actions precise mode"

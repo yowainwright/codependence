@@ -451,10 +451,16 @@ codependence --language docker
 codependence --language github-actions
 ```
 
-Docker and GitHub Actions providers currently support explicit pinned updates
-only. Use object codependencies such as `{"node":"24-slim"}` or
-`{"actions/checkout":"v5"}` with `mode: "verbose"`. Latest resolution and
-`mode: "precise"` are not enabled for those providers yet.
+<!-- provider capabilities from src/providers/*/index.ts -->
+
+The Docker provider currently supports explicit pinned updates only. Use object
+codependencies such as `{"node":"24-slim"}` with `mode: "verbose"`.
+
+The GitHub Actions provider supports explicit pins, latest release resolution,
+and `mode: "precise"`. Latest versions resolve to immutable commit SHAs, and
+existing version comments are refreshed with the release tag. Local and Docker
+actions remain unchanged. Authenticated lookups use `GITHUB_TOKEN` or `GH_TOKEN`
+when available.
 
 These providers are under active development. For stable usage, omit
 `--language` to use the default Node.js provider.

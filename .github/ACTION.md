@@ -54,8 +54,12 @@ Node.js package manifests are the stable default. The `go`, `python`, `rust`,
 `docker`, and `github-actions` providers are experimental while their manifest
 coverage and update semantics settle.
 
-Docker and GitHub Actions require explicit object pins in verbose mode. They do
-not resolve latest versions or support precise mode yet.
+<!-- provider capabilities from src/providers/*/index.ts -->
+
+Docker requires explicit object pins in verbose mode. GitHub Actions supports
+explicit pins, latest release resolution, and precise mode. Latest releases are
+pinned by immutable commit SHA. The action passes its GitHub token to
+Codependence for authenticated version lookups.
 
 ## Examples
 
@@ -102,6 +106,17 @@ not resolve latest versions or support precise mode yet.
   with:
     language: go
     config: '.codependencerc'
+```
+
+### GitHub Actions workflows
+
+```yaml
+- uses: yowainwright/codependence@v1
+  with:
+    language: github-actions
+    files: '.github/workflows/*.yml .github/workflows/*.yaml'
+    mode: precise
+    update: true
 ```
 
 ### Update and commit

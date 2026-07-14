@@ -1,6 +1,9 @@
 import type { SpinnerState, Spinner } from "./types";
 
 const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+const LINE_BREAKS = /[\r\n]+/g;
+
+const singleLineText = (text: string): string => text.replace(LINE_BREAKS, " ").trimEnd();
 
 const hideCursor = (): void => {
   process.stdout.write("\x1B[?25l");
@@ -44,8 +47,9 @@ const startInterval = (state: SpinnerState): SpinnerState => {
 };
 
 const writeSymbol = (symbol: string, text: string): void => {
+  const displayText = singleLineText(text);
   clearLine();
-  process.stdout.write(`${symbol} ${text}\n`);
+  process.stdout.write(`${symbol} ${displayText}\n`);
 };
 
 const start = (state: SpinnerState): Spinner => {
@@ -115,7 +119,7 @@ const createSpinnerMethods = (state: SpinnerState): Spinner => {
       return state.text;
     },
     set text(value: string) {
-      state.text = value;
+      state.text = singleLineText(value);
     },
     start: () => start(state),
     stop: () => stop(state),
@@ -128,7 +132,7 @@ const createSpinnerMethods = (state: SpinnerState): Spinner => {
 
 export const createSpinner = (text: string): Spinner => {
   const state: SpinnerState = {
-    text,
+    text: singleLineText(text),
     isSpinning: false,
     frameIndex: 0,
     interval: null,

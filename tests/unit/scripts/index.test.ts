@@ -1,8 +1,9 @@
 import { expect, test, jest, beforeEach } from "bun:test";
 import * as fs from "fs";
-import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { logger } from "../../../src/logger";
+import { GitHubActionsProvider } from "../../../src/providers/github-actions";
 import { NodeJSProvider } from "../../../src/providers/nodejs";
 import { versionCache, requestDeduplicator } from "../../../src/utils/cache";
 import * as scripts from "../../../src/scripts";
@@ -1737,15 +1738,21 @@ test("checkFiles => auto-detects GitHub Actions manifests", async () => {
   }
 });
 
-test("checkFiles => rejects GitHub Actions precise mode", async () => {
+test("checkFiles => supports GitHub Actions precise mode", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-precise");
   const workflowDir = join(tempDir, ".github", "workflows");
+  const workflowPath = join(workflowDir, "ci.yml");
+  const currentSha = "1".repeat(40);
+  const latestSha = "2".repeat(40);
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(workflowDir, { recursive: true });
   writeFileSync(
-    join(workflowDir, "ci.yml"),
-    "name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
+    workflowPath,
+    `name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@${currentSha}\n`,
   );
+  const latestVersionSpy = jest
+    .spyOn(GitHubActionsProvider.prototype, "getLatestVersion")
+    .mockResolvedValue(latestSha);
 
   try {
     await expect(
@@ -1753,24 +1760,32 @@ test("checkFiles => rejects GitHub Actions precise mode", async () => {
         rootDir: tempDir,
         files: [".github/workflows/ci.yml"],
         mode: "precise",
-        isTesting: true,
+        update: true,
         silent: true,
       }),
-    ).rejects.toThrow("github-actions provider requires explicit version pins");
+    ).resolves.toEqual([]);
+    expect(readFileSync(workflowPath, "utf8")).toContain(
+      `uses: actions/checkout@${latestSha}`,
+    );
   } finally {
+    latestVersionSpy.mockRestore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
-test("checkFiles => rejects GitHub Actions string codependencies", async () => {
+test("checkFiles => supports GitHub Actions string codependencies", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-string-deps");
   const workflowDir = join(tempDir, ".github", "workflows");
+  const workflowPath = join(workflowDir, "ci.yml");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(workflowDir, { recursive: true });
   writeFileSync(
-    join(workflowDir, "ci.yml"),
+    workflowPath,
     "name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
   );
+  const latestVersionSpy = jest
+    .spyOn(GitHubActionsProvider.prototype, "getLatestVersion")
+    .mockResolvedValue("v5");
 
   try {
     await expect(
@@ -1779,25 +1794,31 @@ test("checkFiles => rejects GitHub Actions string codependencies", async () => {
         rootDir: tempDir,
         files: [".github/workflows/ci.yml"],
         mode: "verbose",
-        isTesting: true,
+        update: true,
         silent: true,
       }),
-    ).rejects.toThrow("github-actions provider requires explicit version pins");
+    ).resolves.toEqual([]);
+    expect(readFileSync(workflowPath, "utf8")).toContain("uses: actions/checkout@v5");
   } finally {
+    latestVersionSpy.mockRestore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
-test("checkFiles => rejects GitHub Actions string codependencies in Node roots", async () => {
+test("checkFiles => resolves GitHub Actions dependencies in Node roots", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-node-root");
   const workflowDir = join(tempDir, ".github", "workflows");
+  const workflowPath = join(workflowDir, "ci.yml");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(workflowDir, { recursive: true });
   writeFileSync(join(tempDir, "package.json"), '{"dependencies":{"lodash":"4.17.21"}}\n');
   writeFileSync(
-    join(workflowDir, "ci.yml"),
+    workflowPath,
     "name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
   );
+  const latestVersionSpy = jest
+    .spyOn(GitHubActionsProvider.prototype, "getLatestVersion")
+    .mockResolvedValue("v5");
 
   try {
     await expect(
@@ -1806,11 +1827,13 @@ test("checkFiles => rejects GitHub Actions string codependencies in Node roots",
         rootDir: tempDir,
         files: [".github/workflows/ci.yml"],
         mode: "verbose",
-        isTesting: true,
+        update: true,
         silent: true,
       }),
-    ).rejects.toThrow("github-actions provider requires explicit version pins");
+    ).resolves.toEqual([]);
+    expect(readFileSync(workflowPath, "utf8")).toContain("uses: actions/checkout@v5");
   } finally {
+    latestVersionSpy.mockRestore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });

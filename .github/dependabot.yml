@@ -8,15 +8,6 @@ updates:
       - "tests/**"
       - "page/app/tests/**"
 
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    groups:
-      codeql:
-        patterns:
-          - "github/codeql-action*"
-
   - package-ecosystem: "docker"
     directory: "/tests/e2e"
     schedule:

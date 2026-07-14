@@ -1,0 +1,11 @@
+{
+  "files": [
+    "action.yml",
+    ".github/actions/*/action.yml",
+    ".github/actions/*/action.yaml",
+    ".github/workflows/*.yml",
+    ".github/workflows/*.yaml"
+  ],
+  "language": "github-actions",
+  "mode": "precise"
+}
