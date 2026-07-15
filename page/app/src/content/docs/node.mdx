@@ -55,8 +55,6 @@ interface CodependenceOptions {
   silent?: boolean;
   verbose?: boolean;
   quiet?: boolean;
-  config?: string;
-  searchPath?: string;
   yarnConfig?: boolean;
   permissive?: boolean;
 }
@@ -89,15 +87,10 @@ await codependence({
 });
 ```
 
-### Using with Configuration File
+### Repository configuration
 
-```ts
-import { codependence } from "codependence";
-
-await codependence({
-  config: "./codependence.config.json",
-});
-```
+The CLI and GitHub Action automatically load the root `.codependencerc`. The
+Node API accepts policy options directly for custom tooling.
 
 ## Return Values
 

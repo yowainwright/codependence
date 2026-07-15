@@ -39,21 +39,6 @@
     "codependence": "dist/cli.js",
     "cdp": "dist/cli.js"
   },
-  "codependence": {
-    "codependencies": [
-      "@perryts/perry",
-      "bun-types",
-      "oxfmt",
-      "oxlint",
-      "pastoralist",
-      "prettier",
-      "release-it",
-      "turbo",
-      {
-        "typescript": "^5.9.3"
-      }
-    ]
-  },
   "engines": {
     "node": ">=20"
   },

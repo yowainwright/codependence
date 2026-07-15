@@ -9,9 +9,9 @@ description: Command Line Interface for Codependence
 
 CLI-first policy tool for checking, reporting, and updating dependency versions.
 
-Install as a devDependency and use a `codependence.codependencies` array to define dependencies to keep updated or pinned.
+Install as a root devDependency and define every manager policy in one root `.codependencerc`.
 
-For monorepos, add `codependence.codependencies` arrays to child packages for package-specific version control.
+For monorepos, scope manager targets with `files` or `rootDir`. Running `codependence` loads the config once and executes every target.
 
 ## Command Line Usage
 
@@ -81,7 +81,7 @@ codependence init package
 
 ### Configuration Options
 
-- `-c, --config <config>` - Path to a configuration file
+- `-c, --config <config>` - Path to an alternate config file; `.codependencerc` is auto-discovered
 - `-cds, --codependencies [deps...]` - Specify dependencies to check inline
 - `-y, --yarnConfig` - Enable yarn configuration support
 
@@ -105,7 +105,7 @@ codependence init package
 
 Node.js package manifests are stable. The `go`, `python`, `rust`, `docker`, and `github-actions` providers are experimental while manifest coverage and update semantics settle.
 
-Docker and GitHub Actions require explicit object pins in verbose mode. They do not resolve latest versions yet.
+Docker requires explicit object pins in verbose mode. GitHub Actions supports explicit pins, latest release resolution, and precise mode.
 
 ### Testing Options
 

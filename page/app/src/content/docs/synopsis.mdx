@@ -7,9 +7,9 @@ description: "A summary of Codependence"
 
 ## Synopsis
 
-CLI and Node tool that compares a `codependencies` policy against `package.json` dependencies, devDependencies, peerDependencies, and optionalDependencies.
+Dependency-policy CLI that loads one `.codependencerc` and checks each configured manager against its manifests, images, or workflow references.
 
-For each dependency: checks if versions are current or match specified versions. Returns pass/fail or auto-updates manifest files.
+For each target, Codependence checks whether versions are current or match the configured policy. It returns pass/fail or updates supported files.
 
 Ensures important dependency versions are intentional: current where they should move, pinned where they should not, and consistent across a repo or monorepo.
 

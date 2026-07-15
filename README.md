@@ -8,9 +8,9 @@
 [![codecov](https://codecov.io/gh/yowainwright/codependence/branch/main/graph/badge.svg)](https://codecov.io/gh/yowainwright/codependence)
 [![GitHub stars](https://img.shields.io/github/stars/yowainwright/codependence?style=social)](https://github.com/yowainwright/codependence)
 
-#### Enforce dependency version policy wherever your project needs it.
+#### One `.codependencerc` for every dependency manager.
 
-**Codependence** is a CLI and Node API for checking, reporting, and updating dependency versions from a project-defined policy. Use it when versions need to be consistent across package manifests, monorepos, local development, or CI jobs.
+**Codependence** checks, reports, and updates dependency versions from one repository policy. A root `.codependencerc` can manage Node, Python, Go, Rust, Docker, and GitHub Actions dependencies independently across local development and CI.
 
 ---
 
@@ -18,7 +18,7 @@
 
 #### Keep important versions intentional
 
-Codependence checks `package.json` dependencies against a `codependencies` policy. It can either keep only listed packages current, or pin listed packages while updating everything else.
+Codependence loads one `.codependencerc` and applies each manager-specific target to its own files. It can keep only listed dependencies current or pin selected dependencies while updating everything else.
 
 The difference from `{npm,pnpm} update` or `yarn upgrade` is that Codependence gives you an explicit policy surface: _these versions matter, these packages may move, and CI should fail when the repo drifts_.
 
@@ -71,13 +71,20 @@ bun run skills:install:claude:local
 
 #### Quick setup
 
-Check and update only specific packages:
+Create the recommended root `.codependencerc` with [manager targets](#one-codependencerc-every-manager), then run every configured manager:
+
+```sh
+codependence
+codependence --update
+```
+
+For a one-off check without a config:
 
 ```sh
 codependence --codependencies 'react' 'lodash' --update
 ```
 
-Or use it with a config in the root `package.json` file
+Legacy projects can embed the policy in the root `package.json`:
 
 ```ts
 {
@@ -110,7 +117,7 @@ codependence --permissive --codependencies 'react' 'lodash' --dryRun
 Quickly set up Codependence in your project with the interactive init command:
 
 ```sh
-# Interactive setup with permissive mode by default - recommended!
+# Create the recommended root .codependencerc interactively
 codependence init
 
 # Create .codependencerc with all dependencies pinned (legacy mode)
@@ -119,7 +126,7 @@ codependence init rc
 # Create .codependencerc with listed dependencies pinned
 codependence init rc react lodash
 
-# Add configuration to package.json with all dependencies pinned (legacy mode)
+# Legacy: add configuration to package.json with all dependencies pinned
 codependence init package
 ```
 
@@ -130,7 +137,7 @@ The init command will:
 - Let you choose your dependency policy strategy:
   - 🚀 **Permissive mode** (default/recommended): Update all to latest, pin specific ones
   - 🔒 **Pin all mode**: Keep all dependencies at current versions
-- Create either a `.codependencerc` file or add config to `package.json`
+- Recommend `.codependencerc`, with embedded `package.json` configuration retained for legacy projects
 - Provide clear next steps for running Codependence
 - Handle edge cases like missing files or invalid JSON gracefully
 
@@ -158,9 +165,9 @@ bun test --coverage        # Run with coverage report
 
 **Codependence** is built as a CLI-first policy tool.
 
-It is recommended to install and set up **Codependence** as a `devDependency` within your root `package.json` and use a `codependence.codependencies` array to define dependencies you need to keep updated or pinned to a specific version.
+Install **Codependence** as a root `devDependency` and keep repository policy in one root `.codependencerc`.
 
-Furthermore, you can add a `codependence.codependencies` array to child packages' `package.json` in your monorepo to ensure specific dependencies are pinned to specific versions within your monorepo packages.
+For monorepos and mixed-language repositories, add manager targets with their own `files`, `rootDir`, and policy fields. The CLI loads the config once and executes every target.
 
 ```sh
 Usage: codependence [command] [options]
@@ -223,20 +230,54 @@ checkForOutdated();
 
 ## Configuration Options
 
-Codependence **options** can be used via CLI options, a config file read from the CLI, or with node by passing them into exported Codependence functions. Read more below!
+`.codependencerc` is the primary configuration surface. Keep manager policies in the file and use CLI flags for execution choices such as checking, updating, or formatting output.
+
+---
+
+### One `.codependencerc`, every manager
+
+<!-- manager target config shape from src/types.ts and src/config/targets.ts -->
+
+The root `targets` array holds independent manager policies. Each target gets
+its own files, policy, and version resolver, and Codependence runs all targets
+from the same config.
+
+```json
+{
+  "targets": [
+    {
+      "manager": "bun",
+      "files": ["package.json"],
+      "codependencies": ["typescript"]
+    },
+    {
+      "manager": "github-actions",
+      "files": ["action.yml", ".github/workflows/*.yml"],
+      "mode": "precise"
+    }
+  ]
+}
+```
+
+Supported managers are `bun`, `npm`, `pnpm`, `yarn`, `conda`, `pip`,
+`pipenv`, `poetry`, `uv`, `go`, `rust`, `docker`, and `github-actions`.
+Execution options such as `update`, `dryRun`, `format`, and `noCache` stay at
+the root and apply to every target. Legacy flat and embedded `package.json`
+configurations remain supported, but new projects should use `.codependencerc`.
+Target-scoped fields cannot be mixed beside `targets`.
 
 ---
 
 ### `codependencies`: `Array<string | Record<string, string>`
 
-A **required** option or \*config array! **Codependencies** are required via being passed in an array as a cli option \*\*or as within a `codependence.codependencies` array.
+`codependencies` is a target-scoped policy array. String entries track the latest version; object entries pin an exact version or range.
 
 - The default value is `undefined`
 - An array is required!
 
 ---
 
-### \*Config Array Detail
+### Version policy entries
 
 The Codependence `codependencies` array supports `latest` out-of-the-box.
 
@@ -246,9 +287,9 @@ The Codependence `codependencies` array supports `latest` out-of-the-box.
 
 ---
 
-### Using the `codependence.codependencies` array in Monorepo child packages
+### Legacy embedded monorepo policies
 
-You can add a `codependence.codependencies` array to child packages in your monorepo to ensure specific dependencies are pinned to a specific different versions within your monorepo packages.
+New monorepos should define manager targets in the root `.codependencerc` and scope them with `files` or `rootDir`. Embedded `codependence.codependencies` arrays in child `package.json` files remain supported for compatibility.
 
 #### For example
 
@@ -290,7 +331,7 @@ Codependencies will install the right dependency version for each package in you
 
 ### `files`: `Array<string>`
 
-An **optional** array of strings to check for `package.json` files to update.
+An optional array of manifest or workflow glob patterns for a target.
 
 - The default value is `['package.json']`
 - This array accepts glob patterns as well, example `["package.json", "**/package.json"`
@@ -299,7 +340,7 @@ An **optional** array of strings to check for `package.json` files to update.
 
 ### `update`: `boolean`
 
-An **optional** boolean which defines whether **Codependence** should update dependencies in `package.json`'s or not.
+An optional root boolean that applies approved dependency updates across every target.
 
 - The default value is `false`
 
@@ -340,7 +381,7 @@ An **optional** boolean value used to enable a more silent developer experience
 
 ### `config`: `string`
 
-An **optional** string containing a package to file which contains `codependence` config.
+An optional path to an alternate config file. Without it, Codependence searches for `.codependencerc` from the current directory upward.
 
 - The default is `undefined`
 
@@ -439,9 +480,8 @@ An **optional** path to write formatted output to a file instead of stdout. Requ
 
 ### Multi-language support (experimental)
 
-Node.js package manifests are the stable default. Codependence includes
-experimental support for non-Node dependency manifests via the `--language`
-flag:
+Declare each ecosystem through a manager target in `.codependencerc`. The
+`--language` flag remains available for one-off and legacy single-target runs:
 
 ```sh
 codependence --language python
@@ -462,8 +502,8 @@ existing version comments are refreshed with the release tag. Local and Docker
 actions remain unchanged. Authenticated lookups use `GITHUB_TOKEN` or `GH_TOKEN`
 when available.
 
-These providers are under active development. For stable usage, omit
-`--language` to use the default Node.js provider.
+Non-Node providers remain experimental, but stable and experimental managers
+can share the same `targets` array.
 
 ---
 
@@ -471,9 +511,9 @@ These providers are under active development. For stable usage, omit
 
 Listed below are some common patterns (recipes) for using **Codependence**.
 
-### Don't want a config? No problem!
+### One-off checks without `.codependencerc`
 
-Starting out, you may not want a config object. Have no fear, **Codependence** can be used as a CLI utility ONLY!
+CLI policy flags remain available for temporary checks and scripts that do not need a repository policy.
 
 ```sh
 codependence --codependencies 'lodash' '{ \"fs-extra\": \"10.0.1\" }'
@@ -497,7 +537,7 @@ codependence --permissive --codependencies 'react' 'lodash' --update
 
 ## Synopsis
 
-Codependence is a JavaScript utility CLI and Node tool that compares a `codependencies` policy against `package.json` `dependencies`, `devDependencies`, `peerDependencies`, and `optionalDependencies`.
+Codependence is a dependency-policy CLI that loads one `.codependencerc` and checks each configured manager against its manifests, images, or workflow references.
 
 For each dependency included in the `codependencies` array, Codependence will either **a)** check that versions are at `latest` or **b)** check that a specified version is matched within manifest files. Codependence can either **a)** return a pass/fail result _or_ **b)** update dependency versions in manifest file(s).
 
@@ -525,9 +565,9 @@ Codependence currently focuses on package manifests and dependency sections. The
 
 ---
 
-#### \*Codependencies are project dependencies which **must be** up-to-date or set to a specific version!
+#### Codependencies are project dependencies that must stay current or match a specified version.
 
-For example, if your repository requires the latest version and `latest` can't be specified as the dependency version within your `package.json`, Codependence will ensure your `package.json` has the **actual latest semver version** set in your `package.json`. It can do the same if an exact version is specified.
+When a manifest cannot use `latest` directly, Codependence writes the resolved version required by the target's policy. Exact versions and supported ranges remain explicit in `.codependencerc`.
 
 ---
 
@@ -538,7 +578,7 @@ For example, if your repository requires the latest version and `latest` can't b
 - It gives teams a small, explicit policy for versions that must stay current or pinned.
 - It can fail CI when dependency versions drift.
 - It can update only listed packages, or update everything except listed packages.
-- It handles monorepo child package dependencies with package-specific policy.
+- It manages multiple dependency managers and monorepo scopes from one `.codependencerc`.
 - It runs locally, from npm scripts, in GitHub Actions, or in other CI providers.
 - It exposes a Node API for custom workflows and internal tooling.
 

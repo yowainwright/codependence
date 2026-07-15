@@ -3,7 +3,78 @@
   "title": "Codependence Configuration",
   "description": "Configuration for managing dependency versions across your project",
   "type": "object",
+  "additionalProperties": false,
+  "definitions": {
+    "manager": {
+      "type": "string",
+      "enum": [
+        "bun",
+        "npm",
+        "pnpm",
+        "yarn",
+        "conda",
+        "pip",
+        "pipenv",
+        "poetry",
+        "uv",
+        "go",
+        "rust",
+        "docker",
+        "github-actions"
+      ]
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manager"],
+      "properties": {
+        "manager": {
+          "$ref": "#/definitions/manager"
+        },
+        "codependencies": {
+          "$ref": "#/properties/codependencies"
+        },
+        "permissive": {
+          "$ref": "#/properties/permissive"
+        },
+        "files": {
+          "$ref": "#/properties/files"
+        },
+        "ignore": {
+          "$ref": "#/properties/ignore"
+        },
+        "level": {
+          "$ref": "#/properties/level"
+        },
+        "mode": {
+          "$ref": "#/properties/mode"
+        },
+        "rootDir": {
+          "$ref": "#/properties/rootDir"
+        }
+      },
+      "anyOf": [
+        {
+          "required": ["codependencies"]
+        },
+        {
+          "required": ["permissive"]
+        },
+        {
+          "required": ["mode"]
+        }
+      ]
+    }
+  },
   "properties": {
+    "targets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/target"
+      },
+      "description": "Independent dependency policies grouped by manager"
+    },
     "codependencies": {
       "description": "List of dependencies to pin at specific versions",
       "oneOf": [
@@ -37,7 +108,7 @@
     },
     "language": {
       "type": "string",
-      "enum": ["nodejs", "python", "go"],
+      "enum": ["nodejs", "python", "go", "rust", "docker", "github-actions"],
       "description": "Target programming language for dependency management (experimental)"
     },
     "files": {
@@ -130,7 +201,27 @@
       "description": "Write output to file instead of stdout"
     }
   },
+  "dependencies": {
+    "targets": {
+      "not": {
+        "anyOf": [
+          { "required": ["codependencies"] },
+          { "required": ["permissive"] },
+          { "required": ["language"] },
+          { "required": ["files"] },
+          { "required": ["ignore"] },
+          { "required": ["level"] },
+          { "required": ["mode"] },
+          { "required": ["rootDir"] },
+          { "required": ["yarnConfig"] }
+        ]
+      }
+    }
+  },
   "anyOf": [
+    {
+      "required": ["targets"]
+    },
     {
       "required": ["codependencies"]
     },

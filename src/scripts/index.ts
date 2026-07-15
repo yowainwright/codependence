@@ -8,6 +8,7 @@ import {
   LANGUAGES,
   MANIFEST_FILES,
   NODE_PACKAGE_MANAGERS,
+  PYTHON_PACKAGE_MANAGERS,
   NodeJSProvider,
   PYTHON_MANIFEST_FILES,
   PythonProvider,
@@ -56,6 +57,7 @@ const DEFAULT_FILE_MATCHERS: Record<SupportedLanguage, string[]> = {
 const PYTHON_MANIFEST_NAMES = new Set<string>(PYTHON_MANIFEST_FILES);
 const VERSION_RESOLUTION_CONCURRENCY = 8;
 const SUPPORTED_LANGUAGE_NAMES = new Set<string>(Object.values(LANGUAGES));
+const NODE_MANAGER_NAMES = new Set<string>(Object.values(NODE_PACKAGE_MANAGERS));
 
 const isSupportedLanguageName = (language: string | undefined): language is SupportedLanguage => {
   if (!language) return false;
@@ -151,10 +153,35 @@ const resolveMatchers = (
   return DEFAULT_FILE_MATCHERS[resolveTargetLanguage(rootDir, language)];
 };
 
+const resolveNodeManager = (
+  filePath: string,
+  options: Pick<CheckFiles, "yarnConfig" | "packageManager">,
+): string => {
+  if (options.yarnConfig) return NODE_PACKAGE_MANAGERS.YARN;
+
+  const requestedManager = options.packageManager;
+  if (requestedManager && NODE_MANAGER_NAMES.has(requestedManager)) {
+    return requestedManager;
+  }
+
+  return detectNodePackageManager(dirname(filePath));
+};
+
+const resolvePythonManager = (
+  filePath: string,
+  requestedManager?: string,
+): PythonPackageManager => {
+  const pythonManagers = Object.values(PYTHON_PACKAGE_MANAGERS);
+  const isPythonManager = pythonManagers.includes(requestedManager as PythonPackageManager);
+  if (isPythonManager) return requestedManager as PythonPackageManager;
+
+  return detectPythonPackageManagerForManifest(filePath) as PythonPackageManager;
+};
+
 const createProvider = (
   language: SupportedLanguage,
   filePath: string,
-  options: Pick<CheckFiles, "debug" | "yarnConfig" | "isTesting">,
+  options: Pick<CheckFiles, "debug" | "yarnConfig" | "isTesting" | "packageManager">,
 ): { provider: DependencyProvider; packageManager: string } => {
   const providerOptions = {
     debug: options.debug,
@@ -164,9 +191,7 @@ const createProvider = (
 
   switch (language) {
     case LANGUAGES.NODEJS: {
-      const packageManager = options.yarnConfig
-        ? NODE_PACKAGE_MANAGERS.YARN
-        : detectNodePackageManager(dirname(filePath));
+      const packageManager = resolveNodeManager(filePath, options);
       return {
         provider: new NodeJSProvider({
           ...providerOptions,
@@ -196,9 +221,7 @@ const createProvider = (
         packageManager: LANGUAGES.GITHUB_ACTIONS,
       };
     case LANGUAGES.PYTHON: {
-      const packageManager = detectPythonPackageManagerForManifest(
-        filePath,
-      ) as PythonPackageManager;
+      const packageManager = resolvePythonManager(filePath, options.packageManager);
       return {
         provider: new PythonProvider(filePath, packageManager, providerOptions),
         packageManager,
@@ -210,7 +233,10 @@ const createProvider = (
 const loadManifests = (
   files: string[],
   rootDir: string,
-  options: Pick<CheckFiles, "language" | "debug" | "yarnConfig" | "isTesting">,
+  options: Pick<
+    CheckFiles,
+    "language" | "debug" | "yarnConfig" | "isTesting" | "packageManager"
+  >,
 ): LoadedManifest[] =>
   files.map((file) => {
     const path = resolveManifestPath(rootDir, file);
@@ -336,7 +362,10 @@ const detectStaleCodependenciesFromManifests = (
 const createVersionResolver = (
   manifests: LoadedManifest[],
   rootDir: string,
-  options: Pick<CheckFiles, "language" | "debug" | "yarnConfig" | "isTesting">,
+  options: Pick<
+    CheckFiles,
+    "language" | "debug" | "yarnConfig" | "isTesting" | "packageManager"
+  >,
 ): {
   provider: DependencyProvider;
   resolveVersion: (packageName: string) => Promise<string>;
@@ -1287,6 +1316,8 @@ export const checkFiles = async ({
   onProgress,
   level = "major",
   mode,
+  packageManager,
+  deferFailure = false,
 }: CheckFiles): Promise<VersionDiff[] | void> => {
   try {
     const resolvedRootDir = resolve(rootDir);
@@ -1300,12 +1331,14 @@ export const checkFiles = async ({
       debug,
       yarnConfig,
       isTesting,
+      packageManager,
     });
     const versionResolver = createVersionResolver(manifests, resolvedRootDir, {
       language,
       debug,
       yarnConfig,
       isTesting,
+      packageManager,
     });
     const validate = createPackageValidator(versionResolver.provider);
     const effectiveMode = resolveEffectiveMode({
@@ -1406,7 +1439,7 @@ export const checkFiles = async ({
       versionMap = result.versionMap;
     }
 
-    const shouldDeferFailure = format !== undefined;
+    const shouldDeferFailure = format !== undefined || deferFailure;
     const isOutOfDate = await checkLoadedManifests({
       manifests,
       versionMap,

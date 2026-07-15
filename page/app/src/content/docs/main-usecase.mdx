@@ -7,14 +7,15 @@ description: Keep important versions intentional
 
 ## Main Use Case
 
-Use Codependence when dependency versions are part of your project policy. It can check only the dependencies you list, or pin listed dependencies while updating everything else.
+Use Codependence when dependency versions are part of your project policy. One root `.codependencerc` can define independent targets for every dependency manager in the repository.
 
 ## Key Features
 
 - **Policy checks:** Fail when versions drift from your `codependencies` policy
+- **One config:** Run every dependency manager from the same `.codependencerc`
 - **Version pinning:** Keep selected packages at exact, `~`, or `^` versions
 - **Permissive updates:** Pin critical packages while the rest move forward
-- **Monorepo support:** Apply root and package-specific policies across workspaces
+- **Monorepo support:** Scope manager targets by files or root directory
 
 ## Why This Matters
 

@@ -698,6 +698,55 @@ describe("validateConfig", () => {
       expect(result.errors).toEqual([]);
     });
   });
+
+  describe("manager targets", () => {
+    it("accepts independent manager policies", () => {
+      const config = {
+        update: true,
+        targets: [
+          {
+            manager: "bun",
+            files: ["package.json"],
+            codependencies: ["typescript"],
+          },
+          {
+            manager: "github-actions",
+            files: [".github/workflows/*.yml"],
+            mode: "precise",
+          },
+        ],
+      };
+
+      expect(validateConfig(config)).toEqual({ valid: true, errors: [] });
+    });
+
+    it("rejects invalid and missing managers", () => {
+      const config = {
+        targets: [
+          { manager: "composer", mode: "precise" },
+          { mode: "precise" },
+        ],
+      };
+
+      const result = validateConfig(config);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.map(({ field }) => field)).toContain("targets[0].manager");
+      expect(result.errors.map(({ field }) => field)).toContain("targets[1].manager");
+    });
+
+    it("rejects target policy fields at the root", () => {
+      const config = {
+        mode: "precise",
+        targets: [{ manager: "bun", mode: "precise" }],
+      };
+
+      const result = validateConfig(config);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].message).toContain("cannot be used beside");
+    });
+  });
 });
 
 describe("formatValidationErrors", () => {

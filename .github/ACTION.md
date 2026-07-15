@@ -1,8 +1,10 @@
 # Codependence GitHub Action
 
-Use Codependence in your GitHub Actions workflows to enforce dependency version policy and optionally update mismatched manifests.
+Use Codependence in GitHub Actions to enforce every manager policy from the repository's root `.codependencerc`. The action discovers that file automatically and can optionally update mismatched manifests.
 
 ## Quick Start
+
+Commit `.codependencerc`, then run the action without repeating policy in workflow YAML:
 
 ```yaml
 name: Check Dependencies
@@ -14,9 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: yowainwright/codependence@v1
-        with:
-          permissive: true
-          codependencies: 'react lodash'
 ```
 
 ## Inputs
@@ -24,7 +23,7 @@ jobs:
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `codependencies` | Space-separated dependencies to check | No | - |
-| `config` | Path to config file | No | - |
+| `config` | Path to an alternate config file; root `.codependencerc` is auto-discovered | No | - |
 | `files` | File glob patterns (space-separated) | No | - |
 | `update` | Update dependencies | No | `false` |
 | `dryRun` | Preview changes without modifying files | No | `false` |
@@ -63,14 +62,10 @@ Codependence for authenticated version lookups.
 
 ## Examples
 
-### Check only (fail on outdated)
+### Check repository policy
 
 ```yaml
 - uses: yowainwright/codependence@v1
-  with:
-    permissive: true
-    codependencies: 'react lodash'
-    fail-on-outdated: true
 ```
 
 ### Update dependencies
@@ -79,43 +74,47 @@ Codependence for authenticated version lookups.
 - uses: yowainwright/codependence@v1
   with:
     update: true
-    permissive: true
-    codependencies: 'react @types/node'
 ```
 
-### Monorepo with config
+### Alternate config path
 
 ```yaml
 - uses: yowainwright/codependence@v1
   with:
-    config: '.codependencerc'
-    files: 'package.json **/package.json'
+    config: 'config/dependency-policy.json'
 ```
 
-### Experimental Python or Go
+### Python, Go, and other managers
+
+Add each manager to the root `.codependencerc`. The same action invocation runs
+all configured targets.
+
+### Multiple managers in one config
+
+<!-- manager target config shape from src/types.ts and src/config/targets.ts -->
+
+`.codependencerc`:
+
+```json
+{
+  "targets": [
+    {
+      "manager": "bun",
+      "files": ["package.json"],
+      "mode": "precise"
+    },
+    {
+      "manager": "github-actions",
+      "files": ["action.yml", ".github/workflows/*.yml"],
+      "mode": "precise"
+    }
+  ]
+}
+```
 
 ```yaml
 - uses: yowainwright/codependence@v1
   with:
-    language: python
-    config: '.codependencerc'
-```
-
-```yaml
-- uses: yowainwright/codependence@v1
-  with:
-    language: go
-    config: '.codependencerc'
-```
-
-### GitHub Actions workflows
-
-```yaml
-- uses: yowainwright/codependence@v1
-  with:
-    language: github-actions
-    files: '.github/workflows/*.yml .github/workflows/*.yaml'
-    mode: precise
     update: true
 ```
 
@@ -125,8 +124,6 @@ Codependence for authenticated version lookups.
 - uses: yowainwright/codependence@v1
   with:
     update: true
-    permissive: true
-    codependencies: 'react'
 
 - run: |
     git config --local user.email "action@github.com"
@@ -142,7 +139,6 @@ Codependence for authenticated version lookups.
 - uses: yowainwright/codependence@v1
   id: check
   with:
-    permissive: true
     fail-on-outdated: false
 
 - if: steps.check.outputs.outdated == 'true'

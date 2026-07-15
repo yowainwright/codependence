@@ -6,11 +6,23 @@ import { createSpinner } from "./utils/spinner";
 import { cyan, bold, green, gray, red } from "./utils/colors";
 import { SYMBOLS } from "./utils/symbols";
 import { Prompt } from "./utils/prompts";
-import { formatValidationErrors, loadConfig, validateConfig } from "./config";
+import {
+  expandTargets,
+  formatValidationErrors,
+  loadConfig,
+  validateConfig,
+} from "./config";
 import { parseArgs, showHelp } from "./cli/parser";
 import { format } from "./utils/formatters";
 import { MANIFEST_FILES } from "./providers/constants";
-import { Options, PackageJSON, CodependenceConfig, DependencyInfo } from "./types";
+import {
+  Options,
+  PackageJSON,
+  CodependenceConfig,
+  DependencyInfo,
+  CheckFiles,
+  VersionDiff,
+} from "./types";
 
 const gradient = (text: string) => bold(cyan(text));
 const CLI_ERROR_EXIT_CODE = 2;
@@ -60,13 +72,38 @@ const publicConfigOptions = (options: Options): Record<string, unknown> =>
     Object.entries(options).filter(([key]) => !internalOptionFields.has(key)),
   );
 
+const targetOverrideFields = [
+  "codependencies",
+  "files",
+  "ignore",
+  "language",
+  "level",
+  "mode",
+  "permissive",
+  "rootDir",
+  "yarnConfig",
+] as const;
+
+const omitOverriddenTargets = (
+  config: Record<string, unknown>,
+  options: Options,
+): Record<string, unknown> => {
+  const hasTargetOverride = targetOverrideFields.some(
+    (field) => options[field] !== undefined,
+  );
+  if (!hasTargetOverride) return config;
+
+  const { targets: _targets, ...flatConfig } = config;
+  return flatConfig;
+};
+
 export const mergeConfigs = (
   options: Options,
   baseConfig: Record<string, unknown>,
   pathConfig: Record<string, unknown>,
 ): Options => {
   const hasPathConfig = Object.keys(pathConfig).length > 0;
-  const effectiveBaseConfig = hasPathConfig ? {} : baseConfig;
+  const selectedBaseConfig = hasPathConfig ? {} : baseConfig;
   const hasCodependenceKey =
     pathConfig?.codependence !== undefined &&
     typeof pathConfig.codependence === "object" &&
@@ -74,10 +111,18 @@ export const mergeConfigs = (
   const normalizedPathConfig = hasCodependenceKey
     ? (pathConfig.codependence as Record<string, unknown>)
     : pathConfig;
+  const effectiveBaseConfig = omitOverriddenTargets(
+    selectedBaseConfig,
+    options,
+  );
+  const effectivePathConfig = omitOverriddenTargets(
+    normalizedPathConfig,
+    options,
+  );
 
   const updatedConfig = {
     ...effectiveBaseConfig,
-    ...normalizedPathConfig,
+    ...effectivePathConfig,
     ...options,
     isCLI: true,
   };
@@ -98,6 +143,42 @@ const validateEffectiveConfig = (options: Options): void => {
   if (result.valid) return;
 
   throw new Error(`Invalid config\n${formatValidationErrors(result.errors)}`);
+};
+
+const withDefaultMode = (options: Options): Options => {
+  if (options.targets || options.mode) return options;
+
+  const hasCodependencies = Boolean(options.codependencies?.length);
+  if (options.permissive === true) return { ...options, mode: "precise" };
+  if (options.permissive === false || hasCodependencies) {
+    return { ...options, mode: "verbose" };
+  }
+
+  return { ...options, mode: "precise" };
+};
+
+type ProgressHandler = NonNullable<CheckFiles["onProgress"]>;
+
+const runTarget = async (
+  allDiffs: VersionDiff[],
+  options: CheckFiles,
+  onProgress: ProgressHandler,
+  deferFailure: boolean,
+): Promise<VersionDiff[]> => {
+  const diffs = await checkFiles({ ...options, onProgress, deferFailure });
+  return diffs ? [...allDiffs, ...diffs] : allDiffs;
+};
+
+const runTargets = (
+  targets: CheckFiles[],
+  onProgress: ProgressHandler,
+): Promise<VersionDiff[]> => {
+  const deferFailure = targets.length > 1;
+  return targets.reduce(
+    async (result, target) =>
+      runTarget(await result, target, onProgress, deferFailure),
+    Promise.resolve([] as VersionDiff[]),
+  );
 };
 
 const loadActionConfigs = (
@@ -138,7 +219,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
   const logger = createLogger(loggerConfig);
 
   const { baseConfig, pathConfig } = loadActionConfigs(options);
-  const updatedOptions = mergeConfigs(options, baseConfig, pathConfig);
+  const mergedOptions = mergeConfigs(options, baseConfig, pathConfig);
 
   const isTestingCLI =
     (options as Record<string, unknown>).isTestingCLI === true;
@@ -147,41 +228,31 @@ export async function action(options: Options = {}): Promise<void | Options> {
 
   // capture/test CLI options
   if (isTestingCLI) {
-    console.info({ updatedOptions });
+    console.info({ updatedOptions: mergedOptions });
     return;
   }
 
   // capture action unit test options
-  if (isTestingAction) return updatedOptions;
+  if (isTestingAction) return mergedOptions;
 
   let spinner: ReturnType<typeof createSpinner> | null = null;
 
   try {
-    const hasCodependencies =
-      Array.isArray(updatedOptions.codependencies) &&
-      updatedOptions.codependencies.length > 0;
-    const hasNoExplicitMode = !updatedOptions.mode;
-    if (hasNoExplicitMode) {
-      if (updatedOptions.permissive === true) {
-        updatedOptions.mode = "precise";
-      } else if (updatedOptions.permissive === false || hasCodependencies) {
-        updatedOptions.mode = "verbose";
-      } else {
-        updatedOptions.mode = "precise";
-      }
-    }
-
+    const updatedOptions = withDefaultMode(mergedOptions);
     validateEffectiveConfig(updatedOptions);
+    const targets = expandTargets(updatedOptions);
 
     const isDryRun = updatedOptions.dryRun === true;
     const isWatchMode = updatedOptions.watch === true;
 
     if (isDryRun) {
-      console.log(cyan(`\n${SYMBOLS.info} Dry run - no files will be modified\n`));
+      console.log(
+        cyan(`\n${SYMBOLS.info} Dry run - no files will be modified\n`),
+      );
     }
 
     if (isWatchMode) {
-      await runWatchMode(updatedOptions);
+      await runWatchMode(targets);
       return;
     }
 
@@ -202,10 +273,10 @@ export async function action(options: Options = {}): Promise<void | Options> {
       },
     };
 
-    const diffs = await checkFiles(optionsWithProgress);
+    const diffs = await runTargets(targets, optionsWithProgress.onProgress);
     const duration = Date.now() - startTime;
 
-    if (shouldUseFormatter && diffs) {
+    if (shouldUseFormatter) {
       const dependencyInfo: DependencyInfo[] = diffs.map((diff) => ({
         name: diff.package,
         current: diff.current,
@@ -271,14 +342,20 @@ const showPerformanceMetrics = (duration: number): void => {
   lines.forEach((line) => console.log(line));
 };
 
-const runWatchMode = async (options: Options): Promise<void> => {
-  console.log(cyan(`\n${SYMBOLS.info} Watch mode enabled - checking every 30 seconds...\n`));
+const runWatchMode = async (targets: CheckFiles[]): Promise<void> => {
+  console.log(
+    cyan(
+      `\n${SYMBOLS.info} Watch mode enabled - checking every 30 seconds...\n`,
+    ),
+  );
   console.log(gray("Press Ctrl+C to stop\n"));
   let isChecking = false;
 
   const checkDependencies = async () => {
     if (isChecking) {
-      console.log(gray("Previous check still running, skipping this interval."));
+      console.log(
+        gray("Previous check still running, skipping this interval."),
+      );
       return;
     }
 
@@ -287,10 +364,14 @@ const runWatchMode = async (options: Options): Promise<void> => {
     console.log(gray(`\n[${now}] Checking dependencies...`));
 
     try {
-      await checkFiles(options);
-      console.log(green(`${SYMBOLS.success} All dependencies checked (${now})`));
+      await runTargets(targets, () => {});
+      console.log(
+        green(`${SYMBOLS.success} All dependencies checked (${now})`),
+      );
     } catch (err) {
-      console.error(red(`${SYMBOLS.error} Check failed: ${(err as Error).message}`));
+      console.error(
+        red(`${SYMBOLS.error} Check failed: ${(err as Error).message}`),
+      );
     } finally {
       isChecking = false;
     }

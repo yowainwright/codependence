@@ -5,7 +5,10 @@ import {
   VALID_LEVELS,
   VALID_MODES,
   KNOWN_FIELDS,
+  TARGET_FIELDS,
+  TARGET_POLICY_FIELDS,
 } from "./constants";
+import { VALID_MANAGERS } from "./targets";
 import type { ValidationError, ValidationResult } from "./types";
 
 const isString = (value: unknown): value is string => typeof value === "string";
@@ -154,107 +157,113 @@ const validatePermissive = (
       ];
 };
 
-export const createEnumValidator = (
-  field: string,
-  validValues: readonly string[],
-) => (config: Record<string, unknown>): ValidationError[] => {
-  if (!(field in config)) return [];
+export const createEnumValidator =
+  (field: string, validValues: readonly string[]) =>
+  (config: Record<string, unknown>): ValidationError[] => {
+    if (!(field in config)) return [];
 
-  const value = config[field];
-  const valueList = validValues.join(", ");
+    const value = config[field];
+    const valueList = validValues.join(", ");
 
-  if (!isString(value)) {
-    return [
-      {
-        field,
-        message: `"${field}" must be a string, got ${typeof value}`,
-        suggestion: `Use one of: ${valueList}`,
-      },
-    ];
-  }
-
-  const isValid = (validValues as readonly string[]).includes(value);
-  return isValid
-    ? []
-    : [
+    if (!isString(value)) {
+      return [
         {
           field,
-          message: `Invalid ${field} "${value}"`,
-          suggestion: `Must be one of: ${valueList}`,
+          message: `"${field}" must be a string, got ${typeof value}`,
+          suggestion: `Use one of: ${valueList}`,
         },
       ];
-};
+    }
 
-export const createArrayValidator = (
-  field: string,
-  itemLabel: string,
-  arraySuggestion: string,
-) => (config: Record<string, unknown>): ValidationError[] => {
-  if (!(field in config)) return [];
+    const isValid = (validValues as readonly string[]).includes(value);
+    return isValid
+      ? []
+      : [
+          {
+            field,
+            message: `Invalid ${field} "${value}"`,
+            suggestion: `Must be one of: ${valueList}`,
+          },
+        ];
+  };
 
-  const value = config[field];
+export const createArrayValidator =
+  (field: string, itemLabel: string, arraySuggestion: string) =>
+  (config: Record<string, unknown>): ValidationError[] => {
+    if (!(field in config)) return [];
 
-  if (!isArray(value)) {
-    return [
-      {
-        field,
-        message: `"${field}" must be an array, got ${typeof value}`,
-        suggestion: `Use array format: ${arraySuggestion}`,
-      },
-    ];
-  }
+    const value = config[field];
 
-  const hasInvalidItems = value.some((item) => !isString(item));
-
-  return hasInvalidItems
-    ? [
+    if (!isArray(value)) {
+      return [
         {
           field,
-          message: `All ${itemLabel} patterns must be strings`,
-          suggestion: `Remove non-string values from ${field} array`,
+          message: `"${field}" must be an array, got ${typeof value}`,
+          suggestion: `Use array format: ${arraySuggestion}`,
         },
-      ]
-    : [];
-};
+      ];
+    }
+
+    const hasInvalidItems = value.some((item) => !isString(item));
+
+    return hasInvalidItems
+      ? [
+          {
+            field,
+            message: `All ${itemLabel} patterns must be strings`,
+            suggestion: `Remove non-string values from ${field} array`,
+          },
+        ]
+      : [];
+  };
 
 const validateLanguage = createEnumValidator("language", VALID_LANGUAGES);
+const validateManager = createEnumValidator("manager", VALID_MANAGERS);
 const validateLevel = createEnumValidator("level", VALID_LEVELS);
 const validateMode = createEnumValidator("mode", VALID_MODES);
-const validateFiles = createArrayValidator("files", "file", '{"files": ["**/package.json"]}');
-const validateIgnore = createArrayValidator("ignore", "ignore", '{"ignore": ["**/node_modules/**"]}');
+const validateFiles = createArrayValidator(
+  "files",
+  "file",
+  '{"files": ["**/package.json"]}',
+);
+const validateIgnore = createArrayValidator(
+  "ignore",
+  "ignore",
+  '{"ignore": ["**/node_modules/**"]}',
+);
 const validateFormat = createEnumValidator("format", VALID_FORMATS);
 
-const validateStringField = (field: string) => (
-  config: Record<string, unknown>,
-): ValidationError[] => {
-  if (!(field in config)) return [];
+const validateStringField =
+  (field: string) =>
+  (config: Record<string, unknown>): ValidationError[] => {
+    if (!(field in config)) return [];
 
-  return isString(config[field])
-    ? []
-    : [
-        {
-          field,
-          message: `"${field}" must be a string, got ${typeof config[field]}`,
-          suggestion: `Use a string value for "${field}"`,
-        },
-      ];
-};
+    return isString(config[field])
+      ? []
+      : [
+          {
+            field,
+            message: `"${field}" must be a string, got ${typeof config[field]}`,
+            suggestion: `Use a string value for "${field}"`,
+          },
+        ];
+  };
 
-const validateBooleanField = (field: string) => (
-  config: Record<string, unknown>,
-): ValidationError[] => {
-  if (!(field in config)) return [];
+const validateBooleanField =
+  (field: string) =>
+  (config: Record<string, unknown>): ValidationError[] => {
+    if (!(field in config)) return [];
 
-  return isBoolean(config[field])
-    ? []
-    : [
-        {
-          field,
-          message: `"${field}" must be a boolean, got ${typeof config[field]}`,
-          suggestion: `Use true or false for "${field}"`,
-        },
-      ];
-};
+    return isBoolean(config[field])
+      ? []
+      : [
+          {
+            field,
+            message: `"${field}" must be a boolean, got ${typeof config[field]}`,
+            suggestion: `Use true or false for "${field}"`,
+          },
+        ];
+  };
 
 const validateRootDir = validateStringField("rootDir");
 const validateOutputFile = validateStringField("outputFile");
@@ -273,9 +282,10 @@ const validateBooleanOptions = [
 
 const validateUnknownFields = (
   config: Record<string, unknown>,
+  knownFields: readonly string[] = KNOWN_FIELDS,
 ): ValidationError[] => {
   const unknownFields = Object.keys(config).filter(
-    (key) => !(KNOWN_FIELDS as readonly string[]).includes(key),
+    (key) => !knownFields.includes(key),
   );
 
   return unknownFields.length > 0
@@ -283,10 +293,116 @@ const validateUnknownFields = (
         {
           field: "root",
           message: `Unknown field(s): ${unknownFields.join(", ")}`,
-          suggestion: `Remove unknown fields. Valid fields are: ${KNOWN_FIELDS.join(", ")}`,
+          suggestion: `Remove unknown fields. Valid fields are: ${knownFields.join(", ")}`,
         },
       ]
     : [];
+};
+
+const prefixTargetError = (
+  validationError: ValidationError,
+  index: number,
+): ValidationError => {
+  const prefix = `targets[${index}]`;
+  const field =
+    validationError.field === "root"
+      ? prefix
+      : `${prefix}.${validationError.field}`;
+  return { ...validationError, field };
+};
+
+const targetFieldErrors = (
+  target: Record<string, unknown>,
+): ValidationError[] => concat(
+  validateRequiredFields(target),
+  validateManager(target),
+  validateCodependencies(target),
+  validatePermissive(target),
+  validateLevel(target),
+  validateMode(target),
+  validateFiles(target),
+  validateIgnore(target),
+  validateRootDir(target),
+  validateUnknownFields(target, TARGET_FIELDS),
+);
+
+const missingManagerErrors = (
+  target: Record<string, unknown>,
+): ValidationError[] => {
+  if ("manager" in target) return [];
+
+  return [{
+    field: "manager",
+    message: 'Target must have a "manager" field',
+    suggestion: `Use one of: ${VALID_MANAGERS.join(", ")}`,
+  }];
+};
+
+const validateTarget = (
+  target: Record<string, unknown>,
+  index: number,
+): ValidationError[] => {
+  const errors = [...missingManagerErrors(target), ...targetFieldErrors(target)];
+  return errors.map((validationError) =>
+    prefixTargetError(validationError, index),
+  );
+};
+
+const invalidTargetsError = (targets: unknown): ValidationError[] => [{
+  field: "targets",
+  message: `"targets" must be an array, got ${typeof targets}`,
+  suggestion: 'Use array format: {"targets": [{"manager": "bun"}]}',
+}];
+
+const emptyTargetsError = (): ValidationError[] => [{
+  field: "targets",
+  message: '"targets" must contain at least one target',
+  suggestion: 'Add a target such as {"manager": "bun", "mode": "precise"}',
+}];
+
+const validateTargetEntry = (target: unknown, index: number): ValidationError[] => {
+  if (isObject(target)) return validateTarget(target, index);
+
+  return [{
+    field: `targets[${index}]`,
+    message: "Target must be a configuration object",
+    suggestion: 'Use {"manager": "bun", "mode": "precise"}',
+  }];
+};
+
+const validateTargets = (config: Record<string, unknown>): ValidationError[] => {
+  const targets = config.targets;
+  if (!isArray(targets)) return invalidTargetsError(targets);
+  if (targets.length === 0) return emptyTargetsError();
+
+  return targets.flatMap(validateTargetEntry);
+};
+
+const mixedTargetFieldErrors = (
+  config: Record<string, unknown>,
+): ValidationError[] => {
+  const scopedFields = [...TARGET_POLICY_FIELDS, "language", "yarnConfig"];
+  const mixedFields = scopedFields.filter((field) => field in config);
+  if (mixedFields.length === 0) return [];
+
+  return [{
+    field: "root",
+    message: `Target-scoped field(s) cannot be used beside "targets": ${mixedFields.join(", ")}`,
+    suggestion: "Move these fields into the appropriate target object",
+  }];
+};
+
+const validateTargetRoot = (
+  config: Record<string, unknown>,
+): ValidationError[] => {
+  return concat(
+    mixedTargetFieldErrors(config),
+    validateTargets(config),
+    validateFormat(config),
+    validateOutputFile(config),
+    ...validateBooleanOptions.map((validate) => validate(config)),
+    validateUnknownFields(config),
+  );
 };
 
 export const validateConfig = (
@@ -301,6 +417,11 @@ export const validateConfig = (
   }
 
   const typedConfig = config as Record<string, unknown>;
+  const hasTargets = "targets" in typedConfig;
+  if (hasTargets) {
+    const errors = validateTargetRoot(typedConfig);
+    return { valid: errors.length === 0, errors };
+  }
 
   const errors = concat(
     ...(requirePolicy ? [validateRequiredFields(typedConfig)] : []),

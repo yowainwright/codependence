@@ -27,10 +27,9 @@ jobs:
       - name: Build Codependence
         run: bun run build
 
-      - name: Update GitHub Actions
+      - name: Apply Codependence policies
         uses: ./
         with:
-          config: .github/codependence-actions.json
           update: true
 
       - name: Create Pull Request
