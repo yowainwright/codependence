@@ -969,6 +969,19 @@ test("checkFiles => with no updates", async () => {
   logCheckFilesNoUpdates.mockRestore();
 });
 
+test("checkFiles => respects an explicit Node package manager", async () => {
+  const result = await checkFiles({
+    codependencies: [{ lodash: "^4.17.21" }, { "fs-extra": "^10.1.0" }],
+    rootDir: "./tests/unit/fixtures/",
+    files: ["test-pass-package.json"],
+    packageManager: "bun",
+    isTesting: true,
+    silent: true,
+  });
+
+  expect(result).toEqual([]);
+});
+
 test("checkFiles => with updates (verbose mode)", async () => {
   const logCheckFilesWithUpdates = jest.spyOn(console, "error");
   const codependencies = [{ lodash: "4.18.0" }, { "fs-extra": "5.0.0" }];

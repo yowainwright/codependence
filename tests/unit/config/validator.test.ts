@@ -720,6 +720,30 @@ describe("validateConfig", () => {
       expect(validateConfig(config)).toEqual({ valid: true, errors: [] });
     });
 
+    it("rejects non-array targets", () => {
+      const result = validateConfig({ targets: "bun" });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].field).toBe("targets");
+      expect(result.errors[0].message).toContain("must be an array");
+    });
+
+    it("rejects empty targets", () => {
+      const result = validateConfig({ targets: [] });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].field).toBe("targets");
+      expect(result.errors[0].message).toContain("at least one target");
+    });
+
+    it("rejects non-object targets", () => {
+      const result = validateConfig({ targets: ["bun"] });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].field).toBe("targets[0]");
+      expect(result.errors[0].message).toContain("configuration object");
+    });
+
     it("rejects invalid and missing managers", () => {
       const config = {
         targets: [
