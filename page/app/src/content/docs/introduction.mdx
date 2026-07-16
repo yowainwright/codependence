@@ -27,17 +27,18 @@ description: Enforce dependency version policy locally, in CI, and across worksp
 
 ## Introduction
 
-Codependence is a CLI and Node API for enforcing dependency version policy. It checks, reports, and can update dependency versions so important packages stay current, pinned, or consistent across your project.
+Codependence enforces dependency version policy from one root `.codependencerc`. It checks, reports, and can update every configured dependency manager so important versions stay current, pinned, or consistent across your project.
 
 ## Synopsis
 
-Checks your `codependencies` policy against `package.json` dependencies, verifies each dependency is at the expected version, and can fail CI or update mismatched manifests.
+Each manager target gets its own files and policy. Codependence loads the config once, verifies every target, and can fail CI or update mismatched manifests.
 
 See [Policy Surface](/docs/policy-surface/) for what Codependence supports today and where the same policy model can expand next.
 
 ## Why use Codependence?
 
 - Define the versions that must stay current or pinned
+- Manage multiple dependency managers from one `.codependencerc`
 - Fail local checks or CI when dependency versions drift
 - Update only listed packages, or update everything except listed packages
 - Apply package-specific policy across monorepos

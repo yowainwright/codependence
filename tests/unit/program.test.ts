@@ -189,6 +189,52 @@ describe("Action Function Tests (Fast)", () => {
     }
   });
 
+  test("runs each configured manager target independently", async () => {
+    const workDir = fs.mkdtempSync(join(tmpdir(), "codependence-targets-"));
+    const configPath = join(workDir, ".codependencerc");
+    const targets = [
+      {
+        manager: "bun",
+        files: ["package.json"],
+        codependencies: ["typescript"],
+      },
+      {
+        manager: "github-actions",
+        files: [".github/workflows/*.yml"],
+        mode: "precise",
+      },
+    ];
+    fs.writeFileSync(configPath, JSON.stringify({ targets }));
+
+    try {
+      await action({ config: configPath, update: true, silent: true });
+
+      expect(scriptSpy).toHaveBeenCalledTimes(2);
+      expect(scriptSpy).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          language: "nodejs",
+          packageManager: "bun",
+          files: ["package.json"],
+          codependencies: ["typescript"],
+          update: true,
+        }),
+      );
+      expect(scriptSpy).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          language: "github-actions",
+          packageManager: "github-actions",
+          files: [".github/workflows/*.yml"],
+          mode: "precise",
+          update: true,
+        }),
+      );
+    } finally {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    }
+  });
+
   test("allows supplemental explicit config when CLI supplies policy", async () => {
     const workDir = fs.mkdtempSync(join(tmpdir(), "codependence-partial-config-"));
     const configPath = join(workDir, ".codependencerc");

@@ -7,13 +7,19 @@ description: Configuration options for Codependence.
 
 ## Configuration Options
 
-Use options via CLI, config file, or Node function parameters.
+Use one root `.codependencerc` for repository policy. CLI and Action inputs control execution or override a single target for one-off runs.
+
+### `targets`: `CodependenceTarget[]`
+
+The primary config shape is a non-empty `targets` array. Every target requires a `manager` plus `codependencies`, `permissive`, or `mode`, and can define its own `files`, `rootDir`, `ignore`, and `level`.
+
+Supported managers are `bun`, `npm`, `pnpm`, `yarn`, `conda`, `pip`, `pipenv`, `poetry`, `uv`, `go`, `rust`, `docker`, and `github-actions`. Codependence loads `.codependencerc` once and executes every target independently.
 
 ---
 
 ### `codependencies`: `Array<string | Record<string, string>`
 
-**Required.** Array of dependencies to check/update.
+Target-scoped array of dependencies to check or pin.
 
 **Supports:**
 
@@ -22,9 +28,9 @@ Use options via CLI, config file, or Node function parameters.
 - `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]` - Range versions
 - `@foo/*` or `foo-*` - Wildcard patterns match all packages with prefix
 
-### Monorepo child packages
+### Legacy embedded monorepo policies
 
-Add `codependence.codependencies` arrays to child packages for package-specific version control.
+New monorepos should keep manager targets in the root `.codependencerc` and scope them with `files` or `rootDir`. Embedded `codependence.codependencies` arrays remain supported for compatibility.
 
 **Example:**
 
@@ -60,7 +66,7 @@ Applies the correct version policy per package. Packages without specific config
 
 ### `files`: `Array<string>`
 
-Glob patterns for `package.json` files to check. Default: `['package.json']`
+Target-scoped manifest or workflow glob patterns. Defaults depend on the selected manager.
 
 ### `update`: `boolean`
 
@@ -92,7 +98,7 @@ Only show errors—useful for CI/CD. Default: `false`
 
 ### `config`: `string`
 
-Path to config file. Default: `undefined`
+Path to an alternate config file. By default, Codependence searches for `.codependencerc` from the current directory upward.
 
 ### `searchPath`: `string`
 
@@ -140,11 +146,11 @@ Write output to a file instead of stdout. Default: `undefined`
 
 ### `language`: `string`
 
-Target language for dependency checking: `nodejs`, `go`, `python`, `rust`, `docker`, or `github-actions`. Default: `nodejs`.
+One-off target language for legacy flat configuration. New repository configs should select a `manager` in each target.
 
 Node.js package manifests are stable. The `go`, `python`, `rust`, `docker`, and `github-actions` providers are experimental while manifest coverage and update semantics settle.
 
-Docker and GitHub Actions require explicit object pins in verbose mode. They do not resolve latest versions yet.
+Docker requires explicit object pins in verbose mode. GitHub Actions supports explicit pins, latest release resolution, and precise mode; resolved releases are pinned by immutable commit SHA.
 
 ---
 

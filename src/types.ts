@@ -1,4 +1,8 @@
-import type { LANGUAGES } from "./providers/constants";
+import type {
+  LANGUAGES,
+  NODE_PACKAGE_MANAGERS,
+  PYTHON_PACKAGE_MANAGERS,
+} from "./providers/constants";
 import type { VersionStrategy } from "./providers/types";
 
 export type CodeDependenciesItem = string | Record<string, string>;
@@ -7,6 +11,24 @@ export type CodeDependencies = Array<CodeDependenciesItem>;
 export type Level = "patch" | "minor" | "major";
 export type Mode = "verbose" | "precise";
 export type SupportedLanguage = (typeof LANGUAGES)[keyof typeof LANGUAGES];
+export type DependencyManager =
+  | (typeof NODE_PACKAGE_MANAGERS)[keyof typeof NODE_PACKAGE_MANAGERS]
+  | (typeof PYTHON_PACKAGE_MANAGERS)[keyof typeof PYTHON_PACKAGE_MANAGERS]
+  | typeof LANGUAGES.GO
+  | typeof LANGUAGES.RUST
+  | typeof LANGUAGES.DOCKER
+  | typeof LANGUAGES.GITHUB_ACTIONS;
+
+export type CodependenceTarget = {
+  manager: DependencyManager;
+  codependencies?: CodeDependencies;
+  files?: Array<string>;
+  rootDir?: string;
+  ignore?: Array<string>;
+  permissive?: boolean;
+  level?: Level;
+  mode?: Mode;
+};
 
 export type Options = {
   isTestingCLI?: boolean;
@@ -35,6 +57,7 @@ export type Options = {
   outputFile?: string;
   level?: Level;
   mode?: Mode;
+  targets?: CodependenceTarget[];
 };
 
 export type CheckFiles = {
@@ -59,6 +82,8 @@ export type CheckFiles = {
   onProgress?: (current: number, total: number, packageName: string) => void;
   level?: Level;
   mode?: Mode;
+  packageManager?: DependencyManager;
+  deferFailure?: boolean;
 };
 
 export type CheckDependenciesForVersionOptions = {
@@ -93,6 +118,7 @@ export type CodependenceConfig = {
   language?: SupportedLanguage;
   level?: Level;
   mode?: Mode;
+  targets?: CodependenceTarget[];
 };
 
 export type PackageJSON = {

@@ -1,8 +1,10 @@
 # Codependence GitHub Action
 
-Use Codependence in your GitHub Actions workflows to enforce dependency version policy and optionally update mismatched manifests.
+Use Codependence in GitHub Actions to enforce every manager policy from the repository's root `.codependencerc`. The action discovers that file automatically and can optionally update mismatched manifests.
 
 ## Quick Start
+
+Commit `.codependencerc`, then run the action without repeating policy in workflow YAML:
 
 ```yaml
 name: Check Dependencies
@@ -14,9 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: yowainwright/codependence@v1
-        with:
-          permissive: true
-          codependencies: 'react lodash'
 ```
 
 ## Inputs
@@ -24,7 +23,7 @@ jobs:
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `codependencies` | Space-separated dependencies to check | No | - |
-| `config` | Path to config file | No | - |
+| `config` | Path to an alternate config file; root `.codependencerc` is auto-discovered | No | - |
 | `files` | File glob patterns (space-separated) | No | - |
 | `update` | Update dependencies | No | `false` |
 | `dryRun` | Preview changes without modifying files | No | `false` |
@@ -54,19 +53,19 @@ Node.js package manifests are the stable default. The `go`, `python`, `rust`,
 `docker`, and `github-actions` providers are experimental while their manifest
 coverage and update semantics settle.
 
-Docker and GitHub Actions require explicit object pins in verbose mode. They do
-not resolve latest versions or support precise mode yet.
+<!-- provider capabilities from src/providers/*/index.ts -->
+
+Docker requires explicit object pins in verbose mode. GitHub Actions supports
+explicit pins, latest release resolution, and precise mode. Latest releases are
+pinned by immutable commit SHA. The action passes its GitHub token to
+Codependence for authenticated version lookups.
 
 ## Examples
 
-### Check only (fail on outdated)
+### Check repository policy
 
 ```yaml
 - uses: yowainwright/codependence@v1
-  with:
-    permissive: true
-    codependencies: 'react lodash'
-    fail-on-outdated: true
 ```
 
 ### Update dependencies
@@ -75,33 +74,48 @@ not resolve latest versions or support precise mode yet.
 - uses: yowainwright/codependence@v1
   with:
     update: true
-    permissive: true
-    codependencies: 'react @types/node'
 ```
 
-### Monorepo with config
+### Alternate config path
 
 ```yaml
 - uses: yowainwright/codependence@v1
   with:
-    config: '.codependencerc'
-    files: 'package.json **/package.json'
+    config: 'config/dependency-policy.json'
 ```
 
-### Experimental Python or Go
+### Python, Go, and other managers
+
+Add each manager to the root `.codependencerc`. The same action invocation runs
+all configured targets.
+
+### Multiple managers in one config
+
+<!-- manager target config shape from src/types.ts and src/config/targets.ts -->
+
+`.codependencerc`:
+
+```json
+{
+  "targets": [
+    {
+      "manager": "bun",
+      "files": ["package.json"],
+      "mode": "precise"
+    },
+    {
+      "manager": "github-actions",
+      "files": ["action.yml", ".github/workflows/*.yml"],
+      "mode": "precise"
+    }
+  ]
+}
+```
 
 ```yaml
 - uses: yowainwright/codependence@v1
   with:
-    language: python
-    config: '.codependencerc'
-```
-
-```yaml
-- uses: yowainwright/codependence@v1
-  with:
-    language: go
-    config: '.codependencerc'
+    update: true
 ```
 
 ### Update and commit
@@ -110,8 +124,6 @@ not resolve latest versions or support precise mode yet.
 - uses: yowainwright/codependence@v1
   with:
     update: true
-    permissive: true
-    codependencies: 'react'
 
 - run: |
     git config --local user.email "action@github.com"
@@ -127,7 +139,6 @@ not resolve latest versions or support precise mode yet.
 - uses: yowainwright/codependence@v1
   id: check
   with:
-    permissive: true
     fail-on-outdated: false
 
 - if: steps.check.outputs.outdated == 'true'

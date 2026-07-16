@@ -6,7 +6,14 @@ description: Common patterns and usage examples for Codependence.
 
 # Recipes
 
-## CLI-only (no config)
+## Repository policy
+
+Keep every manager target in the root `.codependencerc`. Running `codependence`
+checks all targets; `codependence --update` applies all target policies. See
+[Configuration Options](/docs/options/) for the target shape and supported
+managers.
+
+## One-off CLI check
 
 ```sh
 codependence --codependencies 'lodash' '{ \"fs-extra\": \"10.0.1\" }'
@@ -24,7 +31,7 @@ codependence --codependencies '@foo/*' --update
 codependence --codependencies 'react' 'lodash' --permissive --update
 ```
 
-## Permissive config setup
+## Legacy flat config
 
 `.codependencerc`:
 ```json

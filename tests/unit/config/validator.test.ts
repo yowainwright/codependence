@@ -698,6 +698,79 @@ describe("validateConfig", () => {
       expect(result.errors).toEqual([]);
     });
   });
+
+  describe("manager targets", () => {
+    it("accepts independent manager policies", () => {
+      const config = {
+        update: true,
+        targets: [
+          {
+            manager: "bun",
+            files: ["package.json"],
+            codependencies: ["typescript"],
+          },
+          {
+            manager: "github-actions",
+            files: [".github/workflows/*.yml"],
+            mode: "precise",
+          },
+        ],
+      };
+
+      expect(validateConfig(config)).toEqual({ valid: true, errors: [] });
+    });
+
+    it("rejects non-array targets", () => {
+      const result = validateConfig({ targets: "bun" });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].field).toBe("targets");
+      expect(result.errors[0].message).toContain("must be an array");
+    });
+
+    it("rejects empty targets", () => {
+      const result = validateConfig({ targets: [] });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].field).toBe("targets");
+      expect(result.errors[0].message).toContain("at least one target");
+    });
+
+    it("rejects non-object targets", () => {
+      const result = validateConfig({ targets: ["bun"] });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].field).toBe("targets[0]");
+      expect(result.errors[0].message).toContain("configuration object");
+    });
+
+    it("rejects invalid and missing managers", () => {
+      const config = {
+        targets: [
+          { manager: "composer", mode: "precise" },
+          { mode: "precise" },
+        ],
+      };
+
+      const result = validateConfig(config);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.map(({ field }) => field)).toContain("targets[0].manager");
+      expect(result.errors.map(({ field }) => field)).toContain("targets[1].manager");
+    });
+
+    it("rejects target policy fields at the root", () => {
+      const config = {
+        mode: "precise",
+        targets: [{ manager: "bun", mode: "precise" }],
+      };
+
+      const result = validateConfig(config);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].message).toContain("cannot be used beside");
+    });
+  });
 });
 
 describe("formatValidationErrors", () => {

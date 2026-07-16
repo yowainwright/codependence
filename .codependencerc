@@ -1,0 +1,32 @@
+{
+  "targets": [
+    {
+      "manager": "bun",
+      "files": ["package.json"],
+      "codependencies": [
+        "@perryts/perry",
+        "bun-types",
+        "oxfmt",
+        "oxlint",
+        "pastoralist",
+        "prettier",
+        "release-it",
+        "turbo",
+        {
+          "typescript": "^5.9.3"
+        }
+      ]
+    },
+    {
+      "manager": "github-actions",
+      "files": [
+        "action.yml",
+        ".github/actions/*/action.yml",
+        ".github/actions/*/action.yaml",
+        ".github/workflows/*.yml",
+        ".github/workflows/*.yaml"
+      ],
+      "mode": "precise"
+    }
+  ]
+}

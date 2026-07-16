@@ -4,7 +4,7 @@ This is the documentation website for Codependence, a CLI and Node API for enfor
 
 ## Features
 
-- Built with Astro, React, Tailwind CSS, and MDX
+- Static React app built with Vite, Tailwind CSS, and MDX
 - Free search functionality using Fuse.js
 - SEO friendly, lightweight and fast
 - Dark mode and light mode support
@@ -40,7 +40,7 @@ bun run build
 
 ## Deployment
 
-The site is automatically deployed to GitHub Pages when changes are pushed to the main branch.
+`bun run build` writes the complete static site to `dist`; no server runtime is required. The site is automatically deployed to GitHub Pages when changes are pushed to the main branch.
 
 ## Contributing
 

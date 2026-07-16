@@ -72,6 +72,18 @@ describe("createSpinner", () => {
     expect(output).toContain("Loading...");
   });
 
+  it("keeps frames on one line", () => {
+    jest.useFakeTimers();
+    const writeSpy = jest.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const spinner = createSpinner("Loading...\n").start();
+
+    jest.advanceTimersByTime(240);
+    spinner.stop();
+
+    const output = writeSpy.mock.calls.flat().join("");
+    expect(output).not.toContain("\n");
+  });
+
   it("keeps spinner methods stable when start is called twice", () => {
     const spinner = createSpinner("Loading...");
 

@@ -26,8 +26,6 @@
     "typescript": "^5.9.3"
   },
   "overrides": {
-    "esbuild": "0.28.1",
-    "js-yaml": "4.3.0",
     "undici": "7.28.0",
     "vite": "8.1.3"
   },
@@ -40,21 +38,6 @@
   "bin": {
     "codependence": "dist/cli.js",
     "cdp": "dist/cli.js"
-  },
-  "codependence": {
-    "codependencies": [
-      "@perryts/perry",
-      "bun-types",
-      "oxfmt",
-      "oxlint",
-      "pastoralist",
-      "prettier",
-      "release-it",
-      "turbo",
-      {
-        "typescript": "^5.9.3"
-      }
-    ]
   },
   "engines": {
     "node": ">=20"
@@ -147,33 +130,6 @@
   ],
   "pastoralist": {
     "appendix": {
-      "esbuild@0.28.1": {
-        "dependents": {
-          "@codependence/docs": "esbuild (required by astro)",
-          "codependence": "esbuild (unused override)"
-        },
-        "ledger": {
-          "addedDate": "2026-06-14T00:00:00.000Z",
-          "reason": "Bun audit flags GHSA-gv7w-rqvm-qjhr for esbuild <0.28.1 through the docs workspace.",
-          "source": "security",
-          "securityProvider": "npm",
-          "cves": [
-            "GHSA-gv7w-rqvm-qjhr"
-          ],
-          "severity": "high",
-          "patchedVersion": "0.28.1",
-          "keep": true
-        }
-      },
-      "js-yaml@4.3.0": {
-        "dependents": {
-          "codependence": "js-yaml (unused override)",
-          "@codependence/docs": "js-yaml (required by astro)"
-        },
-        "ledger": {
-          "addedDate": "2026-06-28T00:00:00.000Z"
-        }
-      },
       "undici@7.28.0": {
         "dependents": {
           "codependence": "undici (required by release-it)"

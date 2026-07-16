@@ -21,6 +21,16 @@ export const VALID_LANGUAGES = [
 export const VALID_LEVELS = ["patch", "minor", "major"] as const;
 export const VALID_MODES = ["verbose", "precise"] as const;
 export const VALID_FORMATS = ["json", "markdown", "table"] as const;
+export const TARGET_POLICY_FIELDS = [
+  "codependencies",
+  "permissive",
+  "files",
+  "ignore",
+  "level",
+  "mode",
+  "rootDir",
+] as const;
+export const TARGET_FIELDS = ["manager", ...TARGET_POLICY_FIELDS] as const;
 export const KNOWN_FIELDS = [
   "codependencies",
   "permissive",
@@ -42,4 +52,5 @@ export const KNOWN_FIELDS = [
   "noCache",
   "format",
   "outputFile",
+  "targets",
 ] as const;
