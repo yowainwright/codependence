@@ -816,9 +816,25 @@ export const buildUpdateLists = <T extends DependencySections>(
 ): DepsToUpdate => {
   const { dependencies, devDependencies, peerDependencies, optionalDependencies } = json;
   const { permissive, level = "major", versionStrategy = "semver" } = options;
+  const dependencyVersions = json.dependencyVersions;
   const comparedDependencies = dependenciesForComparison(
     dependencies,
-    json.dependencyVersions,
+    dependencyVersions,
+    versionMap,
+  );
+  const comparedDevDependencies = dependenciesForComparison(
+    devDependencies,
+    dependencyVersions,
+    versionMap,
+  );
+  const comparedPeerDependencies = dependenciesForComparison(
+    peerDependencies,
+    dependencyVersions,
+    versionMap,
+  );
+  const comparedOptionalDependencies = dependenciesForComparison(
+    optionalDependencies,
+    dependencyVersions,
     versionMap,
   );
 
@@ -833,21 +849,21 @@ export const buildUpdateLists = <T extends DependencySections>(
         versionStrategy,
       ),
       devDepList: constructPermissiveDepsToUpdateList(
-        devDependencies,
+        comparedDevDependencies,
         coDeps,
         versionMap,
         level,
         versionStrategy,
       ),
       peerDepList: constructPermissiveDepsToUpdateList(
-        peerDependencies,
+        comparedPeerDependencies,
         coDeps,
         versionMap,
         level,
         versionStrategy,
       ),
       optionalDepList: constructPermissiveDepsToUpdateList(
-        optionalDependencies,
+        comparedOptionalDependencies,
         coDeps,
         versionMap,
         level,
@@ -858,10 +874,20 @@ export const buildUpdateLists = <T extends DependencySections>(
 
   return {
     depList: constructDepsToUpdateList(comparedDependencies, versionMap, level, versionStrategy),
-    devDepList: constructDepsToUpdateList(devDependencies, versionMap, level, versionStrategy),
-    peerDepList: constructDepsToUpdateList(peerDependencies, versionMap, level, versionStrategy),
+    devDepList: constructDepsToUpdateList(
+      comparedDevDependencies,
+      versionMap,
+      level,
+      versionStrategy,
+    ),
+    peerDepList: constructDepsToUpdateList(
+      comparedPeerDependencies,
+      versionMap,
+      level,
+      versionStrategy,
+    ),
     optionalDepList: constructDepsToUpdateList(
-      optionalDependencies,
+      comparedOptionalDependencies,
       versionMap,
       level,
       versionStrategy,

@@ -141,12 +141,6 @@ export const SEARCH_DATA: SearchResult[] = [
     slug: "badges",
   },
   {
-    title: "Footer",
-    description: "Footer configuration and customization",
-    content: "Customize the footer of your Codependence reports.",
-    slug: "footer",
-  },
-  {
     title: "Synopsis",
     description: "Quick overview of Codependence",
     content: "A brief summary of Codependence dependency version policy.",

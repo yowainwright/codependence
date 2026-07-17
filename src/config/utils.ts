@@ -189,9 +189,7 @@ const parseNestedBlock = (
 
   const isUnindentedArray = isArrayLine(line) && line.indent === parentIndent;
   if (line.indent <= parentIndent && !isUnindentedArray) return null;
-  if (isArrayLine(line)) {
-    return parseBlockArray(lines, startIndex, parentIndent);
-  }
+  if (isArrayLine(line)) return parseBlockArray(lines, startIndex, parentIndent);
 
   return parseBlockObject(lines, startIndex);
 };

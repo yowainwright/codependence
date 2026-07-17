@@ -195,6 +195,38 @@ describe("Config Loading", () => {
       });
     });
 
+    test("should load YAML objects after bare array markers", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yml");
+      writeFileSync(
+        rcPath,
+        [
+          "targets:",
+          "  -",
+          "    manager: bun",
+          "    files:",
+          "      - package.json",
+          "update: true",
+        ].join("\n"),
+      );
+
+      const result = loadConfig(rcPath);
+
+      expect(result?.config).toEqual({
+        targets: [{ manager: "bun", files: ["package.json"] }],
+        update: true,
+      });
+    });
+
+    test("should reject malformed YAML array object fields", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yml");
+      writeFileSync(
+        rcPath,
+        ["targets:", "  - manager: bun", "    invalid"].join("\n"),
+      );
+
+      expect(() => loadConfig(rcPath)).toThrow("Failed to load config");
+    });
+
     test("should load bare YAML keys as null", () => {
       const rcPath = join(tmpDir, ".codependencerc.yaml");
       writeFileSync(

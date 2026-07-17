@@ -20,12 +20,43 @@ const {
   constructDepsToUpdateList,
   constructDeps,
   constructJson,
+  buildUpdateLists,
   checkDependenciesForVersion,
   checkMatches,
   checkFiles,
   detectStaleCodependencies,
   filterSelectedDeps,
 } = scripts;
+
+test("buildUpdateLists => compares repeated versions in every dependency section", () => {
+  const versionMap = {
+    runtime: "2.0.0",
+    development: "2.0.0",
+    peer: "2.0.0",
+    optional: "2.0.0",
+  };
+  const result = buildUpdateLists(
+    versionMap,
+    {
+      dependencies: { runtime: "2.0.0" },
+      devDependencies: { development: "2.0.0" },
+      peerDependencies: { peer: "2.0.0" },
+      optionalDependencies: { optional: "2.0.0" },
+      dependencyVersions: {
+        runtime: ["1.0.0", "2.0.0"],
+        development: ["1.0.0", "2.0.0"],
+        peer: ["1.0.0", "2.0.0"],
+        optional: ["1.0.0", "2.0.0"],
+      },
+    },
+    {},
+  );
+
+  expect(result.depList.map(({ name }) => name)).toEqual(["runtime"]);
+  expect(result.devDepList.map(({ name }) => name)).toEqual(["development"]);
+  expect(result.peerDepList.map(({ name }) => name)).toEqual(["peer"]);
+  expect(result.optionalDepList.map(({ name }) => name)).toEqual(["optional"]);
+});
 
 test("constructVersionMap => pass", async () => {
   const exec = jest.fn(() => ({

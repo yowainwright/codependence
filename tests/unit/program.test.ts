@@ -598,6 +598,30 @@ describe("Action Function Tests (Fast)", () => {
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
   });
+
+  test("should log deferred dependency issues in watch mode", async () => {
+    const setIntervalSpy = jest
+      .spyOn(globalThis, "setInterval")
+      .mockImplementation((() => 0) as typeof setInterval);
+    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    scriptSpy.mockImplementationOnce(async (options) => {
+      options.onDeferredFailure?.();
+      return [];
+    });
+
+    await action({ codependencies: ["lodash"], watch: true });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Dependency issues found"),
+    );
+
+    setIntervalSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
 });
 
 describe("initAction", () => {
