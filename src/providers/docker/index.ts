@@ -1,12 +1,7 @@
 import { readFileSync, writeFileSync } from "fs";
 import { LANGUAGES } from "../constants";
-import type { DependencyManifest, DependencyProvider } from "../types";
+import type { DependencyManifest, DependencyProvider, DockerImage } from "../types";
 import { DOCKER_PATTERNS } from "./constants";
-
-type DockerImage = {
-  readonly name: string;
-  readonly version: string;
-};
 
 const emptyManifest = (filePath: string): DependencyManifest => {
   const manifest = {

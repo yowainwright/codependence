@@ -1,7 +1,6 @@
 import { readFileSync, writeFileSync } from "fs";
 import { basename, dirname, resolve } from "path";
 import {
-  DEFAULT_LANGUAGE_MANIFESTS,
   DockerProvider,
   GoProvider,
   GitHubActionsProvider,
@@ -10,15 +9,18 @@ import {
   NODE_PACKAGE_MANAGERS,
   PYTHON_PACKAGE_MANAGERS,
   NodeJSProvider,
-  PYTHON_MANIFEST_FILES,
   PythonProvider,
   RustProvider,
   detectNodePackageManager,
   detectPrimaryLanguage,
   detectPythonPackageManagerForManifest,
 } from "../providers";
-import type { PythonPackageManager } from "../providers/python/constants";
-import type { DependencyManifest, DependencyProvider, VersionStrategy } from "../providers/types";
+import type {
+  DependencyManifest,
+  DependencyProvider,
+  PythonPackageManager,
+  VersionStrategy,
+} from "../providers/types";
 import { validatePackageName } from "../utils/validate-package";
 import { exec } from "../utils/exec";
 import { glob } from "../utils/glob";
@@ -29,7 +31,24 @@ import { formatEnhancedError } from "../utils/suggestions";
 import { collectDiffsFromManifests, displayVersionDiffs } from "../utils/diff";
 import { Prompt } from "../utils/prompts";
 import { isWithinLevel, stripRepeatingVersionPrefixes } from "../utils/semver";
-import { DEP_SECTIONS } from "./constants";
+import {
+  DEFAULT_FILE_MATCHERS,
+  DEP_SECTIONS,
+  NODE_MANAGER_NAMES,
+  PYTHON_MANIFEST_NAMES,
+  SUPPORTED_LANGUAGE_NAMES,
+  VERSION_RESOLUTION_CONCURRENCY,
+} from "./constants";
+import type {
+  CheckLoadedManifestsOptions,
+  DependencySections,
+  LoadedManifest,
+  MatchedFileOptions,
+  PackageNormalizer,
+  PreciseModeOptions,
+  ProviderResolution,
+  VersionResolver,
+} from "./types";
 import { STRICT_INEQUALITY_VERSION_PREFIXES, VERSION_PREFIXES } from "../utils/constants";
 import {
   CheckFiles,
@@ -45,42 +64,11 @@ import {
   SupportedLanguage,
 } from "../types";
 
-const DEFAULT_FILE_MATCHERS: Record<SupportedLanguage, string[]> = {
-  [LANGUAGES.NODEJS]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.NODEJS]],
-  [LANGUAGES.GO]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.GO]],
-  [LANGUAGES.PYTHON]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.PYTHON]],
-  [LANGUAGES.RUST]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.RUST]],
-  [LANGUAGES.DOCKER]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.DOCKER]],
-  [LANGUAGES.GITHUB_ACTIONS]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.GITHUB_ACTIONS]],
-};
-
-const PYTHON_MANIFEST_NAMES = new Set<string>(PYTHON_MANIFEST_FILES);
-const VERSION_RESOLUTION_CONCURRENCY = 8;
-const SUPPORTED_LANGUAGE_NAMES = new Set<string>(Object.values(LANGUAGES));
-const NODE_MANAGER_NAMES = new Set<string>(Object.values(NODE_PACKAGE_MANAGERS));
-
 const isSupportedLanguageName = (language: string | undefined): language is SupportedLanguage => {
   if (!language) return false;
 
   const isSupported = SUPPORTED_LANGUAGE_NAMES.has(language);
   return isSupported;
-};
-
-type LoadedManifest = {
-  file: string;
-  path: string;
-  language: SupportedLanguage;
-  packageManager: string;
-  provider: DependencyProvider;
-  manifest: DependencyManifest;
-};
-
-type DependencySections = {
-  dependencies?: Record<string, string>;
-  dependencyVersions?: Record<string, readonly string[]>;
-  devDependencies?: Record<string, string>;
-  peerDependencies?: Record<string, string>;
-  optionalDependencies?: Record<string, string>;
 };
 
 const mapWithConcurrency = async <T, R>(
@@ -183,7 +171,7 @@ const createProvider = (
   language: SupportedLanguage,
   filePath: string,
   options: Pick<CheckFiles, "debug" | "yarnConfig" | "isTesting" | "packageManager">,
-): { provider: DependencyProvider; packageManager: string } => {
+): ProviderResolution => {
   const providerOptions = {
     debug: options.debug,
     yarnConfig: options.yarnConfig,
@@ -234,10 +222,7 @@ const createProvider = (
 const loadManifests = (
   files: string[],
   rootDir: string,
-  options: Pick<
-    CheckFiles,
-    "language" | "debug" | "yarnConfig" | "isTesting" | "packageManager"
-  >,
+  options: Pick<CheckFiles, "language" | "debug" | "yarnConfig" | "isTesting" | "packageManager">,
 ): LoadedManifest[] =>
   files.map((file) => {
     const path = resolveManifestPath(rootDir, file);
@@ -266,8 +251,6 @@ const collectDepNamesFromManifest = (manifest: DependencyManifest): string[] => 
 
 const collectAllDepNamesFromManifests = (manifests: LoadedManifest[]): string[] =>
   Array.from(new Set(manifests.flatMap(({ manifest }) => collectDepNamesFromManifest(manifest))));
-
-type PackageNormalizer = (packageName: string) => string;
 
 const getPackageNormalizer = (provider: DependencyProvider): PackageNormalizer | null => {
   if (!provider.normalizePackageName) return null;
@@ -363,15 +346,8 @@ const detectStaleCodependenciesFromManifests = (
 const createVersionResolver = (
   manifests: LoadedManifest[],
   rootDir: string,
-  options: Pick<
-    CheckFiles,
-    "language" | "debug" | "yarnConfig" | "isTesting" | "packageManager"
-  >,
-): {
-  provider: DependencyProvider;
-  resolveVersion: (packageName: string) => Promise<string>;
-  cachePrefix: string;
-} => {
+  options: Pick<CheckFiles, "language" | "debug" | "yarnConfig" | "isTesting" | "packageManager">,
+): VersionResolver => {
   const singleManifestLanguage = manifests[0]?.language;
   const hasSingleManifestLanguage =
     singleManifestLanguage &&
@@ -810,12 +786,10 @@ const staleVersionMap = (
   dependencyVersions: Record<string, readonly string[]>,
   versionMap: Record<string, string>,
 ): Map<string, string> => {
-  const entries = Object.entries(dependencyVersions).flatMap(
-    ([name, versions]) => {
-      const staleVersion = firstDifferentVersion(versions, versionMap[name]);
-      return staleVersion ? [[name, staleVersion] as const] : [];
-    },
-  );
+  const entries = Object.entries(dependencyVersions).flatMap(([name, versions]) => {
+    const staleVersion = firstDifferentVersion(versions, versionMap[name]);
+    return staleVersion ? [[name, staleVersion] as const] : [];
+  });
   return new Map(entries);
 };
 
@@ -883,12 +857,7 @@ export const buildUpdateLists = <T extends DependencySections>(
   }
 
   return {
-    depList: constructDepsToUpdateList(
-      comparedDependencies,
-      versionMap,
-      level,
-      versionStrategy,
-    ),
+    depList: constructDepsToUpdateList(comparedDependencies, versionMap, level, versionStrategy),
     devDepList: constructDepsToUpdateList(devDependencies, versionMap, level, versionStrategy),
     peerDepList: constructDepsToUpdateList(peerDependencies, versionMap, level, versionStrategy),
     optionalDepList: constructDepsToUpdateList(
@@ -1050,16 +1019,7 @@ const processMatchedFile = (
   file: string,
   rootDir: string,
   versionMap: Record<string, string>,
-  options: {
-    isUpdating: boolean;
-    isDebugging: boolean;
-    isSilent: boolean;
-    isVerbose: boolean;
-    isQuiet: boolean;
-    isTesting: boolean;
-    permissive: boolean;
-    level: Level;
-  },
+  options: MatchedFileOptions,
   codependencies?: Array<string>,
 ): boolean => {
   const path = resolveManifestPath(rootDir, file);
@@ -1134,21 +1094,7 @@ const checkLoadedManifests = async ({
   codependencies,
   level = "major",
   deferFailure = false,
-}: {
-  manifests: LoadedManifest[];
-  versionMap: Record<string, string>;
-  isUpdating?: boolean;
-  isDebugging?: boolean;
-  isSilent?: boolean;
-  isVerbose?: boolean;
-  isQuiet?: boolean;
-  isCLI?: boolean;
-  isTesting?: boolean;
-  permissive?: boolean;
-  codependencies?: Array<string>;
-  level?: Level;
-  deferFailure?: boolean;
-}): Promise<boolean> => {
+}: CheckLoadedManifestsOptions): Promise<boolean> => {
   const options = {
     isUpdating,
     isDebugging,
@@ -1298,16 +1244,7 @@ const applyInteractiveSelection = async (
 const resolvePreciseModeDeps = async (
   manifests: LoadedManifest[],
   versionMap: Record<string, string>,
-  options: {
-    debug: boolean;
-    yarnConfig: boolean;
-    isTesting: boolean;
-    noCache: boolean;
-    onProgress?: CheckFiles["onProgress"];
-    resolveVersion: (packageName: string) => Promise<string>;
-    cachePrefix: string;
-    validate: NonNullable<ConstructVersionMapOptions["validate"]>;
-  },
+  options: PreciseModeOptions,
 ): Promise<Record<string, string>> => {
   const allDepNames = collectAllDepNamesFromManifests(manifests);
   const aliasedVersionMap = aliasVersionMapForManifests(versionMap, manifests);

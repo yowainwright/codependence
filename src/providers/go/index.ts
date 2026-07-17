@@ -8,13 +8,14 @@ import { GO_PATTERNS } from "./constants";
 import type {
   DependencyProvider,
   DependencyManifest,
+  GoDependencyLineResult,
+  GoLineState,
+  GoProcessedLine,
+  GoProcessLinesResult,
+  GoProcessLinesState,
+  GoUpdateResult,
   ProviderOptions,
 } from "../types";
-
-type LineState = {
-  readonly inReplaceBlock: boolean;
-  readonly inExcludeBlock: boolean;
-};
 
 export const isReplaceBlockStart = (line: string): boolean =>
   GO_PATTERNS.REPLACE_BLOCK_START.test(line);
@@ -22,11 +23,9 @@ export const isReplaceBlockStart = (line: string): boolean =>
 export const isExcludeBlockStart = (line: string): boolean =>
   GO_PATTERNS.EXCLUDE_BLOCK_START.test(line);
 
-export const isBlockClose = (line: string): boolean =>
-  GO_PATTERNS.BLOCK_CLOSE.test(line);
+export const isBlockClose = (line: string): boolean => GO_PATTERNS.BLOCK_CLOSE.test(line);
 
-export const isReplaceLine = (line: string): boolean =>
-  GO_PATTERNS.REPLACE_LINE.test(line);
+export const isReplaceLine = (line: string): boolean => GO_PATTERNS.REPLACE_LINE.test(line);
 
 export const preserveFinalNewline = (content: string): string =>
   content.endsWith("\n") ? content : content + "\n";
@@ -34,7 +33,7 @@ export const preserveFinalNewline = (content: string): string =>
 export const updateRequireLine = (
   line: string,
   dependencies: Record<string, string>,
-): { line: string; updated: boolean; found: boolean } => {
+): GoDependencyLineResult => {
   if (isReplaceLine(line)) return { line, updated: false, found: false };
 
   const match = line.match(GO_PATTERNS.DEP_UPDATE_LINE);
@@ -52,9 +51,9 @@ export const updateRequireLine = (
 
 export const processLine = (
   line: string,
-  state: LineState,
+  state: GoLineState,
   dependencies: Record<string, string>,
-): { line: string; state: LineState; updated: boolean; found: boolean } => {
+): GoProcessedLine => {
   if (state.inReplaceBlock) {
     if (isBlockClose(line)) {
       return { line, state: { ...state, inReplaceBlock: false }, updated: false, found: false };
@@ -85,17 +84,11 @@ export const processLine = (
   return { line: updatedLine, state, updated, found };
 };
 
-type ProcessLinesResult = {
-  readonly lines: string[];
-  readonly updatedCount: number;
-  readonly foundCount: number;
-};
-
 const processLines = (
   lines: string[],
   dependencies: Record<string, string>,
-): ProcessLinesResult => {
-  const initial: { lines: string[]; state: LineState; updatedCount: number; foundCount: number } = {
+): GoProcessLinesResult => {
+  const initial: GoProcessLinesState = {
     lines: [],
     state: { inReplaceBlock: false, inExcludeBlock: false },
     updatedCount: 0,
@@ -116,7 +109,7 @@ const processLines = (
 export const updateExistingRequireLines = (
   content: string,
   dependencies: Record<string, string>,
-): { content: string; updatedCount: number; foundCount: number } => {
+): GoUpdateResult => {
   const { lines, updatedCount, foundCount } = processLines(content.split("\n"), dependencies);
   return { content: lines.join("\n"), updatedCount, foundCount };
 };
@@ -170,25 +163,13 @@ export class GoProvider implements DependencyProvider {
   }
 
   async getLatestVersion(packageName: string): Promise<string> {
-    const { stdout } = await exec(LANGUAGES.GO, [
-      "list",
-      "-m",
-      "-versions",
-      packageName,
-    ]);
-    const versions = stdout
-      .split(" ")
-      .filter((v) => GO_PATTERNS.VERSION_PREFIX.test(v));
+    const { stdout } = await exec(LANGUAGES.GO, ["list", "-m", "-versions", packageName]);
+    const versions = stdout.split(" ").filter((v) => GO_PATTERNS.VERSION_PREFIX.test(v));
     return versions[versions.length - 1] || "";
   }
 
   async getAllVersions(packageName: string): Promise<string[]> {
-    const { stdout } = await exec(LANGUAGES.GO, [
-      "list",
-      "-m",
-      "-versions",
-      packageName,
-    ]);
+    const { stdout } = await exec(LANGUAGES.GO, ["list", "-m", "-versions", packageName]);
     return stdout.split(" ").filter((v) => GO_PATTERNS.VERSION_PREFIX.test(v));
   }
 
@@ -213,16 +194,14 @@ export class GoProvider implements DependencyProvider {
     };
   }
 
-  writeManifest(
-    filePath: string,
-    manifest: DependencyManifest,
-  ): void {
+  writeManifest(filePath: string, manifest: DependencyManifest): void {
     const content = readFileSync(filePath, "utf8");
 
-    const { content: inPlaceContent, updatedCount, foundCount } = updateExistingRequireLines(
-      content,
-      manifest.dependencies,
-    );
+    const {
+      content: inPlaceContent,
+      updatedCount,
+      foundCount,
+    } = updateExistingRequireLines(content, manifest.dependencies);
 
     if (updatedCount > 0 || foundCount > 0) {
       writeFileSync(filePath, preserveFinalNewline(inPlaceContent));

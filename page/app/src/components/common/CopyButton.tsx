@@ -1,9 +1,6 @@
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
-
-interface CopyButtonProps {
-  text?: string;
-}
+import type { CopyButtonProps } from "@/types";
 
 export const CopyButton = ({ text }: CopyButtonProps) => {
   const [isClicked, setIsClicked] = useState(false);
@@ -34,7 +31,11 @@ export const CopyButton = ({ text }: CopyButtonProps) => {
   const Icon = isClicked ? Check : Copy;
 
   return (
-    <button className="btn btn-ghost btn-square rounded-s-none" onClick={handleCopy} aria-label="Copy">
+    <button
+      className="btn btn-ghost btn-square rounded-s-none"
+      onClick={handleCopy}
+      aria-label="Copy"
+    >
       <Icon className="h-5 w-5 pointer-events-none" />
     </button>
   );

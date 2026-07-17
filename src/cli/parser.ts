@@ -1,5 +1,12 @@
 import { OPTION_DEFINITIONS, HELP_TEXT, ARGS_START_INDEX } from "./constants";
-import type { ParsedArgs, OptionDefinition, ParsedFlag, CollectedValue } from "./types";
+import type {
+  ArgumentResult,
+  ArgumentState,
+  CollectedValue,
+  OptionDefinition,
+  ParsedArgs,
+  ParsedFlag,
+} from "./types";
 
 const findOptionDef = (flag: string): OptionDefinition | undefined =>
   OPTION_DEFINITIONS.find((def) => def.flags.includes(flag));
@@ -72,15 +79,7 @@ const applyDefaults = (options: Record<string, unknown>): Record<string, unknown
     return shouldApplyDefault ? { ...acc, [key]: def.defaultValue } : acc;
   }, options);
 
-const processArgument = (
-  args: string[],
-  index: number,
-  state: { options: Record<string, unknown>; command?: string },
-): {
-  nextIndex: number;
-  options: Record<string, unknown>;
-  command?: string;
-} => {
+const processArgument = (args: string[], index: number, state: ArgumentState): ArgumentResult => {
   const arg = args[index];
   const isNotFlag = !isFlag(arg);
 

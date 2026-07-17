@@ -7,6 +7,7 @@ import {
   runReleaseTag,
   type GitResult,
 } from "../../../scripts/tag-release";
+import { READY_GIT_OVERRIDES } from "./constants";
 
 const ok = (stdout = ""): GitResult => ({ status: 0, stdout, stderr: "" });
 const missing = (): GitResult => ({ status: 2, stdout: "", stderr: "" });
@@ -21,15 +22,6 @@ function createGit(overrides: Record<string, GitResult> = {}) {
   });
   return { calls: () => calls, git };
 }
-
-const readyGitOverrides = {
-  "branch --show-current": ok("main\n"),
-  "status --short": ok(""),
-  "rev-parse HEAD": ok("abc\n"),
-  "rev-parse origin/main": ok("abc\n"),
-  "rev-parse -q --verify refs/tags/v1.2.3-beta.6": fail("missing"),
-  "ls-remote --exit-code --tags origin refs/tags/v1.2.3-beta.6": missing(),
-};
 
 describe("scripts/tag-release", () => {
   test("parseArgs detects dry run", () => {
@@ -77,7 +69,7 @@ describe("scripts/tag-release", () => {
 
   test("runReleaseTag dry run validates without creating a tag", () => {
     const logger = { log: mock(() => {}), error: mock(() => {}) };
-    const { calls, git } = createGit(readyGitOverrides);
+    const { calls, git } = createGit(READY_GIT_OVERRIDES);
 
     const code = runReleaseTag({ dryRun: true, git, logger, version: "1.2.3-beta.6" });
 
@@ -88,7 +80,7 @@ describe("scripts/tag-release", () => {
 
   test("runReleaseTag creates and pushes the version tag", () => {
     const logger = { log: mock(() => {}), error: mock(() => {}) };
-    const { calls, git } = createGit(readyGitOverrides);
+    const { calls, git } = createGit(READY_GIT_OVERRIDES);
 
     const code = runReleaseTag({ git, logger, version: "1.2.3-beta.6" });
 
@@ -105,7 +97,7 @@ describe("scripts/tag-release", () => {
 
   test("runReleaseTag deletes the local tag when push fails", () => {
     const { calls, git } = createGit(
-      Object.assign({}, readyGitOverrides, {
+      Object.assign({}, READY_GIT_OVERRIDES, {
         "push origin refs/tags/v1.2.3-beta.6": fail("push rejected"),
       }),
     );

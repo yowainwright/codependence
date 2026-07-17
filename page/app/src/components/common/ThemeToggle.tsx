@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { Sun, Moon } from "lucide-react";
-
-const LIGHT_THEME = "codependence-light";
-const DARK_THEME = "codependence-dark";
+import { DARK_THEME, LIGHT_THEME, THEME_STORAGE_KEY } from "@/constants";
 
 function getInitialTheme(): string {
-  const saved = localStorage.getItem("theme");
+  const saved = localStorage.getItem(THEME_STORAGE_KEY);
   if (saved) return saved;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? DARK_THEME : LIGHT_THEME;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? DARK_THEME
+    : LIGHT_THEME;
 }
 
 export function ThemeToggle() {
@@ -19,7 +19,7 @@ export function ThemeToggle() {
   useEffect(() => {
     const theme = isDark ? DARK_THEME : LIGHT_THEME;
     document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [isDark]);
 
   return (

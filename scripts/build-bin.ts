@@ -1,13 +1,14 @@
 import { spawnSync } from "node:child_process";
 import { mkdirSync, statSync } from "node:fs";
+import {
+  BIN_BUILD_ARGS,
+  BIN_OUTPUT_DIR,
+  BIN_OUTPUT_FILE,
+} from "./constants";
 
-const outputDir = "dist/bin";
-const outputFile = `${outputDir}/codependence`;
-const args = ["compile", "src/bin/index.ts", "-o", outputFile, "--quiet"];
+mkdirSync(BIN_OUTPUT_DIR, { recursive: true });
 
-mkdirSync(outputDir, { recursive: true });
-
-const result = spawnSync("perry", args, { encoding: "utf8" });
+const result = spawnSync("perry", BIN_BUILD_ARGS, { encoding: "utf8" });
 
 if (result.error) {
   throw result.error;
@@ -22,5 +23,5 @@ if (hasFailed) {
   process.exit(exitCode);
 }
 
-const sizeInMb = (statSync(outputFile).size / 1024 / 1024).toFixed(1);
-console.log(`Built ${outputFile} (${sizeInMb}MB)`);
+const sizeInMb = (statSync(BIN_OUTPUT_FILE).size / 1024 / 1024).toFixed(1);
+console.log(`Built ${BIN_OUTPUT_FILE} (${sizeInMb}MB)`);

@@ -10,9 +10,7 @@ import {
   requireVersion,
   runTestPublishedReleaseCli,
 } from "../../../../scripts/ci/published-release.js";
-
-const nodeAlpineImage =
-  "node:24-alpine@sha256:fb71d01345f11b708a3553c66e7c74074f2d506400ea81973343d915cb64eef0";
+import { NODE_ALPINE_IMAGE as nodeAlpineImage } from "./constants";
 
 describe("scripts/ci/published-release_test", () => {
   test("packageSpec formats npm package specs", () => {

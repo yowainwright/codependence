@@ -1,9 +1,7 @@
 import { logger } from "../logger";
 import { run } from "../program";
+import { BINARY_SCRIPT_NAME, SCRIPT_PATH_EXTENSIONS } from "./constants";
 import type { BinaryArgv } from "./types";
-
-const BINARY_SCRIPT_NAME = "codependence";
-const SCRIPT_PATH_EXTENSIONS = [".cjs", ".js", ".mjs", ".ts", ".tsx"] as const;
 
 const hasPathSegment = (value: string): boolean => value.includes("/") || value.includes("\\");
 

@@ -6,7 +6,7 @@ import type { Level, VersionDiff } from "../types";
 import { DEP_SECTIONS } from "../scripts/constants";
 import { formatVersionTable } from "./table";
 import { isWithinLevel } from "./semver";
-import { SYMBOLS } from "./symbols";
+import { SYMBOLS } from "./constants";
 
 const extractDepsFromSection = (
   packageJson: Pick<
@@ -29,9 +29,7 @@ const extractAllDeps = (
     "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies"
   >,
 ): [string, string][] =>
-  DEP_SECTIONS.flatMap((section) =>
-    extractDepsFromSection(packageJson, section),
-  );
+  DEP_SECTIONS.flatMap((section) => extractDepsFromSection(packageJson, section));
 
 const versionForComparison = (
   packageJson: Pick<DependencyManifest, "dependencyVersions">,
@@ -55,12 +53,7 @@ const toVersionDiff = (
   level: Level,
   versionStrategy: VersionStrategy,
 ): VersionDiff => {
-  const withinLevel = isWithinLevel(
-    currentVersion,
-    latestVersion,
-    level,
-    versionStrategy,
-  );
+  const withinLevel = isWithinLevel(currentVersion, latestVersion, level, versionStrategy);
   const isPinned = codependencies.includes(pkgName);
   const isPermissiveUpdate = !isPinned && withinLevel;
   const isStandardUpdate = isPinned && withinLevel;
@@ -95,12 +88,7 @@ export const buildVersionDiff = (
     .map(([pkgName, currentVersion]) =>
       toVersionDiff(
         pkgName,
-        versionForComparison(
-          packageJson,
-          pkgName,
-          currentVersion,
-          versionMap[pkgName],
-        ),
+        versionForComparison(packageJson, pkgName, currentVersion, versionMap[pkgName]),
         versionMap[pkgName],
         codependencies,
         permissive,
@@ -109,10 +97,7 @@ export const buildVersionDiff = (
       ),
     );
 
-export const displayVersionDiffs = (
-  diffs: VersionDiff[],
-  isDryRun: boolean,
-): void => {
+export const displayVersionDiffs = (diffs: VersionDiff[], isDryRun: boolean): void => {
   const diffsToShow = diffs.filter((d) => d.current !== d.latest);
 
   if (diffsToShow.length === 0) {

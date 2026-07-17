@@ -1,10 +1,7 @@
 import { readFileSync } from "fs";
 import { extname } from "path";
-
-type ParsedLine = {
-  indent: number;
-  text: string;
-};
+import { SPLIT_INITIAL } from "./constants";
+import type { ParsedBlock, ParsedField, ParsedLine, SplitState } from "./types";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -32,7 +29,7 @@ const stripComment = (line: string): string => {
     const char = line[index];
     const previous = line[index - 1];
 
-    if ((char === "\"" || char === "'") && previous !== "\\") {
+    if ((char === '"' || char === "'") && previous !== "\\") {
       quote = quote === char ? null : quote || char;
     }
 
@@ -60,12 +57,11 @@ const parseLines = (content: string): ParsedLine[] =>
 const unquote = (value: string): string => {
   const trimmed = value.trim();
   const quote = trimmed[0];
-  const isQuoted =
-    (quote === "\"" || quote === "'") && trimmed.endsWith(quote);
+  const isQuoted = (quote === '"' || quote === "'") && trimmed.endsWith(quote);
 
   if (!isQuoted) return trimmed;
 
-  if (quote === "\"") {
+  if (quote === '"') {
     try {
       return JSON.parse(trimmed);
     } catch {
@@ -83,7 +79,7 @@ const findSeparator = (value: string): number => {
     const char = value[index];
     const previous = value[index - 1];
 
-    if ((char === "\"" || char === "'") && previous !== "\\") {
+    if ((char === '"' || char === "'") && previous !== "\\") {
       quote = quote === char ? null : quote || char;
     }
 
@@ -93,27 +89,11 @@ const findSeparator = (value: string): number => {
   return -1;
 };
 
-type SplitState = {
-  items: string[];
-  quote: string | null;
-  braceDepth: number;
-  bracketDepth: number;
-  current: string;
-};
-
-const SPLIT_INITIAL: SplitState = {
-  items: [],
-  quote: null,
-  braceDepth: 0,
-  bracketDepth: 0,
-  current: "",
-};
-
 const splitInlineArray = (value: string): string[] => {
   const chars = [...value];
 
   const reduceChar = (state: SplitState, char: string, index: number): SplitState => {
-    const isQuoteChar = char === "\"" || char === "'";
+    const isQuoteChar = char === '"' || char === "'";
     const togglesQuote = isQuoteChar && chars[index - 1] !== "\\";
     const openedQuote = state.quote || char;
     const closedQuote = state.quote === char ? null : openedQuote;
@@ -197,19 +177,7 @@ const parseArrayItem = (value: string): unknown => {
   return parseValue(value);
 };
 
-type ParsedBlock = {
-  value: unknown;
-  nextIndex: number;
-};
-
-type ParsedField = {
-  key: string;
-  value: unknown;
-  nextIndex: number;
-};
-
-const isArrayLine = (line: ParsedLine): boolean =>
-  line.text === "-" || line.text.startsWith("- ");
+const isArrayLine = (line: ParsedLine): boolean => line.text === "-" || line.text.startsWith("- ");
 
 const parseNestedBlock = (
   lines: ParsedLine[],
@@ -243,29 +211,18 @@ const parseFieldValue = (
   return { value: null, nextIndex: startIndex };
 };
 
-const parseObjectField = (
-  lines: ParsedLine[],
-  index: number,
-): ParsedField | null => {
+const parseObjectField = (lines: ParsedLine[], index: number): ParsedField | null => {
   const line = lines[index];
   const separator = findSeparator(line.text);
   if (separator < 0) return null;
 
   const key = unquote(line.text.slice(0, separator));
   const rawValue = line.text.slice(separator + 1).trim();
-  const parsedValue = parseFieldValue(
-    lines,
-    index + 1,
-    line.indent,
-    rawValue,
-  );
+  const parsedValue = parseFieldValue(lines, index + 1, line.indent, rawValue);
   return { key, value: parsedValue.value, nextIndex: parsedValue.nextIndex };
 };
 
-const parseBlockObject = (
-  lines: ParsedLine[],
-  startIndex: number,
-): ParsedBlock | null => {
+const parseBlockObject = (lines: ParsedLine[], startIndex: number): ParsedBlock | null => {
   const firstLine = lines[startIndex];
   if (!firstLine) return null;
 
@@ -293,16 +250,10 @@ const parseArrayObject = (
   const separator = findSeparator(itemText);
   const key = unquote(itemText.slice(0, separator));
   const rawValue = itemText.slice(separator + 1).trim();
-  const parsedValue = parseFieldValue(
-    lines,
-    index + 1,
-    itemIndent,
-    rawValue,
-  );
+  const parsedValue = parseFieldValue(lines, index + 1, itemIndent, rawValue);
   const value = { [key]: parsedValue.value };
   const nextLine = lines[parsedValue.nextIndex];
-  const hasMoreFields =
-    nextLine && nextLine.indent > itemIndent && !isArrayLine(nextLine);
+  const hasMoreFields = nextLine && nextLine.indent > itemIndent && !isArrayLine(nextLine);
   if (!hasMoreFields) {
     return { value, nextIndex: parsedValue.nextIndex };
   }
@@ -397,9 +348,7 @@ export const parseYAML = (content: string): Record<string, unknown> | null => {
   return Object.keys(config).length > 0 ? config : null;
 };
 
-export const loadPackageJson = (
-  filepath: string,
-): Record<string, unknown> | null => {
+export const loadPackageJson = (filepath: string): Record<string, unknown> | null => {
   const json = parseJSON(readFileSync(filepath, "utf8"));
   if (!json) {
     throw new ConfigLoadError(filepath, "package.json is not valid JSON");
@@ -415,13 +364,10 @@ export const loadRcFile = (filepath: string): Record<string, unknown> => {
   const config =
     extension === ".yaml" || extension === ".yml"
       ? parseYAML(content)
-      : parseJSON(content) ?? parseYAML(content);
+      : (parseJSON(content) ?? parseYAML(content));
 
   if (!config) {
-    throw new ConfigLoadError(
-      filepath,
-      "file is empty, invalid, or did not export an object",
-    );
+    throw new ConfigLoadError(filepath, "file is empty, invalid, or did not export an object");
   }
 
   return config;

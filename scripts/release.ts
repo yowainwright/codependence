@@ -1,38 +1,20 @@
 import { spawnSync } from "node:child_process";
-import { runReleaseTag, type GitResult } from "./tag-release";
+import { runReleaseTag } from "./tag-release";
+import {
+  PRE_RELEASES,
+  RELEASE_VERSION_PATTERN,
+  SAFE_SHELL_ARG_PATTERN,
+} from "./constants";
+import type {
+  PreRelease,
+  ReleaseArgs,
+  ReleaseItArgsOptions,
+  ReleaseOptions,
+  ReleasePlan,
+  ReleaseRunner,
+} from "./types";
 
-export type PreRelease = "alpha" | "beta" | "rc";
-export type ReleaseRunner = (command: string, args: readonly string[]) => GitResult;
-export type ReleaseLogger = Pick<Console, "error" | "log" | "warn">;
-
-export interface ReleaseOptions {
-  cwd?: string;
-  dryRun?: boolean;
-  logger?: ReleaseLogger;
-  preRelease?: PreRelease;
-  runner?: ReleaseRunner;
-}
-
-export interface ReleaseArgs {
-  dryRun: boolean;
-  preRelease?: PreRelease;
-}
-
-export interface ReleaseItArgsOptions {
-  preRelease?: PreRelease;
-  version?: string;
-}
-
-export interface ReleasePlan {
-  commands: string[];
-  steps: string[];
-  tagName: string;
-  version: string;
-}
-
-const VERSION_PATTERN = /\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?/g;
-const PRE_RELEASES = new Set<PreRelease>(["alpha", "beta", "rc"]);
-const SAFE_SHELL_ARG_PATTERN = /^[A-Za-z0-9_./:=@-]+$/;
+export type { PreRelease, ReleaseRunner } from "./types";
 
 export function parseArgs(args: readonly string[]): ReleaseArgs {
   const preRelease = parsePreRelease(args);
@@ -55,7 +37,7 @@ export function buildReleaseItArgs(options: ReleaseItArgsOptions): string[] {
 }
 
 export function parseReleaseVersion(output: string): string {
-  const matches = output.match(VERSION_PATTERN);
+  const matches = output.match(RELEASE_VERSION_PATTERN);
   const version = matches?.at(-1);
   if (!version) throw new Error("Unable to resolve release version");
   return version;

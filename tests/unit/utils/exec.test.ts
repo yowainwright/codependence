@@ -1,17 +1,5 @@
 import { describe, it, expect, jest, beforeEach } from "bun:test";
-import type { ExecResult, ExecFileFn, SleepFn } from "../../../src/utils/types";
-
-type ExecFn = (
-  command: string,
-  args: string[],
-  options?: {
-    cwd?: string;
-    maxRetries?: number;
-    retryDelay?: number;
-    execFileFn?: ExecFileFn;
-    sleepFn?: SleepFn;
-  },
-) => Promise<ExecResult>;
+import type { ExecFileFn, ExecFn } from "../../../src/utils/types";
 
 let exec: ExecFn;
 

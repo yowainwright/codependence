@@ -16,15 +16,12 @@ import {
   PYTHON_MANIFEST_FILES,
   PYTHON_PACKAGE_MANAGERS,
 } from "./constants";
-import type { Language, LanguageDetectionResult } from "./types";
-
-type LanguageProvider =
-  | typeof NodeJSProvider
-  | typeof GoProvider
-  | typeof PythonProvider
-  | typeof RustProvider
-  | typeof DockerProvider
-  | typeof GitHubActionsProvider;
+import type {
+  Language,
+  LanguageDetectionResult,
+  LanguageProvider,
+  PackageManagerManifest,
+} from "./types";
 
 const hasAnyFile = (rootDir: string, files: readonly string[]): boolean =>
   files.some((file) => existsSync(join(rootDir, file)));
@@ -65,9 +62,7 @@ const readNodePackageManagerField = (rootDir: string): string | null => {
   if (!existsSync(packageJsonPath)) return null;
 
   try {
-    const content = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
-      packageManager?: unknown;
-    };
+    const content = JSON.parse(readFileSync(packageJsonPath, "utf8")) as PackageManagerManifest;
     const packageManager = content.packageManager;
     if (typeof packageManager !== "string" || packageManager.length === 0) {
       return null;
@@ -96,14 +91,8 @@ export const detectNodePackageManager = (rootDir: string): string => {
     rootDir,
     NODE_PACKAGE_MANAGER_LOCKFILES[NODE_PACKAGE_MANAGERS.PNPM],
   );
-  const hasBunLock = hasAnyFile(
-    rootDir,
-    NODE_PACKAGE_MANAGER_LOCKFILES[NODE_PACKAGE_MANAGERS.BUN],
-  );
-  const hasNpmLock = hasAnyFile(
-    rootDir,
-    NODE_PACKAGE_MANAGER_LOCKFILES[NODE_PACKAGE_MANAGERS.NPM],
-  );
+  const hasBunLock = hasAnyFile(rootDir, NODE_PACKAGE_MANAGER_LOCKFILES[NODE_PACKAGE_MANAGERS.BUN]);
+  const hasNpmLock = hasAnyFile(rootDir, NODE_PACKAGE_MANAGER_LOCKFILES[NODE_PACKAGE_MANAGERS.NPM]);
 
   if (hasBunLock) return NODE_PACKAGE_MANAGERS.BUN;
   if (hasPnpmLock) return NODE_PACKAGE_MANAGERS.PNPM;
@@ -122,9 +111,7 @@ export const isPoetryPyproject = (filePath: string): boolean => {
   }
 };
 
-export const detectPythonPackageManagerForManifest = (
-  manifestPath: string,
-): string => {
+export const detectPythonPackageManagerForManifest = (manifestPath: string): string => {
   const manifestName = basename(manifestPath);
 
   if (manifestName === MANIFEST_FILES.PIPFILE) {
@@ -136,10 +123,7 @@ export const detectPythonPackageManagerForManifest = (
   if (existsSync(join(dirname(manifestPath), MANIFEST_FILES.UV_LOCK))) {
     return PYTHON_PACKAGE_MANAGERS.UV;
   }
-  if (
-    manifestName === MANIFEST_FILES.PYPROJECT &&
-    isPoetryPyproject(manifestPath)
-  ) {
+  if (manifestName === MANIFEST_FILES.PYPROJECT && isPoetryPyproject(manifestPath)) {
     return PYTHON_PACKAGE_MANAGERS.POETRY;
   }
 
@@ -209,17 +193,12 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
   if (hasGithubWorkflow(rootDir)) {
     detections.push({
       language: LANGUAGES.GITHUB_ACTIONS,
-      manifestFiles: [
-        MANIFEST_FILES.GITHUB_WORKFLOW_YML,
-        MANIFEST_FILES.GITHUB_WORKFLOW_YAML,
-      ],
+      manifestFiles: [MANIFEST_FILES.GITHUB_WORKFLOW_YML, MANIFEST_FILES.GITHUB_WORKFLOW_YAML],
       packageManager: LANGUAGES.GITHUB_ACTIONS,
     });
   }
 
-  const foundPythonManifests = PYTHON_MANIFEST_FILES.filter((f) =>
-    existsSync(join(rootDir, f)),
-  );
+  const foundPythonManifests = PYTHON_MANIFEST_FILES.filter((f) => existsSync(join(rootDir, f)));
   const hasPythonManifests = foundPythonManifests.length > 0;
   if (hasPythonManifests) {
     detections.push({
@@ -232,9 +211,7 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
   return detections;
 };
 
-export const detectPrimaryLanguage = (
-  rootDir: string,
-): LanguageDetectionResult | null => {
+export const detectPrimaryLanguage = (rootDir: string): LanguageDetectionResult | null => {
   const detections = detectLanguage(rootDir);
   return detections.length > 0 ? detections[0] : null;
 };

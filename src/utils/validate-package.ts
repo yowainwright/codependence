@@ -1,12 +1,5 @@
-export interface ValidationResult {
-  validForNewPackages: boolean;
-  validForOldPackages: boolean;
-  warnings?: string[];
-  errors?: string[];
-}
-
-const SCOPED_PACKAGE_PATTERN = /^(?:@([^/]+?)[/])?([^/]+?)$/;
-const EXCLUSION_LIST = ["node_modules", "favicon.ico"];
+import { PACKAGE_NAME_EXCLUSIONS, SCOPED_PACKAGE_PATTERN } from "./constants";
+import type { ValidationResult } from "./types";
 
 export const validatePackageName = (name: unknown): ValidationResult => {
   const warnings: string[] = [];
@@ -47,9 +40,7 @@ export const validatePackageName = (name: unknown): ValidationResult => {
     errors.push("name cannot contain leading or trailing spaces");
   }
 
-  const isExcluded = EXCLUSION_LIST.some(
-    (excluded) => name.toLowerCase() === excluded,
-  );
+  const isExcluded = PACKAGE_NAME_EXCLUSIONS.some((excluded) => name.toLowerCase() === excluded);
   if (isExcluded) {
     errors.push(`${name.toLowerCase()} is not a valid package name`);
   }
@@ -99,10 +90,7 @@ export const validatePackageName = (name: unknown): ValidationResult => {
   return buildResult(warnings, errors);
 };
 
-const buildResult = (
-  warnings: string[],
-  errors: string[],
-): ValidationResult => {
+const buildResult = (warnings: string[], errors: string[]): ValidationResult => {
   const hasNoErrors = errors.length === 0;
   const hasNoWarnings = warnings.length === 0;
 

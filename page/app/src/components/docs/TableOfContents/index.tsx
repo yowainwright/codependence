@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import type { TableOfContentsProps, Heading } from './types';
-import { OBSERVER_OPTIONS } from './constants';
+import React, { useEffect, useState } from "react";
+import type { HeadingLinkProps, TableOfContentsProps } from "./types";
+import { OBSERVER_OPTIONS } from "./constants";
 
-function HeadingLink({ heading, activeId }: { heading: Heading; activeId: string }) {
+function HeadingLink({ heading, activeId }: HeadingLinkProps) {
   const isActive = activeId === heading.slug;
-  const baseClass = 'block py-1 text-sm transition font-sans';
-  const activeClass = 'text-primary font-medium';
-  const inactiveClass = 'text-base-content/70 hover:text-primary';
+  const baseClass = "block py-1 text-sm transition font-sans";
+  const activeClass = "text-primary font-medium";
+  const inactiveClass = "text-base-content/70 hover:text-primary";
 
   return (
     <li>
@@ -19,7 +19,11 @@ function HeadingLink({ heading, activeId }: { heading: Heading; activeId: string
       {heading.subheadings && heading.subheadings.length > 0 && (
         <ul className="ml-4">
           {heading.subheadings.map((subheading) => (
-            <HeadingLink key={subheading.slug} heading={subheading} activeId={activeId} />
+            <HeadingLink
+              key={subheading.slug}
+              heading={subheading}
+              activeId={activeId}
+            />
           ))}
         </ul>
       )}
@@ -28,7 +32,7 @@ function HeadingLink({ heading, activeId }: { heading: Heading; activeId: string
 }
 
 export function TableOfContents({ headings }: TableOfContentsProps) {
-  const [activeId, setActiveId] = useState<string>('');
+  const [activeId, setActiveId] = useState<string>("");
 
   useEffect(() => {
     if (headings.length === 0) return;
@@ -41,7 +45,7 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
       });
     }, OBSERVER_OPTIONS);
 
-    const headingElements = document.querySelectorAll('h2[id], h3[id], h4[id]');
+    const headingElements = document.querySelectorAll("h2[id], h3[id], h4[id]");
     headingElements.forEach((element) => observer.observe(element));
 
     return () => {
@@ -54,7 +58,11 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
       <h2 className="mb-4 text-lg font-bold font-sans">On this page</h2>
       <ul className="space-y-1">
         {headings.map((heading) => (
-          <HeadingLink key={heading.slug} heading={heading} activeId={activeId} />
+          <HeadingLink
+            key={heading.slug}
+            heading={heading}
+            activeId={activeId}
+          />
         ))}
       </ul>
     </div>

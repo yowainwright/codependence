@@ -4,12 +4,15 @@ import type {
   PYTHON_PACKAGE_MANAGERS,
 } from "./providers/constants";
 import type { VersionStrategy } from "./providers/types";
+import type { INIT_TYPES } from "./constants";
 
 export type CodeDependenciesItem = string | Record<string, string>;
 export type CodeDependencies = Array<CodeDependenciesItem>;
 
 export type Level = "patch" | "minor" | "major";
 export type Mode = "verbose" | "precise";
+export type InitType = (typeof INIT_TYPES)[number];
+export type InitInput = InitType | string[];
 export type SupportedLanguage = (typeof LANGUAGES)[keyof typeof LANGUAGES];
 export type DependencyManager =
   | (typeof NODE_PACKAGE_MANAGERS)[keyof typeof NODE_PACKAGE_MANAGERS]
@@ -199,4 +202,16 @@ export type InteractiveResult = {
   shouldUpdate: boolean;
   depNames: string[];
   versionMap: Record<string, string>;
+};
+
+export type ProgressHandler = NonNullable<CheckFiles["onProgress"]>;
+
+export type TargetRunResult = {
+  diffs: VersionDiff[];
+  failed: boolean;
+};
+
+export type ActionConfigs = {
+  baseConfig: Record<string, unknown>;
+  pathConfig: Record<string, unknown>;
 };

@@ -236,7 +236,7 @@ checkForOutdated();
 
 ### One `.codependencerc`, every manager
 
-<!-- manager target config shape from src/types.ts and src/config/targets.ts -->
+<!-- manager target config shape from src/types.ts and src/config/index.ts -->
 
 The root `targets` array holds independent manager policies. Each target uses
 manager-scoped default manifests unless `files` is provided, plus its own

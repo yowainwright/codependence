@@ -9,27 +9,14 @@ import {
   resolveToolVersionValue,
   resolveToolVersions,
 } from "../../../../scripts/ci/tool-versions.js";
-
-const miseToml = `
-[tools]
-bun = "1.3.14"
-node = "24"
-`;
-
-const nodeAlpineImage =
-  "node:24-alpine@sha256:fb71d01345f11b708a3553c66e7c74074f2d506400ea81973343d915cb64eef0";
-const nodeSlimImage =
-  "node:24-slim@sha256:2c87ef9bd3c6a3bd4b472b4bec2ce9d16354b0c574f736c476489d09f560a203";
-const bunLinuxAarch64Sha256 = "a27ffb63a8310375836e0d6f668ae17fa8d8d18b88c37c821c65331973a19a3b";
-const bunLinuxX64Sha256 = "951ee2aee855f08595aeec6225226a298d3fea83a3dcd6465c09cbccdf7e848f";
-const dockerPins = {
-  bunArchives: {
-    "1.3.14": {
-      "linux-aarch64": bunLinuxAarch64Sha256,
-      "linux-x64": bunLinuxX64Sha256,
-    },
-  },
-};
+import {
+  BUN_LINUX_AARCH64_SHA256 as bunLinuxAarch64Sha256,
+  BUN_LINUX_X64_SHA256 as bunLinuxX64Sha256,
+  DOCKER_PINS as dockerPins,
+  MISE_TOML as miseToml,
+  NODE_ALPINE_IMAGE as nodeAlpineImage,
+  NODE_SLIM_IMAGE as nodeSlimImage,
+} from "./constants";
 
 function resolveVersions(overrides = {}) {
   return resolveToolVersions({
@@ -55,7 +42,10 @@ describe("scripts/ci/tool-versions", () => {
 
   test("parseDockerfileArg reads pinned ARG defaults", () => {
     expect(
-      parseDockerfileArg(`ARG NODE_SLIM_IMAGE=${nodeSlimImage}\nFROM \${NODE_SLIM_IMAGE}`, "NODE_SLIM_IMAGE"),
+      parseDockerfileArg(
+        `ARG NODE_SLIM_IMAGE=${nodeSlimImage}\nFROM \${NODE_SLIM_IMAGE}`,
+        "NODE_SLIM_IMAGE",
+      ),
     ).toBe(nodeSlimImage);
   });
 
@@ -77,7 +67,10 @@ describe("scripts/ci/tool-versions", () => {
   });
 
   test("release Dockerfiles share the same pinned Node alpine image", () => {
-    const dockerfiles = ["tests/release/Dockerfile.npm-smoke", "tests/release/Dockerfile.published"];
+    const dockerfiles = [
+      "tests/release/Dockerfile.npm-smoke",
+      "tests/release/Dockerfile.published",
+    ];
 
     expect(
       dockerfiles.map((dockerfile) =>

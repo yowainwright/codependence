@@ -1,22 +1,9 @@
-import {
-  CONDA_MANIFEST_FILES,
-  MANIFEST_FILES,
-  PYTHON_PACKAGE_MANAGERS,
-} from "../constants";
-import {
-  VERSION_COMPARISON_PREFIXES,
-  createRegexAlternation,
-} from "../../utils/constants";
+import { CONDA_MANIFEST_FILES, MANIFEST_FILES, PYTHON_PACKAGE_MANAGERS } from "../constants";
+import { VERSION_COMPARISON_PREFIXES, createRegexAlternation } from "../../utils/constants";
 
-const PYTHON_REQUIREMENT_PREFIXES = VERSION_COMPARISON_PREFIXES.filter(
-  (prefix) => prefix !== "=",
-);
-const PYTHON_REQUIREMENT_PREFIX_PATTERN = createRegexAlternation(
-  PYTHON_REQUIREMENT_PREFIXES,
-);
-const PYTHON_CONDA_PREFIX_PATTERN = createRegexAlternation(
-  VERSION_COMPARISON_PREFIXES,
-);
+const PYTHON_REQUIREMENT_PREFIXES = VERSION_COMPARISON_PREFIXES.filter((prefix) => prefix !== "=");
+const PYTHON_REQUIREMENT_PREFIX_PATTERN = createRegexAlternation(PYTHON_REQUIREMENT_PREFIXES);
+const PYTHON_CONDA_PREFIX_PATTERN = createRegexAlternation(VERSION_COMPARISON_PREFIXES);
 
 export const PYTHON_RUNTIME_DEPENDENCY_NAME = "python";
 
@@ -49,10 +36,5 @@ export const PYTHON_PATTERNS = {
   PIP_VERSIONS: /Available versions:\s*(.+)/,
   CONDA_VERSION: /^([0-9.]+)/,
 };
-
-export type PythonManifestType =
-  (typeof PYTHON_MANIFEST_TYPES)[keyof typeof PYTHON_MANIFEST_TYPES];
-export type PythonPackageManager =
-  (typeof PYTHON_PACKAGE_MANAGERS)[keyof typeof PYTHON_PACKAGE_MANAGERS];
 
 export { CONDA_MANIFEST_FILES, MANIFEST_FILES, PYTHON_PACKAGE_MANAGERS };

@@ -19,3 +19,12 @@ export interface ParsedArgs {
   command?: string;
   options: Record<string, unknown>;
 }
+
+export interface ArgumentState {
+  options: Record<string, unknown>;
+  command?: string;
+}
+
+export interface ArgumentResult extends ArgumentState {
+  nextIndex: number;
+}

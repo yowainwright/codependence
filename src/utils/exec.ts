@@ -1,6 +1,6 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
-import type { ExecResult, ExecFileFn, SleepFn } from "./types";
+import type { ExecFileFn, ExecFn, ExecOptions, ExecResult, RetryableError, SleepFn } from "./types";
 
 const execFileAsync = promisify(execFile) as ExecFileFn;
 
@@ -10,7 +10,7 @@ const sleep: SleepFn = (ms: number): Promise<void> =>
 const isRetryableError = (error: unknown): boolean => {
   if (!error || typeof error !== "object") return false;
 
-  const err = error as { code?: string; message?: string };
+  const err = error as RetryableError;
   const retryableCodes = ["ETIMEDOUT", "ECONNRESET", "ENOTFOUND", "EAI_AGAIN"];
 
   if (err.code && retryableCodes.includes(err.code)) return true;
@@ -62,16 +62,10 @@ const executeWithRetry = async (
   }
 };
 
-export const exec = async (
+export const exec: ExecFn = async (
   command: string,
   args: string[],
-  options: {
-    cwd?: string;
-    maxRetries?: number;
-    retryDelay?: number;
-    execFileFn?: ExecFileFn;
-    sleepFn?: SleepFn;
-  } = {},
+  options: ExecOptions = {},
 ): Promise<ExecResult> => {
   const {
     cwd,

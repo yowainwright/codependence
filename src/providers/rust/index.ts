@@ -1,24 +1,17 @@
 import { readFileSync, writeFileSync } from "fs";
 import { exec } from "../../utils/exec";
 import { LANGUAGES } from "../constants";
-import type { DependencyManifest, DependencyProvider, ProviderOptions } from "../types";
+import type {
+  CargoAssignment,
+  CargoInlineField,
+  CargoManifestLineResult,
+  CargoSectionTarget,
+  CargoValueRange,
+  DependencyManifest,
+  DependencyProvider,
+  ProviderOptions,
+} from "../types";
 import { CARGO_PACKAGE_MANAGER } from "./constants";
-
-type CargoSectionTarget = "dependencies" | "devDependencies";
-
-type CargoAssignment = {
-  readonly aliasName: string;
-  readonly prefix: string;
-  readonly value: string;
-  readonly suffix: string;
-};
-
-type InlineField = {
-  readonly name: string;
-  readonly value: string;
-  readonly quoteStart: number;
-  readonly quoteEnd: number;
-};
 
 const emptyManifest = (filePath: string): DependencyManifest => {
   const manifest = {
@@ -85,7 +78,7 @@ const readCargoKeyName = (key: string): string | null => {
   return isCargoPackageName(name) ? name : null;
 };
 
-const readQuotedCargoValueRange = (source: string): { value: string; suffix: string } | null => {
+const readQuotedCargoValueRange = (source: string): CargoValueRange | null => {
   if (!source.startsWith('"')) return null;
 
   const quoteEnd = source.indexOf('"', 1);
@@ -97,7 +90,7 @@ const readQuotedCargoValueRange = (source: string): { value: string; suffix: str
   };
 };
 
-const readInlineCargoValueRange = (source: string): { value: string; suffix: string } | null => {
+const readInlineCargoValueRange = (source: string): CargoValueRange | null => {
   if (!source.startsWith("{")) return null;
 
   const tableEnd = source.indexOf("}");
@@ -109,7 +102,7 @@ const readInlineCargoValueRange = (source: string): { value: string; suffix: str
   };
 };
 
-const readCargoValueRange = (source: string): { value: string; suffix: string } | null =>
+const readCargoValueRange = (source: string): CargoValueRange | null =>
   readQuotedCargoValueRange(source) || readInlineCargoValueRange(source);
 
 const parseCargoAssignmentLine = (line: string): CargoAssignment | null => {
@@ -132,7 +125,7 @@ const parseCargoAssignmentLine = (line: string): CargoAssignment | null => {
   };
 };
 
-const parseInlineField = (part: string): InlineField | null => {
+const parseInlineField = (part: string): CargoInlineField | null => {
   const equalsIndex = part.indexOf("=");
   if (equalsIndex === -1) return null;
 
@@ -155,9 +148,9 @@ const parseInlineField = (part: string): InlineField | null => {
   };
 };
 
-const isInlineField = (field: InlineField | null): field is InlineField => field !== null;
+const isInlineField = (field: CargoInlineField | null): field is CargoInlineField => field !== null;
 
-const inlineFields = (value: string): InlineField[] =>
+const inlineFields = (value: string): CargoInlineField[] =>
   value.split(",").map(parseInlineField).filter(isInlineField);
 
 const readInlineStringField = (value: string, field: string): string | null => {
@@ -308,7 +301,7 @@ const updateCargoManifestLine = (
   line: string,
   currentSection: CargoSectionTarget | null,
   manifest: DependencyManifest,
-): { line: string; currentSection: CargoSectionTarget | null } => {
+): CargoManifestLineResult => {
   const sectionName = readCargoSectionName(line);
   const nextSection = sectionName ? parseCargoSection(sectionName) : currentSection;
   const updatedLine = sectionName ? line : updateCargoLine(line, currentSection, manifest);
