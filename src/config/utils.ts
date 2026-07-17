@@ -197,13 +197,133 @@ const parseArrayItem = (value: string): unknown => {
   return parseValue(value);
 };
 
+type ParsedBlock = {
+  value: unknown;
+  nextIndex: number;
+};
+
+type ParsedField = {
+  key: string;
+  value: unknown;
+  nextIndex: number;
+};
+
+const isArrayLine = (line: ParsedLine): boolean =>
+  line.text === "-" || line.text.startsWith("- ");
+
+const parseNestedBlock = (
+  lines: ParsedLine[],
+  startIndex: number,
+  parentIndent: number,
+): ParsedBlock | null => {
+  const line = lines[startIndex];
+  if (!line) return null;
+
+  const isUnindentedArray = isArrayLine(line) && line.indent === parentIndent;
+  if (line.indent <= parentIndent && !isUnindentedArray) return null;
+  if (isArrayLine(line)) {
+    return parseBlockArray(lines, startIndex, parentIndent);
+  }
+
+  return parseBlockObject(lines, startIndex);
+};
+
+const parseFieldValue = (
+  lines: ParsedLine[],
+  startIndex: number,
+  parentIndent: number,
+  rawValue: string,
+): ParsedBlock => {
+  if (rawValue) {
+    return { value: parseValue(rawValue), nextIndex: startIndex };
+  }
+
+  const block = parseNestedBlock(lines, startIndex, parentIndent);
+  if (block) return block;
+  return { value: null, nextIndex: startIndex };
+};
+
+const parseObjectField = (
+  lines: ParsedLine[],
+  index: number,
+): ParsedField | null => {
+  const line = lines[index];
+  const separator = findSeparator(line.text);
+  if (separator < 0) return null;
+
+  const key = unquote(line.text.slice(0, separator));
+  const rawValue = line.text.slice(separator + 1).trim();
+  const parsedValue = parseFieldValue(
+    lines,
+    index + 1,
+    line.indent,
+    rawValue,
+  );
+  return { key, value: parsedValue.value, nextIndex: parsedValue.nextIndex };
+};
+
+const parseBlockObject = (
+  lines: ParsedLine[],
+  startIndex: number,
+): ParsedBlock | null => {
+  const firstLine = lines[startIndex];
+  if (!firstLine) return null;
+
+  const value: Record<string, unknown> = {};
+  let index = startIndex;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (line.indent !== firstLine.indent || isArrayLine(line)) break;
+
+    const field = parseObjectField(lines, index);
+    if (!field) return null;
+    value[field.key] = field.value;
+    index = field.nextIndex;
+  }
+
+  return { value, nextIndex: index };
+};
+
+const parseArrayObject = (
+  lines: ParsedLine[],
+  index: number,
+  itemIndent: number,
+  itemText: string,
+): ParsedBlock => {
+  const separator = findSeparator(itemText);
+  const key = unquote(itemText.slice(0, separator));
+  const rawValue = itemText.slice(separator + 1).trim();
+  const parsedValue = parseFieldValue(
+    lines,
+    index + 1,
+    itemIndent,
+    rawValue,
+  );
+  const value = { [key]: parsedValue.value };
+  const nextLine = lines[parsedValue.nextIndex];
+  const hasMoreFields =
+    nextLine && nextLine.indent > itemIndent && !isArrayLine(nextLine);
+  if (!hasMoreFields) {
+    return { value, nextIndex: parsedValue.nextIndex };
+  }
+
+  const remaining = parseBlockObject(lines, parsedValue.nextIndex);
+  if (!remaining || !isRecord(remaining.value)) {
+    return { value, nextIndex: parsedValue.nextIndex };
+  }
+  return {
+    value: { ...value, ...remaining.value },
+    nextIndex: remaining.nextIndex,
+  };
+};
+
 const parseBlockArray = (
   lines: ParsedLine[],
   startIndex: number,
   parentIndent: number,
-): { value: unknown[]; nextIndex: number } | null => {
+): ParsedBlock | null => {
   const firstLine = lines[startIndex];
-  if (!firstLine?.text.startsWith("- ")) return null;
+  if (!firstLine || !isArrayLine(firstLine)) return null;
   if (firstLine.indent < parentIndent) return null;
 
   const itemIndent = firstLine.indent;
@@ -213,19 +333,27 @@ const parseBlockArray = (
   while (index < lines.length) {
     const line = lines[index];
     if (line.indent < itemIndent) break;
-
     if (line.indent > itemIndent) return null;
+    if (!isArrayLine(line)) break;
 
-    if (!line.text.startsWith("- ")) {
-      const isNextTopLevelKey =
-        itemIndent === parentIndent && findSeparator(line.text) > -1;
-      if (isNextTopLevelKey) break;
-
-      return null;
+    const itemText = line.text.slice(1).trimStart();
+    if (findSeparator(itemText) > -1) {
+      const objectItem = parseArrayObject(lines, index, itemIndent, itemText);
+      value.push(objectItem.value);
+      index = objectItem.nextIndex;
+      continue;
     }
 
-    value.push(parseArrayItem(line.text.slice(2)));
-    index++;
+    if (itemText) {
+      value.push(parseArrayItem(itemText));
+      index++;
+      continue;
+    }
+
+    const block = parseNestedBlock(lines, index + 1, itemIndent);
+    if (!block) return null;
+    value.push(block.value);
+    index = block.nextIndex;
   }
 
   return { value, nextIndex: index };
@@ -255,7 +383,7 @@ export const parseYAML = (content: string): Record<string, unknown> | null => {
       continue;
     }
 
-    const block = parseBlockArray(lines, index + 1, line.indent);
+    const block = parseNestedBlock(lines, index + 1, line.indent);
     if (!block) {
       config[key] = null;
       index++;

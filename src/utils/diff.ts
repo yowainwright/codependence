@@ -33,6 +33,19 @@ const extractAllDeps = (
     extractDepsFromSection(packageJson, section),
   );
 
+const versionForComparison = (
+  packageJson: Pick<DependencyManifest, "dependencyVersions">,
+  packageName: string,
+  currentVersion: string,
+  latestVersion: string,
+): string => {
+  const versions = packageJson.dependencyVersions?.[packageName] || [];
+  return versions.reduce((comparedVersion, version) => {
+    if (comparedVersion !== currentVersion) return comparedVersion;
+    return version !== latestVersion ? version : currentVersion;
+  }, currentVersion);
+};
+
 const toVersionDiff = (
   pkgName: string,
   currentVersion: string,
@@ -66,7 +79,11 @@ export const buildVersionDiff = (
   versionMap: Record<string, string>,
   packageJson: Pick<
     DependencyManifest,
-    "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies"
+    | "dependencies"
+    | "dependencyVersions"
+    | "devDependencies"
+    | "peerDependencies"
+    | "optionalDependencies"
   > & { path?: string; versionStrategy?: VersionStrategy },
   codependencies: string[],
   permissive: boolean,
@@ -78,7 +95,12 @@ export const buildVersionDiff = (
     .map(([pkgName, currentVersion]) =>
       toVersionDiff(
         pkgName,
-        currentVersion,
+        versionForComparison(
+          packageJson,
+          pkgName,
+          currentVersion,
+          versionMap[pkgName],
+        ),
         versionMap[pkgName],
         codependencies,
         permissive,

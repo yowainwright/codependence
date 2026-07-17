@@ -77,6 +77,7 @@ type LoadedManifest = {
 
 type DependencySections = {
   dependencies?: Record<string, string>;
+  dependencyVersions?: Record<string, readonly string[]>;
   devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;
@@ -796,6 +797,43 @@ export const constructJson = <T extends DependencySections>(
   };
 };
 
+const firstDifferentVersion = (
+  versions: readonly string[],
+  targetVersion: string | undefined,
+): string | undefined =>
+  versions.reduce<string | undefined>((differentVersion, version) => {
+    if (differentVersion) return differentVersion;
+    return version !== targetVersion ? version : undefined;
+  }, undefined);
+
+const staleVersionMap = (
+  dependencyVersions: Record<string, readonly string[]>,
+  versionMap: Record<string, string>,
+): Map<string, string> => {
+  const entries = Object.entries(dependencyVersions).flatMap(
+    ([name, versions]) => {
+      const staleVersion = firstDifferentVersion(versions, versionMap[name]);
+      return staleVersion ? [[name, staleVersion] as const] : [];
+    },
+  );
+  return new Map(entries);
+};
+
+const dependenciesForComparison = (
+  dependencies: Record<string, string> | undefined,
+  dependencyVersions: Record<string, readonly string[]> | undefined,
+  versionMap: Record<string, string>,
+): Record<string, string> | undefined => {
+  if (!dependencies || !dependencyVersions) return dependencies;
+
+  const staleVersions = staleVersionMap(dependencyVersions, versionMap);
+  const entries = Object.entries(dependencies).map(([name, currentVersion]) => {
+    const comparedVersion = staleVersions.get(name) ?? currentVersion;
+    return [name, comparedVersion];
+  });
+  return Object.fromEntries(entries);
+};
+
 export const buildUpdateLists = <T extends DependencySections>(
   versionMap: Record<string, string>,
   json: T,
@@ -804,12 +842,17 @@ export const buildUpdateLists = <T extends DependencySections>(
 ): DepsToUpdate => {
   const { dependencies, devDependencies, peerDependencies, optionalDependencies } = json;
   const { permissive, level = "major", versionStrategy = "semver" } = options;
+  const comparedDependencies = dependenciesForComparison(
+    dependencies,
+    json.dependencyVersions,
+    versionMap,
+  );
 
   if (permissive) {
     const coDeps = codependencies || [];
     return {
       depList: constructPermissiveDepsToUpdateList(
-        dependencies,
+        comparedDependencies,
         coDeps,
         versionMap,
         level,
@@ -840,7 +883,12 @@ export const buildUpdateLists = <T extends DependencySections>(
   }
 
   return {
-    depList: constructDepsToUpdateList(dependencies, versionMap, level, versionStrategy),
+    depList: constructDepsToUpdateList(
+      comparedDependencies,
+      versionMap,
+      level,
+      versionStrategy,
+    ),
     devDepList: constructDepsToUpdateList(devDependencies, versionMap, level, versionStrategy),
     peerDepList: constructDepsToUpdateList(peerDependencies, versionMap, level, versionStrategy),
     optionalDepList: constructDepsToUpdateList(
@@ -1318,6 +1366,7 @@ export const checkFiles = async ({
   mode,
   packageManager,
   deferFailure = false,
+  onDeferredFailure,
 }: CheckFiles): Promise<VersionDiff[] | void> => {
   try {
     const resolvedRootDir = resolve(rootDir);
@@ -1457,6 +1506,7 @@ export const checkFiles = async ({
     });
 
     if (shouldDeferFailure && isCLI && isOutOfDate && !shouldUpdate) {
+      onDeferredFailure?.();
       process.exitCode = 1;
     }
 

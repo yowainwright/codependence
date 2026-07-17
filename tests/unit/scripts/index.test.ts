@@ -1007,6 +1007,7 @@ test("checkFiles => defaults codependencies to 0.x compatible verbose mode", asy
 
 test("checkFiles => sets exit code for formatted CLI failures", async () => {
   const previousExitCode = process.exitCode;
+  const onDeferredFailure = jest.fn();
   process.exitCode = undefined;
 
   try {
@@ -1019,9 +1020,11 @@ test("checkFiles => sets exit code for formatted CLI failures", async () => {
       files,
       format: "json",
       isCLI: true,
+      onDeferredFailure,
     });
 
     expect(diffs?.map((diff) => diff.package)).toEqual(["lodash"]);
+    expect(onDeferredFailure).toHaveBeenCalledTimes(1);
     expect(process.exitCode).toBe(1);
   } finally {
     process.exitCode = previousExitCode ?? 0;
@@ -1780,6 +1783,47 @@ test("checkFiles => supports GitHub Actions precise mode", async () => {
     expect(readFileSync(workflowPath, "utf8")).toContain(
       `uses: actions/checkout@${latestSha}`,
     );
+  } finally {
+    latestVersionSpy.mockRestore();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => updates every repeated GitHub Action ref", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-repeated");
+  const workflowDir = join(tempDir, ".github", "workflows");
+  const workflowPath = join(workflowDir, "ci.yml");
+  const staleSha = "1".repeat(40);
+  const latestSha = "2".repeat(40);
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(workflowDir, { recursive: true });
+  writeFileSync(
+    workflowPath,
+    `jobs:
+  lint:
+    steps:
+      - uses: actions/checkout@${staleSha}
+  test:
+    steps:
+      - uses: actions/checkout@${latestSha}
+`,
+  );
+  const latestVersionSpy = jest
+    .spyOn(GitHubActionsProvider.prototype, "getLatestVersion")
+    .mockResolvedValue(latestSha);
+
+  try {
+    await checkFiles({
+      rootDir: tempDir,
+      files: [".github/workflows/ci.yml"],
+      mode: "precise",
+      update: true,
+      silent: true,
+    });
+
+    const updated = readFileSync(workflowPath, "utf8");
+    expect(updated).not.toContain(staleSha);
+    expect(updated.match(new RegExp(latestSha, "g"))).toHaveLength(2);
   } finally {
     latestVersionSpy.mockRestore();
     rmSync(tempDir, { recursive: true, force: true });

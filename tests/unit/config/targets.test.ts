@@ -46,4 +46,24 @@ describe("expandTargets", () => {
       }),
     ]);
   });
+
+  test("uses manager-scoped Python manifest defaults", () => {
+    const targets = expandTargets({
+      targets: [
+        { manager: "pip", mode: "precise" },
+        { manager: "pipenv", mode: "precise" },
+        { manager: "poetry", mode: "precise" },
+        { manager: "uv", mode: "precise" },
+        { manager: "conda", mode: "precise" },
+      ],
+    });
+
+    expect(targets.map(({ files }) => files)).toEqual([
+      ["requirements.txt"],
+      ["Pipfile"],
+      ["pyproject.toml"],
+      ["pyproject.toml"],
+      ["environment.yml", "environment.yaml"],
+    ]);
+  });
 });

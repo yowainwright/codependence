@@ -166,6 +166,17 @@ const readUsesLine = (line: string): GitHubActionRef | null => {
   return actionRef;
 };
 
+const collectDependencyVersions = (
+  actionRefs: GitHubActionRef[],
+): Record<string, string[]> => {
+  const versions = new Map<string, string[]>();
+  actionRefs.forEach(({ name, version }) => {
+    const currentVersions = versions.get(name) || [];
+    versions.set(name, currentVersions.concat(version));
+  });
+  return Object.fromEntries(versions);
+};
+
 export const updateGitHubActionsUsesLine = (
   line: string,
   dependencies: Record<string, string>,
@@ -277,8 +288,9 @@ export class GitHubActionsProvider implements DependencyProvider {
     );
     const entries = externalRefs.map(({ name, version }) => [name, version]);
     const dependencies = Object.fromEntries(entries);
+    const dependencyVersions = collectDependencyVersions(externalRefs);
 
-    return { filePath, dependencies };
+    return { filePath, dependencies, dependencyVersions };
   }
 
   writeManifest(filePath: string, manifest: DependencyManifest): void {

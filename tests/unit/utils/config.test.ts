@@ -1,5 +1,5 @@
 import { expect, test, describe, beforeEach } from "bun:test";
-import { loadConfig } from "../../../src/config";
+import { loadConfig, validateConfig } from "../../../src/config";
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 
@@ -150,6 +150,48 @@ describe("Config Loading", () => {
       expect(result?.config).toEqual({
         codependencies: ["lodash", { react: "18.2.0" }],
         permissive: false,
+      });
+    });
+
+    test("should load multiline YAML manager targets", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yml");
+      writeFileSync(
+        rcPath,
+        [
+          "targets:",
+          "  - manager: bun",
+          "    files:",
+          "      - package.json",
+          "    codependencies:",
+          "      - typescript",
+          "  - manager: github-actions",
+          "    files:",
+          "      - .github/workflows/*.yml",
+          "    mode: precise",
+          "update: true",
+        ].join("\n"),
+      );
+
+      const result = loadConfig(rcPath);
+
+      expect(result?.config).toEqual({
+        targets: [
+          {
+            manager: "bun",
+            files: ["package.json"],
+            codependencies: ["typescript"],
+          },
+          {
+            manager: "github-actions",
+            files: [".github/workflows/*.yml"],
+            mode: "precise",
+          },
+        ],
+        update: true,
+      });
+      expect(validateConfig(result?.config)).toEqual({
+        valid: true,
+        errors: [],
       });
     });
 

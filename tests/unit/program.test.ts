@@ -235,6 +235,33 @@ describe("Action Function Tests (Fast)", () => {
     }
   });
 
+  test("reports deferred target failures without a success message", async () => {
+    const stdoutSpy = jest
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    scriptSpy
+      .mockImplementationOnce(async (options) => {
+        options.onDeferredFailure?.();
+        return [];
+      })
+      .mockResolvedValueOnce([]);
+
+    try {
+      await action({
+        targets: [
+          { manager: "bun", mode: "precise" },
+          { manager: "github-actions", mode: "precise" },
+        ],
+      });
+
+      const output = stdoutSpy.mock.calls.flat().join("");
+      expect(output).toContain("found dependency issues");
+      expect(output).not.toContain("pinned!");
+    } finally {
+      stdoutSpy.mockRestore();
+    }
+  });
+
   test("allows supplemental explicit config when CLI supplies policy", async () => {
     const workDir = fs.mkdtempSync(join(tmpdir(), "codependence-partial-config-"));
     const configPath = join(workDir, ".codependencerc");

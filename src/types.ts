@@ -84,6 +84,7 @@ export type CheckFiles = {
   mode?: Mode;
   packageManager?: DependencyManager;
   deferFailure?: boolean;
+  onDeferredFailure?: () => void;
 };
 
 export type CheckDependenciesForVersionOptions = {

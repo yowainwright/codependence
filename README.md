@@ -238,9 +238,10 @@ checkForOutdated();
 
 <!-- manager target config shape from src/types.ts and src/config/targets.ts -->
 
-The root `targets` array holds independent manager policies. Each target gets
-its own files, policy, and version resolver, and Codependence runs all targets
-from the same config.
+The root `targets` array holds independent manager policies. Each target uses
+manager-scoped default manifests unless `files` is provided, plus its own
+policy and version resolver. Codependence runs all targets from the same
+config.
 
 ```json
 {

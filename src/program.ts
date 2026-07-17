@@ -159,25 +159,41 @@ const withDefaultMode = (options: Options): Options => {
 
 type ProgressHandler = NonNullable<CheckFiles["onProgress"]>;
 
+type TargetRunResult = {
+  diffs: VersionDiff[];
+  failed: boolean;
+};
+
 const runTarget = async (
-  allDiffs: VersionDiff[],
+  result: TargetRunResult,
   options: CheckFiles,
   onProgress: ProgressHandler,
   deferFailure: boolean,
-): Promise<VersionDiff[]> => {
-  const diffs = await checkFiles({ ...options, onProgress, deferFailure });
-  return diffs ? [...allDiffs, ...diffs] : allDiffs;
+): Promise<TargetRunResult> => {
+  let targetFailed = false;
+  const onDeferredFailure = () => {
+    targetFailed = true;
+  };
+  const diffs = await checkFiles({
+    ...options,
+    onProgress,
+    deferFailure,
+    onDeferredFailure,
+  });
+  const allDiffs = diffs ? [...result.diffs, ...diffs] : result.diffs;
+  const failed = result.failed || targetFailed;
+  return { diffs: allDiffs, failed };
 };
 
 const runTargets = (
   targets: CheckFiles[],
   onProgress: ProgressHandler,
-): Promise<VersionDiff[]> => {
+): Promise<TargetRunResult> => {
   const deferFailure = targets.length > 1;
   return targets.reduce(
     async (result, target) =>
       runTarget(await result, target, onProgress, deferFailure),
-    Promise.resolve([] as VersionDiff[]),
+    Promise.resolve<TargetRunResult>({ diffs: [], failed: false }),
   );
 };
 
@@ -273,7 +289,10 @@ export async function action(options: Options = {}): Promise<void | Options> {
       },
     };
 
-    const diffs = await runTargets(targets, optionsWithProgress.onProgress);
+    const { diffs, failed } = await runTargets(
+      targets,
+      optionsWithProgress.onProgress,
+    );
     const duration = Date.now() - startTime;
 
     if (shouldUseFormatter) {
@@ -296,9 +315,11 @@ export async function action(options: Options = {}): Promise<void | Options> {
       const successMessage = isDryRun
         ? `🤼‍♀️ ${gradient(`codependence`)} dry run complete!`
         : `🤼‍♀️ ${gradient(`codependence`)} pinned!`;
+      const failureMessage = `${gradient(`codependence`)} found dependency issues.`;
 
       if (spinner) {
-        spinner.succeed(successMessage);
+        if (failed) spinner.fail(failureMessage);
+        else spinner.succeed(successMessage);
       }
 
       const shouldShowMetrics = updatedOptions.verbose === true;
@@ -364,7 +385,11 @@ const runWatchMode = async (targets: CheckFiles[]): Promise<void> => {
     console.log(gray(`\n[${now}] Checking dependencies...`));
 
     try {
-      await runTargets(targets, () => {});
+      const { failed } = await runTargets(targets, () => {});
+      if (failed) {
+        console.error(red(`${SYMBOLS.error} Dependency issues found (${now})`));
+        return;
+      }
       console.log(
         green(`${SYMBOLS.success} All dependencies checked (${now})`),
       );

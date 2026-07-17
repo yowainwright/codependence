@@ -13,6 +13,7 @@ export interface DependencyManifest {
   name?: string;
   version?: string;
   dependencies: Record<string, string>;
+  dependencyVersions?: Record<string, readonly string[]>;
   devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;
