@@ -1,6 +1,5 @@
+import { COMMON_PACKAGES } from "./constants";
 import type { ErrorContext } from "./types";
-
-export type { ErrorContext } from "./types";
 
 const levenshteinDistance = (a: string, b: string): number => {
   const matrix: number[][] = [];
@@ -39,10 +38,7 @@ export const findSimilarPackages = (
   const similarities = candidates
     .map((candidate) => ({
       name: candidate,
-      distance: levenshteinDistance(
-        target.toLowerCase(),
-        candidate.toLowerCase(),
-      ),
+      distance: levenshteinDistance(target.toLowerCase(), candidate.toLowerCase()),
     }))
     .filter((item) => item.distance <= maxDistance)
     .sort((a, b) => a.distance - b.distance)
@@ -50,43 +46,6 @@ export const findSimilarPackages = (
 
   return similarities.map((item) => item.name);
 };
-
-export const COMMON_PACKAGES = [
-  "lodash",
-  "react",
-  "react-dom",
-  "express",
-  "axios",
-  "typescript",
-  "eslint",
-  "prettier",
-  "jest",
-  "webpack",
-  "vite",
-  "next",
-  "vue",
-  "angular",
-  "svelte",
-  "tailwindcss",
-  "prisma",
-  "graphql",
-  "apollo",
-  "redux",
-  "mobx",
-  "rxjs",
-  "date-fns",
-  "moment",
-  "dayjs",
-  "chalk",
-  "commander",
-  "inquirer",
-  "ora",
-  "dotenv",
-  "nodemon",
-  "ts-node",
-  "rimraf",
-  "concurrently",
-];
 
 export const getSuggestionForPackage = (packageName: string): string | null => {
   const suggestions = findSimilarPackages(packageName, COMMON_PACKAGES, 2);
@@ -96,7 +55,9 @@ export const getSuggestionForPackage = (packageName: string): string | null => {
 export const isPrivatePackage = (err: Error | string): boolean => {
   const errorStr = typeof err === "string" ? err : err.message;
   const lower = errorStr.toLowerCase();
-  return lower.includes("e401") || lower.includes("unauthorized") || lower.includes("private package");
+  return (
+    lower.includes("e401") || lower.includes("unauthorized") || lower.includes("private package")
+  );
 };
 
 export const hasRegistryInError = (err: Error | string): boolean => {
@@ -107,7 +68,11 @@ export const hasRegistryInError = (err: Error | string): boolean => {
 export const isTimeout = (err: Error | string): boolean => {
   const errorStr = typeof err === "string" ? err : err.message;
   const lowerError = errorStr.toLowerCase();
-  return lowerError.includes("timeout") || lowerError.includes("timed out") || lowerError.includes("etimedout");
+  return (
+    lowerError.includes("timeout") ||
+    lowerError.includes("timed out") ||
+    lowerError.includes("etimedout")
+  );
 };
 
 export const formatValidationError = (packageName: string): string => {
@@ -195,10 +160,7 @@ export const formatNetworkError = (packageName: string): string => {
 
 export const formatGenericError = (packageName: string, errorStr: string): string => {
   const suggestion = getSuggestionForPackage(packageName);
-  const lines = [
-    `[x] Failed to fetch version for "${packageName}"`,
-    "",
-  ];
+  const lines = [`[x] Failed to fetch version for "${packageName}"`, ""];
 
   if (suggestion) {
     lines.push(

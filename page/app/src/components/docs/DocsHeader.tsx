@@ -1,9 +1,8 @@
 import { Menu } from "lucide-react";
 import { FaGithub } from "react-icons/fa";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
+import { GITHUB_URL } from "@/constants";
 import Search from "./Search";
-
-const GITHUB_URL = "https://github.com/yowainwright/codependence";
 
 function DrawerToggle() {
   return (
@@ -22,7 +21,11 @@ export function DocsHeader() {
           <Search />
         </div>
         <div className="navbar-end">
-          <a className="btn btn-sm btn-ghost" href={GITHUB_URL} aria-label="github">
+          <a
+            className="btn btn-sm btn-ghost"
+            href={GITHUB_URL}
+            aria-label="github"
+          >
             <FaGithub className="h-4 w-4" />
           </a>
           <ThemeToggle />

@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { createTable, formatVersionTable } from "../../../src/utils/table";
-import type { TableColumn, TableRow, VersionDiff } from "../../../src/utils/table";
+import type { TableColumn, TableRow, TableVersionDiff } from "../../../src/utils/types";
 
 describe("createTable", () => {
   test("should create a basic table", () => {
@@ -43,9 +43,7 @@ describe("createTable", () => {
   });
 
   test("should handle left alignment", () => {
-    const columns: TableColumn[] = [
-      { header: "Name", width: 15, align: "left" },
-    ];
+    const columns: TableColumn[] = [{ header: "Name", width: 15, align: "left" }];
 
     const rows: TableRow[] = [{ Name: "test" }];
 
@@ -55,9 +53,7 @@ describe("createTable", () => {
   });
 
   test("should handle right alignment", () => {
-    const columns: TableColumn[] = [
-      { header: "Number", width: 10, align: "right" },
-    ];
+    const columns: TableColumn[] = [{ header: "Number", width: 10, align: "right" }];
 
     const rows: TableRow[] = [{ Number: "123" }];
 
@@ -67,9 +63,7 @@ describe("createTable", () => {
   });
 
   test("should handle center alignment", () => {
-    const columns: TableColumn[] = [
-      { header: "Center", width: 12, align: "center" },
-    ];
+    const columns: TableColumn[] = [{ header: "Center", width: 12, align: "center" }];
 
     const rows: TableRow[] = [{ Center: "text" }];
 
@@ -94,7 +88,7 @@ describe("createTable", () => {
 
 describe("formatVersionTable", () => {
   test("should format version diffs with pinned packages", () => {
-    const diffs: VersionDiff[] = [
+    const diffs: TableVersionDiff[] = [
       {
         package: "lodash",
         current: "4.17.0",
@@ -124,7 +118,7 @@ describe("formatVersionTable", () => {
   });
 
   test("should handle empty diffs array", () => {
-    const diffs: VersionDiff[] = [];
+    const diffs: TableVersionDiff[] = [];
 
     const result = formatVersionTable(diffs);
 
@@ -135,7 +129,7 @@ describe("formatVersionTable", () => {
   });
 
   test("should handle single diff", () => {
-    const diffs: VersionDiff[] = [
+    const diffs: TableVersionDiff[] = [
       {
         package: "react",
         current: "18.2.0",

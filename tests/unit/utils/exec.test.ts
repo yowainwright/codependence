@@ -1,17 +1,5 @@
 import { describe, it, expect, jest, beforeEach } from "bun:test";
-import type { ExecResult, ExecFileFn, SleepFn } from "../../../src/utils/types";
-
-type ExecFn = (
-  command: string,
-  args: string[],
-  options?: {
-    cwd?: string;
-    maxRetries?: number;
-    retryDelay?: number;
-    execFileFn?: ExecFileFn;
-    sleepFn?: SleepFn;
-  },
-) => Promise<ExecResult>;
+import type { ExecFileFn, ExecFn } from "../../../src/utils/types";
 
 let exec: ExecFn;
 
@@ -162,6 +150,19 @@ describe("exec", () => {
   });
 
   describe("default options", () => {
+    it("uses the default sleep between retries", async () => {
+      const error = Object.assign(new Error("timeout"), { code: "ETIMEDOUT" });
+      const execFileFn = jest
+        .fn()
+        .mockRejectedValueOnce(error)
+        .mockResolvedValueOnce({ stdout: "ok", stderr: "" });
+
+      const result = await exec("npm", ["view"], { execFileFn, retryDelay: 0 });
+
+      expect(result).toEqual({ stdout: "ok", stderr: "" });
+      expect(execFileFn).toHaveBeenCalledTimes(2);
+    });
+
     it("defaults maxRetries to 3 (verified by exhaustion call count)", async () => {
       const error = Object.assign(new Error("timeout"), { code: "ETIMEDOUT" });
       const execFileFn = jest.fn().mockRejectedValue(error);

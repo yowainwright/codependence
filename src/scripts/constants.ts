@@ -1,6 +1,28 @@
+import {
+  DEFAULT_LANGUAGE_MANIFESTS,
+  LANGUAGES,
+  NODE_PACKAGE_MANAGERS,
+  PYTHON_MANIFEST_FILES,
+} from "../providers/constants";
+import type { SupportedLanguage } from "../types";
+
 export const DEP_SECTIONS = [
   "dependencies",
   "devDependencies",
   "peerDependencies",
   "optionalDependencies",
 ] as const;
+
+export const DEFAULT_FILE_MATCHERS: Record<SupportedLanguage, string[]> = {
+  [LANGUAGES.NODEJS]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.NODEJS]],
+  [LANGUAGES.GO]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.GO]],
+  [LANGUAGES.PYTHON]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.PYTHON]],
+  [LANGUAGES.RUST]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.RUST]],
+  [LANGUAGES.DOCKER]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.DOCKER]],
+  [LANGUAGES.GITHUB_ACTIONS]: [...DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.GITHUB_ACTIONS]],
+};
+
+export const PYTHON_MANIFEST_NAMES = new Set<string>(PYTHON_MANIFEST_FILES);
+export const VERSION_RESOLUTION_CONCURRENCY = 8;
+export const SUPPORTED_LANGUAGE_NAMES = new Set<string>(Object.values(LANGUAGES));
+export const NODE_MANAGER_NAMES = new Set<string>(Object.values(NODE_PACKAGE_MANAGERS));

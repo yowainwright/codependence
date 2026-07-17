@@ -1,28 +1,27 @@
 import { error } from "../utils/colors";
 import {
+  BOOLEAN_OPTION_FIELDS,
   VALID_FORMATS,
   VALID_LANGUAGES,
   VALID_LEVELS,
+  VALID_MANAGERS,
   VALID_MODES,
   KNOWN_FIELDS,
   TARGET_FIELDS,
   TARGET_POLICY_FIELDS,
 } from "./constants";
-import { VALID_MANAGERS } from "./targets";
-import type { ValidationError, ValidationResult } from "./types";
+import type { ValidationError, ValidationOptions, ValidationResult } from "./types";
 
 const isString = (value: unknown): value is string => typeof value === "string";
 
-const isBoolean = (value: unknown): value is boolean =>
-  typeof value === "boolean";
+const isBoolean = (value: unknown): value is boolean => typeof value === "boolean";
 
 const isArray = (value: unknown): value is unknown[] => Array.isArray(value);
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const concat = <T>(...arrays: T[][]): T[] =>
-  arrays.reduce((acc, arr) => [...acc, ...arr], []);
+const concat = <T>(...arrays: T[][]): T[] => arrays.reduce((acc, arr) => [...acc, ...arr], []);
 
 const validateStringItem = (item: string): ValidationError | null => {
   const hasLength = item.length > 0;
@@ -66,9 +65,7 @@ const validateObjectItem = (item: Record<string, unknown>): ValidationError | nu
   return null;
 };
 
-const validateCodeDependenciesItem = (
-  item: unknown,
-): ValidationError | null => {
+const validateCodeDependenciesItem = (item: unknown): ValidationError | null => {
   if (isString(item)) return validateStringItem(item);
   if (isObject(item)) return validateObjectItem(item);
 
@@ -91,9 +88,7 @@ const validateRootObject = (config: unknown): ValidationError[] =>
         },
       ];
 
-const validateRequiredFields = (
-  config: Record<string, unknown>,
-): ValidationError[] => {
+const validateRequiredFields = (config: Record<string, unknown>): ValidationError[] => {
   const hasCodependencies = "codependencies" in config;
   const hasPermissive = "permissive" in config;
   const hasMode = "mode" in config;
@@ -103,8 +98,7 @@ const validateRequiredFields = (
     ? [
         {
           field: "root",
-          message:
-            'Configuration must have either "codependencies", "permissive", or "mode" field',
+          message: 'Configuration must have either "codependencies", "permissive", or "mode" field',
           suggestion:
             'Add {"codependencies": ["package-name"]}, {"permissive": true}, or {"mode": "precise"}',
         },
@@ -112,9 +106,7 @@ const validateRequiredFields = (
     : [];
 };
 
-const validateCodependencies = (
-  config: Record<string, unknown>,
-): ValidationError[] => {
+const validateCodependencies = (config: Record<string, unknown>): ValidationError[] => {
   if (!("codependencies" in config)) return [];
 
   const codependencies = config.codependencies;
@@ -124,8 +116,7 @@ const validateCodependencies = (
       {
         field: "codependencies",
         message: `"codependencies" must be an array, got ${typeof codependencies}`,
-        suggestion:
-          'Change to array format: {"codependencies": ["package1", "package2"]}',
+        suggestion: 'Change to array format: {"codependencies": ["package1", "package2"]}',
       },
     ];
   }
@@ -138,9 +129,7 @@ const validateCodependencies = (
     .filter((itemError): itemError is ValidationError => itemError !== null);
 };
 
-const validatePermissive = (
-  config: Record<string, unknown>,
-): ValidationError[] => {
+const validatePermissive = (config: Record<string, unknown>): ValidationError[] => {
   if (!("permissive" in config)) return [];
 
   const permissive = config.permissive;
@@ -151,8 +140,7 @@ const validatePermissive = (
         {
           field: "permissive",
           message: `"permissive" must be a boolean, got ${typeof permissive}`,
-          suggestion:
-            'Change to: {"permissive": true} or {"permissive": false}',
+          suggestion: 'Change to: {"permissive": true} or {"permissive": false}',
         },
       ];
 };
@@ -221,11 +209,7 @@ const validateLanguage = createEnumValidator("language", VALID_LANGUAGES);
 const validateManager = createEnumValidator("manager", VALID_MANAGERS);
 const validateLevel = createEnumValidator("level", VALID_LEVELS);
 const validateMode = createEnumValidator("mode", VALID_MODES);
-const validateFiles = createArrayValidator(
-  "files",
-  "file",
-  '{"files": ["**/package.json"]}',
-);
+const validateFiles = createArrayValidator("files", "file", '{"files": ["**/package.json"]}');
 const validateIgnore = createArrayValidator(
   "ignore",
   "ignore",
@@ -267,26 +251,13 @@ const validateBooleanField =
 
 const validateRootDir = validateStringField("rootDir");
 const validateOutputFile = validateStringField("outputFile");
-const validateBooleanOptions = [
-  "update",
-  "debug",
-  "silent",
-  "verbose",
-  "quiet",
-  "yarnConfig",
-  "dryRun",
-  "interactive",
-  "watch",
-  "noCache",
-].map(validateBooleanField);
+const validateBooleanOptions = BOOLEAN_OPTION_FIELDS.map(validateBooleanField);
 
 const validateUnknownFields = (
   config: Record<string, unknown>,
   knownFields: readonly string[] = KNOWN_FIELDS,
 ): ValidationError[] => {
-  const unknownFields = Object.keys(config).filter(
-    (key) => !knownFields.includes(key),
-  );
+  const unknownFields = Object.keys(config).filter((key) => !knownFields.includes(key));
 
   return unknownFields.length > 0
     ? [
@@ -299,75 +270,69 @@ const validateUnknownFields = (
     : [];
 };
 
-const prefixTargetError = (
-  validationError: ValidationError,
-  index: number,
-): ValidationError => {
+const prefixTargetError = (validationError: ValidationError, index: number): ValidationError => {
   const prefix = `targets[${index}]`;
-  const field =
-    validationError.field === "root"
-      ? prefix
-      : `${prefix}.${validationError.field}`;
+  const field = validationError.field === "root" ? prefix : `${prefix}.${validationError.field}`;
   return { ...validationError, field };
 };
 
-const targetFieldErrors = (
-  target: Record<string, unknown>,
-): ValidationError[] => concat(
-  validateRequiredFields(target),
-  validateManager(target),
-  validateCodependencies(target),
-  validatePermissive(target),
-  validateLevel(target),
-  validateMode(target),
-  validateFiles(target),
-  validateIgnore(target),
-  validateRootDir(target),
-  validateUnknownFields(target, TARGET_FIELDS),
-);
+const targetFieldErrors = (target: Record<string, unknown>): ValidationError[] =>
+  concat(
+    validateRequiredFields(target),
+    validateManager(target),
+    validateCodependencies(target),
+    validatePermissive(target),
+    validateLevel(target),
+    validateMode(target),
+    validateFiles(target),
+    validateIgnore(target),
+    validateRootDir(target),
+    validateUnknownFields(target, TARGET_FIELDS),
+  );
 
-const missingManagerErrors = (
-  target: Record<string, unknown>,
-): ValidationError[] => {
+const missingManagerErrors = (target: Record<string, unknown>): ValidationError[] => {
   if ("manager" in target) return [];
 
-  return [{
-    field: "manager",
-    message: 'Target must have a "manager" field',
-    suggestion: `Use one of: ${VALID_MANAGERS.join(", ")}`,
-  }];
+  return [
+    {
+      field: "manager",
+      message: 'Target must have a "manager" field',
+      suggestion: `Use one of: ${VALID_MANAGERS.join(", ")}`,
+    },
+  ];
 };
 
-const validateTarget = (
-  target: Record<string, unknown>,
-  index: number,
-): ValidationError[] => {
+const validateTarget = (target: Record<string, unknown>, index: number): ValidationError[] => {
   const errors = [...missingManagerErrors(target), ...targetFieldErrors(target)];
-  return errors.map((validationError) =>
-    prefixTargetError(validationError, index),
-  );
+  return errors.map((validationError) => prefixTargetError(validationError, index));
 };
 
-const invalidTargetsError = (targets: unknown): ValidationError[] => [{
-  field: "targets",
-  message: `"targets" must be an array, got ${typeof targets}`,
-  suggestion: 'Use array format: {"targets": [{"manager": "bun"}]}',
-}];
+const invalidTargetsError = (targets: unknown): ValidationError[] => [
+  {
+    field: "targets",
+    message: `"targets" must be an array, got ${typeof targets}`,
+    suggestion: 'Use array format: {"targets": [{"manager": "bun"}]}',
+  },
+];
 
-const emptyTargetsError = (): ValidationError[] => [{
-  field: "targets",
-  message: '"targets" must contain at least one target',
-  suggestion: 'Add a target such as {"manager": "bun", "mode": "precise"}',
-}];
+const emptyTargetsError = (): ValidationError[] => [
+  {
+    field: "targets",
+    message: '"targets" must contain at least one target',
+    suggestion: 'Add a target such as {"manager": "bun", "mode": "precise"}',
+  },
+];
 
 const validateTargetEntry = (target: unknown, index: number): ValidationError[] => {
   if (isObject(target)) return validateTarget(target, index);
 
-  return [{
-    field: `targets[${index}]`,
-    message: "Target must be a configuration object",
-    suggestion: 'Use {"manager": "bun", "mode": "precise"}',
-  }];
+  return [
+    {
+      field: `targets[${index}]`,
+      message: "Target must be a configuration object",
+      suggestion: 'Use {"manager": "bun", "mode": "precise"}',
+    },
+  ];
 };
 
 const validateTargets = (config: Record<string, unknown>): ValidationError[] => {
@@ -378,23 +343,21 @@ const validateTargets = (config: Record<string, unknown>): ValidationError[] => 
   return targets.flatMap(validateTargetEntry);
 };
 
-const mixedTargetFieldErrors = (
-  config: Record<string, unknown>,
-): ValidationError[] => {
+const mixedTargetFieldErrors = (config: Record<string, unknown>): ValidationError[] => {
   const scopedFields = [...TARGET_POLICY_FIELDS, "language", "yarnConfig"];
   const mixedFields = scopedFields.filter((field) => field in config);
   if (mixedFields.length === 0) return [];
 
-  return [{
-    field: "root",
-    message: `Target-scoped field(s) cannot be used beside "targets": ${mixedFields.join(", ")}`,
-    suggestion: "Move these fields into the appropriate target object",
-  }];
+  return [
+    {
+      field: "root",
+      message: `Target-scoped field(s) cannot be used beside "targets": ${mixedFields.join(", ")}`,
+      suggestion: "Move these fields into the appropriate target object",
+    },
+  ];
 };
 
-const validateTargetRoot = (
-  config: Record<string, unknown>,
-): ValidationError[] => {
+const validateTargetRoot = (config: Record<string, unknown>): ValidationError[] => {
   return concat(
     mixedTargetFieldErrors(config),
     validateTargets(config),
@@ -407,7 +370,7 @@ const validateTargetRoot = (
 
 export const validateConfig = (
   config: unknown,
-  options: { requirePolicy?: boolean } = {},
+  options: ValidationOptions = {},
 ): ValidationResult => {
   const requirePolicy = options.requirePolicy ?? true;
   const rootErrors = validateRootObject(config);
@@ -445,12 +408,8 @@ export const validateConfig = (
 export const formatValidationErrors = (errors: ValidationError[]): string => {
   const errorLines = errors.flatMap((validationError, index) => {
     const mainLine = `${index + 1}. ${validationError.field}: ${validationError.message}`;
-    const suggestionLine = validationError.suggestion
-      ? `   > ${validationError.suggestion}`
-      : null;
-    return [mainLine, suggestionLine, ""].filter(
-      (line): line is string => line !== null,
-    );
+    const suggestionLine = validationError.suggestion ? `   > ${validationError.suggestion}` : null;
+    return [mainLine, suggestionLine, ""].filter((line): line is string => line !== null);
   });
 
   return [`${error("x")} Invalid configuration:\n`, ...errorLines].join("\n");

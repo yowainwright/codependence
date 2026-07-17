@@ -8,3 +8,8 @@ export type Heading = {
 export type TableOfContentsProps = {
   headings: Heading[];
 };
+
+export type HeadingLinkProps = {
+  heading: Heading;
+  activeId: string;
+};

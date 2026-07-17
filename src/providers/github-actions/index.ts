@@ -1,43 +1,26 @@
 import { readFileSync, writeFileSync } from "fs";
 import { LANGUAGES } from "../constants";
-import type { DependencyManifest, DependencyProvider } from "../types";
-import { GITHUB_ACTIONS_PATTERNS } from "./constants";
+import type {
+  DependencyManifest,
+  DependencyProvider,
+  GitHubActionRef,
+  GitHubActionsProviderOptions,
+  GitHubCommit,
+  GitHubFetch,
+  GitHubRelease,
+  GitHubTag,
+  ParsedVersionTag,
+} from "../types";
+import {
+  DEFAULT_GITHUB_API_URL,
+  GITHUB_ACTIONS_PATTERNS,
+  SAFE_VERSION_LABEL,
+  STABLE_VERSION_TAG,
+  VERSION_COMMENT,
+} from "./constants";
 
-type GitHubActionRef = {
-  readonly name: string;
-  readonly version: string;
-};
+export type { GitHubActionsProviderOptions } from "../types";
 
-type GitHubRelease = {
-  readonly tag_name?: unknown;
-};
-
-type GitHubTag = {
-  readonly name?: unknown;
-};
-
-type GitHubCommit = {
-  readonly sha?: unknown;
-};
-
-type GitHubFetch = (url: string, init: RequestInit) => Promise<Response>;
-
-export type GitHubActionsProviderOptions = {
-  readonly apiUrl?: string;
-  readonly fetch?: GitHubFetch;
-  readonly token?: string;
-};
-
-type ParsedVersionTag = {
-  readonly name: string;
-  readonly parts: readonly number[];
-  readonly specificity: number;
-};
-
-const DEFAULT_GITHUB_API_URL = "https://api.github.com";
-const STABLE_VERSION_TAG = /^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?$/;
-const VERSION_COMMENT = /^\s+#\s+v?\d+(?:\.\d+){0,2}\s*$/;
-const SAFE_VERSION_LABEL = /^[A-Za-z0-9._/-]+$/;
 const resolvedVersionLabels = new Map<string, string>();
 
 const defaultFetch: GitHubFetch = (url, init) => globalThis.fetch(url, init);
@@ -70,7 +53,7 @@ const parseVersionTag = (name: string): ParsedVersionTag | null => {
   const match = name.match(STABLE_VERSION_TAG);
   if (!match) return null;
 
-  const versionParts = match.slice(1);
+  const versionParts = [match[1], match[2]?.slice(1), match[3]?.slice(1)];
   const parts = versionParts.map((part) => Number(part || 0));
   const specificity = versionParts.filter(Boolean).length;
   return { name, parts, specificity };
@@ -164,6 +147,15 @@ const readUsesLine = (line: string): GitHubActionRef | null => {
 
   const actionRef = { name, version: match[4] };
   return actionRef;
+};
+
+const collectDependencyVersions = (actionRefs: GitHubActionRef[]): Record<string, string[]> => {
+  const versions = new Map<string, string[]>();
+  actionRefs.forEach(({ name, version }) => {
+    const currentVersions = versions.get(name) || [];
+    versions.set(name, currentVersions.concat(version));
+  });
+  return Object.fromEntries(versions);
 };
 
 export const updateGitHubActionsUsesLine = (
@@ -277,8 +269,9 @@ export class GitHubActionsProvider implements DependencyProvider {
     );
     const entries = externalRefs.map(({ name, version }) => [name, version]);
     const dependencies = Object.fromEntries(entries);
+    const dependencyVersions = collectDependencyVersions(externalRefs);
 
-    return { filePath, dependencies };
+    return { filePath, dependencies, dependencyVersions };
   }
 
   writeManifest(filePath: string, manifest: DependencyManifest): void {

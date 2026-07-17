@@ -1,10 +1,7 @@
 import { readFileSync } from "fs";
 import { extname } from "path";
-
-type ParsedLine = {
-  indent: number;
-  text: string;
-};
+import { SPLIT_INITIAL } from "./constants";
+import type { ParsedBlock, ParsedField, ParsedLine, SplitState } from "./types";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -32,7 +29,7 @@ const stripComment = (line: string): string => {
     const char = line[index];
     const previous = line[index - 1];
 
-    if ((char === "\"" || char === "'") && previous !== "\\") {
+    if ((char === '"' || char === "'") && previous !== "\\") {
       quote = quote === char ? null : quote || char;
     }
 
@@ -60,12 +57,11 @@ const parseLines = (content: string): ParsedLine[] =>
 const unquote = (value: string): string => {
   const trimmed = value.trim();
   const quote = trimmed[0];
-  const isQuoted =
-    (quote === "\"" || quote === "'") && trimmed.endsWith(quote);
+  const isQuoted = (quote === '"' || quote === "'") && trimmed.endsWith(quote);
 
   if (!isQuoted) return trimmed;
 
-  if (quote === "\"") {
+  if (quote === '"') {
     try {
       return JSON.parse(trimmed);
     } catch {
@@ -83,7 +79,7 @@ const findSeparator = (value: string): number => {
     const char = value[index];
     const previous = value[index - 1];
 
-    if ((char === "\"" || char === "'") && previous !== "\\") {
+    if ((char === '"' || char === "'") && previous !== "\\") {
       quote = quote === char ? null : quote || char;
     }
 
@@ -93,27 +89,11 @@ const findSeparator = (value: string): number => {
   return -1;
 };
 
-type SplitState = {
-  items: string[];
-  quote: string | null;
-  braceDepth: number;
-  bracketDepth: number;
-  current: string;
-};
-
-const SPLIT_INITIAL: SplitState = {
-  items: [],
-  quote: null,
-  braceDepth: 0,
-  bracketDepth: 0,
-  current: "",
-};
-
 const splitInlineArray = (value: string): string[] => {
   const chars = [...value];
 
   const reduceChar = (state: SplitState, char: string, index: number): SplitState => {
-    const isQuoteChar = char === "\"" || char === "'";
+    const isQuoteChar = char === '"' || char === "'";
     const togglesQuote = isQuoteChar && chars[index - 1] !== "\\";
     const openedQuote = state.quote || char;
     const closedQuote = state.quote === char ? null : openedQuote;
@@ -197,13 +177,102 @@ const parseArrayItem = (value: string): unknown => {
   return parseValue(value);
 };
 
+const isArrayLine = (line: ParsedLine): boolean => line.text === "-" || line.text.startsWith("- ");
+
+const parseNestedBlock = (
+  lines: ParsedLine[],
+  startIndex: number,
+  parentIndent: number,
+): ParsedBlock | null => {
+  const line = lines[startIndex];
+  if (!line) return null;
+
+  const isUnindentedArray = isArrayLine(line) && line.indent === parentIndent;
+  if (line.indent <= parentIndent && !isUnindentedArray) return null;
+  if (isArrayLine(line)) return parseBlockArray(lines, startIndex, parentIndent);
+
+  return parseBlockObject(lines, startIndex);
+};
+
+const parseFieldValue = (
+  lines: ParsedLine[],
+  startIndex: number,
+  parentIndent: number,
+  rawValue: string,
+): ParsedBlock => {
+  if (rawValue) {
+    return { value: parseValue(rawValue), nextIndex: startIndex };
+  }
+
+  const block = parseNestedBlock(lines, startIndex, parentIndent);
+  if (block) return block;
+  return { value: null, nextIndex: startIndex };
+};
+
+const parseObjectField = (lines: ParsedLine[], index: number): ParsedField | null => {
+  const line = lines[index];
+  const separator = findSeparator(line.text);
+  if (separator < 0) return null;
+
+  const key = unquote(line.text.slice(0, separator));
+  const rawValue = line.text.slice(separator + 1).trim();
+  const parsedValue = parseFieldValue(lines, index + 1, line.indent, rawValue);
+  return { key, value: parsedValue.value, nextIndex: parsedValue.nextIndex };
+};
+
+const parseBlockObject = (lines: ParsedLine[], startIndex: number): ParsedBlock | null => {
+  const firstLine = lines[startIndex];
+  if (!firstLine) return null;
+
+  const value: Record<string, unknown> = {};
+  let index = startIndex;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (line.indent !== firstLine.indent || isArrayLine(line)) break;
+
+    const field = parseObjectField(lines, index);
+    if (!field) return null;
+    value[field.key] = field.value;
+    index = field.nextIndex;
+  }
+
+  return { value, nextIndex: index };
+};
+
+const parseArrayObject = (
+  lines: ParsedLine[],
+  index: number,
+  itemIndent: number,
+  itemText: string,
+): ParsedBlock => {
+  const separator = findSeparator(itemText);
+  const key = unquote(itemText.slice(0, separator));
+  const rawValue = itemText.slice(separator + 1).trim();
+  const parsedValue = parseFieldValue(lines, index + 1, itemIndent, rawValue);
+  const value = { [key]: parsedValue.value };
+  const nextLine = lines[parsedValue.nextIndex];
+  const hasMoreFields = nextLine && nextLine.indent > itemIndent && !isArrayLine(nextLine);
+  if (!hasMoreFields) {
+    return { value, nextIndex: parsedValue.nextIndex };
+  }
+
+  const remaining = parseBlockObject(lines, parsedValue.nextIndex);
+  if (!remaining || !isRecord(remaining.value)) {
+    return { value, nextIndex: parsedValue.nextIndex };
+  }
+  return {
+    value: { ...value, ...remaining.value },
+    nextIndex: remaining.nextIndex,
+  };
+};
+
 const parseBlockArray = (
   lines: ParsedLine[],
   startIndex: number,
   parentIndent: number,
-): { value: unknown[]; nextIndex: number } | null => {
+): ParsedBlock | null => {
   const firstLine = lines[startIndex];
-  if (!firstLine?.text.startsWith("- ")) return null;
+  if (!firstLine || !isArrayLine(firstLine)) return null;
   if (firstLine.indent < parentIndent) return null;
 
   const itemIndent = firstLine.indent;
@@ -213,19 +282,27 @@ const parseBlockArray = (
   while (index < lines.length) {
     const line = lines[index];
     if (line.indent < itemIndent) break;
-
     if (line.indent > itemIndent) return null;
+    if (!isArrayLine(line)) break;
 
-    if (!line.text.startsWith("- ")) {
-      const isNextTopLevelKey =
-        itemIndent === parentIndent && findSeparator(line.text) > -1;
-      if (isNextTopLevelKey) break;
-
-      return null;
+    const itemText = line.text.slice(1).trimStart();
+    if (findSeparator(itemText) > -1) {
+      const objectItem = parseArrayObject(lines, index, itemIndent, itemText);
+      value.push(objectItem.value);
+      index = objectItem.nextIndex;
+      continue;
     }
 
-    value.push(parseArrayItem(line.text.slice(2)));
-    index++;
+    if (itemText) {
+      value.push(parseArrayItem(itemText));
+      index++;
+      continue;
+    }
+
+    const block = parseNestedBlock(lines, index + 1, itemIndent);
+    if (!block) return null;
+    value.push(block.value);
+    index = block.nextIndex;
   }
 
   return { value, nextIndex: index };
@@ -255,7 +332,7 @@ export const parseYAML = (content: string): Record<string, unknown> | null => {
       continue;
     }
 
-    const block = parseBlockArray(lines, index + 1, line.indent);
+    const block = parseNestedBlock(lines, index + 1, line.indent);
     if (!block) {
       config[key] = null;
       index++;
@@ -269,9 +346,7 @@ export const parseYAML = (content: string): Record<string, unknown> | null => {
   return Object.keys(config).length > 0 ? config : null;
 };
 
-export const loadPackageJson = (
-  filepath: string,
-): Record<string, unknown> | null => {
+export const loadPackageJson = (filepath: string): Record<string, unknown> | null => {
   const json = parseJSON(readFileSync(filepath, "utf8"));
   if (!json) {
     throw new ConfigLoadError(filepath, "package.json is not valid JSON");
@@ -287,13 +362,10 @@ export const loadRcFile = (filepath: string): Record<string, unknown> => {
   const config =
     extension === ".yaml" || extension === ".yml"
       ? parseYAML(content)
-      : parseJSON(content) ?? parseYAML(content);
+      : (parseJSON(content) ?? parseYAML(content));
 
   if (!config) {
-    throw new ConfigLoadError(
-      filepath,
-      "file is empty, invalid, or did not export an object",
-    );
+    throw new ConfigLoadError(filepath, "file is empty, invalid, or did not export an object");
   }
 
   return config;

@@ -1,13 +1,4 @@
-export interface CacheEntry {
-  value: string;
-  timestamp: number;
-}
-
-export interface CacheStats {
-  hits: number;
-  misses: number;
-  size: number;
-}
+import type { CacheEntry, CacheStats } from "./types";
 
 export class ResponseCache {
   private cache = new Map<string, CacheEntry>();

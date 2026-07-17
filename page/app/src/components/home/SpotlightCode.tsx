@@ -1,120 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-
-const codeSnippets = [
-  {
-    id: "policy",
-    title: "Policy",
-    lines: [
-      { text: "$ ", color: "text-secondary" },
-      {
-        text: "codependence --dryRun --format table",
-        color: "text-base-content",
-      },
-      { text: "\n\n", color: "" },
-      { text: "Policy: ", color: "text-base-content/70" },
-      { text: ".codependencerc", color: "text-primary" },
-      { text: "\nStrategy: ", color: "text-base-content/70" },
-      { text: "permissive", color: "text-accent" },
-      { text: " (pin listed, update the rest)", color: "text-base-content/50" },
-      { text: "\nFiles: ", color: "text-base-content/70" },
-      { text: "package.json packages/*/package.json", color: "text-info" },
-      { text: "\n\n", color: "" },
-      { text: "No files changed in dry run", color: "text-success" },
-    ],
-  },
-  {
-    id: "config",
-    title: "Config",
-    lines: [
-      { text: "// .codependencerc", color: "text-base-content/50" },
-      { text: "\n", color: "" },
-      { text: "{", color: "text-base-content" },
-      { text: "\n  ", color: "" },
-      { text: '"permissive"', color: "text-primary" },
-      { text: ": ", color: "text-base-content" },
-      { text: "true", color: "text-secondary" },
-      { text: ",", color: "text-base-content" },
-      { text: "\n  ", color: "" },
-      { text: '"codependencies"', color: "text-primary" },
-      { text: ": [", color: "text-base-content" },
-      { text: "\n    ", color: "" },
-      { text: "{ ", color: "text-base-content" },
-      { text: '"react"', color: "text-primary" },
-      { text: ": ", color: "text-base-content" },
-      { text: '"^18.3.1"', color: "text-success" },
-      { text: " },", color: "text-base-content" },
-      { text: "\n    ", color: "" },
-      { text: "{ ", color: "text-base-content" },
-      { text: '"typescript"', color: "text-primary" },
-      { text: ": ", color: "text-base-content" },
-      { text: '"^5.9.3"', color: "text-success" },
-      { text: " }", color: "text-base-content" },
-      { text: "\n  ],", color: "text-base-content" },
-      { text: "\n  ", color: "" },
-      { text: '"files"', color: "text-primary" },
-      {
-        text: ': ["package.json", "packages/*/package.json"]',
-        color: "text-base-content",
-      },
-      { text: "\n}", color: "text-base-content" },
-    ],
-  },
-  {
-    id: "check",
-    title: "CI Check",
-    lines: [
-      { text: "$ ", color: "text-secondary" },
-      { text: "codependence", color: "text-base-content" },
-      { text: "\n\n", color: "" },
-      { text: "Found 2 dependency issues", color: "text-warning" },
-      { text: "\n", color: "" },
-      {
-        text: "1. react: found 19.0.0, expected ^18.3.1",
-        color: "text-base-content",
-      },
-      { text: "\n", color: "" },
-      {
-        text: "2. typescript: found 5.7.0, expected ^5.9.3",
-        color: "text-base-content",
-      },
-      { text: "\n", color: "" },
-      { text: "\n", color: "" },
-      { text: "Dependencies are not correct.", color: "text-error" },
-      { text: "\n", color: "" },
-      { text: "\nCI result: ", color: "text-base-content/70" },
-      { text: "fail on drift", color: "text-error" },
-    ],
-  },
-  {
-    id: "apply",
-    title: "Apply",
-    lines: [
-      { text: "$ ", color: "text-secondary" },
-      { text: "codependence --update", color: "text-base-content" },
-      { text: "\n\n", color: "" },
-      { text: "Applying version policy...", color: "text-base-content/70" },
-      { text: "\n\n", color: "" },
-      { text: "react ", color: "text-base-content" },
-      { text: "19.0.0", color: "text-warning" },
-      { text: " -> ", color: "text-base-content/50" },
-      { text: "^18.3.1", color: "text-success" },
-      { text: "\n", color: "" },
-      { text: "typescript ", color: "text-base-content" },
-      { text: "5.7.0", color: "text-warning" },
-      { text: " -> ", color: "text-base-content/50" },
-      { text: "^5.9.3", color: "text-success" },
-      { text: "\n", color: "" },
-      { text: "\n\n", color: "" },
-      { text: "Updated ", color: "text-success" },
-      { text: "2", color: "text-accent" },
-      { text: " dependencies in ", color: "text-base-content" },
-      { text: "package.json", color: "text-info" },
-    ],
-  },
-];
-
-const TYPING_SPEED = 12;
-const PAUSE_BETWEEN_TABS = 2500;
+import {
+  CODE_SNIPPETS,
+  SPOTLIGHT_TAB_PAUSE_MS,
+  SPOTLIGHT_TYPING_SPEED,
+} from "./constants";
 
 export default function SpotlightCode() {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -123,7 +12,7 @@ export default function SpotlightCode() {
   const containerRef = useRef<HTMLDivElement>(null);
   const hasStarted = useRef(false);
 
-  const activeSnippet = codeSnippets[activeIndex];
+  const activeSnippet = CODE_SNIPPETS[activeIndex];
   const fullText = activeSnippet.lines.map((l) => l.text).join("");
   const totalChars = fullText.length;
 
@@ -153,16 +42,16 @@ export default function SpotlightCode() {
     if (displayedChars < totalChars) {
       const timeout = setTimeout(() => {
         setDisplayedChars((prev) => prev + 1);
-      }, TYPING_SPEED);
+      }, SPOTLIGHT_TYPING_SPEED);
       return () => clearTimeout(timeout);
     }
 
     // Finished typing current tab
     const pauseTimeout = setTimeout(() => {
-      const nextIndex = (activeIndex + 1) % codeSnippets.length;
+      const nextIndex = (activeIndex + 1) % CODE_SNIPPETS.length;
       setActiveIndex(nextIndex);
       setDisplayedChars(0);
-    }, PAUSE_BETWEEN_TABS);
+    }, SPOTLIGHT_TAB_PAUSE_MS);
 
     return () => clearTimeout(pauseTimeout);
   }, [displayedChars, totalChars, isTyping, activeIndex]);
@@ -174,7 +63,7 @@ export default function SpotlightCode() {
     setIsTyping(true);
   };
 
-  const tabs = codeSnippets.map((snippet, index) => {
+  const tabs = CODE_SNIPPETS.map((snippet, index) => {
     const isActive = activeIndex === index;
     const baseClass =
       "px-3 py-1 text-xs font-medium rounded-md transition-all duration-200";

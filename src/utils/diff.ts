@@ -6,7 +6,7 @@ import type { Level, VersionDiff } from "../types";
 import { DEP_SECTIONS } from "../scripts/constants";
 import { formatVersionTable } from "./table";
 import { isWithinLevel } from "./semver";
-import { SYMBOLS } from "./symbols";
+import { SYMBOLS } from "./constants";
 
 const extractDepsFromSection = (
   packageJson: Pick<
@@ -29,9 +29,20 @@ const extractAllDeps = (
     "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies"
   >,
 ): [string, string][] =>
-  DEP_SECTIONS.flatMap((section) =>
-    extractDepsFromSection(packageJson, section),
-  );
+  DEP_SECTIONS.flatMap((section) => extractDepsFromSection(packageJson, section));
+
+const versionForComparison = (
+  packageJson: Pick<DependencyManifest, "dependencyVersions">,
+  packageName: string,
+  currentVersion: string,
+  latestVersion: string,
+): string => {
+  const versions = packageJson.dependencyVersions?.[packageName] || [];
+  return versions.reduce((comparedVersion, version) => {
+    if (comparedVersion !== currentVersion) return comparedVersion;
+    return version !== latestVersion ? version : currentVersion;
+  }, currentVersion);
+};
 
 const toVersionDiff = (
   pkgName: string,
@@ -42,12 +53,7 @@ const toVersionDiff = (
   level: Level,
   versionStrategy: VersionStrategy,
 ): VersionDiff => {
-  const withinLevel = isWithinLevel(
-    currentVersion,
-    latestVersion,
-    level,
-    versionStrategy,
-  );
+  const withinLevel = isWithinLevel(currentVersion, latestVersion, level, versionStrategy);
   const isPinned = codependencies.includes(pkgName);
   const isPermissiveUpdate = !isPinned && withinLevel;
   const isStandardUpdate = isPinned && withinLevel;
@@ -66,7 +72,11 @@ export const buildVersionDiff = (
   versionMap: Record<string, string>,
   packageJson: Pick<
     DependencyManifest,
-    "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies"
+    | "dependencies"
+    | "dependencyVersions"
+    | "devDependencies"
+    | "peerDependencies"
+    | "optionalDependencies"
   > & { path?: string; versionStrategy?: VersionStrategy },
   codependencies: string[],
   permissive: boolean,
@@ -78,7 +88,7 @@ export const buildVersionDiff = (
     .map(([pkgName, currentVersion]) =>
       toVersionDiff(
         pkgName,
-        currentVersion,
+        versionForComparison(packageJson, pkgName, currentVersion, versionMap[pkgName]),
         versionMap[pkgName],
         codependencies,
         permissive,
@@ -87,10 +97,7 @@ export const buildVersionDiff = (
       ),
     );
 
-export const displayVersionDiffs = (
-  diffs: VersionDiff[],
-  isDryRun: boolean,
-): void => {
+export const displayVersionDiffs = (diffs: VersionDiff[], isDryRun: boolean): void => {
   const diffsToShow = diffs.filter((d) => d.current !== d.latest);
 
   if (diffsToShow.length === 0) {

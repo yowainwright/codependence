@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { createAnsiPattern } from "../../../src/utils/constants";
-import { SYMBOLS, RAW_SYMBOLS } from "../../../src/utils/symbols";
+import { SYMBOLS, RAW_SYMBOLS } from "../../../src/utils/constants";
 
 const stripAnsi = (str: string): string => str.replace(createAnsiPattern(), "");
 

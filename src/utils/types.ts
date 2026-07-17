@@ -3,6 +3,25 @@ export interface ExecResult {
   stderr: string;
 }
 
+export interface RetryableError {
+  code?: string;
+  message?: string;
+}
+
+export interface ExecOptions {
+  cwd?: string;
+  maxRetries?: number;
+  retryDelay?: number;
+  execFileFn?: ExecFileFn;
+  sleepFn?: SleepFn;
+}
+
+export type ExecFn = (
+  command: string,
+  args: string[],
+  options?: ExecOptions,
+) => Promise<ExecResult>;
+
 export type ExecFileFn = (
   command: string,
   args: string[],
@@ -83,4 +102,62 @@ export interface ErrorContext {
   isRegistryMismatch?: boolean;
   isTimeout?: boolean;
   retryCount?: number;
+}
+
+export interface CacheEntry {
+  value: string;
+  timestamp: number;
+}
+
+export interface CacheStats {
+  hits: number;
+  misses: number;
+  size: number;
+}
+
+export interface FormattedDependency {
+  package: string;
+  current: string;
+  latest: string;
+  isPinned: boolean;
+  severity: "major" | "minor" | "patch" | "unknown";
+  canAutoUpdate: boolean;
+}
+
+export interface FormattedSummary {
+  totalPackages: number;
+  outdated: number;
+  upToDate: number;
+  duration?: number;
+}
+
+export interface FormattedOutput {
+  status: "outdated" | "up-to-date";
+  exitCode: number;
+  dependencies: FormattedDependency[];
+  summary: FormattedSummary;
+}
+
+export interface TableColumn {
+  header: string;
+  width: number;
+  align?: "left" | "right" | "center";
+}
+
+export interface TableRow {
+  [key: string]: string;
+}
+
+export interface TableVersionDiff {
+  package: string;
+  current: string;
+  latest: string;
+  isPinned: boolean;
+}
+
+export interface ValidationResult {
+  validForNewPackages: boolean;
+  validForOldPackages: boolean;
+  warnings?: string[];
+  errors?: string[];
 }

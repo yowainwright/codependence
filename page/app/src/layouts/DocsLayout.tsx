@@ -1,11 +1,7 @@
-import type { ReactNode } from "react";
 import { DocsHeader } from "@/components/docs/DocsHeader";
 import { SideBar } from "@/components/docs/SideBar";
 import { Footer } from "@/components/common/Footer";
-
-interface DocsLayoutProps {
-  children: ReactNode;
-}
+import type { DocsLayoutProps } from "@/types";
 
 export function DocsLayout({ children }: DocsLayoutProps) {
   return (

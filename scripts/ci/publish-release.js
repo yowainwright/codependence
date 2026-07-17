@@ -3,10 +3,7 @@
 import { copyFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { isDirectCliExecution, runCliEntrypoint } from "./cli-entrypoint.js";
-
-const SUPPORTED_PRERELEASES = new Set(["alpha", "beta", "rc"]);
-const RELEASE_VERSION_PATTERN =
-  /^v?\d+\.\d+\.\d+(?:-([0-9A-Za-z-]+)(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z.-]+)?$/;
+import { RELEASE_VERSION_PATTERN, SUPPORTED_PRERELEASES } from "./constants.js";
 
 export function validateReleaseVersion(version) {
   if (RELEASE_VERSION_PATTERN.test(version)) return;

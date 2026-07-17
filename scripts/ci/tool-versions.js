@@ -2,15 +2,7 @@
 
 import { appendFileSync, readFileSync } from "node:fs";
 import { isDirectCliExecution, runCliEntrypoint } from "./cli-entrypoint.js";
-
-const TOOL_OUTPUT_KEYS = {
-  bunLinuxAarch64Sha256: "bun_linux_aarch64_sha256",
-  bunLinuxX64Sha256: "bun_linux_x64_sha256",
-  bunVersion: "bun_version",
-  nodeAlpineImage: "node_alpine_image",
-  nodeSlimImage: "node_slim_image",
-  nodeVersion: "node_version",
-};
+import { TOOL_OUTPUT_KEYS } from "./constants.js";
 
 function nodeMajor(nodeVersion) {
   const match = nodeVersion.match(/^\d+/);
@@ -62,21 +54,31 @@ export function resolveToolVersions({
   const projectNodeVersion = parseMiseTool(miseToml, "node");
   const nodeVersion = env.INPUT_NODE_VERSION || projectNodeVersion;
   const dockerNodeVersion =
-    env.NODE_DOCKER_VERSION || (env.NODE_ALPINE_IMAGE || env.NODE_SLIM_IMAGE ? nodeVersion : projectNodeVersion);
+    env.NODE_DOCKER_VERSION ||
+    (env.NODE_ALPINE_IMAGE || env.NODE_SLIM_IMAGE ? nodeVersion : projectNodeVersion);
   const bunVersion =
-    env.INPUT_BUN_VERSION || parsePackageManagerBunVersion(packageJson) || parseMiseTool(miseToml, "bun");
+    env.INPUT_BUN_VERSION ||
+    parsePackageManagerBunVersion(packageJson) ||
+    parseMiseTool(miseToml, "bun");
   const rawNodeAlpineImage = env.NODE_ALPINE_IMAGE || nodeAlpineImage;
   const rawNodeSlimImage = env.NODE_SLIM_IMAGE || nodeSlimImage;
 
   const versions = {
     bunLinuxAarch64Sha256:
       env.BUN_LINUX_AARCH64_SHA256 || bunArchiveSha({ arch: "aarch64", bunVersion, dockerPins }),
-    bunLinuxX64Sha256: env.BUN_LINUX_X64_SHA256 || bunArchiveSha({ arch: "x64", bunVersion, dockerPins }),
+    bunLinuxX64Sha256:
+      env.BUN_LINUX_X64_SHA256 || bunArchiveSha({ arch: "x64", bunVersion, dockerPins }),
     bunVersion,
-    nodeAlpineImage:
-      pinnedNodeImage({ flavor: "alpine", image: rawNodeAlpineImage, nodeVersion: dockerNodeVersion }),
-    nodeSlimImage:
-      pinnedNodeImage({ flavor: "slim", image: rawNodeSlimImage, nodeVersion: dockerNodeVersion }),
+    nodeAlpineImage: pinnedNodeImage({
+      flavor: "alpine",
+      image: rawNodeAlpineImage,
+      nodeVersion: dockerNodeVersion,
+    }),
+    nodeSlimImage: pinnedNodeImage({
+      flavor: "slim",
+      image: rawNodeSlimImage,
+      nodeVersion: dockerNodeVersion,
+    }),
     nodeVersion,
   };
 

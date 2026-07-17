@@ -1,45 +1,32 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { TAG_VERSION_PATTERN } from "./constants";
+import type {
+  GitRunner,
+  PackageManifest,
+  ReleaseReadyOptions,
+  ReleaseTagArgs,
+  ReleaseTagOptions,
+} from "./types";
 
-export interface GitResult {
-  status: number | null;
-  stdout: string;
-  stderr: string;
-}
+export type { GitResult, GitRunner, ReleaseTagOptions } from "./types";
 
-export type GitRunner = (args: readonly string[]) => GitResult;
-export type ReleaseLogger = Pick<Console, "error" | "log">;
-
-export interface ReleaseTagOptions {
-  cwd?: string;
-  dryRun?: boolean;
-  git?: GitRunner;
-  logger?: ReleaseLogger;
-  requireUpstream?: boolean;
-  version?: string;
-}
-
-export interface ReleaseReadyOptions {
-  dryRun?: boolean;
-  requireUpstream?: boolean;
-}
-
-const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
-
-export function parseArgs(args: readonly string[]): { dryRun: boolean } {
+export function parseArgs(args: readonly string[]): ReleaseTagArgs {
   return { dryRun: args.includes("--dry-run") };
 }
 
 export function formatTagName(version: string): string {
-  if (!VERSION_PATTERN.test(version)) throw new Error(`Invalid package version: ${version}`);
+  if (!TAG_VERSION_PATTERN.test(version)) {
+    throw new Error(`Invalid package version: ${version}`);
+  }
   return `v${version}`;
 }
 
 export function readPackageVersion(cwd: string): string {
-  const manifest = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8")) as {
-    version?: unknown;
-  };
+  const manifest = JSON.parse(
+    readFileSync(join(cwd, "package.json"), "utf8"),
+  ) as PackageManifest;
   if (typeof manifest.version !== "string") throw new Error("package.json version is missing");
   return manifest.version;
 }

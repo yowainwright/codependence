@@ -1,16 +1,6 @@
 import { cyan, green, yellow, gray } from "./colors";
-import { createAnsiPattern } from "./constants";
-import { SYMBOLS } from "./symbols";
-
-export interface TableColumn {
-  header: string;
-  width: number;
-  align?: "left" | "right" | "center";
-}
-
-export interface TableRow {
-  [key: string]: string;
-}
+import { createAnsiPattern, SYMBOLS } from "./constants";
+import type { TableColumn, TableRow, TableVersionDiff } from "./types";
 
 const padString = (str: string, width: number, align = "left"): string => {
   const displayLength = str.replace(createAnsiPattern(), "").length;
@@ -29,26 +19,19 @@ const padString = (str: string, width: number, align = "left"): string => {
   return str + " ".repeat(padding);
 };
 
-export const createTable = (
-  columns: TableColumn[],
-  rows: TableRow[],
-): string => {
+export const createTable = (columns: TableColumn[], rows: TableRow[]): string => {
   const lines: string[] = [];
 
-  const topBorder =
-    "┌" + columns.map((col) => "─".repeat(col.width + 2)).join("┬") + "┐";
+  const topBorder = "┌" + columns.map((col) => "─".repeat(col.width + 2)).join("┬") + "┐";
   lines.push(topBorder);
 
   const headerRow =
     "│ " +
-    columns
-      .map((col) => padString(cyan(col.header), col.width, col.align))
-      .join(" │ ") +
+    columns.map((col) => padString(cyan(col.header), col.width, col.align)).join(" │ ") +
     " │";
   lines.push(headerRow);
 
-  const middleBorder =
-    "├" + columns.map((col) => "─".repeat(col.width + 2)).join("┼") + "┤";
+  const middleBorder = "├" + columns.map((col) => "─".repeat(col.width + 2)).join("┼") + "┤";
   lines.push(middleBorder);
 
   for (const row of rows) {
@@ -64,21 +47,13 @@ export const createTable = (
     lines.push(rowLine);
   }
 
-  const bottomBorder =
-    "└" + columns.map((col) => "─".repeat(col.width + 2)).join("┴") + "┘";
+  const bottomBorder = "└" + columns.map((col) => "─".repeat(col.width + 2)).join("┴") + "┘";
   lines.push(bottomBorder);
 
   return lines.join("\n");
 };
 
-export interface VersionDiff {
-  package: string;
-  current: string;
-  latest: string;
-  isPinned: boolean;
-}
-
-export const formatVersionTable = (diffs: VersionDiff[]): string => {
+export const formatVersionTable = (diffs: TableVersionDiff[]): string => {
   const columns: TableColumn[] = [
     { header: "Package", width: 20, align: "left" },
     { header: "Current", width: 12, align: "left" },
@@ -87,7 +62,9 @@ export const formatVersionTable = (diffs: VersionDiff[]): string => {
   ];
 
   const rows = diffs.map((diff) => {
-    const action = diff.isPinned ? yellow(`Pinned ${SYMBOLS.pinned}`) : green(`Update ${SYMBOLS.success}`);
+    const action = diff.isPinned
+      ? yellow(`Pinned ${SYMBOLS.pinned}`)
+      : green(`Update ${SYMBOLS.success}`);
 
     return {
       Package: diff.package,

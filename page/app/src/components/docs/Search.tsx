@@ -1,15 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import Fuse from "fuse.js";
+import { SEARCH_DATA } from "@/content/constants";
 import { resolveDocsUrl } from "../../utils/urlResolver";
-import { searchData } from "../../utils/searchData";
-
-interface SearchResult {
-  title: string;
-  description: string;
-  content: string;
-  slug: string;
-}
+import type { SearchResult } from "@/types";
 
 export default function Search() {
   const [isOpen, setIsOpen] = useState(false);
@@ -20,7 +14,7 @@ export default function Search() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Initialize Fuse.js
-  const fuse = new Fuse(searchData, {
+  const fuse = new Fuse(SEARCH_DATA, {
     keys: ["title", "description", "content"],
     threshold: 0.3,
     includeScore: true,

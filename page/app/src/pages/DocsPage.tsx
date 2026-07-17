@@ -1,11 +1,17 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, Navigate } from "@tanstack/react-router";
-import { getDocBySlug, getDocComponent, getDocContent, type DocComponent } from "@/content";
+import {
+  getDocBySlug,
+  getDocComponent,
+  getDocContent,
+  type DocComponent,
+} from "@/content";
 import { extractHeadings } from "@/lib/mdx/extractHeadings";
 import { TableOfContents } from "@/components/docs/TableOfContents";
 import { mdxComponents } from "@/components/docs/MDXComponents";
 import { Pagination } from "@/components/docs/Pagination";
 import type { Heading } from "@/components/docs/TableOfContents/types";
+import type { BreadcrumbsProps, MdxContentProps } from "@/types";
 
 export function DocsPage() {
   const { slug } = useParams({ from: "/docs/$slug" });
@@ -50,7 +56,8 @@ export function DocsPage() {
     };
   }, [slug, doc]);
 
-  if (!doc) return <Navigate to="/docs/$slug" params={{ slug: "introduction" }} />;
+  if (!doc)
+    return <Navigate to="/docs/$slug" params={{ slug: "introduction" }} />;
 
   return (
     <div className="flex p-5 md:p-10 md:pt-10 xl:gap-20 font-sans">
@@ -74,7 +81,7 @@ export function DocsPage() {
   );
 }
 
-function Breadcrumbs({ title }: { title: string }) {
+function Breadcrumbs({ title }: BreadcrumbsProps) {
   return (
     <div className="text-sm breadcrumbs pt-0 pb-4">
       <ul>
@@ -89,7 +96,7 @@ function Breadcrumbs({ title }: { title: string }) {
   );
 }
 
-function MDXContent({ loading, Content }: { loading: boolean; Content: DocComponent | null }) {
+function MDXContent({ loading, Content }: MdxContentProps) {
   if (loading) {
     return (
       <section className="flex items-center justify-center py-12">
@@ -100,5 +107,11 @@ function MDXContent({ loading, Content }: { loading: boolean; Content: DocCompon
 
   if (!Content) return null;
 
-  return <Content components={mdxComponents as unknown as Record<string, React.ComponentType>} />;
+  return (
+    <Content
+      components={
+        mdxComponents as unknown as Record<string, React.ComponentType>
+      }
+    />
+  );
 }

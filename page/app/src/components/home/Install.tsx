@@ -1,13 +1,12 @@
 import { CopyButton } from "@/components/common/CopyButton";
 import { resolveDocsUrl } from "@/utils/urlResolver";
-
-const INSTALL_CMD = "npm install --save-dev codependence";
+import { DEV_INSTALL_COMMAND } from "./constants";
 
 function InstallSnippet() {
   return (
     <div className="flex items-center bg-base-300 rounded-lg shadow-sm mt-4 justify-between">
-      <code className="ml-4">{INSTALL_CMD}</code>
-      <CopyButton text={INSTALL_CMD} />
+      <code className="ml-4">{DEV_INSTALL_COMMAND}</code>
+      <CopyButton text={DEV_INSTALL_COMMAND} />
     </div>
   );
 }
@@ -25,7 +24,9 @@ export function Install() {
           </p>
           <InstallSnippet />
           <a href={resolveDocsUrl("introduction")}>
-            <button className="btn btn-primary mt-7 rounded-lg border-none">Get Started</button>
+            <button className="btn btn-primary mt-7 rounded-lg border-none">
+              Get Started
+            </button>
           </a>
         </div>
       </div>

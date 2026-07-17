@@ -140,6 +140,27 @@ jobs:
     });
   });
 
+  test("should preserve every version for repeated action refs", () => {
+    const content = `jobs:
+  lint:
+    steps:
+      - uses: actions/checkout@v3
+  test:
+    steps:
+      - uses: actions/checkout@${latestSha}
+`;
+    writeFileSync(workflowPath, content);
+
+    const provider = new GitHubActionsProvider();
+    const manifest = provider.readManifest(workflowPath);
+
+    expect(manifest.dependencies["actions/checkout"]).toBe(latestSha);
+    expect(manifest.dependencyVersions?.["actions/checkout"]).toEqual([
+      "v3",
+      latestSha,
+    ]);
+  });
+
   test("should update SHA pins with their release labels", async () => {
     const content = `steps:
   - uses: actions/checkout@${sha1Ref} # v4.0.0

@@ -1,7 +1,6 @@
 import { FaGithub } from "react-icons/fa";
 import { resolveUrl } from "@/utils/urlResolver";
-
-const GITHUB_URL = "https://github.com/yowainwright/codependence";
+import { GITHUB_URL } from "@/constants";
 
 export function Footer() {
   return (
@@ -13,7 +12,11 @@ export function Footer() {
       </div>
 
       <div className="flex items-center justify-center gap-2 order-1 sm:order-2">
-        <img src={resolveUrl("logos/codependence.svg")} alt="Codependence Logo" className="h-12 w-12" />
+        <img
+          src={resolveUrl("logos/codependence.svg")}
+          alt="Codependence Logo"
+          className="h-12 w-12"
+        />
       </div>
 
       <nav className="flex justify-center sm:justify-end order-2 sm:order-3">

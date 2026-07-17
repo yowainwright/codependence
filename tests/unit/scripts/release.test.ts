@@ -15,6 +15,11 @@ import {
   type ReleaseRunner,
 } from "../../../scripts/release";
 import type { GitResult } from "../../../scripts/tag-release";
+import {
+  AVAILABLE_VERSION_OVERRIDES,
+  MISSING_TAG_OVERRIDES,
+  READY_RELEASE_OVERRIDES,
+} from "./constants";
 
 const ok = (stdout = ""): GitResult => ({ status: 0, stdout, stderr: "" });
 const missing = (): GitResult => ({ status: 2, stdout: "", stderr: "" });
@@ -29,24 +34,6 @@ function createRunner(overrides: Record<string, GitResult> = {}) {
   });
   return { calls: () => calls, runner };
 }
-
-const readyOverrides = {
-  "git branch --show-current": ok("main\n"),
-  "git status --short": ok(""),
-  "git fetch origin main --tags": ok(""),
-  "git rev-parse HEAD": ok("abc\n"),
-  "git rev-parse origin/main": ok("abc\n"),
-};
-
-const missingTagOverrides = {
-  "git rev-parse -q --verify refs/tags/v1.2.4": missing(),
-  "git ls-remote --exit-code --tags origin refs/tags/v1.2.4": missing(),
-};
-
-const availableVersionOverrides = {
-  "git rev-parse -q --verify refs/tags/v1.2.4": missing(),
-  "git ls-remote --tags origin refs/tags/v1.2.4": ok(""),
-};
 
 describe("scripts/release", () => {
   test("parseArgs reads release options", () => {
@@ -142,7 +129,7 @@ describe("scripts/release", () => {
       warn: mock(() => {}),
     };
     const { calls, runner } = createRunner({
-      ...readyOverrides,
+      ...READY_RELEASE_OVERRIDES,
       "git rev-parse -q --verify refs/tags/v1.2.4-beta.6": missing(),
       "git ls-remote --tags origin refs/tags/v1.2.4-beta.6": ok(""),
       "./node_modules/.bin/release-it --release-version --preRelease=beta --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
@@ -180,7 +167,7 @@ describe("scripts/release", () => {
 
   test("runRelease surfaces command failures", () => {
     const { runner } = createRunner({
-      ...readyOverrides,
+      ...READY_RELEASE_OVERRIDES,
       "./node_modules/.bin/release-it --release-version --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
         fail("release-it failed"),
     });
@@ -240,7 +227,7 @@ describe("scripts/release", () => {
       warn: mock(() => {}),
     };
     const { runner } = createRunner({
-      ...readyOverrides,
+      ...READY_RELEASE_OVERRIDES,
       "git rev-parse -q --verify refs/tags/v1.2.4-beta.6": missing(),
       "git ls-remote --tags origin refs/tags/v1.2.4-beta.6": ok("489e1e refs/tags/v1.2.4-beta.6\n"),
       "git rev-parse -q --verify refs/tags/v1.2.4-beta.7": missing(),
@@ -268,9 +255,9 @@ describe("scripts/release", () => {
       warn: mock(() => {}),
     };
     const { calls, runner } = createRunner({
-      ...readyOverrides,
-      ...availableVersionOverrides,
-      ...missingTagOverrides,
+      ...READY_RELEASE_OVERRIDES,
+      ...AVAILABLE_VERSION_OVERRIDES,
+      ...MISSING_TAG_OVERRIDES,
       "./node_modules/.bin/release-it --release-version --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
         ok("1.2.4\n"),
       "./node_modules/.bin/release-it 1.2.4 --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
@@ -295,9 +282,9 @@ describe("scripts/release", () => {
       warn: mock(() => {}),
     };
     const { calls, runner } = createRunner({
-      ...readyOverrides,
-      ...availableVersionOverrides,
-      ...missingTagOverrides,
+      ...READY_RELEASE_OVERRIDES,
+      ...AVAILABLE_VERSION_OVERRIDES,
+      ...MISSING_TAG_OVERRIDES,
       "./node_modules/.bin/release-it --release-version --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
         ok("1.2.4\n"),
       "./node_modules/.bin/release-it 1.2.4 --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
@@ -319,9 +306,9 @@ describe("scripts/release", () => {
       warn: mock(() => {}),
     };
     const { calls, runner } = createRunner({
-      ...readyOverrides,
-      ...availableVersionOverrides,
-      ...missingTagOverrides,
+      ...READY_RELEASE_OVERRIDES,
+      ...AVAILABLE_VERSION_OVERRIDES,
+      ...MISSING_TAG_OVERRIDES,
       "./node_modules/.bin/release-it --release-version --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
         ok("1.2.4\n"),
       "./node_modules/.bin/release-it 1.2.4 --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":

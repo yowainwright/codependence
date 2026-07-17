@@ -1,5 +1,5 @@
 import { expect, test, describe, beforeEach } from "bun:test";
-import { loadConfig } from "../../../src/config";
+import { loadConfig, validateConfig } from "../../../src/config";
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 
@@ -153,6 +153,80 @@ describe("Config Loading", () => {
       });
     });
 
+    test("should load multiline YAML manager targets", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yml");
+      writeFileSync(
+        rcPath,
+        [
+          "targets:",
+          "  - manager: bun",
+          "    files:",
+          "      - package.json",
+          "    codependencies:",
+          "      - typescript",
+          "  - manager: github-actions",
+          "    files:",
+          "      - .github/workflows/*.yml",
+          "    mode: precise",
+          "update: true",
+        ].join("\n"),
+      );
+
+      const result = loadConfig(rcPath);
+
+      expect(result?.config).toEqual({
+        targets: [
+          {
+            manager: "bun",
+            files: ["package.json"],
+            codependencies: ["typescript"],
+          },
+          {
+            manager: "github-actions",
+            files: [".github/workflows/*.yml"],
+            mode: "precise",
+          },
+        ],
+        update: true,
+      });
+      expect(validateConfig(result?.config)).toEqual({
+        valid: true,
+        errors: [],
+      });
+    });
+
+    test("should load YAML objects after bare array markers", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yml");
+      writeFileSync(
+        rcPath,
+        [
+          "targets:",
+          "  -",
+          "    manager: bun",
+          "    files:",
+          "      - package.json",
+          "update: true",
+        ].join("\n"),
+      );
+
+      const result = loadConfig(rcPath);
+
+      expect(result?.config).toEqual({
+        targets: [{ manager: "bun", files: ["package.json"] }],
+        update: true,
+      });
+    });
+
+    test("should reject malformed YAML array object fields", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yml");
+      writeFileSync(
+        rcPath,
+        ["targets:", "  - manager: bun", "    invalid"].join("\n"),
+      );
+
+      expect(() => loadConfig(rcPath)).toThrow("Failed to load config");
+    });
+
     test("should load bare YAML keys as null", () => {
       const rcPath = join(tmpDir, ".codependencerc.yaml");
       writeFileSync(
@@ -187,6 +261,17 @@ describe("Config Loading", () => {
         files: ["package.json", "packages/*/package.json"],
         ignore: ["**/node_modules/**"],
         level: "minor",
+      });
+    });
+
+    test("should load implicit mappings from inline YAML arrays", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yml");
+      writeFileSync(rcPath, "codependencies: [react: 18.2.0]");
+
+      const result = loadConfig(rcPath);
+
+      expect(result?.config).toEqual({
+        codependencies: [{ react: "18.2.0" }],
       });
     });
 

@@ -8,9 +8,10 @@ import rehypeSlug from "rehype-slug";
 import rehypeShikiFromHighlighter from "@shikijs/rehype/core";
 import { createHighlighter, type Highlighter } from "shiki";
 import remarkGfm from "remark-gfm";
+import { FRONTMATTER_REGEX } from "./src/lib/mdx/constants";
 
-const FRONTMATTER_REGEX = /^---\n[\s\S]*?\n---\n?/;
-const stripFrontmatter = (source: string) => source.replace(FRONTMATTER_REGEX, "");
+const stripFrontmatter = (source: string) =>
+  source.replace(FRONTMATTER_REGEX, "");
 
 let _highlighterPromise: Promise<Highlighter> | null = null;
 
@@ -18,7 +19,17 @@ function getHighlighter(): Promise<Highlighter> {
   if (!_highlighterPromise) {
     _highlighterPromise = createHighlighter({
       themes: ["github-light", "github-dark"],
-      langs: ["javascript", "typescript", "json", "bash", "sh", "yaml", "markdown", "text", "diff"],
+      langs: [
+        "javascript",
+        "typescript",
+        "json",
+        "bash",
+        "sh",
+        "yaml",
+        "markdown",
+        "text",
+        "diff",
+      ],
     });
   }
   return _highlighterPromise;
@@ -34,7 +45,14 @@ const codependenceMdx = (): Plugin => ({
       remarkPlugins: [remarkGfm],
       rehypePlugins: [
         rehypeSlug,
-        [rehypeShikiFromHighlighter, hl, { themes: { light: "github-light", dark: "github-dark" }, defaultColor: false }],
+        [
+          rehypeShikiFromHighlighter,
+          hl,
+          {
+            themes: { light: "github-light", dark: "github-dark" },
+            defaultColor: false,
+          },
+        ],
       ],
     });
     return { code: String(compiled), map: null };

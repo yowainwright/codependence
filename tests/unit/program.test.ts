@@ -235,6 +235,33 @@ describe("Action Function Tests (Fast)", () => {
     }
   });
 
+  test("reports deferred target failures without a success message", async () => {
+    const stdoutSpy = jest
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    scriptSpy
+      .mockImplementationOnce(async (options) => {
+        options.onDeferredFailure?.();
+        return [];
+      })
+      .mockResolvedValueOnce([]);
+
+    try {
+      await action({
+        targets: [
+          { manager: "bun", mode: "precise" },
+          { manager: "github-actions", mode: "precise" },
+        ],
+      });
+
+      const output = stdoutSpy.mock.calls.flat().join("");
+      expect(output).toContain("found dependency issues");
+      expect(output).not.toContain("pinned!");
+    } finally {
+      stdoutSpy.mockRestore();
+    }
+  });
+
   test("allows supplemental explicit config when CLI supplies policy", async () => {
     const workDir = fs.mkdtempSync(join(tmpdir(), "codependence-partial-config-"));
     const configPath = join(workDir, ".codependencerc");
@@ -565,6 +592,30 @@ describe("Action Function Tests (Fast)", () => {
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       expect.stringContaining("Check failed: watch mode failure"),
+    );
+
+    setIntervalSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+
+  test("should log deferred dependency issues in watch mode", async () => {
+    const setIntervalSpy = jest
+      .spyOn(globalThis, "setInterval")
+      .mockImplementation((() => 0) as typeof setInterval);
+    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    scriptSpy.mockImplementationOnce(async (options) => {
+      options.onDeferredFailure?.();
+      return [];
+    });
+
+    await action({ codependencies: ["lodash"], watch: true });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Dependency issues found"),
     );
 
     setIntervalSpy.mockRestore();

@@ -1,7 +1,5 @@
 import type { SpinnerState, Spinner } from "./types";
-
-const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-const LINE_BREAKS = /[\r\n]+/g;
+import { LINE_BREAKS, SPINNER_FRAMES } from "./constants";
 
 const singleLineText = (text: string): string => text.replace(LINE_BREAKS, " ").trimEnd();
 
@@ -33,13 +31,13 @@ const stopInterval = (state: SpinnerState): SpinnerState => {
 };
 
 const incrementFrame = (state: SpinnerState): SpinnerState => {
-  const nextIndex = (state.frameIndex + 1) % FRAMES.length;
+  const nextIndex = (state.frameIndex + 1) % SPINNER_FRAMES.length;
   return { ...state, frameIndex: nextIndex };
 };
 
 const startInterval = (state: SpinnerState): SpinnerState => {
   const interval = setInterval(() => {
-    renderFrame(FRAMES, state.frameIndex, state.text);
+    renderFrame(SPINNER_FRAMES, state.frameIndex, state.text);
     Object.assign(state, incrementFrame(state));
   }, 80);
 

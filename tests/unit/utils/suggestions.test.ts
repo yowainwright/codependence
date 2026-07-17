@@ -3,9 +3,9 @@ import {
   findSimilarPackages,
   getSuggestionForPackage,
   formatEnhancedError,
-  COMMON_PACKAGES,
-  type ErrorContext,
 } from "../../../src/utils/suggestions";
+import { COMMON_PACKAGES } from "../../../src/utils/constants";
+import type { ErrorContext } from "../../../src/utils/types";
 
 describe("findSimilarPackages", () => {
   test("should find packages with distance 1", () => {
@@ -179,9 +179,7 @@ describe("formatEnhancedError", () => {
 
     const result = formatEnhancedError(context);
 
-    expect(result).toContain(
-      'Failed to fetch version for "some-unique-package-xyz"',
-    );
+    expect(result).toContain('Failed to fetch version for "some-unique-package-xyz"');
     expect(result).toContain("Private package?");
     expect(result).toContain("Package doesn't exist on npm registry");
     expect(result).not.toContain("Did you mean");

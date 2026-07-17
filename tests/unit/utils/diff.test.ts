@@ -126,6 +126,23 @@ describe("buildVersionDiff", () => {
     expect(diffs[0].package).toBe("react");
   });
 
+  test("should compare every repeated dependency version", () => {
+    const latestVersion = "2.0.0";
+    const diffs = buildVersionDiff(
+      { action: latestVersion },
+      {
+        dependencies: { action: latestVersion },
+        dependencyVersions: { action: ["1.0.0", latestVersion] },
+        versionStrategy: "exact",
+      },
+      ["action"],
+      false,
+    );
+
+    expect(diffs[0].current).toBe("1.0.0");
+    expect(diffs[0].latest).toBe(latestVersion);
+  });
+
   test("should skip packages not in versionMap", () => {
     const versionMap = {
       lodash: "4.17.21",
