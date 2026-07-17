@@ -264,6 +264,17 @@ describe("Config Loading", () => {
       });
     });
 
+    test("should load implicit mappings from inline YAML arrays", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yml");
+      writeFileSync(rcPath, "codependencies: [react: 18.2.0]");
+
+      const result = loadConfig(rcPath);
+
+      expect(result?.config).toEqual({
+        codependencies: [{ react: "18.2.0" }],
+      });
+    });
+
     test("should preserve multi-key inline YAML objects for validation", () => {
       const rcPath = join(tmpDir, ".codependencerc.yml");
       writeFileSync(
