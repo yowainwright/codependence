@@ -150,6 +150,19 @@ describe("exec", () => {
   });
 
   describe("default options", () => {
+    it("uses the default sleep between retries", async () => {
+      const error = Object.assign(new Error("timeout"), { code: "ETIMEDOUT" });
+      const execFileFn = jest
+        .fn()
+        .mockRejectedValueOnce(error)
+        .mockResolvedValueOnce({ stdout: "ok", stderr: "" });
+
+      const result = await exec("npm", ["view"], { execFileFn, retryDelay: 0 });
+
+      expect(result).toEqual({ stdout: "ok", stderr: "" });
+      expect(execFileFn).toHaveBeenCalledTimes(2);
+    });
+
     it("defaults maxRetries to 3 (verified by exhaustion call count)", async () => {
       const error = Object.assign(new Error("timeout"), { code: "ETIMEDOUT" });
       const execFileFn = jest.fn().mockRejectedValue(error);

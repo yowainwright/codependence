@@ -4,8 +4,7 @@ import type { ExecFileFn, ExecFn, ExecOptions, ExecResult, RetryableError, Sleep
 
 const execFileAsync = promisify(execFile) as ExecFileFn;
 
-const sleep: SleepFn = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+const sleep: SleepFn = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const isRetryableError = (error: unknown): boolean => {
   if (!error || typeof error !== "object") return false;
