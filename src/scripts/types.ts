@@ -1,5 +1,8 @@
 import type { CheckFiles, ConstructVersionMapOptions, Level, SupportedLanguage } from "../types";
 import type { DependencyManifest, DependencyProvider } from "../providers/types";
+import type { DEP_SECTIONS } from "./constants";
+
+export type DependencySection = (typeof DEP_SECTIONS)[number];
 
 export interface LoadedManifest {
   file: string;

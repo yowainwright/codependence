@@ -41,6 +41,7 @@ import {
 } from "./constants";
 import type {
   CheckLoadedManifestsOptions,
+  DependencySection,
   DependencySections,
   LoadedManifest,
   MatchedFileOptions,
@@ -730,7 +731,7 @@ export const constructDepsToUpdateList = (
 
 export const constructDeps = <T extends DependencySections>(
   json: T,
-  depName: keyof DependencySections,
+  depName: DependencySection,
   depList: Array<DepToUpdateItem>,
 ) =>
   depList?.length
