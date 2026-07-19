@@ -1,0 +1,58 @@
+import { describe, expect, test } from "bun:test";
+import {
+  fetchPublishedTarball,
+  npmTarballUrl,
+  renderFormula,
+  sha256,
+  validateStableVersion,
+} from "../../../../scripts/ci/homebrew-release.js";
+
+describe("scripts/ci/homebrew-release", () => {
+  test("builds the published npm tarball URL", () => {
+    expect(npmTarballUrl("1.1.0")).toBe(
+      "https://registry.npmjs.org/codependence/-/codependence-1.1.0.tgz",
+    );
+  });
+
+  test("accepts only stable versions", () => {
+    expect(() => validateStableVersion("1.1.0")).not.toThrow();
+    expect(() => validateStableVersion("1.1.0-rc.0")).toThrow("Invalid stable version");
+    expect(() => validateStableVersion("v1.1.0")).toThrow("Invalid stable version");
+    expect(() => validateStableVersion("01.1.0")).toThrow("Invalid stable version");
+  });
+
+  test("downloads the published tarball bytes", async () => {
+    const fetchImpl = async () => new Response("published tarball");
+    const tarball = await fetchPublishedTarball(npmTarballUrl("1.1.0"), fetchImpl);
+
+    expect(tarball).toEqual(Buffer.from("published tarball"));
+  });
+
+  test("rejects unavailable published tarballs", async () => {
+    const fetchImpl = async () => new Response(null, { status: 404 });
+    const download = fetchPublishedTarball(npmTarballUrl("1.1.0"), fetchImpl);
+
+    await expect(download).rejects.toThrow("Unable to download published tarball: 404");
+  });
+
+  test("computes a stable hexadecimal SHA256", () => {
+    const digest = sha256(Buffer.from("hello"));
+    const otherDigest = sha256(Buffer.from("world"));
+
+    expect(digest).toHaveLength(64);
+    expect(digest).toMatch(/^[a-f0-9]+$/);
+    expect(digest).not.toBe(otherDigest);
+  });
+
+  test("renders a Node-backed formula with both CLI smoke tests", () => {
+    const formula = renderFormula({
+      digest: "abc123",
+      url: npmTarballUrl("1.1.0"),
+    });
+
+    expect(formula).toContain('sha256 "abc123"');
+    expect(formula).toContain('depends_on "node"');
+    expect(formula).toContain('system bin/"codependence", "--help"');
+    expect(formula).toContain('system bin/"cdp", "--help"');
+  });
+});

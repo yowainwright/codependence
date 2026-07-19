@@ -217,6 +217,16 @@ describe("scripts/release", () => {
     ).toBe("1.2.4-beta.8");
   });
 
+  test("resolveAvailableReleaseVersion skips existing stable tags", () => {
+    const { runner } = createRunner({
+      "git rev-parse -q --verify refs/tags/v1.2.4": ok("489e1e\n"),
+      "git rev-parse -q --verify refs/tags/v1.2.5": missing(),
+      "git ls-remote --tags origin refs/tags/v1.2.5": ok(""),
+    });
+
+    expect(resolveAvailableReleaseVersion(runner, { dryRun: true }, "1.2.4")).toBe("1.2.5");
+  });
+
   test("runRelease dry run advances past an existing prerelease tag", () => {
     let output = "";
     const logger = {

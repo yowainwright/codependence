@@ -6,6 +6,7 @@
       "codependencies": [
         "@perryts/perry",
         "bun-types",
+        "fast-check",
         "oxfmt",
         "oxlint",
         "pastoralist",

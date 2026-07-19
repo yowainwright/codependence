@@ -93,11 +93,9 @@ export function formatReport({ date, version }) {
     "- Go update preservation tests",
     "- NPM package smoke test",
     "- Performance validation",
-    "- External test repository triggered",
     "",
     "## Summary",
     "All tests passed successfully. The published package is ready for use.",
-    "External e2e tests have been triggered in the codependence-test repository.",
     "",
   ].join("\n");
 }
@@ -140,9 +138,9 @@ export function runTestPublishedReleaseCli({
   const version = env.CODEPENDENCE_VERSION;
 
   if (command === "resolve-version") {
+    const inputVersion = env.INPUT_VERSION?.replace(/^v/, "");
     const resolvedVersion =
-      env.INPUT_VERSION ||
-      runOrThrow(runner, "npm", ["view", packageName, "version"]).stdout?.trim();
+      inputVersion || runOrThrow(runner, "npm", ["view", packageName, "version"]).stdout?.trim();
     writeOutput(env.GITHUB_OUTPUT, "version", resolvedVersion);
     console.log(`Testing ${packageName} version: ${resolvedVersion}`);
     return 0;

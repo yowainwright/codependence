@@ -72,3 +72,10 @@ jobs:
           TARBALL: ${{ steps.pack.outputs.tarball }}
           VERSION: ${{ github.ref_name }}
         run: node scripts/ci/publish-release.js publish-github-release-assets
+
+  test-published-release:
+    needs: publish
+    uses: "./.github/workflows/test-release.yml"
+    with:
+      version: "${{ github.ref_name }}"
+    secrets: inherit

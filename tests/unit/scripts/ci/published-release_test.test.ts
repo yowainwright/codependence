@@ -1,4 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   buildDockerBuildArgs,
   buildDockerRunShellArgs,
@@ -70,8 +73,31 @@ describe("scripts/ci/published-release_test", () => {
     );
   });
 
+  test("formatReport only claims tests run by this repository", () => {
+    const report = formatReport({ date: "2026-05-25 00:00:00 UTC", version: "1.0.0" });
+    expect(report).not.toContain("External");
+  });
+
   test("requireVersion rejects missing versions", () => {
     expect(() => requireVersion("", "build-release-image")).toThrow("CODEPENDENCE_VERSION");
+  });
+
+  test("resolve-version normalizes a release tag input", () => {
+    const directory = mkdtempSync(join(tmpdir(), "codependence-release-version-"));
+    const outputPath = join(directory, "github-output");
+    const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      const code = runTestPublishedReleaseCli({
+        argv: ["resolve-version"],
+        env: { GITHUB_OUTPUT: outputPath, INPUT_VERSION: "v1.2.4" },
+      });
+      expect(code).toBe(0);
+      expect(readFileSync(outputPath, "utf8")).toBe("version=1.2.4\n");
+    } finally {
+      logSpy.mockRestore();
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   test("wait-for-npm skips sleeping after the last failed attempt", () => {
