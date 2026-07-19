@@ -61,11 +61,27 @@ export async function createPublishedFormula({ fetchImpl = fetch, outputPath, ve
 }
 
 function readStableVersion(env) {
-  const version = env.VERSION?.replace(/^v/, "");
+  const version = env.VERSION;
   const isMissing = !version;
   if (isMissing) throw new Error("VERSION is required");
   validateStableVersion(version);
   return version;
+}
+
+function validateCommand(command) {
+  const isKnownCommand = command === "generate" || command === "validate-version";
+  if (isKnownCommand) return;
+  throw new Error(`Unknown command: ${command}`);
+}
+
+async function generateFormula(env, logger, version) {
+  const outputPath = env.FORMULA_PATH;
+  const isOutputPathMissing = !outputPath;
+  if (isOutputPathMissing) throw new Error("FORMULA_PATH is required");
+
+  const result = await createPublishedFormula({ outputPath, version });
+  logger.log(`Generated ${result.outputPath} from ${result.url}`);
+  logger.log(`SHA256: ${result.digest}`);
 }
 
 export async function runHomebrewReleaseCli({
@@ -75,21 +91,14 @@ export async function runHomebrewReleaseCli({
 } = {}) {
   const command = argv[0] || "generate";
   const version = readStableVersion(env);
+  validateCommand(command);
   const isValidation = command === "validate-version";
   if (isValidation) {
     logger.log(`Validated stable version: ${version}`);
     return;
   }
 
-  const isUnknownCommand = command !== "generate";
-  if (isUnknownCommand) throw new Error(`Unknown command: ${command}`);
-  const outputPath = env.FORMULA_PATH;
-  const isOutputPathMissing = !outputPath;
-  if (isOutputPathMissing) throw new Error("FORMULA_PATH is required");
-
-  const result = await createPublishedFormula({ outputPath, version });
-  logger.log(`Generated ${result.outputPath} from ${result.url}`);
-  logger.log(`SHA256: ${result.digest}`);
+  await generateFormula(env, logger, version);
 }
 
 const isDirectExecution = isDirectCliExecution(import.meta.url);

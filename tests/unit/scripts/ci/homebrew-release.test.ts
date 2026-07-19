@@ -31,6 +31,15 @@ describe("scripts/ci/homebrew-release", () => {
     await expect(validation).rejects.toThrow("Invalid stable version");
   });
 
+  test("validation rejects tag-prefixed input", async () => {
+    const validation = runHomebrewReleaseCli({
+      argv: ["validate-version"],
+      env: { VERSION: "v1.1.0" },
+    });
+
+    await expect(validation).rejects.toThrow("Invalid stable version");
+  });
+
   test("downloads the published tarball bytes", async () => {
     const fetchImpl = async () => new Response("published tarball");
     const tarball = await fetchPublishedTarball(npmTarballUrl("1.1.0"), fetchImpl);
