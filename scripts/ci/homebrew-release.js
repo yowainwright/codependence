@@ -28,7 +28,8 @@ const FORMULA_BODY = [
 ].join("\n");
 
 export function validateStableVersion(version) {
-  if (STABLE_VERSION_PATTERN.test(version)) return;
+  const isStableVersion = STABLE_VERSION_PATTERN.test(version);
+  if (isStableVersion) return;
   throw new Error(`Invalid stable version: ${version}`);
 }
 
@@ -44,7 +45,8 @@ export function renderFormula({ digest, url }) {
 
 export async function fetchPublishedTarball(url, fetchImpl = fetch) {
   const response = await fetchImpl(url);
-  if (!response.ok) throw new Error(`Unable to download published tarball: ${response.status}`);
+  const downloadFailed = !response.ok;
+  if (downloadFailed) throw new Error(`Unable to download published tarball: ${response.status}`);
   return Buffer.from(await response.arrayBuffer());
 }
 
@@ -58,18 +60,40 @@ export async function createPublishedFormula({ fetchImpl = fetch, outputPath, ve
   return { digest, outputPath, url, version };
 }
 
-export async function runHomebrewReleaseCli({ env = process.env, logger = console } = {}) {
+function readStableVersion(env) {
   const version = env.VERSION?.replace(/^v/, "");
+  const isMissing = !version;
+  if (isMissing) throw new Error("VERSION is required");
+  validateStableVersion(version);
+  return version;
+}
+
+export async function runHomebrewReleaseCli({
+  argv = process.argv.slice(2),
+  env = process.env,
+  logger = console,
+} = {}) {
+  const command = argv[0] || "generate";
+  const version = readStableVersion(env);
+  const isValidation = command === "validate-version";
+  if (isValidation) {
+    logger.log(`Validated stable version: ${version}`);
+    return;
+  }
+
+  const isUnknownCommand = command !== "generate";
+  if (isUnknownCommand) throw new Error(`Unknown command: ${command}`);
   const outputPath = env.FORMULA_PATH;
-  if (!version) throw new Error("VERSION is required");
-  if (!outputPath) throw new Error("FORMULA_PATH is required");
+  const isOutputPathMissing = !outputPath;
+  if (isOutputPathMissing) throw new Error("FORMULA_PATH is required");
 
   const result = await createPublishedFormula({ outputPath, version });
   logger.log(`Generated ${result.outputPath} from ${result.url}`);
   logger.log(`SHA256: ${result.digest}`);
 }
 
-if (isDirectCliExecution(import.meta.url)) {
+const isDirectExecution = isDirectCliExecution(import.meta.url);
+if (isDirectExecution) {
   runHomebrewReleaseCli().catch((error) => {
     console.error(errorMessage(error));
     process.exitCode = 1;

@@ -3,6 +3,7 @@ import {
   fetchPublishedTarball,
   npmTarballUrl,
   renderFormula,
+  runHomebrewReleaseCli,
   sha256,
   validateStableVersion,
 } from "../../../../scripts/ci/homebrew-release.js";
@@ -19,6 +20,15 @@ describe("scripts/ci/homebrew-release", () => {
     expect(() => validateStableVersion("1.1.0-rc.0")).toThrow("Invalid stable version");
     expect(() => validateStableVersion("v1.1.0")).toThrow("Invalid stable version");
     expect(() => validateStableVersion("01.1.0")).toThrow("Invalid stable version");
+  });
+
+  test("validation rejects unstable input before formula generation", async () => {
+    const validation = runHomebrewReleaseCli({
+      argv: ["validate-version"],
+      env: { VERSION: "1.1.0-rc.0" },
+    });
+
+    await expect(validation).rejects.toThrow("Invalid stable version");
   });
 
   test("downloads the published tarball bytes", async () => {
@@ -45,9 +55,10 @@ describe("scripts/ci/homebrew-release", () => {
   });
 
   test("renders a Node-backed formula with both CLI smoke tests", () => {
+    const url = npmTarballUrl("1.1.0");
     const formula = renderFormula({
       digest: "abc123",
-      url: npmTarballUrl("1.1.0"),
+      url,
     });
 
     expect(formula).toContain('sha256 "abc123"');

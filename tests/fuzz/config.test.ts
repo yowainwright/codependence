@@ -7,8 +7,10 @@ const PROPERTY_OPTIONS = { numRuns: 1_000 };
 type YamlScalar = boolean | null | string;
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
-  if (typeof value !== "object") return false;
-  if (value === null) return false;
+  const isNotObject = typeof value !== "object";
+  if (isNotObject) return false;
+  const isNull = value === null;
+  if (isNull) return false;
   return !Array.isArray(value);
 };
 

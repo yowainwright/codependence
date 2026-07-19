@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { isDirectCliExecution, runCliEntrypoint } from "./cli-entrypoint.js";
+import { stripTagPrefix, validateReleaseVersion } from "./publish-release.js";
 import { resolveToolVersions, readToolVersionInputs } from "./tool-versions.js";
 
 export function packageSpec(packageName, version) {
@@ -126,6 +127,12 @@ function nodeAlpineImage(env) {
   return resolveToolVersions(readToolVersionInputs({ env })).nodeAlpineImage;
 }
 
+function normalizeRequestedVersion(version) {
+  const isMissing = !version;
+  if (isMissing) return undefined;
+  return stripTagPrefix(version);
+}
+
 export function runTestPublishedReleaseCli({
   argv = process.argv.slice(2),
   env = process.env,
@@ -138,9 +145,10 @@ export function runTestPublishedReleaseCli({
   const version = env.CODEPENDENCE_VERSION;
 
   if (command === "resolve-version") {
-    const inputVersion = env.INPUT_VERSION?.replace(/^v/, "");
+    const inputVersion = normalizeRequestedVersion(env.INPUT_VERSION);
     const resolvedVersion =
       inputVersion || runOrThrow(runner, "npm", ["view", packageName, "version"]).stdout?.trim();
+    validateReleaseVersion(resolvedVersion);
     writeOutput(env.GITHUB_OUTPUT, "version", resolvedVersion);
     console.log(`Testing ${packageName} version: ${resolvedVersion}`);
     return 0;

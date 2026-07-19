@@ -100,6 +100,21 @@ describe("scripts/ci/published-release_test", () => {
     }
   });
 
+  test("resolve-version rejects an invalid release input", () => {
+    const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      expect(() =>
+        runTestPublishedReleaseCli({
+          argv: ["resolve-version"],
+          env: { INPUT_VERSION: "../../latest" },
+        }),
+      ).toThrow("Invalid release version");
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
   test("wait-for-npm skips sleeping after the last failed attempt", () => {
     const calls: string[] = [];
     const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});

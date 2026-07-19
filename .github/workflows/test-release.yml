@@ -73,7 +73,7 @@ jobs:
           CODEPENDENCE_VERSION: ${{ steps.version.outputs.version }}
 
       - name: Create Test Report
-        if: always()
+        if: success()
         run: bash scripts/ci/published-release_test.sh write-report
         env:
           CODEPENDENCE_VERSION: ${{ steps.version.outputs.version }}

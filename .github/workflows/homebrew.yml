@@ -33,6 +33,9 @@ jobs:
           cache: "false"
           install: "false"
 
+      - name: Validate stable version
+        run: node scripts/ci/homebrew-release.js validate-version
+
       - name: Wait for npm package availability
         env:
           CODEPENDENCE_VERSION: "${{ inputs.version }}"

@@ -193,14 +193,18 @@ export function incrementPreReleaseVersion(version: string, preRelease: PreRelea
 
 function incrementStableReleaseVersion(version: string): string {
   const match = version.match(/^(\d+)\.(\d+)\.(\d+)$/);
-  if (!match) throw new Error(`Unable to advance stable release version: ${version}`);
+  const isInvalidStableVersion = !match;
+  if (isInvalidStableVersion) {
+    throw new Error(`Unable to advance stable release version: ${version}`);
+  }
 
   const nextPatch = Number(match[3]) + 1;
   return `${match[1]}.${match[2]}.${nextPatch}`;
 }
 
 function incrementReleaseVersion(version: string, preRelease?: PreRelease): string {
-  if (preRelease) return incrementPreReleaseVersion(version, preRelease);
+  const hasPreRelease = preRelease !== undefined;
+  if (hasPreRelease) return incrementPreReleaseVersion(version, preRelease);
   return incrementStableReleaseVersion(version);
 }
 
