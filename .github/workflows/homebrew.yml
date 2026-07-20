@@ -1,0 +1,65 @@
+name: Prepare Homebrew formula
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Stable npm version to package for Homebrew
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  homebrew:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    env:
+      FORMULA_PATH: codependence.rb
+      TAP_NAME: codependence/release-test
+      VERSION: "${{ inputs.version }}"
+
+    steps:
+      - name: Checkout
+        uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
+        with:
+          persist-credentials: false
+
+      - name: Setup toolchain
+        uses: "./.github/actions/setup-toolchain"
+        with:
+          cache: "false"
+          install: "false"
+
+      - name: Validate stable version
+        run: node scripts/ci/homebrew-release.js validate-version
+
+      - name: Wait for npm package availability
+        env:
+          CODEPENDENCE_VERSION: "${{ inputs.version }}"
+        run: node scripts/ci/published-release.js wait-for-npm
+
+      - name: Generate formula from published tarball
+        run: node scripts/ci/homebrew-release.js
+
+      - name: Create formula test tap
+        run: |
+          brew tap-new --no-git "$TAP_NAME"
+          TAP_PATH="$(brew --repository "$TAP_NAME")"
+          cp "$FORMULA_PATH" "$TAP_PATH/Formula/codependence.rb"
+
+      - name: Install and test formula
+        run: |
+          brew install "$TAP_NAME/codependence"
+          brew test "$TAP_NAME/codependence"
+          codependence --help
+          cdp --help
+
+      - name: Attach formula to GitHub release
+        env:
+          GITHUB_TOKEN: "${{ github.token }}"
+        run: |
+          RELEASE_TAG="v${VERSION}"
+          gh release upload "$RELEASE_TAG" "$FORMULA_PATH" --clobber

@@ -43,11 +43,12 @@ export function buildNpmPublishArgs({ distTag, tarball }) {
   return ["publish", tarball, "--provenance", "--access", "public", "--tag", distTag];
 }
 
-export function buildGitHubReleaseCreateArgs({ sigstoreBundle, tarball, version }) {
+export function buildGitHubReleaseCreateArgs({ binary, sigstoreBundle, tarball, version }) {
   const args = [
     "release",
     "create",
     version,
+    binary,
     tarball,
     sigstoreBundle,
     "--title",
@@ -57,6 +58,10 @@ export function buildGitHubReleaseCreateArgs({ sigstoreBundle, tarball, version 
 
   if (isPrereleaseVersion(version)) args.push("--prerelease");
   return args;
+}
+
+export function buildGitHubReleaseUploadArgs({ binary, sigstoreBundle, tarball, version }) {
+  return ["release", "upload", version, binary, tarball, sigstoreBundle, "--clobber"];
 }
 
 export function createSpawnRunner() {
@@ -82,6 +87,35 @@ function runOrThrow(runner, command, args) {
   const result = runner(command, args);
   if (commandSucceeded(result)) return result;
   throw new Error(result.stderr?.trim() || result.stdout?.trim() || `${command} failed`);
+}
+
+function readGitHubReleaseAssets(env) {
+  const binary = env.BINARY;
+  const sigstoreBundle = env.SIGSTORE_BUNDLE;
+  const tarball = env.TARBALL;
+  const version = env.VERSION;
+  requireValues({
+    BINARY: binary,
+    SIGSTORE_BUNDLE: sigstoreBundle,
+    TARBALL: tarball,
+    VERSION: version,
+  });
+  return { binary, sigstoreBundle, tarball, version };
+}
+
+function publishGitHubReleaseAssets(env, runner) {
+  const assets = readGitHubReleaseAssets(env);
+  const viewArgs = ["release", "view", assets.version];
+  const releaseExists = commandSucceeded(runner("gh", viewArgs));
+  if (releaseExists) {
+    const uploadArgs = buildGitHubReleaseUploadArgs(assets);
+    runOrThrow(runner, "gh", uploadArgs);
+    return 0;
+  }
+
+  const createArgs = buildGitHubReleaseCreateArgs(assets);
+  runOrThrow(runner, "gh", createArgs);
+  return 0;
 }
 
 export function runPublishReleaseCli({
@@ -133,34 +167,7 @@ export function runPublishReleaseCli({
   }
 
   if (command === "publish-github-release-assets") {
-    requireValues({
-      SIGSTORE_BUNDLE: env.SIGSTORE_BUNDLE,
-      TARBALL: env.TARBALL,
-      VERSION: env.VERSION,
-    });
-
-    if (commandSucceeded(runner("gh", ["release", "view", env.VERSION]))) {
-      runOrThrow(runner, "gh", [
-        "release",
-        "upload",
-        env.VERSION,
-        env.TARBALL,
-        env.SIGSTORE_BUNDLE,
-        "--clobber",
-      ]);
-      return 0;
-    }
-
-    runOrThrow(
-      runner,
-      "gh",
-      buildGitHubReleaseCreateArgs({
-        sigstoreBundle: env.SIGSTORE_BUNDLE,
-        tarball: env.TARBALL,
-        version: env.VERSION,
-      }),
-    );
-    return 0;
+    return publishGitHubReleaseAssets(env, runner);
   }
 
   throw new Error(

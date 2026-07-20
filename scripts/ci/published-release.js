@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { isDirectCliExecution, runCliEntrypoint } from "./cli-entrypoint.js";
+import { stripTagPrefix, validateReleaseVersion } from "./publish-release.js";
 import { resolveToolVersions, readToolVersionInputs } from "./tool-versions.js";
 
 export function packageSpec(packageName, version) {
@@ -93,11 +94,9 @@ export function formatReport({ date, version }) {
     "- Go update preservation tests",
     "- NPM package smoke test",
     "- Performance validation",
-    "- External test repository triggered",
     "",
     "## Summary",
     "All tests passed successfully. The published package is ready for use.",
-    "External e2e tests have been triggered in the codependence-test repository.",
     "",
   ].join("\n");
 }
@@ -128,6 +127,12 @@ function nodeAlpineImage(env) {
   return resolveToolVersions(readToolVersionInputs({ env })).nodeAlpineImage;
 }
 
+function resolveRequestedVersion(version, packageName, runner) {
+  const hasRequestedVersion = Boolean(version);
+  if (hasRequestedVersion) return stripTagPrefix(version);
+  return runOrThrow(runner, "npm", ["view", packageName, "version"]).stdout?.trim();
+}
+
 export function runTestPublishedReleaseCli({
   argv = process.argv.slice(2),
   env = process.env,
@@ -140,9 +145,8 @@ export function runTestPublishedReleaseCli({
   const version = env.CODEPENDENCE_VERSION;
 
   if (command === "resolve-version") {
-    const resolvedVersion =
-      env.INPUT_VERSION ||
-      runOrThrow(runner, "npm", ["view", packageName, "version"]).stdout?.trim();
+    const resolvedVersion = resolveRequestedVersion(env.INPUT_VERSION, packageName, runner);
+    validateReleaseVersion(resolvedVersion);
     writeOutput(env.GITHUB_OUTPUT, "version", resolvedVersion);
     console.log(`Testing ${packageName} version: ${resolvedVersion}`);
     return 0;

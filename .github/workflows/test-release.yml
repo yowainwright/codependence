@@ -2,6 +2,12 @@ name: Test Published Release
 on:
   release:
     types: [published]
+  workflow_call:
+    inputs:
+      version:
+        description: Published codependence version to test
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       version:
@@ -66,17 +72,8 @@ jobs:
         env:
           CODEPENDENCE_VERSION: ${{ steps.version.outputs.version }}
 
-      - name: Trigger External E2E Tests
-        if: success()
-        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
-        with:
-          token: ${{ secrets.REPO_ACCESS_TOKEN }}
-          repository: yowainwright/codependence-test
-          event-type: codependence-release
-          client-payload: '{"version":"${{ steps.version.outputs.version }}","release_url":"${{ github.event.release.html_url }}","trigger_type":"${{ github.event_name }}"}'
-
       - name: Create Test Report
-        if: always()
+        if: success()
         run: bash scripts/ci/published-release_test.sh write-report
         env:
           CODEPENDENCE_VERSION: ${{ steps.version.outputs.version }}

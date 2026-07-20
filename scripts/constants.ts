@@ -7,7 +7,7 @@ export const RELEASE_VERSION_PATTERN =
 export const PRE_RELEASES = new Set<PreRelease>(["alpha", "beta", "rc"]);
 export const SAFE_SHELL_ARG_PATTERN = /^[A-Za-z0-9_./:=@-]+$/;
 
-export const BIN_OUTPUT_DIR = "dist/bin";
+export const BIN_OUTPUT_DIR = "artifacts";
 export const BIN_OUTPUT_FILE = `${BIN_OUTPUT_DIR}/codependence`;
 export const BIN_BUILD_ARGS = [
   "compile",

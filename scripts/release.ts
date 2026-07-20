@@ -191,6 +191,23 @@ export function incrementPreReleaseVersion(version: string, preRelease: PreRelea
   return `${match[1]}-${preRelease}.${nextPrerelease}${match[4] ?? ""}`;
 }
 
+function incrementStableReleaseVersion(version: string): string {
+  const match = version.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  const isInvalidStableVersion = !match;
+  if (isInvalidStableVersion) {
+    throw new Error(`Unable to advance stable release version: ${version}`);
+  }
+
+  const nextPatch = Number(match[3]) + 1;
+  return `${match[1]}.${match[2]}.${nextPatch}`;
+}
+
+function incrementReleaseVersion(version: string, preRelease?: PreRelease): string {
+  const hasPreRelease = preRelease !== undefined;
+  if (hasPreRelease) return incrementPreReleaseVersion(version, preRelease);
+  return incrementStableReleaseVersion(version);
+}
+
 export function releaseTagExists(runner: ReleaseRunner, tagName: string): boolean {
   const localTag = runner("git", ["rev-parse", "-q", "--verify", `refs/tags/${tagName}`]);
   const localTagError = localTag.stderr.trim();
@@ -211,13 +228,11 @@ export function resolveAvailableReleaseVersion(
   releaseArgs: ReleaseArgs,
   version: string,
 ): string {
-  if (!releaseArgs.preRelease) return version;
-
   let candidate = version;
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const tagName = `v${candidate}`;
     if (!releaseTagExists(runner, tagName)) return candidate;
-    candidate = incrementPreReleaseVersion(candidate, releaseArgs.preRelease);
+    candidate = incrementReleaseVersion(candidate, releaseArgs.preRelease);
   }
 
   throw new Error(`Unable to find an available release tag for ${version}`);
