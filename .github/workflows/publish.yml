@@ -10,12 +10,15 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: npm-publish
     permissions:
+      artifact-metadata: write
       id-token: write
       contents: write
       attestations: write
+    env:
+      BINARY: codependence-linux-x64
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -45,11 +48,19 @@ jobs:
         id: pack
         run: node scripts/ci/publish-release.js pack
 
-      - name: Attest npm tarball
+      - name: Build and test Perry binary
+        run: bun run test:e2e:binary
+
+      - name: Prepare Perry binary release asset
+        run: cp artifacts/codependence "$BINARY"
+
+      - name: Attest release artifacts
         id: attest
         uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4
         with:
-          subject-path: ${{ steps.pack.outputs.tarball }}
+          subject-path: |
+            ${{ steps.pack.outputs.tarball }}
+            ${{ env.BINARY }}
 
       - name: Prepare release attestation
         id: release-attestation

@@ -3,7 +3,7 @@ set -e
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 ROOT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
-BIN="$ROOT_DIR/dist/bin/codependence"
+BIN="$ROOT_DIR/artifacts/codependence"
 
 fail() {
   printf '[FAIL] %s\n' "$1"

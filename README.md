@@ -681,12 +681,19 @@ bun run release:tag
 
 The release helper creates the release commit locally, pushes only the version tag,
 and restores local `main` to its starting commit. The tag triggers the publish
-workflow, which packs the npm tarball, attests it, publishes it with npm
-provenance, and uploads the tarball plus attestation to the GitHub release. The
-publish workflow then runs the reusable published-package test suite against the
-exact npm version before the release is considered successful.
+workflow, which packs the npm tarball and then compiles `codependence-linux-x64`
+with Perry. The standalone executable must pass its help check plus Docker,
+GitHub Actions, and Rust provider E2E tests before npm publication. The workflow
+attests both artifacts, publishes the package with npm provenance, and uploads
+the executable, tarball, and attestation to the GitHub release. It then runs the
+reusable published-package test suite against the exact npm version before the
+release is considered successful.
 Use `bun run release:tag` when `package.json` already has the version you want
 to publish.
+
+Perry is exact-pinned because newer releases currently fail the native link.
+Only update that pin after `bun run test:e2e:binary` passes on macOS and Ubuntu
+24.04 x64.
 
 Publishing follows the same posture as Pastoralist: GitHub Actions publishes
 through npm Trusted Publishing/OIDC, not a long-lived npm token. Configure the

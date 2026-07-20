@@ -4,6 +4,7 @@ node_modules/
 
 # Build outputs (will be generated in container)
 dist/
+artifacts/
 
 # Development files
 .env

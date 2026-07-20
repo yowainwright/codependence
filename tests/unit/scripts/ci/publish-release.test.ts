@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildGitHubReleaseCreateArgs,
+  buildGitHubReleaseUploadArgs,
   buildNpmPublishArgs,
   isPrereleaseVersion,
   parseNpmPackFilename,
   readPrereleaseIdentifier,
   resolveDistTag,
+  runPublishReleaseCli,
   stripTagPrefix,
   validateReleaseVersion,
 } from "../../../../scripts/ci/publish-release.js";
@@ -72,13 +74,57 @@ describe("scripts/ci/publish-release", () => {
   });
 
   test("buildGitHubReleaseCreateArgs marks prereleases", () => {
-    expect(
-      buildGitHubReleaseCreateArgs({
-        sigstoreBundle: "codependence.tgz.sigstore.json",
-        tarball: "codependence.tgz",
-        version: "v1.0.0-beta.1",
-      }),
-    ).toContain("--prerelease");
+    const args = buildGitHubReleaseCreateArgs({
+      binary: "codependence-linux-x64",
+      sigstoreBundle: "codependence.tgz.sigstore.json",
+      tarball: "codependence.tgz",
+      version: "v1.0.0-beta.1",
+    });
+
+    expect(args).toContain("codependence-linux-x64");
+    expect(args).toContain("--prerelease");
+  });
+
+  test("buildGitHubReleaseUploadArgs replaces every release asset", () => {
+    const args = buildGitHubReleaseUploadArgs({
+      binary: "codependence-linux-x64",
+      sigstoreBundle: "codependence.tgz.sigstore.json",
+      tarball: "codependence.tgz",
+      version: "v1.0.0",
+    });
+
+    expect(args).toEqual([
+      "release",
+      "upload",
+      "v1.0.0",
+      "codependence-linux-x64",
+      "codependence.tgz",
+      "codependence.tgz.sigstore.json",
+      "--clobber",
+    ]);
+  });
+
+  test("publish-github-release-assets uploads the tested binary", () => {
+    const calls: string[] = [];
+    const runner = (command: string, args: string[]) => {
+      calls.push([command, ...args].join(" "));
+      return { status: 0, stderr: "", stdout: "" };
+    };
+
+    runPublishReleaseCli({
+      argv: ["publish-github-release-assets"],
+      env: {
+        BINARY: "codependence-linux-x64",
+        SIGSTORE_BUNDLE: "codependence.tgz.sigstore.json",
+        TARBALL: "codependence.tgz",
+        VERSION: "v1.0.0",
+      },
+      runner,
+    });
+
+    expect(calls).toContain(
+      "gh release upload v1.0.0 codependence-linux-x64 codependence.tgz codependence.tgz.sigstore.json --clobber",
+    );
   });
 
   test("isPrereleaseVersion recognizes semver prerelease tags", () => {
