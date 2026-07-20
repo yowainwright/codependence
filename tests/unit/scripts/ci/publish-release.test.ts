@@ -12,6 +12,20 @@ import {
   validateReleaseVersion,
 } from "../../../../scripts/ci/publish-release.js";
 
+const releaseAssets = {
+  binary: "codependence-linux-x64",
+  sigstoreBundle: "codependence.tgz.sigstore.json",
+  tarball: "codependence.tgz",
+  version: "v1.0.0",
+};
+
+function createRecordingRunner(calls: string[]) {
+  return (command: string, args: string[]) => {
+    calls.push([command, ...args].join(" "));
+    return { status: 0, stderr: "", stdout: "" };
+  };
+}
+
 describe("scripts/ci/publish-release", () => {
   test("resolveDistTag maps prerelease identifiers", () => {
     expect(resolveDistTag("v1.0.0-alpha.1")).toBe("alpha");
@@ -106,18 +120,15 @@ describe("scripts/ci/publish-release", () => {
 
   test("publish-github-release-assets uploads the tested binary", () => {
     const calls: string[] = [];
-    const runner = (command: string, args: string[]) => {
-      calls.push([command, ...args].join(" "));
-      return { status: 0, stderr: "", stdout: "" };
-    };
+    const runner = createRecordingRunner(calls);
 
     runPublishReleaseCli({
       argv: ["publish-github-release-assets"],
       env: {
-        BINARY: "codependence-linux-x64",
-        SIGSTORE_BUNDLE: "codependence.tgz.sigstore.json",
-        TARBALL: "codependence.tgz",
-        VERSION: "v1.0.0",
+        BINARY: releaseAssets.binary,
+        SIGSTORE_BUNDLE: releaseAssets.sigstoreBundle,
+        TARBALL: releaseAssets.tarball,
+        VERSION: releaseAssets.version,
       },
       runner,
     });

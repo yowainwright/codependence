@@ -29,6 +29,10 @@ function resolveVersions(overrides = {}) {
   });
 }
 
+function readRootFile(path: string) {
+  return readFileSync(new URL(`../../../../${path}`, import.meta.url), "utf8");
+}
+
 describe("scripts/ci/tool-versions", () => {
   test("parseMiseTool reads quoted tool versions", () => {
     expect(parseMiseTool(miseToml, "bun")).toBe("1.3.14");
@@ -47,6 +51,15 @@ describe("scripts/ci/tool-versions", () => {
         "NODE_SLIM_IMAGE",
       ),
     ).toBe(nodeSlimImage);
+  });
+
+  test("dependency policy preserves the exact Perry compiler pin", () => {
+    const packageJson = JSON.parse(readRootFile("package.json"));
+    const perryVersion = packageJson.devDependencies["@perryts/perry"];
+    const codependenceConfig = readRootFile(".codependencerc");
+
+    expect(perryVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(codependenceConfig).toContain(`"@perryts/perry": "${perryVersion}"`);
   });
 
   test("e2e Dockerfiles share the same pinned Node slim image", () => {
