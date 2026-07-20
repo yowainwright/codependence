@@ -46,7 +46,6 @@ jobs:
 
       - run: bun run deps:security
       - run: bun run build
-      - run: bun run test:e2e:binary
       - run: bun run lint
       - run: bun run typecheck
       - run: bun run coverage
@@ -61,6 +60,7 @@ jobs:
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: true
+      - run: bun run test:e2e:binary
 
   node-compat:
     runs-on: ubuntu-latest
