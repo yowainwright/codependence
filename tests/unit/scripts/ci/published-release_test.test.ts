@@ -115,6 +115,23 @@ describe("scripts/ci/published-release_test", () => {
     }
   });
 
+  test("resolve-version rejects an explicit version that normalizes to empty", () => {
+    const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const runner = () => ({ status: 0, stdout: "9.9.9\n", stderr: "" });
+
+    try {
+      expect(() =>
+        runTestPublishedReleaseCli({
+          argv: ["resolve-version"],
+          env: { INPUT_VERSION: "v" },
+          runner,
+        }),
+      ).toThrow("Invalid release version");
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
   test("wait-for-npm skips sleeping after the last failed attempt", () => {
     const calls: string[] = [];
     const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});

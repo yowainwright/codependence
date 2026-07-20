@@ -127,10 +127,10 @@ function nodeAlpineImage(env) {
   return resolveToolVersions(readToolVersionInputs({ env })).nodeAlpineImage;
 }
 
-function normalizeRequestedVersion(version) {
-  const isMissing = !version;
-  if (isMissing) return undefined;
-  return stripTagPrefix(version);
+function resolveRequestedVersion(version, packageName, runner) {
+  const hasRequestedVersion = Boolean(version);
+  if (hasRequestedVersion) return stripTagPrefix(version);
+  return runOrThrow(runner, "npm", ["view", packageName, "version"]).stdout?.trim();
 }
 
 export function runTestPublishedReleaseCli({
@@ -145,9 +145,7 @@ export function runTestPublishedReleaseCli({
   const version = env.CODEPENDENCE_VERSION;
 
   if (command === "resolve-version") {
-    const inputVersion = normalizeRequestedVersion(env.INPUT_VERSION);
-    const resolvedVersion =
-      inputVersion || runOrThrow(runner, "npm", ["view", packageName, "version"]).stdout?.trim();
+    const resolvedVersion = resolveRequestedVersion(env.INPUT_VERSION, packageName, runner);
     validateReleaseVersion(resolvedVersion);
     writeOutput(env.GITHUB_OUTPUT, "version", resolvedVersion);
     console.log(`Testing ${packageName} version: ${resolvedVersion}`);
