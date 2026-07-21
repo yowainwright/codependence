@@ -14,6 +14,7 @@ export const EXACT_TOOL_VERSION_PATTERN = /^v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+
 export const UPPERCASE_IDENTIFIER_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
 export const GO_TOOLCHAIN_VERSION_PATTERN = /^toolchain\s+go(\S+)\s*$/m;
 export const GO_VERSION_PATTERN = /^go\s+(\S+)\s*$/m;
+export const GO_MINOR_VERSION_PATTERN = /^\d+\.\d+$/;
 export const REGEX_SPECIAL_CHARACTERS_PATTERN = /[.*+?^${}()|[\]\\]/g;
 export const MANAGER_PLACEHOLDER = "<manager>";
 export const MISE_VERSION_PATTERN = `^\\s*${MANAGER_PLACEHOLDER}\\s*=\\s*["']([^"']+)["']\\s*$`;

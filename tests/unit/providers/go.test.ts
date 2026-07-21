@@ -1,7 +1,13 @@
 import { expect, test, describe, beforeEach, afterEach, jest, mock } from "bun:test";
-import { GoProvider, updateRequireLine, updateExistingRequireLines } from "../../../src/providers/go";
+import {
+  GoProvider,
+  runGoModTidy,
+  updateRequireLine,
+  updateExistingRequireLines,
+} from "../../../src/providers/go";
 import { writeFileSync, readFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
+import { logger } from "../../../src/logger";
 
 describe("GoProvider", () => {
   afterEach(() => {
@@ -11,8 +17,7 @@ describe("GoProvider", () => {
   describe("getLatestVersion", () => {
     test("should get latest version from go list output", async () => {
       const execMock = jest.fn(() => ({
-        stdout:
-          "github.com/example/pkg v1.0.0 v1.1.0 v1.2.0 v1.2.1 v2.0.0",
+        stdout: "github.com/example/pkg v1.0.0 v1.1.0 v1.2.0 v1.2.1 v2.0.0",
         stderr: "",
       })) as any;
 
@@ -93,8 +98,7 @@ describe("GoProvider", () => {
         exec: execMock,
       }));
 
-      const versions =
-        await provider.getAllVersions("github.com/example/pkg");
+      const versions = await provider.getAllVersions("github.com/example/pkg");
 
       expect(versions).toEqual(["v1.0.0", "v1.1.0", "v2.0.0"]);
     });
@@ -444,7 +448,9 @@ require (
 
       const updated = readFileSync(goModPath, "utf8");
       expect(updated).toContain("github.com/gin-gonic/gin v1.9.1");
-      expect(updated).toContain("replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0");
+      expect(updated).toContain(
+        "replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0",
+      );
     });
 
     test("should preserve // indirect when dep is already at correct version", async () => {
@@ -502,9 +508,7 @@ require (
       expect(provider.validatePackageName("github.com/user/repo")).toBe(true);
       expect(provider.validatePackageName("golang.org/x/crypto")).toBe(true);
       expect(provider.validatePackageName("gopkg.in/yaml")).toBe(true);
-      expect(
-        provider.validatePackageName("github.com/aws/aws-sdk-go"),
-      ).toBe(true);
+      expect(provider.validatePackageName("github.com/aws/aws-sdk-go")).toBe(true);
       expect(provider.validatePackageName("example.com/my/package")).toBe(true);
     });
 
@@ -540,7 +544,10 @@ require (
 
     test("should skip replace lines", () => {
       const deps = { "github.com/old/module": "v2.0.0" };
-      const result = updateRequireLine("\treplace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0", deps);
+      const result = updateRequireLine(
+        "\treplace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0",
+        deps,
+      );
       expect(result.updated).toBe(false);
       expect(result.line).toContain("replace github.com/old/module");
     });
@@ -564,7 +571,9 @@ require (
         "replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0\n";
       const deps = { "github.com/gin-gonic/gin": "v1.9.1" };
       const { content: result } = updateExistingRequireLines(content, deps);
-      expect(result).toContain("replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0");
+      expect(result).toContain(
+        "replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0",
+      );
       expect(result).toContain("github.com/gin-gonic/gin v1.9.1");
     });
 
@@ -654,15 +663,12 @@ require (
     });
   });
 
-  test("writeManifest leaves lockfile regeneration to the package manager", () => {
+  test("writeManifest skips lockfile regeneration while testing", () => {
     const goModPath = join(__dirname, ".tmp-write", "go.mod");
     mkdirSync(join(__dirname, ".tmp-write"), { recursive: true });
-    writeFileSync(
-      goModPath,
-      "module test\n\ngo 1.21\n\nrequire github.com/example/pkg v1.0.0\n",
-    );
+    writeFileSync(goModPath, "module test\n\ngo 1.21\n\nrequire github.com/example/pkg v1.0.0\n");
 
-    const provider = new GoProvider();
+    const provider = new GoProvider({ isTesting: true });
     provider.writeManifest(goModPath, {
       filePath: goModPath,
       dependencies: { "github.com/example/pkg": "v2.0.0" },
@@ -670,5 +676,45 @@ require (
 
     expect(readFileSync(goModPath, "utf8")).toContain("github.com/example/pkg v2.0.0");
     rmSync(join(__dirname, ".tmp-write"), { recursive: true, force: true });
+  });
+
+  test("runGoModTidy regenerates the lockfile beside go.mod", () => {
+    const execute = jest.fn();
+    const goModPath = join(__dirname, "fixture", "go.mod");
+
+    runGoModTidy(goModPath, {}, execute as typeof import("child_process").execFileSync);
+
+    expect(execute).toHaveBeenCalledWith("go", ["mod", "tidy"], {
+      cwd: join(__dirname, "fixture"),
+      stdio: "ignore",
+    });
+  });
+
+  test("runGoModTidy honors manifest-only updates", () => {
+    const execute = jest.fn();
+
+    runGoModTidy(
+      "go.mod",
+      { regenerateLockfile: false },
+      execute as typeof import("child_process").execFileSync,
+    );
+
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  test("runGoModTidy reports failures in debug mode", () => {
+    const failure = new Error("tidy failed");
+    const execute = jest.fn(() => {
+      throw failure;
+    });
+    const error = jest.spyOn(logger, "error").mockImplementation(() => {});
+
+    runGoModTidy(
+      "go.mod",
+      { debug: true },
+      execute as unknown as typeof import("child_process").execFileSync,
+    );
+
+    expect(error).toHaveBeenCalledWith("Failed to run go mod tidy", failure);
   });
 });

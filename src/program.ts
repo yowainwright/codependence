@@ -20,6 +20,7 @@ import {
   ENVIRONMENT_VERSION_PATTERN,
   EXACT_TOOL_VERSION_PATTERN,
   GENERATED_ACTION_HEADER,
+  GO_MINOR_VERSION_PATTERN,
   GO_TOOLCHAIN_VERSION_PATTERN,
   GO_VERSION_PATTERN,
   MANAGER_PLACEHOLDER,
@@ -170,7 +171,8 @@ const readGoVersion = (rootDir: string): string => {
   const toolchain = content.match(GO_TOOLCHAIN_VERSION_PATTERN)?.[1];
   if (toolchain) return toolchain;
 
-  return content.match(GO_VERSION_PATTERN)?.[1] || "";
+  const version = content.match(GO_VERSION_PATTERN)?.[1] || "";
+  return GO_MINOR_VERSION_PATTERN.test(version) ? `${version}.0` : version;
 };
 
 const escapedPattern = (value: string): string =>
@@ -305,15 +307,38 @@ const defaultManagerCommand = (manager: DependencyManager): string => {
   return "git diff --check";
 };
 
+const shellString = (value: string): string => `'${value.replaceAll("'", `'"'"'`)}'`;
+
+const commandForRoot = (command: string, rootDir = "."): string => {
+  if (rootDir === ".") return command;
+
+  return `(cd -- ${shellString(rootDir)} && ${command})`;
+};
+
+const managerCommands = (
+  manager: DependencyManager,
+  targets: CodependenceTarget[],
+  overrides: Map<string, string>,
+): string[] => {
+  const command = overrides.get(manager) || defaultManagerCommand(manager);
+  const roots = targets
+    .filter((target) => target.manager === manager)
+    .map((target) => target.rootDir || ".");
+
+  return [...new Set(roots.map((rootDir) => commandForRoot(command, rootDir)))];
+};
+
 const postUpdateCommand = (
   definition: WorkflowDefinition,
+  targets: CodependenceTarget[],
   overrides: Map<string, string>,
 ): string => {
   const areaOverride = overrides.get(definition.area);
-  if (areaOverride) return areaOverride;
+  const areaIsManager = definition.managers.includes(definition.area as DependencyManager);
+  if (areaOverride && !areaIsManager) return areaOverride;
 
-  const commands = definition.managers.map(
-    (manager) => overrides.get(manager) || defaultManagerCommand(manager),
+  const commands = definition.managers.flatMap((manager) =>
+    managerCommands(manager, targets, overrides),
   );
   return [...new Set(commands)].join(" && ");
 };
@@ -418,6 +443,7 @@ const assertSchedules = (schedules: Map<string, string>): void => {
 
 const writeWorkflows = (
   rootDir: string,
+  targets: CodependenceTarget[],
   definitions: WorkflowDefinition[],
   versions: Map<DependencyManager, string>,
   commands: Map<string, string>,
@@ -427,7 +453,7 @@ const writeWorkflows = (
   definitions.forEach((definition) => {
     const workflow = renderWorkflow({
       ...definition,
-      postUpdateCommand: postUpdateCommand(definition, commands),
+      postUpdateCommand: postUpdateCommand(definition, targets, commands),
       tokenSecret: secretName,
       versions,
     });
@@ -455,7 +481,14 @@ export const initGitHubActions = (options: InitGitHubActionsOptions = {}): strin
   const definitions = workflowDefinitions(managers, schedules);
   const paths = definitions.map(({ area }) => workflowPath(rootDir, area));
   assertSafeWrites(rootDir, paths, options.force === true);
-  writeWorkflows(rootDir, definitions, versions, commands, tokenSecret(options.tokenSecret));
+  writeWorkflows(
+    rootDir,
+    targets,
+    definitions,
+    versions,
+    commands,
+    tokenSecret(options.tokenSecret),
+  );
   return paths;
 };
 

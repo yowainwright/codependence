@@ -1,5 +1,8 @@
 import { readFileSync, writeFileSync } from "fs";
+import { execFileSync } from "child_process";
+import { dirname } from "path";
 import { exec } from "../../utils/exec";
+import { logger } from "../../logger";
 import { LANGUAGES } from "../constants";
 import { GO_PATTERNS } from "./constants";
 import type {
@@ -124,9 +127,7 @@ const parseRequireBlockEntries = (block: string): Array<[string, string]> =>
 
 export const parseRequireBlock = (content: string): Record<string, string> => {
   const requireBlocks = content.matchAll(GO_PATTERNS.REQUIRE_BLOCKS);
-  const entries = Array.from(requireBlocks).flatMap((match) =>
-    parseRequireBlockEntries(match[1]),
-  );
+  const entries = Array.from(requireBlocks).flatMap((match) => parseRequireBlockEntries(match[1]));
 
   return Object.fromEntries(entries);
 };
@@ -150,6 +151,28 @@ export const buildRequireBlock = (dependencies: Record<string, string>): string 
   return `require (\n${requireEntries}\n)`;
 };
 
+export const runGoModTidy = (
+  filePath: string,
+  options: ProviderOptions,
+  execute: typeof execFileSync = execFileSync,
+): void => {
+  if (options.isTesting || options.regenerateLockfile === false) return;
+
+  try {
+    execute(LANGUAGES.GO, ["mod", "tidy"], {
+      cwd: dirname(filePath),
+      stdio: "ignore",
+    });
+  } catch (error) {
+    if (options.debug) logger.error("Failed to run go mod tidy", error as Error);
+  }
+};
+
+const writeGoMod = (filePath: string, content: string, options: ProviderOptions): void => {
+  writeFileSync(filePath, content);
+  runGoModTidy(filePath, options);
+};
+
 export class GoProvider implements DependencyProvider {
   readonly language = LANGUAGES.GO;
   readonly capabilities = {
@@ -158,7 +181,11 @@ export class GoProvider implements DependencyProvider {
     versionStrategy: "semver",
   } as const;
 
-  constructor(_options: ProviderOptions = {}) {}
+  private options: ProviderOptions;
+
+  constructor(options: ProviderOptions = {}) {
+    this.options = options;
+  }
 
   async getLatestVersion(packageName: string): Promise<string> {
     const { stdout } = await exec(LANGUAGES.GO, ["list", "-m", "-versions", packageName]);
@@ -202,7 +229,7 @@ export class GoProvider implements DependencyProvider {
     } = updateExistingRequireLines(content, manifest.dependencies);
 
     if (updatedCount > 0 || foundCount > 0) {
-      writeFileSync(filePath, preserveFinalNewline(inPlaceContent));
+      writeGoMod(filePath, preserveFinalNewline(inPlaceContent), this.options);
       return;
     }
 
@@ -211,18 +238,18 @@ export class GoProvider implements DependencyProvider {
     const hasMultiLineRequire = GO_PATTERNS.REQUIRE_BLOCK.test(content);
     if (hasMultiLineRequire) {
       const updated = content.replace(GO_PATTERNS.REQUIRE_BLOCK, requireBlock);
-      writeFileSync(filePath, preserveFinalNewline(updated));
+      writeGoMod(filePath, preserveFinalNewline(updated), this.options);
       return;
     }
 
     const hasSingleRequires = GO_PATTERNS.REQUIRE_LINE.test(content);
     if (hasSingleRequires) {
       const updated = content.replace(GO_PATTERNS.REQUIRE_LINE, "").trim();
-      writeFileSync(filePath, `${updated}\n\n${requireBlock}\n`);
+      writeGoMod(filePath, `${updated}\n\n${requireBlock}\n`, this.options);
       return;
     }
 
-    writeFileSync(filePath, `${content.trim()}\n\n${requireBlock}\n`);
+    writeGoMod(filePath, `${content.trim()}\n\n${requireBlock}\n`, this.options);
   }
 
   validatePackageName(packageName: string): boolean {

@@ -264,7 +264,7 @@ JSON
   "packageManager": "bun@1.3.14"
 }
 JSON
-  printf 'module example.com/fixture\n\ngo 1.26.4\n' > "$action_root/go.mod"
+  printf 'module example.com/fixture\n\ngo 1.26\n' > "$action_root/go.mod"
 
   node "$PROJECT_DIR/node_modules/codependence/dist/cli.js" \
     init actions \
@@ -278,6 +278,7 @@ JSON
 
   grep -q 'targets: bun' "$node_workflow" || fail "generated Node target"
   grep -q 'version: 0.8.0' "$python_workflow" || fail "generated Python version"
+  grep -q 'version: 1.26.0' "$go_workflow" || fail "generated exact Go version"
   grep -q 'github-actions' "$infrastructure_workflow" || fail "generated GitHub Actions target"
   default_schedule='cron: "0 9 * * 1"'
   pull_request_mode='pull-request: true'
@@ -306,7 +307,7 @@ JSON
 {
   "targets": [
     { "manager": "bun" },
-    { "manager": "go" }
+    { "manager": "go", "rootDir": "backend" }
   ]
 }
 JSON
@@ -316,7 +317,8 @@ JSON
   "packageManager": "bun@1.3.14"
 }
 JSON
-  printf 'module example.com/fixture\n\ngo 1.26.4\n' > "$targeted_root/go.mod"
+  mkdir -p "$targeted_root/backend"
+  printf 'module example.com/fixture\n\ngo 1.26.4\n' > "$targeted_root/backend/go.mod"
 
   node "$PROJECT_DIR/node_modules/codependence/dist/cli.js" \
     init actions \
@@ -333,7 +335,7 @@ JSON
   fi
 
   expected_schedule='cron: "30 7 * * 5"'
-  expected_command="post-update-command: 'task go:tidy'"
+  expected_command="post-update-command: '(cd -- ''backend'' && task go:tidy)'"
   grep -Fq 'version: 1.25.3' "$targeted_workflow" || fail "workflow version override"
   grep -Fq "$expected_schedule" "$targeted_workflow" || fail "workflow schedule override"
   grep -Fq "$expected_command" "$targeted_workflow" || fail "workflow command override"

@@ -174,12 +174,13 @@ const resolvePythonManager = (
 const createProvider = (
   language: SupportedLanguage,
   filePath: string,
-  options: Pick<CheckFiles, "debug" | "yarnConfig" | "isTesting" | "packageManager">,
+  options: Pick<CheckFiles, "debug" | "yarnConfig" | "isTesting" | "packageManager" | "lockfile">,
 ): ProviderResolution => {
   const providerOptions = {
     debug: options.debug,
     yarnConfig: options.yarnConfig,
     isTesting: options.isTesting,
+    regenerateLockfile: options.lockfile !== false,
   };
 
   switch (language) {
@@ -226,7 +227,10 @@ const createProvider = (
 const loadManifests = (
   files: string[],
   rootDir: string,
-  options: Pick<CheckFiles, "language" | "debug" | "yarnConfig" | "isTesting" | "packageManager">,
+  options: Pick<
+    CheckFiles,
+    "language" | "debug" | "yarnConfig" | "isTesting" | "packageManager" | "lockfile"
+  >,
 ): LoadedManifest[] =>
   files.map((file) => {
     const path = resolveManifestPath(rootDir, file);
@@ -441,7 +445,10 @@ const detectStaleCodependenciesFromManifests = (
 const createVersionResolver = (
   manifests: LoadedManifest[],
   rootDir: string,
-  options: Pick<CheckFiles, "language" | "debug" | "yarnConfig" | "isTesting" | "packageManager">,
+  options: Pick<
+    CheckFiles,
+    "language" | "debug" | "yarnConfig" | "isTesting" | "packageManager" | "lockfile"
+  >,
 ): VersionResolver => {
   const singleManifestLanguage = manifests[0]?.language;
   const hasSingleManifestLanguage =
@@ -1440,6 +1447,7 @@ export const checkFiles = async ({
       yarnConfig,
       isTesting,
       packageManager,
+      lockfile,
     });
     const versionResolver = createVersionResolver(manifests, resolvedRootDir, {
       language,
@@ -1447,6 +1455,7 @@ export const checkFiles = async ({
       yarnConfig,
       isTesting,
       packageManager,
+      lockfile,
     });
     const validate = createPackageValidator(versionResolver.provider);
     const effectiveMode = resolveEffectiveMode({

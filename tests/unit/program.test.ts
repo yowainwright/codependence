@@ -1563,6 +1563,34 @@ describe("GitHub Actions initializer", () => {
     }
   });
 
+  test("normalizes Go directives and runs commands in the target root", () => {
+    const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
+    const goDir = join(rootDir, "services", "api");
+    fs.mkdirSync(goDir, { recursive: true });
+    const targets = [{ manager: "go", rootDir: "services/api" }];
+    fs.writeFileSync(join(rootDir, ".codependencerc"), JSON.stringify({ targets }));
+    fs.writeFileSync(join(goDir, "go.mod"), "module example.com/api\n\ngo 1.24\n");
+
+    try {
+      initGitHubActions({ rootDir });
+
+      const workflow = readWorkflow(rootDir, "go");
+      expect(workflow).toContain("version: 1.24.0");
+      expect(workflow).toContain("post-update-command: '(cd -- ''services/api'' && go mod tidy)'");
+
+      initGitHubActions({
+        force: true,
+        postUpdateCommands: ["go=task go:tidy"],
+        rootDir,
+      });
+      expect(readWorkflow(rootDir, "go")).toContain(
+        "post-update-command: '(cd -- ''services/api'' && task go:tidy)'",
+      );
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
   test("groups multiple Node managers into one workflow", () => {
     const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
     const targets = [{ manager: "bun" }, { manager: "npm" }];

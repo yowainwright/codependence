@@ -28,9 +28,7 @@ describe("DockerProvider", () => {
       "Docker provider requires explicit version pins",
     );
     expect(provider.validatePackageName("ghcr.io/org/image")).toBe(true);
-    expect(provider.validatePackageName("registry.internal:5000/org/image")).toBe(
-      true,
-    );
+    expect(provider.validatePackageName("registry.internal:5000/org/image")).toBe(true);
     expect(provider.validatePackageName("bad image")).toBe(false);
   });
 
@@ -96,11 +94,11 @@ FROM node:\${NODE_VERSION}-slim AS build
 
     const provider = new DockerProvider();
     const manifest = provider.readManifest(dockerfilePath);
-    expect(manifest.dependencies).toEqual({ node: "20.11.1" });
+    expect(manifest.dependencies).toEqual({ node: "20.11.1-slim" });
 
     provider.writeManifest(dockerfilePath, {
       filePath: dockerfilePath,
-      dependencies: { node: "24.0.0" },
+      dependencies: { node: "24.0.0-slim" },
     });
 
     const updated = readFileSync(dockerfilePath, "utf8");

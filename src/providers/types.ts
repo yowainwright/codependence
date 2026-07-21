@@ -51,6 +51,7 @@ export interface ProviderOptions {
   yarnConfig?: boolean;
   packageManager?: string;
   isTesting?: boolean;
+  regenerateLockfile?: boolean;
 }
 
 export type LanguageProvider =
@@ -69,6 +70,19 @@ export interface DockerImage {
   readonly name: string;
   readonly version: string;
 }
+
+export interface DockerArgument {
+  readonly name: string;
+  readonly value: string;
+}
+
+export interface DockerArgumentReference {
+  readonly name: string;
+  readonly prefix: string;
+  readonly suffix: string;
+}
+
+export type DockerArguments = Record<string, string>;
 
 export interface GoLineState {
   readonly inReplaceBlock: boolean;

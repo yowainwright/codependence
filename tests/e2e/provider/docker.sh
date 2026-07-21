@@ -17,11 +17,13 @@ run_update "$WORK_DIR"
 
 assert_file_equals "$FIXTURE_DIR/expected/docker-Dockerfile.expected" "$WORK_DIR/Dockerfile" "docker update matches golden output"
 
+node_tag_line='FROM node:${NODE_VERSION}-slim AS builder'
 variable_tag_line='FROM alpine:${ALPINE_VERSION} AS variable-tag'
 digest_line="FROM alpine@sha256:0123456789abcdef"
 scratch_line="FROM scratch AS empty-root"
 
-assert_file_contains "$WORK_DIR/Dockerfile" "FROM node:24-slim AS builder" "builder image updated"
+assert_file_contains "$WORK_DIR/Dockerfile" "ARG NODE_VERSION=24" "composed tag argument updated"
+assert_file_contains "$WORK_DIR/Dockerfile" "$node_tag_line" "composed tag suffix preserved"
 assert_file_contains "$WORK_DIR/Dockerfile" "FROM nginx:1.27-alpine" "runtime image updated"
 assert_file_contains "$WORK_DIR/Dockerfile" "ARG ALPINE_VERSION=3.20" "variable tag argument updated"
 assert_file_contains "$WORK_DIR/Dockerfile" "$variable_tag_line" "variable tag reference preserved"

@@ -1,14 +1,14 @@
 import { readFileSync, writeFileSync } from "fs";
 import { LANGUAGES } from "../constants";
-import type { DependencyManifest, DependencyProvider, DockerImage } from "../types";
+import type {
+  DependencyManifest,
+  DependencyProvider,
+  DockerArgument,
+  DockerArgumentReference,
+  DockerArguments,
+  DockerImage,
+} from "../types";
 import { DOCKER_PATTERNS } from "./constants";
-
-interface DockerArgument {
-  readonly name: string;
-  readonly value: string;
-}
-
-type DockerArguments = Record<string, string>;
 
 const emptyManifest = (filePath: string): DependencyManifest => {
   const manifest = {
@@ -29,14 +29,18 @@ const readDockerArgument = (line: string): DockerArgument | null => {
   return { name: match[2], value: match[5] };
 };
 
-const dockerArgumentName = (value: string): string | null => {
+const dockerArgumentReference = (value: string): DockerArgumentReference | null => {
   const match = value.match(DOCKER_PATTERNS.ARG_REFERENCE);
   if (!match) return null;
 
-  const remainingValue = value.replace(match[0], "");
+  const matchIndex = match.index || 0;
+  const prefix = value.slice(0, matchIndex);
+  const suffix = value.slice(matchIndex + match[0].length);
+  const remainingValue = `${prefix}${suffix}`;
   if (remainingValue.includes("$")) return null;
 
-  return match[1] || match[2] || null;
+  const name = match[1] || match[2];
+  return name ? { name, prefix, suffix } : null;
 };
 
 const unsupportedDockerResolution = (): Error =>
@@ -63,10 +67,23 @@ const splitDockerImage = (image: string): DockerImage => {
 const resolveDockerVersion = (version: string, args: DockerArguments): string | null => {
   if (!hasDockerVariable(version)) return version;
 
-  const argumentName = dockerArgumentName(version);
-  if (!argumentName) return null;
+  const reference = dockerArgumentReference(version);
+  if (!reference) return null;
 
-  return args[argumentName] || null;
+  const argumentValue = args[reference.name];
+  return argumentValue ? `${reference.prefix}${argumentValue}${reference.suffix}` : null;
+};
+
+const argumentValueForVersion = (
+  version: string,
+  reference: DockerArgumentReference,
+): string | null => {
+  const hasPrefix = version.startsWith(reference.prefix);
+  const hasSuffix = version.endsWith(reference.suffix);
+  if (!hasPrefix || !hasSuffix) return null;
+
+  const suffixStart = reference.suffix ? -reference.suffix.length : undefined;
+  return version.slice(reference.prefix.length, suffixStart) || null;
 };
 
 const readDockerFromLine = (line: string, args: DockerArguments): DockerImage | null => {
@@ -102,14 +119,15 @@ const requestedArgumentUpdate = (
   const imageSpec = splitDockerImage(match[2]);
   if (hasDockerVariable(imageSpec.name) || isScratchImage(imageSpec)) return null;
 
-  const argumentName = dockerArgumentName(imageSpec.version);
-  if (!argumentName) return null;
+  const reference = dockerArgumentReference(imageSpec.version);
+  if (!reference) return null;
 
-  const argumentDefault = args[argumentName];
+  const argumentDefault = args[reference.name];
   const version = dependencies[imageSpec.name];
   if (!argumentDefault || !version) return null;
 
-  return [argumentName, version];
+  const argumentValue = argumentValueForVersion(version, reference);
+  return argumentValue ? [reference.name, argumentValue] : null;
 };
 
 const collectArgumentUpdates = (
