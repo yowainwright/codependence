@@ -6,6 +6,7 @@ on:
       - "action.yml"
       - "src/**"
       - "package.json"
+      - "tests/e2e/**"
       - "tests/integration/**"
       - ".github/workflows/test-action.yml"
   push:
@@ -14,6 +15,7 @@ on:
       - "action.yml"
       - "src/**"
       - "package.json"
+      - "tests/e2e/**"
       - "tests/integration/**"
       - ".github/workflows/test-action.yml"
   workflow_dispatch:
@@ -235,6 +237,123 @@ jobs:
       - name: Check missing lockfile result
         run: test "${{ steps.missing-lockfile.outcome }}" = "failure"
 
+  test-rust-check:
+    name: Test Rust Check
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+
+      - name: Setup Rust fixture
+        run: |
+          mkdir -p /tmp/codependence-rust
+          cp tests/e2e/fixtures/rust-Cargo.toml.fixture /tmp/codependence-rust/Cargo.toml
+          touch /tmp/codependence-rust/Cargo.lock
+          cat > /tmp/codependence-rust/.codependencerc <<'EOF'
+          {
+            "targets": [
+              {
+                "manager": "rust",
+                "rootDir": "/tmp/codependence-rust",
+                "files": [
+                  "Cargo.toml"
+                ],
+                "codependencies": [
+                  {
+                    "serde": "1.0.190"
+                  }
+                ],
+                "mode": "verbose"
+              }
+            ]
+          }
+          EOF
+
+      - name: Run Codependence Action
+        id: codependence
+        uses: ./
+        with:
+          config: /tmp/codependence-rust/.codependencerc
+          targets: rust
+          version: v1.88.0
+          fail-on-outdated: true
+
+      - name: Verify Rust setup
+        run: |
+          rustc --version | grep -q 'rustc 1.88.0'
+
+      - name: Reject unsupported Rust version suffix
+        id: unsupported-rust-version
+        continue-on-error: true
+        uses: ./
+        with:
+          config: /tmp/codependence-rust/.codependencerc
+          targets: rust
+          version: 1.88.0-rc.1
+
+      - name: Check unsupported Rust version result
+        run: test "${{ steps.unsupported-rust-version.outcome }}" = "failure"
+
+  test-uv-check:
+    name: Test uv Check
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+
+      - name: Setup uv fixture
+        run: |
+          mkdir -p /tmp/codependence-uv
+          cp tests/e2e/fixtures/python-uv-pyproject.toml.fixture /tmp/codependence-uv/pyproject.toml
+          cp tests/e2e/fixtures/uv.lock.fixture /tmp/codependence-uv/uv.lock
+          cat > /tmp/codependence-uv/.codependencerc <<'EOF'
+          {
+            "targets": [
+              {
+                "manager": "uv",
+                "rootDir": "/tmp/codependence-uv",
+                "files": [
+                  "pyproject.toml"
+                ],
+                "codependencies": [
+                  {
+                    "requests": "==2.31.0"
+                  }
+                ],
+                "mode": "verbose"
+              }
+            ]
+          }
+          EOF
+
+      - name: Run Codependence Action for uv
+        uses: ./
+        with:
+          config: /tmp/codependence-uv/.codependencerc
+          targets: uv
+          version: 0.8.0
+          fail-on-outdated: true
+
+      - name: Verify uv setup
+        run: |
+          uv --version | grep -q '0.8.0'
+
   test-github-actions-check:
     name: Test GitHub Actions Check
     needs: build
@@ -299,6 +418,8 @@ jobs:
         test-node-outdated,
         test-python-check,
         test-go-check,
+        test-rust-check,
+        test-uv-check,
         test-github-actions-check,
       ]
     runs-on: ubuntu-latest
@@ -310,6 +431,8 @@ jobs:
              [ "${{ needs.test-node-outdated.result }}" != "success" ] || \
              [ "${{ needs.test-python-check.result }}" != "success" ] || \
              [ "${{ needs.test-go-check.result }}" != "success" ] || \
+             [ "${{ needs.test-rust-check.result }}" != "success" ] || \
+             [ "${{ needs.test-uv-check.result }}" != "success" ] || \
              [ "${{ needs.test-github-actions-check.result }}" != "success" ]; then
             echo "One or more action tests failed"
             exit 1

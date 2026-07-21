@@ -1458,6 +1458,7 @@ const createActionsProject = (): string => {
     { manager: "bun" },
     { manager: "uv" },
     { manager: "go" },
+    { manager: "rust" },
     { manager: "docker" },
     { manager: "github-actions" },
   ];
@@ -1467,6 +1468,10 @@ const createActionsProject = (): string => {
     JSON.stringify({ name: "fixture", packageManager: "bun@1.3.14" }),
   );
   fs.writeFileSync(join(rootDir, "go.mod"), "module example.com/fixture\n\ngo 1.26.4\n");
+  fs.writeFileSync(
+    join(rootDir, "rust-toolchain.toml"),
+    '[toolchain]\nchannel = "1.88.0" # CI toolchain\n',
+  );
   fs.writeFileSync(join(rootDir, "mise.toml"), '[tools]\nuv = "0.8.0"\n');
   return rootDir;
 };
@@ -1480,7 +1485,7 @@ describe("GitHub Actions initializer", () => {
 
     try {
       const paths = initGitHubActions({ rootDir });
-      const workflows = ["node", "python", "go", "infrastructure"].map((area) =>
+      const workflows = ["node", "python", "go", "rust", "infrastructure"].map((area) =>
         readWorkflow(rootDir, area),
       );
 
@@ -1488,19 +1493,22 @@ describe("GitHub Actions initializer", () => {
         "codependence-node.yml",
         "codependence-python.yml",
         "codependence-go.yml",
+        "codependence-rust.yml",
         "codependence-infrastructure.yml",
       ]);
       expect(workflows.every((workflow) => workflow.includes('cron: "0 9 * * 1"'))).toBe(true);
       expect(workflows[0]).toContain("targets: bun\n          version: 1.3.14");
       expect(workflows[1]).toContain("targets: uv\n          version: 0.8.0");
       expect(workflows[2]).toContain("targets: go\n          version: 1.26.4");
-      expect(workflows[3]).toContain("docker\n            github-actions");
+      expect(workflows[3]).toContain("targets: rust\n          version: 1.88.0");
+      expect(workflows[4]).toContain("docker\n            github-actions");
       expect(workflows[0]).toContain("uses: yowainwright/codependence@v1");
       expect(workflows[0]).toContain("secrets.CODEPENDENCE_TOKEN");
       expect(workflows[0]).toContain("post-update-command: 'bun install'");
       expect(workflows[1]).toContain("post-update-command: 'uv lock'");
       expect(workflows[2]).toContain("post-update-command: 'go mod tidy'");
-      expect(workflows[3]).toContain("post-update-command: 'git diff --check'");
+      expect(workflows[3]).toContain("post-update-command: 'cargo generate-lockfile'");
+      expect(workflows[4]).toContain("post-update-command: 'git diff --check'");
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -1536,13 +1544,16 @@ describe("GitHub Actions initializer", () => {
     const webDir = join(rootDir, "web");
     const pythonDir = join(rootDir, "python");
     const goDir = join(rootDir, "backend");
+    const rustDir = join(rootDir, "cli");
     fs.mkdirSync(webDir);
     fs.mkdirSync(pythonDir);
     fs.mkdirSync(goDir);
+    fs.mkdirSync(rustDir);
     const targets = [
       { manager: "pnpm", rootDir: "web" },
       { manager: "uv", rootDir: "python" },
       { manager: "go", rootDir: "backend" },
+      { manager: "rust", rootDir: "cli" },
     ];
     fs.writeFileSync(join(rootDir, ".codependencerc"), JSON.stringify({ targets }));
     fs.writeFileSync(join(webDir, ".tool-versions"), "pnpm 10.12.1\n");
@@ -1551,6 +1562,7 @@ describe("GitHub Actions initializer", () => {
       join(goDir, "go.mod"),
       "module example.com/backend\n\ngo 1.24.0\ntoolchain go1.25.4\n",
     );
+    fs.writeFileSync(join(rustDir, "rust-toolchain.toml"), '[toolchain]\nchannel = "1.88.0"\n');
 
     try {
       initGitHubActions({ rootDir });
@@ -1558,6 +1570,50 @@ describe("GitHub Actions initializer", () => {
       expect(readWorkflow(rootDir, "node")).toContain("version: 10.12.1");
       expect(readWorkflow(rootDir, "python")).toContain("version: 0.8.2");
       expect(readWorkflow(rootDir, "go")).toContain("version: 1.25.4");
+      expect(readWorkflow(rootDir, "rust")).toContain("version: 1.88.0");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("normalizes Rust versions from legacy toolchain files", () => {
+    const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
+    fs.writeFileSync(
+      join(rootDir, ".codependencerc"),
+      JSON.stringify({ targets: [{ manager: "rust" }] }),
+    );
+    fs.writeFileSync(join(rootDir, "rust-toolchain"), "v1.87.0\n");
+
+    try {
+      initGitHubActions({ rootDir });
+
+      expect(readWorkflow(rootDir, "rust")).toContain("version: 1.87.0");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects non-exact Rust toolchain channels", () => {
+    const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
+    fs.writeFileSync(
+      join(rootDir, ".codependencerc"),
+      JSON.stringify({ targets: [{ manager: "rust" }] }),
+    );
+    fs.writeFileSync(join(rootDir, "rust-toolchain.toml"), '[toolchain]\nchannel = "stable"\n');
+
+    try {
+      expect(() => initGitHubActions({ rootDir })).toThrow(
+        "rust requires an exact tool version, received: stable",
+      );
+      expect(fs.existsSync(join(rootDir, ".github"))).toBe(false);
+
+      fs.writeFileSync(
+        join(rootDir, "rust-toolchain.toml"),
+        '[toolchain]\nchannel = "1.88.0-rc.1"\n',
+      );
+      expect(() => initGitHubActions({ rootDir })).toThrow(
+        "rust requires an exact tool version, received: 1.88.0-rc.1",
+      );
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -1652,9 +1708,9 @@ describe("GitHub Actions initializer", () => {
       expect(() => initGitHubActions({ rootDir, targets: ["go"] })).toThrow(
         "Unknown configured target manager(s): go",
       );
-      fs.writeFileSync(configPath, JSON.stringify({ targets: [{ manager: "rust" }] }));
+      fs.writeFileSync(configPath, JSON.stringify({ targets: [{ manager: "pip" }] }));
       expect(() => initGitHubActions({ rootDir })).toThrow(
-        "does not support target manager(s): rust",
+        "does not support target manager(s): pip",
       );
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });

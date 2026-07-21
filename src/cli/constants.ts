@@ -15,6 +15,8 @@ export const UPPERCASE_IDENTIFIER_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
 export const GO_TOOLCHAIN_VERSION_PATTERN = /^toolchain\s+go(\S+)\s*$/m;
 export const GO_VERSION_PATTERN = /^go\s+(\S+)\s*$/m;
 export const GO_MINOR_VERSION_PATTERN = /^\d+\.\d+$/;
+export const RUST_TOOLCHAIN_CHANNEL_PATTERN = /^\s*channel\s*=\s*["']([^"']+)["']\s*(?:#.*)?$/m;
+export const RUST_TOOLCHAIN_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 export const REGEX_SPECIAL_CHARACTERS_PATTERN = /[.*+?^${}()|[\]\\]/g;
 export const MANAGER_PLACEHOLDER = "<manager>";
 export const MISE_VERSION_PATTERN = `^\\s*${MANAGER_PLACEHOLDER}\\s*=\\s*["']([^"']+)["']\\s*$`;
@@ -26,6 +28,7 @@ export const ACTION_MANAGERS = new Set<DependencyManager>([
   ...NODE_MANAGERS,
   PYTHON_PACKAGE_MANAGERS.UV,
   LANGUAGES.GO,
+  LANGUAGES.RUST,
   LANGUAGES.DOCKER,
   LANGUAGES.GITHUB_ACTIONS,
 ]);
@@ -33,14 +36,16 @@ export const VERSIONED_MANAGERS = new Set<DependencyManager>([
   ...NODE_MANAGERS,
   PYTHON_PACKAGE_MANAGERS.UV,
   LANGUAGES.GO,
+  LANGUAGES.RUST,
 ]);
 
-export const WORKFLOW_AREAS: WorkflowArea[] = ["node", "python", "go", "infrastructure"];
+export const WORKFLOW_AREAS: WorkflowArea[] = ["node", "python", "go", "rust", "infrastructure"];
 
 export const WORKFLOW_LABELS: Record<WorkflowArea, string> = {
   node: "Node",
   python: "Python",
   go: "Go",
+  rust: "Rust",
   infrastructure: "Docker and GitHub Actions",
 };
 
