@@ -30,10 +30,9 @@ const readDockerArgument = (line: string): DockerArgument | null => {
 };
 
 const dockerArgumentName = (value: string): string | null => {
-  const matches = [...value.matchAll(DOCKER_PATTERNS.ARG_REFERENCE)];
-  if (matches.length !== 1) return null;
+  const match = value.match(DOCKER_PATTERNS.ARG_REFERENCE);
+  if (!match) return null;
 
-  const match = matches[0];
   const remainingValue = value.replace(match[0], "");
   if (remainingValue.includes("$")) return null;
 
