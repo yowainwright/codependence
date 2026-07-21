@@ -702,19 +702,21 @@ require (
     expect(execute).not.toHaveBeenCalled();
   });
 
-  test("runGoModTidy reports failures in debug mode", () => {
+  test("runGoModTidy reports and propagates failures in debug mode", () => {
     const failure = new Error("tidy failed");
     const execute = jest.fn(() => {
       throw failure;
     });
     const error = jest.spyOn(logger, "error").mockImplementation(() => {});
 
-    runGoModTidy(
-      "go.mod",
-      { debug: true },
-      execute as unknown as typeof import("child_process").execFileSync,
-    );
+    const run = () =>
+      runGoModTidy(
+        "go.mod",
+        { debug: true },
+        execute as unknown as typeof import("child_process").execFileSync,
+      );
 
+    expect(run).toThrow(failure);
     expect(error).toHaveBeenCalledWith("Failed to run go mod tidy", failure);
   });
 });

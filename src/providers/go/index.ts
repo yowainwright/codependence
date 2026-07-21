@@ -165,6 +165,7 @@ export const runGoModTidy = (
     });
   } catch (error) {
     if (options.debug) logger.error("Failed to run go mod tidy", error as Error);
+    throw error;
   }
 };
 
