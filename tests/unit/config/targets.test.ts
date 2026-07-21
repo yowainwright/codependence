@@ -63,6 +63,15 @@ describe("expandTargets", () => {
     ]);
   });
 
+  test("rejects unknown configured target selections", () => {
+    expect(() =>
+      expandTargets({
+        target: ["services"],
+        targets: [{ manager: "go", mode: "precise" }],
+      }),
+    ).toThrow("Unknown target manager(s): services");
+  });
+
   test("rejects target selection without named configuration targets", () => {
     expect(() =>
       expandTargets({
@@ -133,5 +142,4 @@ describe("expandTargets", () => {
 
     expect(targets.map(({ lockfile }) => lockfile)).toEqual([true, false]);
   });
-
 });

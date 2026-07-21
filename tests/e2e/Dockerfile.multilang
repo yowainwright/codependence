@@ -111,6 +111,7 @@ COPY --from=builder /app/node_modules/.bin/eslint-plugin-legibility-install-skil
 
 # Copy all test fixtures
 COPY tests/e2e/fixtures/ ./
+COPY tests/fixtures/ ./tests/fixtures/
 
 # Copy e2e test scripts
 COPY tests/e2e/test-go-update.sh ./

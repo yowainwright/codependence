@@ -1703,4 +1703,20 @@ describe("GitHub Actions initializer", () => {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
   });
+
+  test("rejects invalid package manager metadata before writing workflows", () => {
+    const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
+    fs.writeFileSync(
+      join(rootDir, ".codependencerc"),
+      JSON.stringify({ targets: [{ manager: "bun" }] }),
+    );
+    fs.writeFileSync(join(rootDir, "package.json"), "{");
+
+    try {
+      expect(() => initGitHubActions({ rootDir })).toThrow("Missing exact tool version for: bun");
+      expect(fs.existsSync(join(rootDir, ".github"))).toBe(false);
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
 });

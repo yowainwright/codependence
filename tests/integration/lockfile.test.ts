@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkFiles } from "../../src/scripts";
+import { assertTargetLockfiles, checkFiles } from "../../src/scripts";
 
 const workspaces: string[] = [];
 
@@ -60,13 +60,76 @@ describe("lockfiles", () => {
     await expect(update).rejects.toThrow("generated/dependencies.lock");
   });
 
+  test("rejects absolute custom lockfile paths", async () => {
+    const root = createWorkspace("package.json", nodeManifest);
+
+    const update = checkFiles({
+      files: ["package.json"],
+      language: "nodejs",
+      lockfile: join(root, "bun.lock"),
+      mode: "verbose",
+      packageManager: "bun",
+      rootDir: root,
+      silent: true,
+    });
+
+    await expect(update).rejects.toThrow("Lockfile path must be repository-relative");
+  });
+
+  test("rejects custom lockfile paths outside the target root", async () => {
+    const root = createWorkspace("package.json", nodeManifest);
+
+    const update = checkFiles({
+      files: ["package.json"],
+      language: "nodejs",
+      lockfile: "../bun.lock",
+      mode: "verbose",
+      packageManager: "bun",
+      rootDir: root,
+      silent: true,
+    });
+
+    await expect(update).rejects.toThrow("Lockfile path escapes target root");
+  });
+
+  test("rejects lockfile enforcement without a standard manager lockfile", async () => {
+    const root = createWorkspace("requirements.txt", "requests==2.31.0\n");
+
+    const update = checkFiles({
+      files: ["requirements.txt"],
+      language: "python",
+      lockfile: true,
+      mode: "verbose",
+      packageManager: "pip",
+      rootDir: root,
+      silent: true,
+    });
+
+    await expect(update).rejects.toThrow("No standard lockfile is defined for pip");
+  });
+
+  test("preflights a target with its required lockfile", () => {
+    const root = createWorkspace("package.json", nodeManifest);
+    writeFileSync(join(root, "bun.lock"), "");
+
+    expect(() =>
+      assertTargetLockfiles({
+        files: ["package.json"],
+        language: "nodejs",
+        lockfile: true,
+        packageManager: "bun",
+        rootDir: root,
+      }),
+    ).not.toThrow();
+  });
+
   test("requires uv.lock for a managed uv project", async () => {
     const content = [
-      '[project]',
+      "[project]",
       'name = "fixture"',
       'version = "1.0.0"',
       'dependencies = ["requests==2.31.0"]',
-      '',
+      "",
     ].join("\n");
     const root = createWorkspace("pyproject.toml", content);
 
