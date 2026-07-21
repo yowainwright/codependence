@@ -27,6 +27,11 @@ export const DOCS: DocMeta[] = [
     description: "Command Line Interface for Codependence",
   },
   {
+    slug: "github-action",
+    title: "GitHub Action",
+    description: "Create small dependency update pull requests by manager.",
+  },
+  {
     slug: "node",
     title: "Codependence in Node",
     description: "How to use Codependence as a Node.js utility.",
@@ -87,6 +92,13 @@ export const SEARCH_DATA: SearchResult[] = [
     content:
       "The Codependence CLI checks, reports, and applies dependency version policy.",
     slug: "cli",
+  },
+  {
+    title: "GitHub Action",
+    description: "Create targeted dependency pull requests",
+    content:
+      "Run Bun, Go, uv, Docker, and GitHub Actions updates on separate schedules and stable pull request branches.",
+    slug: "github-action",
   },
   {
     title: "Options",
@@ -176,6 +188,10 @@ export const SIDEBAR = [
       {
         title: "CLI",
         href: resolveDocsUrl("cli"),
+      },
+      {
+        title: "GitHub Action",
+        href: resolveDocsUrl("github-action"),
       },
       {
         title: "Node.js",

@@ -146,7 +146,7 @@ test_installed_cli_updates_providers() {
   cp "$FIXTURE_DIR/github-actions-workflow.yml.fixture" "$provider_root/.github/workflows/ci.yml"
   cp "$FIXTURE_DIR/rust-Cargo.toml.fixture" "$provider_root/Cargo.toml"
   cat > "$provider_root/.codependencerc" <<'JSON'
-{"mode":"verbose","files":["Dockerfile",".github/workflows/ci.yml","Cargo.toml"],"codependencies":[{"node":"24-slim"},{"nginx":"1.27-alpine"},{"actions/checkout":"v5"},{"actions/setup-node":"v5"},{"serde":"1.0.210"},{"tokio":"1.40.0"},{"serde-json":"1.0.145"},{"pretty-assertions":"1.4.1"},{"cc":"1.1.30"},{"libc":"0.2.155"}]}
+{"mode":"verbose","files":["Dockerfile",".github/workflows/ci.yml","Cargo.toml"],"codependencies":[{"node":"24-slim"},{"nginx":"1.27-alpine"},{"alpine":"3.20"},{"actions/checkout":"v5"},{"actions/setup-node":"v5"},{"serde":"1.0.210"},{"tokio":"1.40.0"},{"serde-json":"1.0.145"},{"pretty-assertions":"1.4.1"},{"cc":"1.1.30"},{"libc":"0.2.155"}]}
 JSON
 
   run_installed_update "$provider_root"
@@ -159,7 +159,7 @@ JSON
 test_installed_legacy_compatibility() {
   legacy_root="$WORK_DIR/legacy"
   mkdir -p "$legacy_root"
-  cp "$ROOT_DIR/tests/integration/fixtures/0.3.1/package.json" "$legacy_root/package.json"
+  cp "$ROOT_DIR/tests/fixtures/0.3.1/package.json" "$legacy_root/package.json"
 
   node "$PROJECT_DIR/node_modules/codependence/dist/cli.js" \
     -s "$legacy_root" \
@@ -186,6 +186,190 @@ NODE
   pass "packed package preserves 0.3.1 compatibility"
 }
 
+test_installed_target_selection() {
+  target_root="$WORK_DIR/targets"
+  mkdir -p "$target_root"
+  cat > "$target_root/package.json" <<'JSON'
+{"name":"fixture","version":"1.0.0","dependencies":{"lodash":"4.17.20"}}
+JSON
+  : > "$target_root/bun.lock"
+  printf 'FROM alpine:3.19\n' > "$target_root/Dockerfile"
+  cat > "$target_root/.codependencerc" <<'JSON'
+{"targets":[{"manager":"bun","files":["package.json"],"codependencies":[{"lodash":"4.17.21"}],"mode":"verbose"},{"manager":"docker","files":["Dockerfile"],"codependencies":[{"alpine":"3.20"}],"mode":"verbose"}]}
+JSON
+
+  (
+    cd "$target_root"
+    node "$PROJECT_DIR/node_modules/codependence/dist/cli.js" \
+      --config .codependencerc \
+      --target bun \
+      --lockfile \
+      --update \
+      --quiet
+  )
+
+  grep -q '"lodash": "4.17.21"' "$target_root/package.json" || fail "selected Bun target update"
+  grep -q 'FROM alpine:3.19' "$target_root/Dockerfile" || fail "unselected Docker target"
+
+  printf '{"name":"fixture","version":"1.0.0","dependencies":{"lodash":"4.17.20"}}\n' > "$target_root/package.json"
+  rm "$target_root/bun.lock"
+  if (
+    cd "$target_root"
+    node "$PROJECT_DIR/node_modules/codependence/dist/cli.js" \
+      --config .codependencerc \
+      --target bun \
+      --lockfile \
+      --update \
+      --quiet >/dev/null 2>&1
+  ); then
+    fail "missing selected target lockfile"
+  fi
+
+  grep -q '"lodash":"4.17.20"' "$target_root/package.json" || fail "lockfile preflight"
+  (
+    cd "$target_root"
+    node "$PROJECT_DIR/node_modules/codependence/dist/cli.js" \
+      --config .codependencerc \
+      --target bun \
+      --lockfile false \
+      --update \
+      --quiet
+  )
+  grep -q '"lodash": "4.17.21"' "$target_root/package.json" || fail "manifest-only target update"
+  pass "packed package selects managers and preflights lockfiles"
+}
+
+test_installed_init_actions() {
+  action_root="$WORK_DIR/init-actions"
+  workflow_dir="$action_root/.github/workflows"
+  node_workflow="$workflow_dir/codependence-node.yml"
+  python_workflow="$workflow_dir/codependence-python.yml"
+  go_workflow="$workflow_dir/codependence-go.yml"
+  infrastructure_workflow="$workflow_dir/codependence-infrastructure.yml"
+  mkdir -p "$action_root"
+  cat > "$action_root/.codependencerc" <<'JSON'
+{
+  "targets": [
+    { "manager": "bun" },
+    { "manager": "uv" },
+    { "manager": "go" },
+    { "manager": "docker" },
+    { "manager": "github-actions" }
+  ]
+}
+JSON
+  cat > "$action_root/package.json" <<'JSON'
+{
+  "name": "fixture",
+  "packageManager": "bun@1.3.14"
+}
+JSON
+  printf 'module example.com/fixture\n\ngo 1.26.4\n' > "$action_root/go.mod"
+
+  node "$PROJECT_DIR/node_modules/codependence/dist/cli.js" \
+    init actions \
+    --rootDir "$action_root" \
+    --version uv=0.8.0 >/dev/null
+
+  assert_file_exists "$node_workflow" "packed CLI initializes Node workflow"
+  assert_file_exists "$python_workflow" "packed CLI initializes Python workflow"
+  assert_file_exists "$go_workflow" "packed CLI initializes Go workflow"
+  assert_file_exists "$infrastructure_workflow" "packed CLI initializes infrastructure workflow"
+
+  grep -q 'targets: bun' "$node_workflow" || fail "generated Node target"
+  grep -q 'version: 0.8.0' "$python_workflow" || fail "generated Python version"
+  grep -q 'github-actions' "$infrastructure_workflow" || fail "generated GitHub Actions target"
+  default_schedule='cron: "0 9 * * 1"'
+  pull_request_mode='pull-request: true'
+  for workflow_file in "$node_workflow" "$python_workflow" "$go_workflow" "$infrastructure_workflow"; do
+    grep -Fq "$default_schedule" "$workflow_file" || fail "workflow default schedule"
+    grep -Fq "$pull_request_mode" "$workflow_file" || fail "workflow pull request mode"
+  done
+
+  if node "$PROJECT_DIR/node_modules/codependence/dist/cli.js" \
+    init actions \
+    --rootDir "$action_root" \
+    --version uv=0.8.0 >/dev/null 2>&1; then
+    fail "generated workflows require explicit replacement"
+  fi
+
+  node "$PROJECT_DIR/node_modules/codependence/dist/cli.js" \
+    init actions \
+    --rootDir "$action_root" \
+    --version uv=0.8.0 \
+    --force >/dev/null
+
+  targeted_root="$WORK_DIR/init-actions-targeted"
+  targeted_workflow="$targeted_root/.github/workflows/codependence-go.yml"
+  mkdir -p "$targeted_root"
+  cat > "$targeted_root/.codependencerc" <<'JSON'
+{
+  "targets": [
+    { "manager": "bun" },
+    { "manager": "go" }
+  ]
+}
+JSON
+  cat > "$targeted_root/package.json" <<'JSON'
+{
+  "name": "fixture",
+  "packageManager": "bun@1.3.14"
+}
+JSON
+  printf 'module example.com/fixture\n\ngo 1.26.4\n' > "$targeted_root/go.mod"
+
+  node "$PROJECT_DIR/node_modules/codependence/dist/cli.js" \
+    init actions \
+    --rootDir "$targeted_root" \
+    --target go \
+    --version go=1.25.3 \
+    --schedule 'go=30 7 * * 5' \
+    --post-update-command 'go=task go:tidy' >/dev/null
+
+  assert_file_exists "$targeted_workflow" "packed CLI initializes selected workflow"
+  node_targeted_workflow="$targeted_root/.github/workflows/codependence-node.yml"
+  if [ -f "$node_targeted_workflow" ]; then
+    fail "packed CLI skips unselected workflow"
+  fi
+
+  expected_schedule='cron: "30 7 * * 5"'
+  expected_command="post-update-command: 'task go:tidy'"
+  grep -Fq 'version: 1.25.3' "$targeted_workflow" || fail "workflow version override"
+  grep -Fq "$expected_schedule" "$targeted_workflow" || fail "workflow schedule override"
+  grep -Fq "$expected_command" "$targeted_workflow" || fail "workflow command override"
+
+  missing_version_root="$WORK_DIR/init-actions-missing-version"
+  mkdir -p "$missing_version_root"
+  cat > "$missing_version_root/.codependencerc" <<'JSON'
+{"targets":[{"manager":"uv"}]}
+JSON
+  if node "$PROJECT_DIR/node_modules/codependence/dist/cli.js" \
+    init actions \
+    --rootDir "$missing_version_root" >/dev/null 2>&1; then
+    fail "packed CLI requires an exact tool version"
+  fi
+  if [ -d "$missing_version_root/.github/workflows" ]; then
+    fail "packed CLI avoids partial writes on version errors"
+  fi
+
+  invalid_schedule_root="$WORK_DIR/init-actions-invalid-schedule"
+  mkdir -p "$invalid_schedule_root"
+  cat > "$invalid_schedule_root/.codependencerc" <<'JSON'
+{"targets":[{"manager":"go"}]}
+JSON
+  if node "$PROJECT_DIR/node_modules/codependence/dist/cli.js" \
+    init actions \
+    --rootDir "$invalid_schedule_root" \
+    --version go=1.25.3 \
+    --schedule go=weekly >/dev/null 2>&1; then
+    fail "packed CLI rejects an invalid schedule"
+  fi
+  if [ -d "$invalid_schedule_root/.github/workflows" ]; then
+    fail "packed CLI avoids partial writes on schedule errors"
+  fi
+  pass "packed CLI safely initializes split GitHub Actions workflows"
+}
+
 test_installed_skill_script() {
   (
     cd "$PROJECT_DIR"
@@ -205,6 +389,8 @@ main() {
   install_package
   test_installed_cli_updates_providers
   test_installed_legacy_compatibility
+  test_installed_target_selection
+  test_installed_init_actions
   test_installed_skill_script
 }
 

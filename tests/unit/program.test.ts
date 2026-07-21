@@ -1,17 +1,10 @@
-import {
-  expect,
-  test,
-  jest,
-  beforeEach,
-  afterEach,
-  describe,
-  mock,
-} from "bun:test";
+import { expect, test, jest, beforeEach, afterEach, describe, mock } from "bun:test";
 import {
   action,
   mergeConfigs,
   formatPerformanceMetrics,
   initAction,
+  initGitHubActions,
   run,
 } from "../../src/program";
 import type { Options } from "../../src/types";
@@ -50,9 +43,7 @@ describe("Action Function Tests (Fast)", () => {
   });
 
   test("handles isTestingCLI flag", async () => {
-    const consoleInfoSpy = jest
-      .spyOn(console, "info")
-      .mockImplementation(() => {});
+    const consoleInfoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
 
     await action({
       isTestingCLI: true,
@@ -101,9 +92,7 @@ describe("Action Function Tests (Fast)", () => {
   });
 
   test("processes multiple CLI flags", async () => {
-    const consoleInfoSpy = jest
-      .spyOn(console, "info")
-      .mockImplementation(() => {});
+    const consoleInfoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
 
     await action({
       isTestingCLI: true,
@@ -236,9 +225,7 @@ describe("Action Function Tests (Fast)", () => {
   });
 
   test("reports deferred target failures without a success message", async () => {
-    const stdoutSpy = jest
-      .spyOn(process.stdout, "write")
-      .mockImplementation(() => true);
+    const stdoutSpy = jest.spyOn(process.stdout, "write").mockImplementation(() => true);
     scriptSpy
       .mockImplementationOnce(async (options) => {
         options.onDeferredFailure?.();
@@ -294,16 +281,9 @@ describe("Action Function Tests (Fast)", () => {
   test("rejects multi-key inline YAML codependency objects", async () => {
     const workDir = fs.mkdtempSync(join(tmpdir(), "codependence-yaml-config-"));
     const configPath = join(workDir, ".codependencerc.yml");
-    fs.writeFileSync(
-      configPath,
-      "codependencies: [{ lodash: 4.17.21, react: 18.2.0 }]",
-    );
-    const errorSpy = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    const exitSpy = jest
-      .spyOn(process, "exit")
-      .mockImplementation((() => {}) as () => never);
+    fs.writeFileSync(configPath, "codependencies: [{ lodash: 4.17.21, react: 18.2.0 }]");
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = jest.spyOn(process, "exit").mockImplementation((() => {}) as () => never);
 
     try {
       await action({ config: configPath });
@@ -320,9 +300,7 @@ describe("Action Function Tests (Fast)", () => {
   });
 
   test("handles array of files", async () => {
-    const consoleInfoSpy = jest
-      .spyOn(console, "info")
-      .mockImplementation(() => {});
+    const consoleInfoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
 
     await action({
       isTestingCLI: true,
@@ -334,11 +312,7 @@ describe("Action Function Tests (Fast)", () => {
       updatedOptions: {
         isCLI: true,
         codependencies: ["lodash"],
-        files: [
-          "package.json",
-          "packages/*/package.json",
-          "apps/*/package.json",
-        ],
+        files: ["package.json", "packages/*/package.json", "apps/*/package.json"],
       },
     });
 
@@ -346,9 +320,7 @@ describe("Action Function Tests (Fast)", () => {
   });
 
   test("handles ignore patterns", async () => {
-    const consoleInfoSpy = jest
-      .spyOn(console, "info")
-      .mockImplementation(() => {});
+    const consoleInfoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
 
     await action({
       isTestingCLI: true,
@@ -368,9 +340,7 @@ describe("Action Function Tests (Fast)", () => {
   });
 
   test("handles complex codependencies", async () => {
-    const consoleInfoSpy = jest
-      .spyOn(console, "info")
-      .mockImplementation(() => {});
+    const consoleInfoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
 
     await action({
       isTestingCLI: true,
@@ -421,15 +391,9 @@ describe("Action Function Tests (Fast)", () => {
 
   test("should handle error when codependencies are missing", async () => {
     scriptSpy.mockRestore();
-    const configSpy = jest
-      .spyOn(config, "loadConfig")
-      .mockReturnValue(null);
-    const errorSpy = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    const exitSpy = jest
-      .spyOn(process, "exit")
-      .mockImplementation((() => {}) as () => never);
+    const configSpy = jest.spyOn(config, "loadConfig").mockReturnValue(null);
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = jest.spyOn(process, "exit").mockImplementation((() => {}) as () => never);
 
     try {
       await action({
@@ -448,9 +412,7 @@ describe("Action Function Tests (Fast)", () => {
   });
 
   test("should run in permissive mode when no options provided", async () => {
-    const configSpy = jest
-      .spyOn(config, "loadConfig")
-      .mockReturnValue(null);
+    const configSpy = jest.spyOn(config, "loadConfig").mockReturnValue(null);
 
     await action({});
 
@@ -535,12 +497,12 @@ describe("Action Function Tests (Fast)", () => {
 
   test("should skip overlapping watch mode intervals", async () => {
     let intervalCallback: (() => Promise<void>) | undefined;
-    const setIntervalSpy = jest
-      .spyOn(globalThis, "setInterval")
-      .mockImplementation((((callback: TimerHandler) => {
-        intervalCallback = callback as () => Promise<void>;
-        return 0;
-      }) as unknown) as typeof setInterval);
+    const setIntervalSpy = jest.spyOn(globalThis, "setInterval").mockImplementation(((
+      callback: TimerHandler,
+    ) => {
+      intervalCallback = callback as () => Promise<void>;
+      return 0;
+    }) as unknown as typeof setInterval);
     const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
 
     let resolveSecondRun: (() => void) | undefined;
@@ -572,16 +534,14 @@ describe("Action Function Tests (Fast)", () => {
 
   test("should log watch mode failures", async () => {
     let intervalCallback: (() => Promise<void>) | undefined;
-    const setIntervalSpy = jest
-      .spyOn(globalThis, "setInterval")
-      .mockImplementation((((callback: TimerHandler) => {
-        intervalCallback = callback as () => Promise<void>;
-        return 0;
-      }) as unknown) as typeof setInterval);
+    const setIntervalSpy = jest.spyOn(globalThis, "setInterval").mockImplementation(((
+      callback: TimerHandler,
+    ) => {
+      intervalCallback = callback as () => Promise<void>;
+      return 0;
+    }) as unknown as typeof setInterval);
     const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
-    const consoleErrorSpy = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
     scriptSpy
       .mockResolvedValueOnce(undefined)
@@ -604,9 +564,7 @@ describe("Action Function Tests (Fast)", () => {
       .spyOn(globalThis, "setInterval")
       .mockImplementation((() => 0) as typeof setInterval);
     const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
-    const consoleErrorSpy = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     scriptSpy.mockImplementationOnce(async (options) => {
       options.onDeferredFailure?.();
       return [];
@@ -631,9 +589,7 @@ describe("initAction", () => {
 
   test("should handle existing .codependencerc", async () => {
     const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(true);
-    const warnSpy = jest
-      .spyOn(logger, "warn")
-      .mockImplementation(() => {});
+    const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
 
     await initAction("rc");
 
@@ -644,9 +600,7 @@ describe("initAction", () => {
 
   test("should handle missing package.json", async () => {
     const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(false);
-    const errorSpy = jest
-      .spyOn(logger, "error")
-      .mockImplementation(() => {});
+    const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
 
     await initAction("rc");
 
@@ -661,12 +615,8 @@ describe("initAction", () => {
       if (path === "package.json") return true;
       return false;
     });
-    const readFileSyncSpy = jest
-      .spyOn(fs, "readFileSync")
-      .mockReturnValue("invalid json{");
-    const errorSpy = jest
-      .spyOn(logger, "error")
-      .mockImplementation(() => {});
+    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue("invalid json{");
+    const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
 
     await initAction("rc");
 
@@ -682,12 +632,8 @@ describe("initAction", () => {
       if (path === "package.json") return true;
       return false;
     });
-    const readFileSyncSpy = jest
-      .spyOn(fs, "readFileSync")
-      .mockReturnValue(JSON.stringify({}));
-    const errorSpy = jest
-      .spyOn(logger, "error")
-      .mockImplementation(() => {});
+    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify({}));
+    const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
 
     await initAction("rc");
 
@@ -708,9 +654,7 @@ describe("initAction", () => {
         dependencies: { lodash: "4.17.21" },
       }),
     );
-    const writeFileSyncSpy = jest
-      .spyOn(fs, "writeFileSync")
-      .mockImplementation(() => {});
+    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
 
     await initAction("rc");
 
@@ -734,9 +678,7 @@ describe("initAction", () => {
         dependencies: { lodash: "4.17.21", react: "18.0.0" },
       }),
     );
-    const writeFileSyncSpy = jest
-      .spyOn(fs, "writeFileSync")
-      .mockImplementation(() => {});
+    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
 
     await initAction(["lodash"]);
 
@@ -757,15 +699,9 @@ describe("initAction", () => {
       if (path === "package.json") return true;
       return false;
     });
-    const readFileSyncSpy = jest
-      .spyOn(fs, "readFileSync")
-      .mockReturnValue(JSON.stringify({}));
-    const writeFileSyncSpy = jest
-      .spyOn(fs, "writeFileSync")
-      .mockImplementation(() => {});
-    const errorSpy = jest
-      .spyOn(logger, "error")
-      .mockImplementation(() => {});
+    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify({}));
+    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+    const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
 
     await initAction(["lodash"]);
 
@@ -790,12 +726,8 @@ describe("initAction", () => {
       name: "test",
       dependencies: { lodash: "4.17.21" },
     });
-    const readFileSyncSpy = jest
-      .spyOn(fs, "readFileSync")
-      .mockReturnValue(packageJsonContent);
-    const writeFileSyncSpy = jest
-      .spyOn(fs, "writeFileSync")
-      .mockImplementation(() => {});
+    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(packageJsonContent);
+    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
 
     await initAction("package");
 
@@ -819,9 +751,7 @@ describe("initAction", () => {
         dependencies: { lodash: "4.17.21" },
       }),
     );
-    const writeFileSyncSpy = jest
-      .spyOn(fs, "writeFileSync")
-      .mockImplementation(() => {});
+    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
 
     await initAction("default");
 
@@ -837,9 +767,9 @@ describe("initAction", () => {
       if (path === "package.json") return true;
       return false;
     });
-    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(
-      JSON.stringify({ dependencies: { lodash: "4.17.21", react: "18.0.0" } }),
-    );
+    const readFileSyncSpy = jest
+      .spyOn(fs, "readFileSync")
+      .mockReturnValue(JSON.stringify({ dependencies: { lodash: "4.17.21", react: "18.0.0" } }));
     const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
     const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
     return { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy };
@@ -847,7 +777,8 @@ describe("initAction", () => {
 
   test("should handle interactive mode - permissive with selected deps", async () => {
     const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
-    const listSpy = jest.spyOn(Prompt.prototype, "list")
+    const listSpy = jest
+      .spyOn(Prompt.prototype, "list")
       .mockResolvedValueOnce("permissive")
       .mockResolvedValueOnce("rc");
     const checkboxSpy = jest.spyOn(Prompt.prototype, "checkbox").mockResolvedValue(["lodash"]);
@@ -867,7 +798,8 @@ describe("initAction", () => {
 
   test("should handle interactive mode - permissive with no deps selected", async () => {
     const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
-    const listSpy = jest.spyOn(Prompt.prototype, "list")
+    const listSpy = jest
+      .spyOn(Prompt.prototype, "list")
       .mockResolvedValueOnce("permissive")
       .mockResolvedValueOnce("rc");
     const checkboxSpy = jest.spyOn(Prompt.prototype, "checkbox").mockResolvedValue([]);
@@ -887,7 +819,8 @@ describe("initAction", () => {
 
   test("should handle interactive mode - pin all deps", async () => {
     const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
-    const listSpy = jest.spyOn(Prompt.prototype, "list")
+    const listSpy = jest
+      .spyOn(Prompt.prototype, "list")
       .mockResolvedValueOnce("all")
       .mockResolvedValueOnce("rc");
     const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
@@ -929,9 +862,7 @@ describe("run", () => {
       // Config already exists - should warn
       return true;
     });
-    const warnSpy = jest
-      .spyOn(logger, "warn")
-      .mockImplementation(() => {});
+    const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
 
     await run(["node", "script.js", "init", "rc"]);
 
@@ -955,9 +886,7 @@ describe("run", () => {
     const readFileSyncSpy = jest
       .spyOn(fs, "readFileSync")
       .mockReturnValue(JSON.stringify({ dependencies: { lodash: "4.17.21" } }));
-    const writeFileSyncSpy = jest
-      .spyOn(fs, "writeFileSync")
-      .mockImplementation(() => {});
+    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
 
     await run(["node", "script.js", "init", "package"]);
 
@@ -976,9 +905,7 @@ describe("run", () => {
     const readFileSyncSpy = jest
       .spyOn(fs, "readFileSync")
       .mockReturnValue(JSON.stringify({ dependencies: { lodash: "4.17.21" } }));
-    const writeFileSyncSpy = jest
-      .spyOn(fs, "writeFileSync")
-      .mockImplementation(() => {});
+    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
 
     await run(["node", "script.js", "init", "default"]);
 
@@ -999,9 +926,7 @@ describe("run", () => {
         dependencies: { lodash: "4.17.21", react: "18.0.0" },
       }),
     );
-    const writeFileSyncSpy = jest
-      .spyOn(fs, "writeFileSync")
-      .mockImplementation(() => {});
+    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
 
     await run(["node", "script.js", "init", "rc", "lodash"]);
 
@@ -1027,19 +952,9 @@ describe("run", () => {
         dependencies: { lodash: "4.17.21", react: "18.0.0" },
       }),
     );
-    const writeFileSyncSpy = jest
-      .spyOn(fs, "writeFileSync")
-      .mockImplementation(() => {});
+    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
 
-    await run([
-      "node",
-      "script.js",
-      "init",
-      "rc",
-      "--codependencies",
-      "lodash",
-      "react",
-    ]);
+    await run(["node", "script.js", "init", "rc", "--codependencies", "lodash", "react"]);
 
     const callArgs = writeFileSyncSpy.mock.calls[0];
     expect(callArgs[0]).toBe(".codependencerc");
@@ -1050,6 +965,34 @@ describe("run", () => {
     existsSyncSpy.mockRestore();
     readFileSyncSpy.mockRestore();
     writeFileSyncSpy.mockRestore();
+  });
+
+  test("routes positional action targets through the CLI", async () => {
+    const rootDir = createActionsProject();
+    const infoSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
+
+    try {
+      await run([
+        "node",
+        "script.js",
+        "init",
+        "actions",
+        "go",
+        "--rootDir",
+        rootDir,
+        "--version",
+        "go=1.25.3",
+      ]);
+
+      const goWorkflow = join(rootDir, ".github/workflows/codependence-go.yml");
+      const nodeWorkflow = join(rootDir, ".github/workflows/codependence-node.yml");
+      expect(fs.existsSync(goWorkflow)).toBe(true);
+      expect(fs.existsSync(nodeWorkflow)).toBe(false);
+      expect(infoSpy).toHaveBeenCalledWith(`Created ${goWorkflow}`);
+    } finally {
+      infoSpy.mockRestore();
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -1393,7 +1336,7 @@ describe("Format Integration Tests", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue([
       {
         package: "react",
@@ -1442,7 +1385,7 @@ describe("Format Integration Tests", () => {
 
     expect(writeFileSpy).toHaveBeenCalledWith(
       "/tmp/test-output.json",
-      expect.stringContaining('"status"')
+      expect.stringContaining('"status"'),
     );
   });
 
@@ -1453,7 +1396,7 @@ describe("Format Integration Tests", () => {
     });
 
     const jsonCalls = consoleLogSpy.mock.calls.filter((call) =>
-      call[0]?.includes("# Dependency Status")
+      call[0]?.includes("# Dependency Status"),
     );
     expect(jsonCalls.length).toBeGreaterThan(0);
   });
@@ -1464,9 +1407,7 @@ describe("Format Integration Tests", () => {
       format: "table",
     });
 
-    const tableCalls = consoleLogSpy.mock.calls.filter((call) =>
-      call[0]?.includes("Outdated")
-    );
+    const tableCalls = consoleLogSpy.mock.calls.filter((call) => call[0]?.includes("Outdated"));
     expect(tableCalls.length).toBeGreaterThan(0);
   });
 
@@ -1476,9 +1417,7 @@ describe("Format Integration Tests", () => {
       format: "json",
     });
 
-    const jsonOutput = consoleLogSpy.mock.calls.find((call) =>
-      call[0]?.includes('"package"')
-    );
+    const jsonOutput = consoleLogSpy.mock.calls.find((call) => call[0]?.includes('"package"'));
     expect(jsonOutput).toBeDefined();
 
     if (jsonOutput && jsonOutput[0]) {
@@ -1490,16 +1429,13 @@ describe("Format Integration Tests", () => {
     }
   });
 
-
   test("should not show spinner when format option is set", async () => {
     await action({
       codependencies: ["react"],
       format: "json",
     });
 
-    const spinnerCalls = consoleLogSpy.mock.calls.filter((call) =>
-      call[0]?.includes("wrestling")
-    );
+    const spinnerCalls = consoleLogSpy.mock.calls.filter((call) => call[0]?.includes("wrestling"));
     expect(spinnerCalls.length).toBe(0);
   });
 
@@ -1511,9 +1447,260 @@ describe("Format Integration Tests", () => {
       format: "json",
     });
 
-    const output = consoleLogSpy.mock.calls.find((call) =>
-      call[0]?.includes("up-to-date")
-    );
+    const output = consoleLogSpy.mock.calls.find((call) => call[0]?.includes("up-to-date"));
     expect(output).toBeDefined();
+  });
+});
+
+const createActionsProject = (): string => {
+  const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
+  const targets = [
+    { manager: "bun" },
+    { manager: "uv" },
+    { manager: "go" },
+    { manager: "docker" },
+    { manager: "github-actions" },
+  ];
+  fs.writeFileSync(join(rootDir, ".codependencerc"), JSON.stringify({ targets }));
+  fs.writeFileSync(
+    join(rootDir, "package.json"),
+    JSON.stringify({ name: "fixture", packageManager: "bun@1.3.14" }),
+  );
+  fs.writeFileSync(join(rootDir, "go.mod"), "module example.com/fixture\n\ngo 1.26.4\n");
+  fs.writeFileSync(join(rootDir, "mise.toml"), '[tools]\nuv = "0.8.0"\n');
+  return rootDir;
+};
+
+const readWorkflow = (rootDir: string, area: string): string =>
+  fs.readFileSync(join(rootDir, ".github", "workflows", `codependence-${area}.yml`), "utf8");
+
+describe("GitHub Actions initializer", () => {
+  test("generates split workflows with one shared default schedule", () => {
+    const rootDir = createActionsProject();
+
+    try {
+      const paths = initGitHubActions({ rootDir });
+      const workflows = ["node", "python", "go", "infrastructure"].map((area) =>
+        readWorkflow(rootDir, area),
+      );
+
+      expect(paths.map((path) => path.split("/").at(-1))).toEqual([
+        "codependence-node.yml",
+        "codependence-python.yml",
+        "codependence-go.yml",
+        "codependence-infrastructure.yml",
+      ]);
+      expect(workflows.every((workflow) => workflow.includes('cron: "0 9 * * 1"'))).toBe(true);
+      expect(workflows[0]).toContain("targets: bun\n          version: 1.3.14");
+      expect(workflows[1]).toContain("targets: uv\n          version: 0.8.0");
+      expect(workflows[2]).toContain("targets: go\n          version: 1.26.4");
+      expect(workflows[3]).toContain("docker\n            github-actions");
+      expect(workflows[0]).toContain("uses: yowainwright/codependence@v1");
+      expect(workflows[0]).toContain("secrets.CODEPENDENCE_TOKEN");
+      expect(workflows[0]).toContain("post-update-command: 'bun install'");
+      expect(workflows[1]).toContain("post-update-command: 'uv lock'");
+      expect(workflows[2]).toContain("post-update-command: 'go mod tidy'");
+      expect(workflows[3]).toContain("post-update-command: 'git diff --check'");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("honors target-specific workflow options", () => {
+    const rootDir = createActionsProject();
+    const credentialName = ["AUTOMATION", "CREDENTIAL"].join("_");
+
+    try {
+      initGitHubActions({
+        rootDir,
+        targets: ["go"],
+        versions: ["go=1.25.3"],
+        schedules: ["go=30 7 * * 5"],
+        postUpdateCommands: ["go=task go:tidy"],
+        tokenSecret: credentialName,
+      });
+
+      const workflow = readWorkflow(rootDir, "go");
+      expect(workflow).toContain('cron: "30 7 * * 5"');
+      expect(workflow).toContain("version: 1.25.3");
+      expect(workflow).toContain("post-update-command: 'task go:tidy'");
+      expect(workflow).toContain(`secrets.${credentialName}`);
+      expect(fs.existsSync(join(rootDir, ".github/workflows/codependence-node.yml"))).toBe(false);
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("detects versions from supported metadata files", () => {
+    const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
+    const webDir = join(rootDir, "web");
+    const pythonDir = join(rootDir, "python");
+    const goDir = join(rootDir, "backend");
+    fs.mkdirSync(webDir);
+    fs.mkdirSync(pythonDir);
+    fs.mkdirSync(goDir);
+    const targets = [
+      { manager: "pnpm", rootDir: "web" },
+      { manager: "uv", rootDir: "python" },
+      { manager: "go", rootDir: "backend" },
+    ];
+    fs.writeFileSync(join(rootDir, ".codependencerc"), JSON.stringify({ targets }));
+    fs.writeFileSync(join(webDir, ".tool-versions"), "pnpm 10.12.1\n");
+    fs.writeFileSync(join(pythonDir, "versions.env"), "UV_VERSION=0.8.2\n");
+    fs.writeFileSync(
+      join(goDir, "go.mod"),
+      "module example.com/backend\n\ngo 1.24.0\ntoolchain go1.25.4\n",
+    );
+
+    try {
+      initGitHubActions({ rootDir });
+
+      expect(readWorkflow(rootDir, "node")).toContain("version: 10.12.1");
+      expect(readWorkflow(rootDir, "python")).toContain("version: 0.8.2");
+      expect(readWorkflow(rootDir, "go")).toContain("version: 1.25.4");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("groups multiple Node managers into one workflow", () => {
+    const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
+    const targets = [{ manager: "bun" }, { manager: "npm" }];
+    fs.writeFileSync(join(rootDir, ".codependencerc"), JSON.stringify({ targets }));
+
+    try {
+      initGitHubActions({
+        rootDir,
+        versions: ["bun=1.3.14", "npm=11.4.2"],
+      });
+
+      const workflow = readWorkflow(rootDir, "node");
+      expect(workflow).toContain("targets: |\n            bun\n            npm");
+      expect(workflow).toContain("version: |\n            bun=1.3.14\n            npm=11.4.2");
+      expect(workflow).toContain("post-update-command: 'bun install && npm install'");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("supports prerelease versions and escapes workflow commands", () => {
+    const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
+    const targets = [{ manager: "go" }];
+    fs.writeFileSync(join(rootDir, ".codependencerc"), JSON.stringify({ targets }));
+
+    try {
+      initGitHubActions({
+        rootDir,
+        versions: ["go=v1.25.3-rc.1"],
+        postUpdateCommands: ["go=echo it's ready"],
+      });
+
+      const workflow = readWorkflow(rootDir, "go");
+      expect(workflow).toContain("version: v1.25.3-rc.1");
+      expect(workflow).toContain("post-update-command: 'echo it''s ready'");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("requires a configuration with manager targets", () => {
+    const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
+
+    try {
+      expect(() => initGitHubActions({ rootDir })).toThrow("configuration not found");
+      fs.writeFileSync(join(rootDir, ".codependencerc"), JSON.stringify({}));
+      expect(() => initGitHubActions({ rootDir })).toThrow("must define manager targets");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects unconfigured and unsupported managers", () => {
+    const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
+    const configPath = join(rootDir, ".codependencerc");
+    fs.writeFileSync(configPath, JSON.stringify({ targets: [{ manager: "bun" }] }));
+
+    try {
+      expect(() => initGitHubActions({ rootDir, targets: ["go"] })).toThrow(
+        "Unknown configured target manager(s): go",
+      );
+      fs.writeFileSync(configPath, JSON.stringify({ targets: [{ manager: "rust" }] }));
+      expect(() => initGitHubActions({ rootDir })).toThrow(
+        "does not support target manager(s): rust",
+      );
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects malformed and unknown option assignments", () => {
+    const rootDir = createActionsProject();
+
+    try {
+      expect(() => initGitHubActions({ rootDir, targets: ["go"], versions: ["go"] })).toThrow(
+        "Versions must use name=value entries",
+      );
+      expect(() => initGitHubActions({ rootDir, targets: ["go"], versions: ["uv=0.8.0"] })).toThrow(
+        "Unknown version manager(s): uv",
+      );
+      expect(() =>
+        initGitHubActions({ rootDir, targets: ["go"], postUpdateCommands: ["python=uv lock"] }),
+      ).toThrow("Unknown post-update command target(s): python");
+      expect(() =>
+        initGitHubActions({ rootDir, targets: ["go"], schedules: ["node=0 9 * * 1"] }),
+      ).toThrow("Unknown schedule area(s): node");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects invalid schedules and credential names", () => {
+    const rootDir = createActionsProject();
+    const invalidCredentialName = ["dependency", "updates"].join("-");
+
+    try {
+      expect(() =>
+        initGitHubActions({ rootDir, targets: ["go"], schedules: ["go=weekly"] }),
+      ).toThrow("Invalid cron schedule for: go");
+      expect(() =>
+        initGitHubActions({
+          rootDir,
+          targets: ["go"],
+          tokenSecret: invalidCredentialName,
+        }),
+      ).toThrow("Invalid GitHub secret name");
+      expect(fs.existsSync(join(rootDir, ".github"))).toBe(false);
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("fails before writing unsafe workflows", () => {
+    const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
+    fs.writeFileSync(
+      join(rootDir, ".codependencerc"),
+      JSON.stringify({ targets: [{ manager: "uv" }] }),
+    );
+
+    try {
+      expect(() => initGitHubActions({ rootDir })).toThrow("Pass --version uv=<version>");
+      expect(() => initGitHubActions({ rootDir, versions: ["uv=0.8"] })).toThrow(
+        "requires an exact tool version",
+      );
+
+      initGitHubActions({ rootDir, versions: ["uv=0.8.0"] });
+      const workflowPath = join(rootDir, ".github/workflows/codependence-python.yml");
+      fs.writeFileSync(workflowPath, "existing\n");
+
+      expect(() => initGitHubActions({ rootDir, versions: ["uv=0.8.1"] })).toThrow(
+        "Refusing to overwrite",
+      );
+      expect(fs.readFileSync(workflowPath, "utf8")).toBe("existing\n");
+
+      initGitHubActions({ rootDir, versions: ["uv=0.8.1"], force: true });
+      expect(fs.readFileSync(workflowPath, "utf8")).toContain("version: 0.8.1");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
   });
 });

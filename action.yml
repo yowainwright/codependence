@@ -15,6 +15,34 @@ inputs:
   files:
     description: 'File glob patterns (space-separated)'
     required: false
+  targets:
+    description: 'Configured manager targets to run (space-separated)'
+    required: false
+  version:
+    description: 'Exact tool version, or manager=version pairs for multiple tools'
+    required: false
+  lockfile:
+    description: 'Require lockfiles for selected targets (true/false)'
+    required: false
+    default: 'true'
+  pull-request:
+    description: 'Create or update a pull request (true/false)'
+    required: false
+    default: 'false'
+  token:
+    description: 'Fine-grained PAT used to create pull requests'
+    required: false
+  post-update-command:
+    description: 'Trusted command that regenerates lockfiles after updates'
+    required: false
+  draft:
+    description: 'Create a draft pull request (true/false)'
+    required: false
+    default: 'false'
+  branch-prefix:
+    description: 'Stable pull request branch prefix'
+    required: false
+    default: 'update-dependencies'
   update:
     description: 'Update dependencies based on check (true/false)'
     required: false
@@ -73,6 +101,9 @@ outputs:
   outdated:
     description: 'Whether any dependencies were outdated (true/false)'
     value: ${{ steps.codependence.outputs.outdated }}
+  pull-request-url:
+    description: 'Created or updated pull request URL'
+    value: ${{ steps.create-pull-request.outputs.pull-request-url }}
 
 runs:
   using: 'composite'
@@ -81,6 +112,156 @@ runs:
       uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
       with:
         node-version: '24'
+
+    - name: Prepare targets
+      id: targets
+      shell: bash
+      env:
+        INPUT_TARGETS: ${{ inputs.targets }}
+        INPUT_VERSION: ${{ inputs.version }}
+      run: |
+        set -eo pipefail
+
+        for manager in bun go npm pnpm uv yarn; do
+          echo "$manager-version=" >> "$GITHUB_OUTPUT"
+        done
+
+        target_input="${INPUT_TARGETS//$'\n'/ }"
+        target_input="${target_input//,/ }"
+        read -r -a requested <<< "$target_input"
+        if [ "${#requested[@]}" -eq 0 ]; then
+          echo "list=" >> "$GITHUB_OUTPUT"
+          echo "branch-suffix=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        targets=()
+        versioned=()
+        for target in "${requested[@]}"; do
+          if [[ " ${targets[*]} " == *" $target "* ]]; then
+            continue
+          fi
+
+          case "$target" in
+            bun|npm|pnpm|yarn|go|uv)
+              versioned+=("$target")
+              ;;
+            docker|github-actions)
+              ;;
+            *)
+              echo "::error::Unsupported Action target: $target"
+              exit 2
+              ;;
+          esac
+
+          targets+=("$target")
+        done
+
+        version_for() {
+          local manager="$1"
+          if [ "${#versioned[@]}" -eq 1 ] && [[ "$INPUT_VERSION" != *"="* ]]; then
+            printf '%s' "$INPUT_VERSION"
+            return
+          fi
+
+          local assignments="${INPUT_VERSION//,/ }"
+          for assignment in $assignments; do
+            if [ "${assignment%%=*}" = "$manager" ]; then
+              printf '%s' "${assignment#*=}"
+              return
+            fi
+          done
+        }
+
+        if [ "${#versioned[@]}" -eq 0 ] && [ -n "$INPUT_VERSION" ]; then
+          echo "::error::Docker and GitHub Actions targets do not accept version"
+          exit 2
+        fi
+
+        for manager in "${versioned[@]}"; do
+          tool_version="$(version_for "$manager")"
+          if [[ ! "$tool_version" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::$manager requires an exact version"
+            exit 2
+          fi
+          echo "$manager-version=$tool_version" >> "$GITHUB_OUTPUT"
+        done
+
+        target_list="${targets[*]}"
+        branch_suffix="$(printf '%s\n' "${targets[@]}" | sort | paste -sd- -)"
+        echo "list=$target_list" >> "$GITHUB_OUTPUT"
+        echo "branch-suffix=$branch_suffix" >> "$GITHUB_OUTPUT"
+
+    - name: Validate pull request mode
+      if: inputs.pull-request == 'true'
+      shell: bash
+      env:
+        INPUT_POST_UPDATE_COMMAND: ${{ inputs.post-update-command }}
+        INPUT_TARGETS: ${{ steps.targets.outputs.list }}
+        INPUT_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+
+        if [ "$GITHUB_EVENT_NAME" != "schedule" ] && [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]; then
+          echo "::error::Pull request mode only supports schedule and workflow_dispatch events"
+          exit 2
+        fi
+        if [ -z "$INPUT_TOKEN" ]; then
+          echo "::error::Pull request mode requires a fine-grained PAT"
+          exit 2
+        fi
+        if [ -z "$INPUT_TARGETS" ]; then
+          echo "::error::Pull request mode requires targets"
+          exit 2
+        fi
+        if [ -z "$INPUT_POST_UPDATE_COMMAND" ]; then
+          echo "::error::Pull request mode requires post-update-command"
+          exit 2
+        fi
+        if [ -n "$(git status --porcelain)" ]; then
+          echo "::error::Pull request mode requires a clean checkout"
+          exit 2
+        fi
+
+    - name: Setup Bun
+      if: steps.targets.outputs.bun-version != ''
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version: ${{ steps.targets.outputs.bun-version }}
+
+    - name: Setup Go
+      if: steps.targets.outputs.go-version != ''
+      uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.4.0
+      with:
+        go-version: ${{ steps.targets.outputs.go-version }}
+        cache: false
+
+    - name: Setup uv
+      if: steps.targets.outputs.uv-version != ''
+      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      with:
+        version: ${{ steps.targets.outputs.uv-version }}
+
+    - name: Setup npm
+      if: steps.targets.outputs.npm-version != ''
+      shell: bash
+      env:
+        TOOL_VERSION: ${{ steps.targets.outputs.npm-version }}
+      run: npm install --global "npm@$TOOL_VERSION"
+
+    - name: Setup pnpm
+      if: steps.targets.outputs.pnpm-version != ''
+      shell: bash
+      env:
+        TOOL_VERSION: ${{ steps.targets.outputs.pnpm-version }}
+      run: npm install --global "pnpm@$TOOL_VERSION"
+
+    - name: Setup Yarn
+      if: steps.targets.outputs.yarn-version != ''
+      shell: bash
+      env:
+        TOOL_VERSION: ${{ steps.targets.outputs.yarn-version }}
+      run: npm install --global "yarn@$TOOL_VERSION"
 
     - name: Install Codependence
       shell: bash
@@ -112,6 +293,7 @@ runs:
         INPUT_DRY_RUN: ${{ inputs.dryRun }}
         INPUT_FILES: ${{ inputs.files }}
         INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_LOCKFILE: ${{ inputs.lockfile }}
         INPUT_LANGUAGE: ${{ inputs.language }}
         INPUT_LEVEL: ${{ inputs.level }}
         INPUT_MODE: ${{ inputs.mode }}
@@ -123,7 +305,9 @@ runs:
         INPUT_ROOT_DIR: ${{ inputs.rootDir }}
         INPUT_IGNORE: ${{ inputs.ignore }}
         INPUT_SILENT: ${{ inputs.silent }}
+        INPUT_TARGETS: ${{ steps.targets.outputs.list }}
         INPUT_DEBUG: ${{ inputs.debug }}
+        INPUT_PULL_REQUEST: ${{ inputs.pull-request }}
         INPUT_YARN_CONFIG: ${{ inputs.yarnConfig }}
       run: |
         set -u
@@ -161,6 +345,7 @@ runs:
         append_list_flag --codependencies "$INPUT_CODEDEPENDENCIES"
         append_value_flag --config "$INPUT_CONFIG"
         append_list_flag --files "$INPUT_FILES"
+        append_list_flag --target "$INPUT_TARGETS"
 
         append_bool_flag --update "$INPUT_UPDATE"
         append_bool_flag --dryRun "$INPUT_DRY_RUN"
@@ -169,6 +354,13 @@ runs:
         append_bool_flag --debug "$INPUT_DEBUG"
         append_bool_flag --yarnConfig "$INPUT_YARN_CONFIG"
         append_bool_flag --noCache "$INPUT_NO_CACHE"
+
+        if [ -n "$INPUT_TARGETS" ]; then
+          CMD+=(--lockfile "$INPUT_LOCKFILE")
+        fi
+        if [ "$INPUT_PULL_REQUEST" = "true" ] && [ "$INPUT_UPDATE" != "true" ]; then
+          CMD+=(--update)
+        fi
 
         append_value_flag --mode "$INPUT_MODE"
         append_value_flag --level "$INPUT_LEVEL"
@@ -201,3 +393,47 @@ runs:
         fi
 
         exit 0
+
+    - name: Regenerate lockfiles
+      if: inputs.pull-request == 'true'
+      shell: bash
+      env:
+        POST_UPDATE_COMMAND: ${{ inputs.post-update-command }}
+      run: |
+        bash -eo pipefail -c "$POST_UPDATE_COMMAND"
+
+    - name: Prepare pull request
+      id: pull-request
+      if: inputs.pull-request == 'true'
+      shell: bash
+      env:
+        BRANCH_SUFFIX: ${{ steps.targets.outputs.branch-suffix }}
+        BRANCH_PREFIX: ${{ inputs.branch-prefix }}
+        TARGETS: ${{ steps.targets.outputs.list }}
+      run: |
+        set -euo pipefail
+
+        if [[ ! "$BRANCH_PREFIX" =~ ^[a-z0-9]([a-z0-9._/-]*[a-z0-9])?$ ]]; then
+          echo "::error::branch-prefix must be a lowercase branch-safe name"
+          exit 2
+        fi
+
+        branch="$BRANCH_PREFIX/$BRANCH_SUFFIX"
+        title="chore: update $TARGETS dependencies"
+        body="Updates the selected Codependence targets: $TARGETS."
+        echo "branch=$branch" >> "$GITHUB_OUTPUT"
+        echo "title=$title" >> "$GITHUB_OUTPUT"
+        echo "body=$body" >> "$GITHUB_OUTPUT"
+
+    - name: Create pull request
+      id: create-pull-request
+      if: inputs.pull-request == 'true'
+      uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1
+      with:
+        token: ${{ inputs.token }}
+        branch: ${{ steps.pull-request.outputs.branch }}
+        commit-message: ${{ steps.pull-request.outputs.title }}
+        title: ${{ steps.pull-request.outputs.title }}
+        body: ${{ steps.pull-request.outputs.body }}
+        draft: ${{ inputs.draft }}
+        delete-branch: true

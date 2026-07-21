@@ -1,4 +1,10 @@
-import type { CheckFiles, ConstructVersionMapOptions, Level, SupportedLanguage } from "../types";
+import type {
+  CheckFiles,
+  ConstructVersionMapOptions,
+  DependencyManager,
+  Level,
+  SupportedLanguage,
+} from "../types";
 import type { DependencyManifest, DependencyProvider } from "../providers/types";
 import type { DEP_SECTIONS } from "./constants";
 
@@ -8,7 +14,7 @@ export interface LoadedManifest {
   file: string;
   path: string;
   language: SupportedLanguage;
-  packageManager: string;
+  packageManager: DependencyManager;
   provider: DependencyProvider;
   manifest: DependencyManifest;
 }
@@ -25,7 +31,7 @@ export type PackageNormalizer = (packageName: string) => string;
 
 export interface ProviderResolution {
   provider: DependencyProvider;
-  packageManager: string;
+  packageManager: DependencyManager;
 }
 
 export interface VersionResolver {

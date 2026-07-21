@@ -41,14 +41,40 @@ const targetOptions = (target: CodependenceTarget, options: Options): CheckFiles
     ...policy,
     files,
     language,
+    lockfile: target.lockfile ?? options.lockfile,
     packageManager: manager,
   };
 };
 
-export const expandTargets = (options: Options): CheckFiles[] => {
-  if (!options.targets) return [options];
+const selectedTargets = (options: Options): CodependenceTarget[] => {
+  const targets = options.targets ?? [];
+  const requested = options.target;
+  if (!requested?.length) return targets;
 
-  return options.targets.map((target) => targetOptions(target, options));
+  const requestedManagers = new Set(requested);
+  const selected = targets.filter(({ manager }) => requestedManagers.has(manager));
+  const foundManagers = new Set(selected.map(({ manager }) => manager));
+  const missingManagers = requested.filter((manager) => !foundManagers.has(manager));
+  if (missingManagers.length > 0) {
+    throw new Error(`Unknown target manager(s): ${missingManagers.join(", ")}`);
+  }
+
+  return selected;
+};
+
+const expandFlatOptions = (options: Options): CheckFiles[] => {
+  const requested = options.target ?? [];
+  if (requested.length > 0) {
+    throw new Error(`Unknown target manager(s): ${requested.join(", ")}`);
+  }
+
+  return [options];
+};
+
+export const expandTargets = (options: Options): CheckFiles[] => {
+  if (!options.targets) return expandFlatOptions(options);
+
+  return selectedTargets(options).map((target) => targetOptions(target, options));
 };
 
 export { loadConfig } from "./loader";

@@ -47,6 +47,32 @@ describe("expandTargets", () => {
     ]);
   });
 
+  test("runs only explicitly selected managers", () => {
+    const targets = expandTargets({
+      target: ["go"],
+      targets: [
+        { manager: "bun", mode: "precise" },
+        { manager: "go", mode: "precise" },
+      ],
+    });
+
+    expect(targets).toEqual([
+      expect.objectContaining({
+        packageManager: "go",
+      }),
+    ]);
+  });
+
+  test("rejects target selection without named configuration targets", () => {
+    expect(() =>
+      expandTargets({
+        target: ["services"],
+        language: "go",
+        mode: "precise",
+      }),
+    ).toThrow("Unknown target manager(s): services");
+  });
+
   test("uses manager-scoped Python manifest defaults", () => {
     const targets = expandTargets({
       targets: [
@@ -95,4 +121,17 @@ describe("expandTargets", () => {
       }),
     ]);
   });
+
+  test("inherits shared lockfile enforcement and allows target opt-out", () => {
+    const targets = expandTargets({
+      lockfile: true,
+      targets: [
+        { manager: "bun", mode: "precise" },
+        { manager: "go", lockfile: false, mode: "precise" },
+      ],
+    });
+
+    expect(targets.map(({ lockfile }) => lockfile)).toEqual([true, false]);
+  });
+
 });

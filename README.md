@@ -116,6 +116,8 @@ codependence --permissive --codependencies 'react' 'lodash' --dryRun
 
 Quickly set up Codependence in your project with the interactive init command:
 
+<!-- init command behavior from src/program.ts -->
+
 ```sh
 # Create the recommended root .codependencerc interactively
 codependence init
@@ -128,9 +130,12 @@ codependence init rc react lodash
 
 # Legacy: add configuration to package.json with all dependencies pinned
 codependence init package
+
+# Create separate Node, Python, Go, and infrastructure update workflows
+codependence init actions
 ```
 
-The init command will:
+The configuration init modes will:
 
 - **Default to permissive mode** (update all dependencies to latest, except those you want to pin)
 - Scan your `package.json` for dependencies
@@ -140,6 +145,9 @@ The init command will:
 - Recommend `.codependencerc`, with embedded `package.json` configuration retained for legacy projects
 - Provide clear next steps for running Codependence
 - Handle edge cases like missing files or invalid JSON gracefully
+
+`codependence init actions` reads configured manager targets and generates
+scheduled pull request workflows without replacing existing files.
 
 #### Testing
 
@@ -169,15 +177,24 @@ Install **Codependence** as a root `devDependency` and keep repository policy in
 
 For monorepos and mixed-language repositories, add manager targets with their own `files`, `rootDir`, and policy fields. The CLI loads the config once and executes every target.
 
+<!-- CLI command and options from src/cli/constants.ts -->
+
 ```sh
 Usage: codependence [command] [options]
 
 Commands:
-  init [type] [deps...]             Initialize codependence configuration
-                                    Types: rc, package, default
+  init [type] [items...]            Initialize Codependence
+                                    Types: rc, package, default, actions
 
 Options:
   -f, --files [files...]           File glob pattern
+  --target [managers...]           Run only selected manager targets
+  --version [manager=version...]   Exact tool versions for init actions
+  --post-update-command [name=cmd...] Override generated lockfile commands
+  --schedule [area=cron...]        Override generated workflow schedules
+  --token-secret <name>            GitHub PAT secret name for generated workflows
+  --force                           Replace generated workflow files
+  --lockfile [policy]              Require lockfiles, or pass false for manifest-only updates
   -u, --update                      Update dependencies based on check
   -r, --rootDir <rootDir>          Root directory to start search
   -i, --ignore [ignore...]         Ignore glob pattern
@@ -200,6 +217,37 @@ Options:
   --format <type>                   Output format: json, markdown, or table (default: table)
   --outputFile <path>               Write output to file instead of stdout
 ```
+
+## Codependence GitHub Action
+
+<!-- generated workflow behavior from src/program.ts -->
+
+Generate the recommended split workflows from the manager targets in
+`.codependencerc`:
+
+```sh
+codependence init actions
+```
+
+This creates at most four stable workflow files for Node, Python, Go, and the
+combined Docker/GitHub Actions area. Existing files are preserved unless
+`--force` is provided.
+
+<!-- partial update and pull request inputs from action.yml -->
+
+Run one configured manager target with an exact tool version:
+
+```yaml
+- uses: yowainwright/codependence@v1
+  with:
+    targets: bun
+    version: 1.3.14
+```
+
+PR mode requires a fine-grained PAT and `post-update-command`. Each manager set
+uses a stable branch, so scheduled Bun and Go workflows maintain separate pull
+requests while repeated runs update the existing PR. See the
+[GitHub Action guide](.github/ACTION.md) for lockfile policy and PAT permissions.
 
 ## Codependence in Node
 
@@ -253,6 +301,7 @@ config.
 
 ```json
 {
+  "lockfile": true,
   "targets": [
     {
       "manager": "bun",
@@ -272,7 +321,9 @@ Supported managers are `bun`, `npm`, `pnpm`, `yarn`, `conda`, `pip`,
 `pipenv`, `poetry`, `uv`, `go`, `rust`, `docker`, and `github-actions`.
 Execution options such as `update`, `dryRun`, `format`, and `noCache` stay at
 the root and apply to every target. Root `rootDir` and `ignore` values are also
-inherited unless a target overrides them. Legacy flat and embedded
+inherited unless a target overrides them. Root `lockfile` is inherited and can
+be disabled for one target with `"lockfile": false`. Use `--target bun` or
+`--target go` to run only configured targets for those managers. Legacy flat and embedded
 `package.json` configurations remain supported, but new projects should use
 `.codependencerc`. Target-scoped fields cannot be mixed beside `targets`.
 

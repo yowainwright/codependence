@@ -67,7 +67,7 @@ describe("scripts/ci/published-release_test", () => {
   test("legacyCompatibilityScript checks the 0.3.1 contract", () => {
     const script = legacyCompatibilityScript();
 
-    expect(script).toContain("tests/integration/fixtures/0.3.1/package.json");
+    expect(script).toContain("tests/fixtures/0.3.1/package.json");
     expect(script).toContain("codependence -s");
     expect(script).toContain("cdp --help");
     expect(script).toContain("require('codependence')");

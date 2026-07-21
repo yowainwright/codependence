@@ -1,8 +1,5 @@
 import { readFileSync, writeFileSync } from "fs";
-import { execFileSync } from "child_process";
-import { dirname } from "path";
 import { exec } from "../../utils/exec";
-import { logger } from "../../logger";
 import { LANGUAGES } from "../constants";
 import { GO_PATTERNS } from "./constants";
 import type {
@@ -160,11 +157,8 @@ export class GoProvider implements DependencyProvider {
     supportsPreciseMode: true,
     versionStrategy: "semver",
   } as const;
-  private options: ProviderOptions;
 
-  constructor(options: ProviderOptions = {}) {
-    this.options = options;
-  }
+  constructor(_options: ProviderOptions = {}) {}
 
   async getLatestVersion(packageName: string): Promise<string> {
     const { stdout } = await exec(LANGUAGES.GO, ["list", "-m", "-versions", packageName]);
@@ -209,7 +203,6 @@ export class GoProvider implements DependencyProvider {
 
     if (updatedCount > 0 || foundCount > 0) {
       writeFileSync(filePath, preserveFinalNewline(inPlaceContent));
-      this.runGoModTidy(filePath);
       return;
     }
 
@@ -219,7 +212,6 @@ export class GoProvider implements DependencyProvider {
     if (hasMultiLineRequire) {
       const updated = content.replace(GO_PATTERNS.REQUIRE_BLOCK, requireBlock);
       writeFileSync(filePath, preserveFinalNewline(updated));
-      this.runGoModTidy(filePath);
       return;
     }
 
@@ -227,27 +219,10 @@ export class GoProvider implements DependencyProvider {
     if (hasSingleRequires) {
       const updated = content.replace(GO_PATTERNS.REQUIRE_LINE, "").trim();
       writeFileSync(filePath, `${updated}\n\n${requireBlock}\n`);
-      this.runGoModTidy(filePath);
       return;
     }
 
     writeFileSync(filePath, `${content.trim()}\n\n${requireBlock}\n`);
-    this.runGoModTidy(filePath);
-  }
-
-  private runGoModTidy(filePath: string): void {
-    if (this.options.isTesting) return;
-
-    try {
-      execFileSync(LANGUAGES.GO, ["mod", "tidy"], {
-        cwd: dirname(filePath),
-        stdio: "ignore",
-      });
-    } catch (error) {
-      if (this.options.debug) {
-        logger.error("Failed to run go mod tidy", error as Error);
-      }
-    }
   }
 
   validatePackageName(packageName: string): boolean {

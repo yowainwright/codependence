@@ -23,6 +23,26 @@
         "github-actions"
       ]
     },
+    "lockfile": {
+      "description": "Require standard lockfiles or list repository-relative lockfile paths",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
     "target": {
       "type": "object",
       "additionalProperties": false,
@@ -48,6 +68,9 @@
         },
         "mode": {
           "$ref": "#/properties/mode"
+        },
+        "lockfile": {
+          "$ref": "#/definitions/lockfile"
         },
         "rootDir": {
           "$ref": "#/properties/rootDir"
@@ -135,6 +158,9 @@
       "type": "string",
       "enum": ["verbose", "precise"],
       "description": "verbose: only check listed packages; precise: update all except listed (default behavior)"
+    },
+    "lockfile": {
+      "$ref": "#/definitions/lockfile"
     },
     "update": {
       "type": "boolean",

@@ -5,7 +5,7 @@ import * as entry from "../../src";
 import { parseArgs } from "../../src/cli/parser";
 import { loadConfig } from "../../src/config";
 
-const fixtureRoot = join(process.cwd(), "tests/integration/fixtures/0.3.1");
+const fixtureRoot = join(process.cwd(), "tests/fixtures/0.3.1");
 
 describe("0.3.1 compatibility", () => {
   test("keeps the legacy CLI flags", () => {

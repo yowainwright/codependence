@@ -654,23 +654,21 @@ require (
     });
   });
 
-  describe("runGoModTidy", () => {
-    test("should skip go mod tidy when isTesting is true", async () => {
-      const goModPath = join(__dirname, ".tmp-tidy", "go.mod");
-      mkdirSync(join(__dirname, ".tmp-tidy"), { recursive: true });
-      writeFileSync(
-        goModPath,
-        "module test\n\ngo 1.21\n\nrequire (\n\tpkg v1.0.0\n)\n",
-      );
+  test("writeManifest leaves lockfile regeneration to the package manager", () => {
+    const goModPath = join(__dirname, ".tmp-write", "go.mod");
+    mkdirSync(join(__dirname, ".tmp-write"), { recursive: true });
+    writeFileSync(
+      goModPath,
+      "module test\n\ngo 1.21\n\nrequire github.com/example/pkg v1.0.0\n",
+    );
 
-      const provider = new GoProvider({ isTesting: true });
-
-      await provider.writeManifest(goModPath, {
-        filePath: goModPath,
-        dependencies: { "github.com/new/pkg": "v2.0.0" },
-      });
-
-      rmSync(join(__dirname, ".tmp-tidy"), { recursive: true, force: true });
+    const provider = new GoProvider();
+    provider.writeManifest(goModPath, {
+      filePath: goModPath,
+      dependencies: { "github.com/example/pkg": "v2.0.0" },
     });
+
+    expect(readFileSync(goModPath, "utf8")).toContain("github.com/example/pkg v2.0.0");
+    rmSync(join(__dirname, ".tmp-write"), { recursive: true, force: true });
   });
 });

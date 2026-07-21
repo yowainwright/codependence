@@ -1,3 +1,5 @@
+import type { DependencyManager } from "../types";
+
 export interface OptionDefinition {
   flags: string[];
   hasValue?: boolean;
@@ -27,4 +29,29 @@ export interface ArgumentState {
 
 export interface ArgumentResult extends ArgumentState {
   nextIndex: number;
+}
+
+export type WorkflowArea = "node" | "python" | "go" | "infrastructure";
+
+export interface WorkflowDefinition {
+  area: WorkflowArea;
+  label: string;
+  managers: DependencyManager[];
+  schedule: string;
+}
+
+export interface InitGitHubActionsOptions {
+  force?: boolean;
+  postUpdateCommands?: string[];
+  rootDir?: string;
+  schedules?: string[];
+  targets?: DependencyManager[];
+  tokenSecret?: string;
+  versions?: string[];
+}
+
+export interface RenderWorkflowOptions extends WorkflowDefinition {
+  postUpdateCommand: string;
+  tokenSecret: string;
+  versions: Map<DependencyManager, string>;
 }

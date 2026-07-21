@@ -11,6 +11,7 @@ export type CodeDependencies = Array<CodeDependenciesItem>;
 
 export type Level = "patch" | "minor" | "major";
 export type Mode = "verbose" | "precise";
+export type LockfilePolicy = boolean | string | string[];
 export type InitType = (typeof INIT_TYPES)[number];
 export type InitInput = InitType | string[];
 export type SupportedLanguage = (typeof LANGUAGES)[keyof typeof LANGUAGES];
@@ -31,6 +32,7 @@ export type CodependenceTarget = {
   permissive?: boolean;
   level?: Level;
   mode?: Mode;
+  lockfile?: LockfilePolicy;
 };
 
 export type Options = {
@@ -61,6 +63,8 @@ export type Options = {
   level?: Level;
   mode?: Mode;
   targets?: CodependenceTarget[];
+  target?: DependencyManager[];
+  lockfile?: LockfilePolicy;
 };
 
 export type CheckFiles = {
@@ -85,6 +89,7 @@ export type CheckFiles = {
   onProgress?: (current: number, total: number, packageName: string) => void;
   level?: Level;
   mode?: Mode;
+  lockfile?: LockfilePolicy;
   packageManager?: DependencyManager;
   deferFailure?: boolean;
   onDeferredFailure?: () => void;
@@ -122,6 +127,7 @@ export type CodependenceConfig = {
   language?: SupportedLanguage;
   level?: Level;
   mode?: Mode;
+  lockfile?: LockfilePolicy;
   targets?: CodependenceTarget[];
 };
 

@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync } from "fs";
-import { basename, dirname, resolve } from "path";
+import { existsSync, readFileSync, statSync, writeFileSync } from "fs";
+import { basename, dirname, isAbsolute, relative, resolve, sep, win32 } from "path";
 import {
   DockerProvider,
   GoProvider,
@@ -37,6 +37,7 @@ import {
   DEP_SECTIONS,
   NODE_MANAGER_NAMES,
   PYTHON_MANIFEST_NAMES,
+  STANDARD_LOCKFILES,
   SUPPORTED_LANGUAGE_NAMES,
   VERSION_RESOLUTION_CONCURRENCY,
 } from "./constants";
@@ -64,6 +65,7 @@ import {
   Level,
   InteractiveResult,
   SupportedLanguage,
+  DependencyManager,
 } from "../types";
 
 const isSupportedLanguageName = (language: string | undefined): language is SupportedLanguage => {
@@ -147,7 +149,7 @@ const resolveMatchers = (
 const resolveNodeManager = (
   filePath: string,
   options: Pick<CheckFiles, "yarnConfig" | "packageManager">,
-): string => {
+): DependencyManager => {
   if (options.yarnConfig) return NODE_PACKAGE_MANAGERS.YARN;
 
   const requestedManager = options.packageManager;
@@ -155,7 +157,7 @@ const resolveNodeManager = (
     return requestedManager;
   }
 
-  return detectNodePackageManager(dirname(filePath));
+  return detectNodePackageManager(dirname(filePath)) as DependencyManager;
 };
 
 const resolvePythonManager = (
@@ -253,6 +255,97 @@ const collectDepNamesFromManifest = (manifest: DependencyManifest): string[] => 
 
 const collectAllDepNamesFromManifests = (manifests: LoadedManifest[]): string[] =>
   Array.from(new Set(manifests.flatMap(({ manifest }) => collectDepNamesFromManifest(manifest))));
+
+const assertCustomLockfiles = (rootDir: string, lockfile: string | string[]): void => {
+  const lockfiles = Array.isArray(lockfile) ? lockfile : [lockfile];
+  const absolutePaths = lockfiles.filter((file) => isAbsolute(file) || win32.isAbsolute(file));
+  if (absolutePaths.length > 0) {
+    throw new Error(`Lockfile path must be repository-relative: ${absolutePaths.join(", ")}`);
+  }
+
+  const paths = lockfiles.map((file) => resolve(rootDir, file));
+  const outsideRoot = paths.filter((file) => {
+    const rootRelative = relative(rootDir, file);
+    return rootRelative === ".." || rootRelative.startsWith(`..${sep}`);
+  });
+  if (outsideRoot.length > 0) {
+    throw new Error(`Lockfile path escapes target root: ${outsideRoot.join(", ")}`);
+  }
+
+  const missing = paths.filter((file) => !existsSync(file) || !statSync(file).isFile());
+  if (missing.length === 0) return;
+
+  throw new Error(`Required lockfile(s) not found: ${missing.join(", ")}`);
+};
+
+const standardLockfilePaths = (loadedManifest: LoadedManifest, rootDir: string): string[] => {
+  const lockfiles = STANDARD_LOCKFILES[loadedManifest.packageManager] ?? [];
+  const directories = new Set([rootDir, dirname(loadedManifest.path)]);
+  const rootPaths = lockfiles.map((file) => resolve(rootDir, file));
+  const manifestPaths = lockfiles.map((file) => resolve(dirname(loadedManifest.path), file));
+  if (directories.size === 1) return rootPaths;
+  return [...rootPaths, ...manifestPaths];
+};
+
+const assertStandardLockfile = (loadedManifest: LoadedManifest, rootDir: string): void => {
+  const hasDependencies = collectDepNamesFromManifest(loadedManifest.manifest).length > 0;
+  if (!hasDependencies) return;
+
+  const paths = standardLockfilePaths(loadedManifest, rootDir);
+  const hasLockfile = paths.some(existsSync);
+  if (hasLockfile) return;
+
+  const manager = loadedManifest.packageManager;
+  if (paths.length === 0) {
+    throw new Error(
+      `No standard lockfile is defined for ${manager}; configure lockfile or use false`,
+    );
+  }
+  throw new Error(`Required ${manager} lockfile not found (expected ${paths.join(" or ")})`);
+};
+
+const assertRequiredLockfiles = (
+  manifests: LoadedManifest[],
+  lockfile: CheckFiles["lockfile"],
+  rootDir: string,
+): void => {
+  if (typeof lockfile === "string" || Array.isArray(lockfile)) {
+    assertCustomLockfiles(rootDir, lockfile);
+    return;
+  }
+  if (lockfile !== true) return;
+
+  const lockfileManagers = manifests.filter(({ language }) => {
+    return language !== LANGUAGES.DOCKER && language !== LANGUAGES.GITHUB_ACTIONS;
+  });
+  lockfileManagers.forEach((manifest) => assertStandardLockfile(manifest, rootDir));
+};
+
+export const assertTargetLockfiles = ({
+  files: matchers,
+  rootDir = "./",
+  ignore = [...DEFAULT_IGNORE_PATTERNS],
+  language,
+  debug = false,
+  yarnConfig = false,
+  isTesting = false,
+  packageManager,
+  lockfile,
+}: CheckFiles): void => {
+  if (lockfile === undefined || lockfile === false) return;
+
+  const resolvedRootDir = resolve(rootDir);
+  const effectiveMatchers = resolveMatchers(resolvedRootDir, matchers, language);
+  const files = glob(effectiveMatchers, { cwd: resolvedRootDir, ignore });
+  const manifests = loadManifests(files, resolvedRootDir, {
+    language,
+    debug,
+    yarnConfig,
+    isTesting,
+    packageManager,
+  });
+  assertRequiredLockfiles(manifests, lockfile, resolvedRootDir);
+};
 
 const getPackageNormalizer = (provider: DependencyProvider): PackageNormalizer | null => {
   if (!provider.normalizePackageName) return null;
@@ -1329,6 +1422,7 @@ export const checkFiles = async ({
   onProgress,
   level = "major",
   mode,
+  lockfile,
   packageManager,
   deferFailure = false,
   onDeferredFailure,
@@ -1360,6 +1454,7 @@ export const checkFiles = async ({
       mode,
       permissive,
     });
+    assertRequiredLockfiles(manifests, lockfile, resolvedRootDir);
     const isPreciseMode = effectiveMode === "precise";
     assertProviderResolutionSupport(
       manifests,

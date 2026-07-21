@@ -9,9 +9,9 @@ ARG CODEPENDENCE_VERSION
 RUN echo "Installing codependence@${CODEPENDENCE_VERSION}" && \
     npm install -g codependence@${CODEPENDENCE_VERSION}
 
-RUN mkdir -p dist tests/e2e/fixtures/dist tests/integration/fixtures tests/release/fixtures
+RUN mkdir -p dist tests/e2e/fixtures/dist tests/fixtures tests/release/fixtures
 COPY tests/e2e/fixtures/ ./tests/e2e/fixtures/
-COPY tests/integration/fixtures/ ./tests/integration/fixtures/
+COPY tests/fixtures/ ./tests/fixtures/
 COPY tests/e2e/test-go-update.sh ./tests/e2e/test-go-update.sh
 COPY tests/release/codependence-cli-shim.cjs ./dist/cli.js
 COPY tests/release/codependence-cli-shim.cjs ./tests/e2e/fixtures/dist/cli.js

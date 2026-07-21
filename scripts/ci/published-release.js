@@ -52,7 +52,7 @@ export function legacyCompatibilityScript() {
     'echo "Testing 0.3.1 compatibility..."',
     'NODE_PATH="$(npm root -g)" node -e "const { script } = require(\'codependence\'); if (typeof script !== \'function\') process.exit(1)"',
     "mkdir -p /tmp/codependence-legacy",
-    "cp /app/tests/integration/fixtures/0.3.1/package.json /tmp/codependence-legacy/package.json",
+    "cp /app/tests/fixtures/0.3.1/package.json /tmp/codependence-legacy/package.json",
     "cd /tmp/codependence-legacy",
     "codependence -s \"$PWD\" -r \"$PWD/\" -f package.json -i '**/node_modules/**' -u --silent",
     'node -e "const p = require(\'./package.json\'); if (p.dependencies.lodash !== \'^4.17.21\' || p.dependencies[\'fs-extra\'] !== \'10.0.0\') process.exit(1)"',

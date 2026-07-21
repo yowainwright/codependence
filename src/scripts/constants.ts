@@ -1,10 +1,12 @@
 import {
   DEFAULT_LANGUAGE_MANIFESTS,
   LANGUAGES,
+  MANIFEST_FILES,
   NODE_PACKAGE_MANAGERS,
   PYTHON_MANIFEST_FILES,
+  PYTHON_PACKAGE_MANAGERS,
 } from "../providers/constants";
-import type { SupportedLanguage } from "../types";
+import type { DependencyManager, SupportedLanguage } from "../types";
 
 export const DEP_SECTIONS = [
   "dependencies",
@@ -33,3 +35,15 @@ export const DEFAULT_IGNORE_PATTERNS = [
 export const VERSION_RESOLUTION_CONCURRENCY = 8;
 export const SUPPORTED_LANGUAGE_NAMES = new Set<string>(Object.values(LANGUAGES));
 export const NODE_MANAGER_NAMES = new Set<string>(Object.values(NODE_PACKAGE_MANAGERS));
+
+export const STANDARD_LOCKFILES: Partial<Record<DependencyManager, readonly string[]>> = {
+  [NODE_PACKAGE_MANAGERS.BUN]: [MANIFEST_FILES.BUN_LOCK, MANIFEST_FILES.BUN_LOCK_BINARY],
+  [NODE_PACKAGE_MANAGERS.NPM]: [MANIFEST_FILES.NPM_LOCK, MANIFEST_FILES.NPM_SHRINKWRAP],
+  [NODE_PACKAGE_MANAGERS.PNPM]: [MANIFEST_FILES.PNPM_LOCK],
+  [NODE_PACKAGE_MANAGERS.YARN]: [MANIFEST_FILES.YARN_LOCK],
+  [PYTHON_PACKAGE_MANAGERS.PIPENV]: ["Pipfile.lock"],
+  [PYTHON_PACKAGE_MANAGERS.POETRY]: ["poetry.lock"],
+  [PYTHON_PACKAGE_MANAGERS.UV]: [MANIFEST_FILES.UV_LOCK],
+  [LANGUAGES.GO]: [MANIFEST_FILES.GO_SUM],
+  [LANGUAGES.RUST]: [MANIFEST_FILES.CARGO_LOCK],
+};

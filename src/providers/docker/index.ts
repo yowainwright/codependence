@@ -3,6 +3,13 @@ import { LANGUAGES } from "../constants";
 import type { DependencyManifest, DependencyProvider, DockerImage } from "../types";
 import { DOCKER_PATTERNS } from "./constants";
 
+interface DockerArgument {
+  readonly name: string;
+  readonly value: string;
+}
+
+type DockerArguments = Record<string, string>;
+
 const emptyManifest = (filePath: string): DependencyManifest => {
   const manifest = {
     filePath,
@@ -14,6 +21,24 @@ const emptyManifest = (filePath: string): DependencyManifest => {
 const isScratchImage = (image: DockerImage): boolean => image.name === "scratch";
 
 const hasDockerVariable = (image: string): boolean => image.includes("$");
+
+const readDockerArgument = (line: string): DockerArgument | null => {
+  const match = line.match(DOCKER_PATTERNS.ARG_LINE);
+  if (!match) return null;
+
+  return { name: match[2], value: match[5] };
+};
+
+const dockerArgumentName = (value: string): string | null => {
+  const matches = [...value.matchAll(DOCKER_PATTERNS.ARG_REFERENCE)];
+  if (matches.length !== 1) return null;
+
+  const match = matches[0];
+  const remainingValue = value.replace(match[0], "");
+  if (remainingValue.includes("$")) return null;
+
+  return match[1] || match[2] || null;
+};
 
 const unsupportedDockerResolution = (): Error =>
   new Error(
@@ -36,16 +61,87 @@ const splitDockerImage = (image: string): DockerImage => {
   return imageSpec;
 };
 
-const readDockerFromLine = (line: string): DockerImage | null => {
+const resolveDockerVersion = (version: string, args: DockerArguments): string | null => {
+  if (!hasDockerVariable(version)) return version;
+
+  const argumentName = dockerArgumentName(version);
+  if (!argumentName) return null;
+
+  return args[argumentName] || null;
+};
+
+const readDockerFromLine = (line: string, args: DockerArguments): DockerImage | null => {
   const match = line.match(DOCKER_PATTERNS.FROM_LINE);
   if (!match) return null;
-  if (hasDockerVariable(match[2])) return null;
   if (match[3].trimStart().startsWith("@")) return null;
 
   const imageSpec = splitDockerImage(match[2]);
+  if (hasDockerVariable(imageSpec.name)) return null;
   if (isScratchImage(imageSpec)) return null;
 
-  return imageSpec;
+  const version = resolveDockerVersion(imageSpec.version, args);
+  if (!version) return null;
+
+  return { name: imageSpec.name, version };
+};
+
+const readDockerArguments = (lines: string[]): DockerArguments =>
+  lines.reduce((args, line) => {
+    const argument = readDockerArgument(line);
+    if (argument) args[argument.name] = argument.value;
+    return args;
+  }, {} as DockerArguments);
+
+const requestedArgumentUpdate = (
+  line: string,
+  args: DockerArguments,
+  dependencies: Record<string, string>,
+): readonly [string, string] | null => {
+  const match = line.match(DOCKER_PATTERNS.FROM_LINE);
+  if (!match || match[3].trimStart().startsWith("@")) return null;
+
+  const imageSpec = splitDockerImage(match[2]);
+  if (hasDockerVariable(imageSpec.name) || isScratchImage(imageSpec)) return null;
+
+  const argumentName = dockerArgumentName(imageSpec.version);
+  if (!argumentName) return null;
+
+  const argumentDefault = args[argumentName];
+  const version = dependencies[imageSpec.name];
+  if (!argumentDefault || !version) return null;
+
+  return [argumentName, version];
+};
+
+const collectArgumentUpdates = (
+  lines: string[],
+  args: DockerArguments,
+  dependencies: Record<string, string>,
+): DockerArguments => {
+  const updates: DockerArguments = {};
+  const conflicts = new Set<string>();
+
+  lines.forEach((line) => {
+    const update = requestedArgumentUpdate(line, args, dependencies);
+    if (!update) return;
+
+    const [name, version] = update;
+    if (updates[name] && updates[name] !== version) conflicts.add(name);
+    updates[name] = version;
+  });
+
+  conflicts.forEach((name) => delete updates[name]);
+  return updates;
+};
+
+const updateDockerArgumentLine = (line: string, updates: DockerArguments): string => {
+  const match = line.match(DOCKER_PATTERNS.ARG_LINE);
+  if (!match) return line;
+
+  const version = updates[match[2]];
+  if (!version) return line;
+
+  return `${match[1]}${match[2]}${match[3]}${match[4]}${version}${match[4]}${match[6]}`;
 };
 
 export const updateDockerFromLine = (
@@ -87,9 +183,13 @@ export class DockerProvider implements DependencyProvider {
   readManifest(filePath: string): DependencyManifest {
     const manifest = emptyManifest(filePath);
     const content = readFileSync(filePath, "utf8");
+    const args: DockerArguments = {};
 
     for (const line of content.split("\n")) {
-      const imageSpec = readDockerFromLine(line);
+      const argument = readDockerArgument(line);
+      if (argument) args[argument.name] = argument.value;
+
+      const imageSpec = readDockerFromLine(line, args);
       if (!imageSpec) continue;
 
       manifest.dependencies[imageSpec.name] = imageSpec.version;
@@ -100,12 +200,13 @@ export class DockerProvider implements DependencyProvider {
 
   writeManifest(filePath: string, manifest: DependencyManifest): void {
     const content = readFileSync(filePath, "utf8");
-    const updatedLines: string[] = [];
-
-    for (const line of content.split("\n")) {
-      const updatedLine = updateDockerFromLine(line, manifest.dependencies);
-      updatedLines.push(updatedLine);
-    }
+    const lines = content.split("\n");
+    const args = readDockerArguments(lines);
+    const updates = collectArgumentUpdates(lines, args, manifest.dependencies);
+    const updatedLines = lines.map((line) => {
+      const updatedArgument = updateDockerArgumentLine(line, updates);
+      return updateDockerFromLine(updatedArgument, manifest.dependencies);
+    });
 
     const updated = updatedLines.join("\n");
     writeFileSync(filePath, updated);
