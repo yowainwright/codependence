@@ -114,20 +114,24 @@ export const updateExistingRequireLines = (
   return { content: lines.join("\n"), updatedCount, foundCount };
 };
 
+const parseDependencyLine = (line: string): [string, string] | null => {
+  const match = line.trim().match(GO_PATTERNS.DEPENDENCY_LINE);
+  return match ? [match[1], match[2]] : null;
+};
+
+const parseRequireBlockEntries = (block: string): Array<[string, string]> =>
+  block
+    .split("\n")
+    .map(parseDependencyLine)
+    .filter((entry): entry is [string, string] => entry !== null);
+
 export const parseRequireBlock = (content: string): Record<string, string> => {
-  const dependencies: Record<string, string> = {};
-  const requireBlock = content.match(GO_PATTERNS.REQUIRE_BLOCK);
+  const requireBlocks = content.matchAll(GO_PATTERNS.REQUIRE_BLOCKS);
+  const entries = Array.from(requireBlocks).flatMap((match) =>
+    parseRequireBlockEntries(match[1]),
+  );
 
-  if (!requireBlock) return dependencies;
-
-  const lines = requireBlock[1].split("\n");
-  lines.forEach((line) => {
-    const match = line.trim().match(GO_PATTERNS.DEPENDENCY_LINE);
-    if (!match) return;
-    dependencies[match[1]] = match[2];
-  });
-
-  return dependencies;
+  return Object.fromEntries(entries);
 };
 
 export const parseSingleRequires = (content: string): Record<string, string> => {

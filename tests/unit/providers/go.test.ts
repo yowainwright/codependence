@@ -210,6 +210,32 @@ require github.com/joho/godotenv v1.5.1
       });
     });
 
+    test("should read every require block", async () => {
+      const goModPath = join(tmpDir, "multiple-blocks.mod");
+      const goModContent = `module example.com/myapp
+
+go 1.21
+
+require (
+	github.com/direct/pkg v1.0.0
+)
+
+require (
+	github.com/indirect/pkg v2.0.0 // indirect
+)
+`;
+
+      writeFileSync(goModPath, goModContent);
+
+      const provider = new GoProvider({ isTesting: true });
+      const manifest = await provider.readManifest(goModPath);
+
+      expect(manifest.dependencies).toEqual({
+        "github.com/direct/pkg": "v1.0.0",
+        "github.com/indirect/pkg": "v2.0.0",
+      });
+    });
+
     test("should handle go.mod without requires", async () => {
       const goModPath = join(tmpDir, "no-deps.mod");
       const goModContent = `module github.com/example/simple

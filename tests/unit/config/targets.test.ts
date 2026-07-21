@@ -66,4 +66,33 @@ describe("expandTargets", () => {
       ["environment.yml", "environment.yaml"],
     ]);
   });
+
+  test("inherits shared scope options and allows target overrides", () => {
+    const targets = expandTargets({
+      rootDir: "/repo",
+      ignore: ["**/generated/**"],
+      targets: [
+        { manager: "go", mode: "precise" },
+        {
+          manager: "bun",
+          mode: "precise",
+          rootDir: "/repo/frontend",
+          ignore: ["**/.cache/**"],
+        },
+      ],
+    });
+
+    expect(targets).toEqual([
+      expect.objectContaining({
+        packageManager: "go",
+        rootDir: "/repo",
+        ignore: ["**/generated/**"],
+      }),
+      expect.objectContaining({
+        packageManager: "bun",
+        rootDir: "/repo/frontend",
+        ignore: ["**/.cache/**"],
+      }),
+    ]);
+  });
 });

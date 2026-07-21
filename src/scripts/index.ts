@@ -32,6 +32,7 @@ import { collectDiffsFromManifests, displayVersionDiffs } from "../utils/diff";
 import { Prompt } from "../utils/prompts";
 import { isWithinLevel, stripRepeatingVersionPrefixes } from "../utils/semver";
 import {
+  DEFAULT_IGNORE_PATTERNS,
   DEFAULT_FILE_MATCHERS,
   DEP_SECTIONS,
   NODE_MANAGER_NAMES,
@@ -1310,7 +1311,7 @@ export const checkFiles = async ({
   codependencies,
   files: matchers,
   rootDir = "./",
-  ignore = ["**/node_modules/**"],
+  ignore = [...DEFAULT_IGNORE_PATTERNS],
   update = false,
   debug = false,
   silent = false,
@@ -1484,5 +1485,7 @@ export const checkFiles = async ({
 };
 
 export const codependence = checkFiles;
-export const script = checkFiles;
+export const script = async (options: CheckFiles = {}): Promise<void> => {
+  await checkFiles(options).catch(() => undefined);
+};
 export default checkFiles;

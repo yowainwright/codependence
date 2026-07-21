@@ -23,6 +23,13 @@ export const DEFAULT_FILE_MATCHERS: Record<SupportedLanguage, string[]> = {
 };
 
 export const PYTHON_MANIFEST_NAMES = new Set<string>(PYTHON_MANIFEST_FILES);
+export const DEFAULT_IGNORE_PATTERNS = [
+  "**/.git/**",
+  "**/.next/**",
+  "**/.venv/**",
+  "**/node_modules/**",
+  "**/*.dockerignore",
+] as const;
 export const VERSION_RESOLUTION_CONCURRENCY = 8;
 export const SUPPORTED_LANGUAGE_NAMES = new Set<string>(Object.values(LANGUAGES));
 export const NODE_MANAGER_NAMES = new Set<string>(Object.values(NODE_PACKAGE_MANAGERS));

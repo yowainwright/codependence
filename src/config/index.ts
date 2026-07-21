@@ -27,6 +27,8 @@ const sharedOptions = (options: Options): CheckFiles => ({
   interactive: options.interactive,
   noCache: options.noCache,
   format: options.format,
+  rootDir: options.rootDir,
+  ignore: options.ignore,
 });
 
 const targetOptions = (target: CodependenceTarget, options: Options): CheckFiles => {

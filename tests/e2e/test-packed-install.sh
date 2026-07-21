@@ -97,7 +97,7 @@ pack_package() {
 }
 
 prepare_local_legibility_package() {
-  cp -R "$ROOT_DIR/node_modules/eslint-plugin-legibility" "$PLUGIN_PACKAGE_DIR"
+  cp -RL "$ROOT_DIR/node_modules/eslint-plugin-legibility" "$PLUGIN_PACKAGE_DIR"
   node - "$PLUGIN_PACKAGE_DIR/package.json" <<'NODE'
 const fs = require("node:fs");
 const packagePath = process.argv[2];
@@ -156,6 +156,36 @@ JSON
   assert_file_equals "$FIXTURE_DIR/expected/rust-Cargo.toml.expected" "$provider_root/Cargo.toml" "packed CLI updates Cargo.toml exactly"
 }
 
+test_installed_legacy_compatibility() {
+  legacy_root="$WORK_DIR/legacy"
+  mkdir -p "$legacy_root"
+  cp "$ROOT_DIR/tests/integration/fixtures/0.3.1/package.json" "$legacy_root/package.json"
+
+  node "$PROJECT_DIR/node_modules/codependence/dist/cli.js" \
+    -s "$legacy_root" \
+    -r "$legacy_root/" \
+    -f package.json \
+    -i '**/node_modules/**' \
+    -u \
+    --silent
+
+  node - "$legacy_root/package.json" <<'NODE'
+const fs = require("node:fs");
+const packagePath = process.argv[2];
+const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+if (pkg.dependencies.lodash !== "^4.17.21") process.exit(1);
+if (pkg.dependencies["fs-extra"] !== "10.0.0") process.exit(1);
+NODE
+
+  node - "$PROJECT_DIR/node_modules/codependence" <<'NODE'
+const entry = require(process.argv[2]);
+if (typeof entry.script !== "function") process.exit(1);
+NODE
+
+  "$PROJECT_DIR/node_modules/.bin/cdp" --help >/dev/null
+  pass "packed package preserves 0.3.1 compatibility"
+}
+
 test_installed_skill_script() {
   (
     cd "$PROJECT_DIR"
@@ -174,6 +204,7 @@ main() {
   prepare_local_legibility_package
   install_package
   test_installed_cli_updates_providers
+  test_installed_legacy_compatibility
   test_installed_skill_script
 }
 

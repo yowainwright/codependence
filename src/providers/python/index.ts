@@ -473,10 +473,12 @@ export class PythonProvider implements DependencyProvider {
   }
 
   private writeRequirementsTxt(filePath: string, manifest: DependencyManifest): void {
-    const lines = Object.entries(manifest.dependencies)
-      .map(([name, version]) => `${name}${version}`)
+    const content = readFileSync(filePath, "utf8");
+    const updated = content
+      .split("\n")
+      .map((line) => updatePyprojectDependencySpec(line, manifest.dependencies))
       .join("\n");
-    writeFileSync(filePath, lines + "\n");
+    writeFileSync(filePath, updated);
   }
 
   private writePyprojectToml(filePath: string, manifest: DependencyManifest): void {

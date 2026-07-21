@@ -228,6 +228,14 @@ const updateAllExceptSpecific = async () => {
 checkForOutdated();
 ```
 
+### 0.3.1 compatibility
+
+The v1 CLI keeps the final pre-1.0 contract from `0.3.1`: the `codependence`
+and `cdp` binaries, legacy CLI flags, flat and embedded `package.json` policy,
+and listed-only `codependencies` behavior. The named `script` export retains
+the legacy non-throwing API. Use `checkFiles` or `codependence` when callers
+need v1 errors and version-diff results.
+
 ## Configuration Options
 
 `.codependencerc` is the primary configuration surface. Keep manager policies in the file and use CLI flags for execution choices such as checking, updating, or formatting output.
@@ -263,9 +271,10 @@ config.
 Supported managers are `bun`, `npm`, `pnpm`, `yarn`, `conda`, `pip`,
 `pipenv`, `poetry`, `uv`, `go`, `rust`, `docker`, and `github-actions`.
 Execution options such as `update`, `dryRun`, `format`, and `noCache` stay at
-the root and apply to every target. Legacy flat and embedded `package.json`
-configurations remain supported, but new projects should use `.codependencerc`.
-Target-scoped fields cannot be mixed beside `targets`.
+the root and apply to every target. Root `rootDir` and `ignore` values are also
+inherited unless a target overrides them. Legacy flat and embedded
+`package.json` configurations remain supported, but new projects should use
+`.codependencerc`. Target-scoped fields cannot be mixed beside `targets`.
 
 ---
 
@@ -359,7 +368,8 @@ An **optional** string which can used to specify the root directory to run check
 
 An **optional** array of strings used to specify directories to ignore
 
-- The default value is `["node_modules/**/*", "**/node_modules/**/*"]`
+- `.git`, `.next`, `.venv`, `node_modules`, and `*.dockerignore` files are ignored by default
+- an explicit `ignore` array replaces these defaults for 0.x compatibility
 - glob patterns are accepted
 
 ---
@@ -496,6 +506,8 @@ codependence --language github-actions
 
 The Docker provider currently supports explicit pinned updates only. Use object
 codependencies such as `{"node":"24-slim"}` with `mode: "verbose"`.
+`Dockerfile`, `Dockerfile.*`, and their recursive equivalents are discovered by
+default. `FROM` values assembled from Docker `ARG` variables are not resolved.
 
 The GitHub Actions provider supports explicit pins, latest release resolution,
 and `mode: "precise"`. Latest versions resolve to immutable commit SHAs, and
@@ -505,6 +517,11 @@ when available.
 
 Non-Node providers remain experimental, but stable and experimental managers
 can share the same `targets` array.
+
+Python requirements updates preserve comments, markers, hashes, and include
+directives. Unversioned and URL-based requirements are left unchanged. After
+updating manifests, regenerate and commit ecosystem lockfiles with their native
+package managers.
 
 ---
 

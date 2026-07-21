@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: yowainwright/codependence@v1
+      - uses: yowainwright/codependence@84b52d79ab0cf2430370c27a6a99a18273a1ac68 # v1.0.2
 ```
 
 ## Inputs
@@ -65,13 +65,13 @@ Codependence for authenticated version lookups.
 ### Check repository policy
 
 ```yaml
-- uses: yowainwright/codependence@v1
+- uses: yowainwright/codependence@84b52d79ab0cf2430370c27a6a99a18273a1ac68 # v1.0.2
 ```
 
 ### Update dependencies
 
 ```yaml
-- uses: yowainwright/codependence@v1
+- uses: yowainwright/codependence@84b52d79ab0cf2430370c27a6a99a18273a1ac68 # v1.0.2
   with:
     update: true
 ```
@@ -79,7 +79,7 @@ Codependence for authenticated version lookups.
 ### Alternate config path
 
 ```yaml
-- uses: yowainwright/codependence@v1
+- uses: yowainwright/codependence@84b52d79ab0cf2430370c27a6a99a18273a1ac68 # v1.0.2
   with:
     config: 'config/dependency-policy.json'
 ```
@@ -88,6 +88,10 @@ Codependence for authenticated version lookups.
 
 Add each manager to the root `.codependencerc`. The same action invocation runs
 all configured targets.
+
+Root `rootDir` and `ignore` inputs apply to every target unless that target
+overrides them. Generated `.git`, `.next`, `.venv`, and `node_modules` content
+is ignored automatically. An explicit `ignore` input replaces those defaults.
 
 ### Multiple managers in one config
 
@@ -100,12 +104,26 @@ all configured targets.
   "targets": [
     {
       "manager": "bun",
-      "files": ["package.json"],
+      "files": ["**/package.json"],
       "mode": "precise"
     },
     {
+      "manager": "go",
+      "files": ["**/go.mod"],
+      "mode": "precise"
+    },
+    {
+      "manager": "uv",
+      "files": ["**/pyproject.toml"],
+      "mode": "precise"
+    },
+    {
+      "manager": "docker",
+      "mode": "verbose",
+      "codependencies": [{ "node": "24-slim" }]
+    },
+    {
       "manager": "github-actions",
-      "files": ["action.yml", ".github/workflows/*.yml"],
       "mode": "precise"
     }
   ]
@@ -113,15 +131,26 @@ all configured targets.
 ```
 
 ```yaml
-- uses: yowainwright/codependence@v1
+- uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.4.0
   with:
-    update: true
+    go-version: "stable"
+    cache: false
+- uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+- uses: yowainwright/codependence@84b52d79ab0cf2430370c27a6a99a18273a1ac68 # v1.0.2
+  with:
+    fail-on-outdated: true
 ```
+
+Use check-only mode first. Docker `ARG`-assembled `FROM` values and unversioned
+or URL-based Python requirements are currently skipped. For update workflows,
+regenerate and commit each ecosystem's lockfiles with its native package manager.
+Latest Go, uv, or Rust resolution requires the corresponding provider CLI on
+`PATH`; explicit object pins do not.
 
 ### Update and commit
 
 ```yaml
-- uses: yowainwright/codependence@v1
+- uses: yowainwright/codependence@84b52d79ab0cf2430370c27a6a99a18273a1ac68 # v1.0.2
   with:
     update: true
 
@@ -136,7 +165,7 @@ all configured targets.
 ### Use output in conditional
 
 ```yaml
-- uses: yowainwright/codependence@v1
+- uses: yowainwright/codependence@84b52d79ab0cf2430370c27a6a99a18273a1ac68 # v1.0.2
   id: check
   with:
     fail-on-outdated: false

@@ -8,6 +8,7 @@ import {
   compatibilityScript,
   formatReport,
   formatSummary,
+  legacyCompatibilityScript,
   packageSpec,
   releaseE2eScript,
   requireVersion,
@@ -63,14 +64,24 @@ describe("scripts/ci/published-release_test", () => {
     expect(compatibilityScript()).toContain("--format json");
   });
 
+  test("legacyCompatibilityScript checks the 0.3.1 contract", () => {
+    const script = legacyCompatibilityScript();
+
+    expect(script).toContain("tests/integration/fixtures/0.3.1/package.json");
+    expect(script).toContain("codependence -s");
+    expect(script).toContain("cdp --help");
+    expect(script).toContain("require('codependence')");
+  });
+
   test("formatSummary includes the version", () => {
     expect(formatSummary("1.0.0")).toContain("Tested codependence version: 1.0.0");
   });
 
   test("formatReport includes release test coverage", () => {
-    expect(formatReport({ date: "2026-05-25 00:00:00 UTC", version: "1.0.0" })).toContain(
-      "- Go update preservation tests",
-    );
+    const report = formatReport({ date: "2026-05-25 00:00:00 UTC", version: "1.0.0" });
+
+    expect(report).toContain("- Go update preservation tests");
+    expect(report).toContain("- 0.3.1 compatibility contract");
   });
 
   test("formatReport only claims tests run by this repository", () => {
