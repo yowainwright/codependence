@@ -131,7 +131,7 @@ codependence init rc react lodash
 # Legacy: add configuration to package.json with all dependencies pinned
 codependence init package
 
-# Create separate Node, Python, Go, and infrastructure update workflows
+# Create separate Node, Python, Go, Rust, and infrastructure update workflows
 codependence init actions
 ```
 
@@ -229,8 +229,8 @@ Generate the recommended split workflows from the manager targets in
 codependence init actions
 ```
 
-This creates at most four stable workflow files for Node, Python, Go, and the
-combined Docker/GitHub Actions area. Existing files are preserved unless
+This creates at most five stable workflow files for Node, Python, Go, Rust, and
+the combined Docker/GitHub Actions area. Existing files are preserved unless
 `--force` is provided.
 
 <!-- partial update and pull request inputs from action.yml -->
@@ -245,8 +245,8 @@ Run one configured manager target with an exact tool version:
 ```
 
 PR mode requires a fine-grained PAT and `post-update-command`. Each manager set
-uses a stable branch, so scheduled Bun and Go workflows maintain separate pull
-requests while repeated runs update the existing PR. See the
+uses a stable branch, so scheduled Bun, Go, Rust, and uv workflows maintain
+separate pull requests while repeated runs update the existing PR. See the
 [GitHub Action guide](.github/ACTION.md) for lockfile policy and PAT permissions.
 
 ## Codependence in Node

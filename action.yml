@@ -122,7 +122,7 @@ runs:
       run: |
         set -eo pipefail
 
-        for manager in bun go npm pnpm uv yarn; do
+        for manager in bun go npm pnpm rust uv yarn; do
           echo "$manager-version=" >> "$GITHUB_OUTPUT"
         done
 
@@ -143,7 +143,7 @@ runs:
           fi
 
           case "$target" in
-            bun|npm|pnpm|yarn|go|uv)
+            bun|npm|pnpm|yarn|go|rust|uv)
               versioned+=("$target")
               ;;
             docker|github-actions)
@@ -235,6 +235,20 @@ runs:
       with:
         go-version: ${{ steps.targets.outputs.go-version }}
         cache: false
+
+    - name: Setup Rust
+      if: steps.targets.outputs.rust-version != ''
+      shell: bash
+      env:
+        TOOL_VERSION: ${{ steps.targets.outputs.rust-version }}
+      run: |
+        if ! command -v rustup >/dev/null 2>&1; then
+          echo "::error::Rust targets require rustup on the runner"
+          exit 2
+        fi
+        rustup toolchain install "$TOOL_VERSION" --profile minimal
+        rustup default "$TOOL_VERSION"
+        echo "RUSTUP_TOOLCHAIN=$TOOL_VERSION" >> "$GITHUB_ENV"
 
     - name: Setup uv
       if: steps.targets.outputs.uv-version != ''

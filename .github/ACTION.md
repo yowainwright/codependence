@@ -29,20 +29,22 @@ request workflows:
 codependence init actions
 ```
 
-The command creates at most four stable files:
+The command creates at most five stable files:
 
 - `.github/workflows/codependence-node.yml`
 - `.github/workflows/codependence-python.yml`
 - `.github/workflows/codependence-go.yml`
+- `.github/workflows/codependence-rust.yml`
 - `.github/workflows/codependence-infrastructure.yml`
 
 Node package managers share one workflow, and Docker plus GitHub Actions share
-the infrastructure workflow. Each file runs on a different weekday and updates
-one stable pull request branch.
+the infrastructure workflow. Every generated workflow uses the default schedule
+unless an area-specific schedule is configured and updates one stable pull
+request branch.
 
 Exact versions are read from `package.json#packageManager`, `go.mod`,
-`mise.toml`, `.mise.toml`, `.tool-versions`, or `versions.env`. Supply anything
-missing explicitly:
+`rust-toolchain.toml`, `rust-toolchain`, `mise.toml`, `.mise.toml`,
+`.tool-versions`, or `versions.env`. Supply anything missing explicitly:
 
 ```sh
 codependence init actions --version uv=0.8.0
@@ -57,7 +59,7 @@ codependence init actions \
   --schedule 'go=30 7 * * 5'
 ```
 
-Schedule keys are `node`, `python`, `go`, and `infrastructure`.
+Schedule keys are `node`, `python`, `go`, `rust`, and `infrastructure`.
 Post-update commands accept either an area or manager name.
 
 The default secret name is `CODEPENDENCE_TOKEN`; change it with
@@ -170,6 +172,11 @@ is ignored automatically. An explicit `ignore` input replaces those defaults.
       "mode": "precise"
     },
     {
+      "manager": "rust",
+      "files": ["**/Cargo.toml"],
+      "mode": "precise"
+    },
+    {
       "manager": "uv",
       "files": ["**/pyproject.toml"],
       "mode": "precise"
@@ -194,10 +201,10 @@ is ignored automatically. An explicit `ignore` input replaces those defaults.
     version: 1.24.5
 ```
 
-The Action installs exact Bun, npm, pnpm, Yarn, Go, or uv versions for selected
-targets. Docker and GitHub Actions targets do not accept `version`. Docker
-`ARG`-backed image tags are updated through their default value. Unversioned or
-URL-based Python requirements remain skipped.
+The Action installs exact Bun, npm, pnpm, Yarn, Go, Rust, or uv versions for
+selected targets. Docker and GitHub Actions targets do not accept `version`.
+Docker `ARG`-backed image tags are updated through their default value.
+Unversioned or URL-based Python requirements remain skipped.
 
 ### Create a pull request
 
@@ -230,9 +237,10 @@ jobs:
 ```
 
 The stable branch is `update-dependencies/go`, so every Go run updates the same
-open pull request. Bun, Go, uv, and `docker github-actions` invocations use
-different branches and therefore maintain separate pull requests. If multiple
-managers are intentionally passed together, they produce one pull request:
+open pull request. Bun, Go, Rust, uv, and `docker github-actions` invocations
+use different branches and therefore maintain separate pull requests. If
+multiple managers are intentionally passed together, they produce one pull
+request:
 
 ```yaml
 with:

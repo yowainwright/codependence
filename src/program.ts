@@ -27,6 +27,7 @@ import {
   MISE_VERSION_PATTERN,
   NODE_MANAGERS,
   REGEX_SPECIAL_CHARACTERS_PATTERN,
+  RUST_TOOLCHAIN_CHANNEL_PATTERN,
   TOOL_VERSIONS_VERSION_PATTERN,
   UPPERCASE_IDENTIFIER_PATTERN,
   VERSIONED_MANAGERS,
@@ -92,6 +93,7 @@ const areaForManager = (manager: DependencyManager): WorkflowArea => {
   if (NODE_MANAGERS.has(manager)) return "node";
   if (manager === PYTHON_PACKAGE_MANAGERS.UV) return "python";
   if (manager === LANGUAGES.GO) return "go";
+  if (manager === LANGUAGES.RUST) return "rust";
   return "infrastructure";
 };
 
@@ -175,6 +177,16 @@ const readGoVersion = (rootDir: string): string => {
   return GO_MINOR_VERSION_PATTERN.test(version) ? `${version}.0` : version;
 };
 
+const readRustVersion = (rootDir: string): string => {
+  const toolchainToml = readFile(join(rootDir, "rust-toolchain.toml"));
+  const tomlChannel = toolchainToml.match(RUST_TOOLCHAIN_CHANNEL_PATTERN)?.[1];
+  if (tomlChannel) return tomlChannel;
+
+  const toolchain = readFile(join(rootDir, "rust-toolchain"));
+  const legacyChannel = toolchain.match(RUST_TOOLCHAIN_CHANNEL_PATTERN)?.[1];
+  return legacyChannel || toolchain.trim();
+};
+
 const escapedPattern = (value: string): string =>
   value.replace(REGEX_SPECIAL_CHARACTERS_PATTERN, "\\$&");
 
@@ -224,10 +236,17 @@ const detectedVersion = (
     ? readPackageManagerVersion(targetDir, manager)
     : "";
   const goVersion = manager === LANGUAGES.GO ? readGoVersion(targetDir) : "";
+  const rustVersion = manager === LANGUAGES.RUST ? readRustVersion(targetDir) : "";
   const targetMetadataVersion = metadataVersion(targetDir, manager);
   const rootMetadataVersion = targetDir === rootDir ? "" : metadataVersion(rootDir, manager);
 
-  return packageManagerVersion || goVersion || targetMetadataVersion || rootMetadataVersion;
+  return (
+    packageManagerVersion ||
+    goVersion ||
+    rustVersion ||
+    targetMetadataVersion ||
+    rootMetadataVersion
+  );
 };
 
 const exactVersion = (manager: DependencyManager, version: string): string => {
@@ -304,6 +323,7 @@ const defaultManagerCommand = (manager: DependencyManager): string => {
   if (NODE_MANAGERS.has(manager)) return `${manager} install`;
   if (manager === PYTHON_PACKAGE_MANAGERS.UV) return "uv lock";
   if (manager === LANGUAGES.GO) return "go mod tidy";
+  if (manager === LANGUAGES.RUST) return "cargo generate-lockfile";
   return "git diff --check";
 };
 

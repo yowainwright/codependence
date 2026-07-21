@@ -245,6 +245,7 @@ test_installed_init_actions() {
   node_workflow="$workflow_dir/codependence-node.yml"
   python_workflow="$workflow_dir/codependence-python.yml"
   go_workflow="$workflow_dir/codependence-go.yml"
+  rust_workflow="$workflow_dir/codependence-rust.yml"
   infrastructure_workflow="$workflow_dir/codependence-infrastructure.yml"
   mkdir -p "$action_root"
   cat > "$action_root/.codependencerc" <<'JSON'
@@ -253,6 +254,7 @@ test_installed_init_actions() {
     { "manager": "bun" },
     { "manager": "uv" },
     { "manager": "go" },
+    { "manager": "rust" },
     { "manager": "docker" },
     { "manager": "github-actions" }
   ]
@@ -265,6 +267,7 @@ JSON
 }
 JSON
   printf 'module example.com/fixture\n\ngo 1.26\n' > "$action_root/go.mod"
+  printf '[toolchain]\nchannel = "1.88.0"\n' > "$action_root/rust-toolchain.toml"
 
   node "$PROJECT_DIR/node_modules/codependence/dist/cli.js" \
     init actions \
@@ -274,15 +277,18 @@ JSON
   assert_file_exists "$node_workflow" "packed CLI initializes Node workflow"
   assert_file_exists "$python_workflow" "packed CLI initializes Python workflow"
   assert_file_exists "$go_workflow" "packed CLI initializes Go workflow"
+  assert_file_exists "$rust_workflow" "packed CLI initializes Rust workflow"
   assert_file_exists "$infrastructure_workflow" "packed CLI initializes infrastructure workflow"
 
   grep -q 'targets: bun' "$node_workflow" || fail "generated Node target"
   grep -q 'version: 0.8.0' "$python_workflow" || fail "generated Python version"
   grep -q 'version: 1.26.0' "$go_workflow" || fail "generated exact Go version"
+  grep -q 'version: 1.88.0' "$rust_workflow" || fail "generated exact Rust version"
+  grep -q 'cargo generate-lockfile' "$rust_workflow" || fail "generated Rust lockfile command"
   grep -q 'github-actions' "$infrastructure_workflow" || fail "generated GitHub Actions target"
   default_schedule='cron: "0 9 * * 1"'
   pull_request_mode='pull-request: true'
-  for workflow_file in "$node_workflow" "$python_workflow" "$go_workflow" "$infrastructure_workflow"; do
+  for workflow_file in "$node_workflow" "$python_workflow" "$go_workflow" "$rust_workflow" "$infrastructure_workflow"; do
     grep -Fq "$default_schedule" "$workflow_file" || fail "workflow default schedule"
     grep -Fq "$pull_request_mode" "$workflow_file" || fail "workflow pull request mode"
   done
