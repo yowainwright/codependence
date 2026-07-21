@@ -1,0 +1,119 @@
+---
+title: GitHub Action
+description: Create small dependency update pull requests by manager.
+---
+
+<section>
+
+## Generate the workflows
+
+After configuring manager targets, generate the recommended split workflows:
+
+```bash
+codependence init actions
+```
+
+Codependence creates at most four stable files for Node, Python, Go, and the
+combined Docker/GitHub Actions area. It reads exact versions from common project
+metadata and reports any missing version:
+
+```bash
+codependence init actions --version uv=0.8.0
+```
+
+Use `--target` for one area, `--post-update-command 'go=task go:tidy'` for a
+repository-specific lockfile command, `--schedule 'go=30 7 * * 5'` for a custom
+cron, and `--force` only when replacing an existing generated workflow.
+Schedule keys are `node`, `python`, `go`, and `infrastructure`.
+
+## Target one manager
+
+Manager targets come from the root `.codependencerc`. Versioned targets require
+an exact tool version.
+
+```yaml
+- uses: yowainwright/codependence@v1
+  with:
+    targets: bun
+    version: 1.3.14
+```
+
+Use separate scheduled workflows for `bun`, `go`, `uv`, and the combined
+`docker github-actions` group. Each manager set has a stable branch, so reruns
+update one existing pull request instead of opening duplicates.
+
+## Pull request mode
+
+```yaml
+name: Update Go dependencies
+on:
+  schedule:
+    - cron: "0 9 * * 2"
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: yowainwright/codependence@v1
+        with:
+          targets: go
+          version: 1.24.5
+          pull-request: true
+          token: ${{ secrets.CODEPENDENCE_TOKEN }}
+          post-update-command: go mod tidy
+```
+
+The required `post-update-command` should regenerate the selected manager's
+lockfiles. Normal pull request checks should run the full validation suite.
+
+## Fine-grained PAT screens
+
+No GitHub App is required. Create a fine-grained personal access token in
+GitHub's personal access token settings.
+
+### Token screen
+
+1. Set **Resource owner** to the repository owner.
+2. Set **Repository access** to **Only select repositories**.
+3. Select the repository that will run Codependence.
+
+### Permissions screen
+
+Under **Repository permissions**, set:
+
+- **Contents** to **Read and write**.
+- **Pull requests** to **Read and write**.
+- **Workflows** to **Read and write** only when updating workflow files.
+
+### Repository secret screen
+
+Open **Settings → Secrets and variables → Actions**, create a repository secret
+named `CODEPENDENCE_TOKEN`, and paste the token value.
+
+## Lockfiles
+
+Lockfile enforcement defaults to `true`. Codependence fails before editing any
+selected target when a required lockfile is missing. Set `lockfile: false` to
+explicitly allow a manifest-only pull request. Docker and GitHub Actions targets
+do not require lockfiles or tool versions.
+
+## Combined updates
+
+Combining managers intentionally creates one pull request. When more than one
+selected manager needs a tool version, provide `manager=version` pairs.
+
+```yaml
+with:
+  targets: |
+    bun
+    go
+  version: |
+    bun=1.3.14
+    go=1.24.5
+```
+
+</section>

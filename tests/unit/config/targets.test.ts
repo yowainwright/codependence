@@ -47,6 +47,41 @@ describe("expandTargets", () => {
     ]);
   });
 
+  test("runs only explicitly selected managers", () => {
+    const targets = expandTargets({
+      target: ["go"],
+      targets: [
+        { manager: "bun", mode: "precise" },
+        { manager: "go", mode: "precise" },
+      ],
+    });
+
+    expect(targets).toEqual([
+      expect.objectContaining({
+        packageManager: "go",
+      }),
+    ]);
+  });
+
+  test("rejects unknown configured target selections", () => {
+    expect(() =>
+      expandTargets({
+        target: ["services"],
+        targets: [{ manager: "go", mode: "precise" }],
+      }),
+    ).toThrow("Unknown target manager(s): services");
+  });
+
+  test("rejects target selection without named configuration targets", () => {
+    expect(() =>
+      expandTargets({
+        target: ["services"],
+        language: "go",
+        mode: "precise",
+      }),
+    ).toThrow("Unknown target manager(s): services");
+  });
+
   test("uses manager-scoped Python manifest defaults", () => {
     const targets = expandTargets({
       targets: [
@@ -65,5 +100,46 @@ describe("expandTargets", () => {
       ["pyproject.toml"],
       ["environment.yml", "environment.yaml"],
     ]);
+  });
+
+  test("inherits shared scope options and allows target overrides", () => {
+    const targets = expandTargets({
+      rootDir: "/repo",
+      ignore: ["**/generated/**"],
+      targets: [
+        { manager: "go", mode: "precise" },
+        {
+          manager: "bun",
+          mode: "precise",
+          rootDir: "/repo/frontend",
+          ignore: ["**/.cache/**"],
+        },
+      ],
+    });
+
+    expect(targets).toEqual([
+      expect.objectContaining({
+        packageManager: "go",
+        rootDir: "/repo",
+        ignore: ["**/generated/**"],
+      }),
+      expect.objectContaining({
+        packageManager: "bun",
+        rootDir: "/repo/frontend",
+        ignore: ["**/.cache/**"],
+      }),
+    ]);
+  });
+
+  test("inherits shared lockfile enforcement and allows target opt-out", () => {
+    const targets = expandTargets({
+      lockfile: true,
+      targets: [
+        { manager: "bun", mode: "precise" },
+        { manager: "go", lockfile: false, mode: "precise" },
+      ],
+    });
+
+    expect(targets.map(({ lockfile }) => lockfile)).toEqual([true, false]);
   });
 });

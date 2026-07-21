@@ -19,11 +19,18 @@ For monorepos, scope manager targets with `files` or `rootDir`. Running `codepen
 Usage: codependence [command] [options]
 
 Commands:
-  init [type] [deps...]             Initialize codependence configuration
-                                    Types: rc, package, default
+  init [type] [items...]            Initialize Codependence
+                                    Types: rc, package, default, actions
 
 Options:
   -f, --files [files...]           File glob pattern
+  --target [managers...]           Run only selected manager targets
+  --version [manager=version...]   Exact tool versions for init actions
+  --post-update-command [name=cmd...] Override generated lockfile commands
+  --schedule [area=cron...]        Override generated workflow schedules
+  --token-secret <name>            GitHub PAT secret name for generated workflows
+  --force                           Replace generated workflow files
+  --lockfile [policy]              Require lockfiles, or pass false for manifest-only updates
   -u, --update                      Update dependencies based on check
   -r, --rootDir <rootDir>          Root directory to start search
   -i, --ignore [ignore...]         Ignore glob pattern
@@ -59,7 +66,13 @@ codependence init
 codependence init rc
 codependence init rc react lodash
 codependence init package
+codependence init actions
 ```
+
+`codependence init actions` reads manager targets from `.codependencerc` and
+creates separate Node, Python, Go, and infrastructure workflows. Existing files
+require `--force`; missing exact tool versions use
+`--version manager=version`.
 
 ## Options Reference
 

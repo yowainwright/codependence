@@ -13,7 +13,7 @@ mkdir -p "$WORK_DIR/.github/workflows"
 cp "$FIXTURE_DIR/docker-Dockerfile.fixture" "$WORK_DIR/Dockerfile"
 cp "$FIXTURE_DIR/github-actions-workflow.yml.fixture" "$WORK_DIR/.github/workflows/ci.yml"
 cat > "$WORK_DIR/.codependencerc" <<'JSON'
-{"mode":"verbose","files":["Dockerfile",".github/workflows/ci.yml"],"codependencies":[{"node":"24-slim"},{"nginx":"1.27-alpine"},{"actions/checkout":"v5"},{"actions/setup-node":"v5"}]}
+{"mode":"verbose","files":["Dockerfile",".github/workflows/ci.yml"],"codependencies":[{"node":"24-slim"},{"nginx":"1.27-alpine"},{"alpine":"3.20"},{"actions/checkout":"v5"},{"actions/setup-node":"v5"}]}
 JSON
 
 run_update "$WORK_DIR"

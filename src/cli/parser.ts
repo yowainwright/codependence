@@ -79,6 +79,12 @@ const applyDefaults = (options: Record<string, unknown>): Record<string, unknown
     return shouldApplyDefault ? { ...acc, [key]: def.defaultValue } : acc;
   }, options);
 
+const normalizeLockfile = (options: Record<string, unknown>): Record<string, unknown> => {
+  if (options.lockfile === "true") return { ...options, lockfile: true };
+  if (options.lockfile === "false") return { ...options, lockfile: false };
+  return options;
+};
+
 const processArgument = (args: string[], index: number, state: ArgumentState): ArgumentResult => {
   const arg = args[index];
   const isNotFlag = !isFlag(arg);
@@ -144,8 +150,9 @@ export const parseArgs = (argv: string[]): ParsedArgs => {
   }
 
   const optionsWithDefaults = applyDefaults(state.options);
+  const normalizedOptions = normalizeLockfile(optionsWithDefaults);
 
-  return { command: state.command, options: optionsWithDefaults };
+  return { command: state.command, options: normalizedOptions };
 };
 
 export const showHelp = (): void => {

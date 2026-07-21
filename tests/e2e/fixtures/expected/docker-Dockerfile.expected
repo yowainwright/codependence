@@ -1,7 +1,8 @@
-FROM node:24-slim AS builder
+ARG NODE_VERSION=24
+FROM node:${NODE_VERSION}-slim AS builder
 WORKDIR /app
 RUN npm ci
-ARG ALPINE_VERSION=3.19
+ARG ALPINE_VERSION=3.20
 FROM alpine:${ALPINE_VERSION} AS variable-tag
 RUN echo variable
 

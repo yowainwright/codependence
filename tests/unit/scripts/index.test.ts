@@ -1693,6 +1693,78 @@ test("checkFiles => auto-detects Docker manifests", async () => {
   }
 });
 
+test("checkFiles => discovers suffixed Dockerfiles by default", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-suffixed");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(join(tempDir, "Dockerfile.gcp"), "FROM node:20.11.1\n");
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: [{ node: "20.11.1" }],
+        rootDir: tempDir,
+        language: "docker",
+        mode: "verbose",
+        isTesting: true,
+        silent: true,
+      }),
+    ).resolves.toEqual([]);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => ignores generated manifests by default", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-default-ignore");
+  const nextDir = join(tempDir, ".next", "build");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(nextDir, { recursive: true });
+  writeFileSync(join(tempDir, "package.json"), '{"dependencies":{"lodash":"4.17.21"}}\n');
+  writeFileSync(join(nextDir, "package.json"), '{"dependencies":{"lodash":"4.17.0"}}\n');
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: [{ lodash: "4.17.21" }],
+        rootDir: tempDir,
+        files: ["**/package.json"],
+        mode: "verbose",
+        isTesting: true,
+        silent: true,
+      }),
+    ).resolves.toEqual([]);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => explicit ignore patterns replace compatibility defaults", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-explicit-ignore");
+  const nextDir = join(tempDir, ".next", "build");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(nextDir, { recursive: true });
+  writeFileSync(join(tempDir, "package.json"), '{"dependencies":{"lodash":"4.17.21"}}\n');
+  writeFileSync(join(nextDir, "package.json"), '{"dependencies":{"lodash":"4.17.0"}}\n');
+
+  try {
+    const diffs = await checkFiles({
+      codependencies: [{ lodash: "4.17.21" }],
+      rootDir: tempDir,
+      files: ["**/package.json"],
+      ignore: ["**/dist/**"],
+      mode: "verbose",
+      format: "json",
+      isTesting: true,
+      silent: true,
+    });
+
+    expect(diffs?.map((diff) => diff.package)).toEqual(["lodash"]);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("checkFiles => rejects Docker precise mode", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-precise");
   rmSync(tempDir, { recursive: true, force: true });

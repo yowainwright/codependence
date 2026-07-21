@@ -720,6 +720,35 @@ describe("validateConfig", () => {
       expect(validateConfig(config)).toEqual({ valid: true, errors: [] });
     });
 
+    it("accepts lockfile policies", () => {
+      const config = {
+        lockfile: true,
+        targets: [
+          { manager: "bun", mode: "precise" },
+          { manager: "go", lockfile: false, mode: "precise" },
+        ],
+      };
+
+      expect(validateConfig(config)).toEqual({ valid: true, errors: [] });
+    });
+
+    it("rejects unsafe lockfile paths", () => {
+      const result = validateConfig({
+        targets: [
+          { manager: "bun", lockfile: [], mode: "precise" },
+          { manager: "go", lockfile: "../go.sum", mode: "precise" },
+          { manager: "uv", lockfile: "C:\\repo\\uv.lock", mode: "precise" },
+        ],
+      });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.map(({ field }) => field)).toEqual([
+        "targets[0].lockfile",
+        "targets[1].lockfile",
+        "targets[2].lockfile",
+      ]);
+    });
+
     it("rejects non-array targets", () => {
       const result = validateConfig({ targets: "bun" });
 

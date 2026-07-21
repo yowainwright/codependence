@@ -95,9 +95,12 @@ codependence init rc react lodash
 
 # Legacy: add configuration to package.json with all dependencies pinned
 codependence init package
+
+# Generate split dependency update workflows
+codependence init actions
 ```
 
-Init command:
+Configuration init:
 
 - Interactive setup can create permissive mode configs (update all, pin specific ones)
 - Non-interactive setup can pin all dependencies or a listed dependency array
@@ -105,6 +108,9 @@ Init command:
 - Choose strategy: 🚀 Permissive (recommended) or 🔒 Pin all
 - Recommends `.codependencerc`; embedded `package.json` configuration remains available for legacy projects
 - Handles missing files and invalid JSON
+
+`codependence init actions` generates separate Node, Python, Go, and
+Docker/GitHub Actions workflows from configured manager targets.
 
 ---
 

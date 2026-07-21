@@ -47,6 +47,78 @@ describe("parseArgs", () => {
     expect(result.options.files).toEqual(["a.js", "b.js", "c.js"]);
   });
 
+  test("should parse selected target managers", () => {
+    const args = [...baseArgs, "--target", "bun", "go"];
+    const result = parseArgs(args);
+
+    expect(result.options.target).toEqual(["bun", "go"]);
+  });
+
+  test("should parse init actions options", () => {
+    const args = [
+      ...baseArgs,
+      "init",
+      "actions",
+      "--version",
+      "bun=1.3.14",
+      "go=1.26.4",
+      "--schedule",
+      "go=0 9 * * 3",
+      "--post-update-command",
+      "go=go mod tidy",
+      "--force",
+    ];
+    const result = parseArgs(args);
+
+    expect(result.options.version).toEqual(["bun=1.3.14", "go=1.26.4"]);
+    expect(result.options.schedule).toEqual(["go=0 9 * * 3"]);
+    expect(result.options.postUpdateCommand).toEqual(["go=go mod tidy"]);
+    expect(result.options.force).toBe(true);
+  });
+
+  test("should parse init actions target, credential, and root options", () => {
+    const args = [
+      ...baseArgs,
+      "init",
+      "actions",
+      "--target",
+      "go",
+      "--token-secret",
+      "DEPENDENCY_UPDATES",
+      "--rootDir",
+      "/workspace",
+    ];
+    const result = parseArgs(args);
+
+    expect(result.options.target).toEqual(["go"]);
+    expect(result.options.tokenSecret).toBe("DEPENDENCY_UPDATES");
+    expect(result.options.rootDir).toBe("/workspace");
+  });
+
+  test("should parse inline init actions values", () => {
+    const args = [
+      ...baseArgs,
+      "init",
+      "actions",
+      "--version=go=1.26.4",
+      "--schedule=go=0 9 * * 3",
+      "--post-update-command=go=go mod tidy",
+    ];
+    const result = parseArgs(args);
+
+    expect(result.options.version).toBe("go=1.26.4");
+    expect(result.options.schedule).toBe("go=0 9 * * 3");
+    expect(result.options.postUpdateCommand).toBe("go=go mod tidy");
+  });
+
+  test("should parse lockfile enforcement", () => {
+    const required = parseArgs([...baseArgs, "--lockfile"]);
+    const disabled = parseArgs([...baseArgs, "--lockfile=false"]);
+
+    expect(required.options.lockfile).toBe(true);
+    expect(disabled.options.lockfile).toBe(false);
+  });
+
   test("should parse short array flags", () => {
     const args = [...baseArgs, "-f", "a.js", "b.js"];
     const result = parseArgs(args);
@@ -102,16 +174,7 @@ describe("parseArgs", () => {
   });
 
   test("should parse mixed flags and values", () => {
-    const args = [
-      ...baseArgs,
-      "--update",
-      "--config",
-      "path",
-      "-f",
-      "a.js",
-      "b.js",
-      "--verbose",
-    ];
+    const args = [...baseArgs, "--update", "--config", "path", "-f", "a.js", "b.js", "--verbose"];
     const result = parseArgs(args);
 
     expect(result.options.update).toBe(true);
@@ -163,20 +226,10 @@ describe("parseArgs", () => {
   });
 
   test("should handle --codependencies with multiple values", () => {
-    const args = [
-      ...baseArgs,
-      "--codependencies",
-      "lodash",
-      "express",
-      "react",
-    ];
+    const args = [...baseArgs, "--codependencies", "lodash", "express", "react"];
     const result = parseArgs(args);
 
-    expect(result.options.codependencies).toEqual([
-      "lodash",
-      "express",
-      "react",
-    ]);
+    expect(result.options.codependencies).toEqual(["lodash", "express", "react"]);
   });
 
   test("should handle --cds shorthand", () => {

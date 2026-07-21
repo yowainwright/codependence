@@ -114,20 +114,22 @@ export const updateExistingRequireLines = (
   return { content: lines.join("\n"), updatedCount, foundCount };
 };
 
+const parseDependencyLine = (line: string): [string, string] | null => {
+  const match = line.trim().match(GO_PATTERNS.DEPENDENCY_LINE);
+  return match ? [match[1], match[2]] : null;
+};
+
+const parseRequireBlockEntries = (block: string): Array<[string, string]> =>
+  block
+    .split("\n")
+    .map(parseDependencyLine)
+    .filter((entry): entry is [string, string] => entry !== null);
+
 export const parseRequireBlock = (content: string): Record<string, string> => {
-  const dependencies: Record<string, string> = {};
-  const requireBlock = content.match(GO_PATTERNS.REQUIRE_BLOCK);
+  const requireBlocks = content.matchAll(GO_PATTERNS.REQUIRE_BLOCKS);
+  const entries = Array.from(requireBlocks).flatMap((match) => parseRequireBlockEntries(match[1]));
 
-  if (!requireBlock) return dependencies;
-
-  const lines = requireBlock[1].split("\n");
-  lines.forEach((line) => {
-    const match = line.trim().match(GO_PATTERNS.DEPENDENCY_LINE);
-    if (!match) return;
-    dependencies[match[1]] = match[2];
-  });
-
-  return dependencies;
+  return Object.fromEntries(entries);
 };
 
 export const parseSingleRequires = (content: string): Record<string, string> => {
@@ -149,6 +151,29 @@ export const buildRequireBlock = (dependencies: Record<string, string>): string 
   return `require (\n${requireEntries}\n)`;
 };
 
+export const runGoModTidy = (
+  filePath: string,
+  options: ProviderOptions,
+  execute: typeof execFileSync = execFileSync,
+): void => {
+  if (options.isTesting || options.regenerateLockfile === false) return;
+
+  try {
+    execute(LANGUAGES.GO, ["mod", "tidy"], {
+      cwd: dirname(filePath),
+      stdio: "ignore",
+    });
+  } catch (error) {
+    if (options.debug) logger.error("Failed to run go mod tidy", error as Error);
+    throw error;
+  }
+};
+
+const writeGoMod = (filePath: string, content: string, options: ProviderOptions): void => {
+  writeFileSync(filePath, content);
+  runGoModTidy(filePath, options);
+};
+
 export class GoProvider implements DependencyProvider {
   readonly language = LANGUAGES.GO;
   readonly capabilities = {
@@ -156,6 +181,7 @@ export class GoProvider implements DependencyProvider {
     supportsPreciseMode: true,
     versionStrategy: "semver",
   } as const;
+
   private options: ProviderOptions;
 
   constructor(options: ProviderOptions = {}) {
@@ -204,8 +230,7 @@ export class GoProvider implements DependencyProvider {
     } = updateExistingRequireLines(content, manifest.dependencies);
 
     if (updatedCount > 0 || foundCount > 0) {
-      writeFileSync(filePath, preserveFinalNewline(inPlaceContent));
-      this.runGoModTidy(filePath);
+      writeGoMod(filePath, preserveFinalNewline(inPlaceContent), this.options);
       return;
     }
 
@@ -214,36 +239,18 @@ export class GoProvider implements DependencyProvider {
     const hasMultiLineRequire = GO_PATTERNS.REQUIRE_BLOCK.test(content);
     if (hasMultiLineRequire) {
       const updated = content.replace(GO_PATTERNS.REQUIRE_BLOCK, requireBlock);
-      writeFileSync(filePath, preserveFinalNewline(updated));
-      this.runGoModTidy(filePath);
+      writeGoMod(filePath, preserveFinalNewline(updated), this.options);
       return;
     }
 
     const hasSingleRequires = GO_PATTERNS.REQUIRE_LINE.test(content);
     if (hasSingleRequires) {
       const updated = content.replace(GO_PATTERNS.REQUIRE_LINE, "").trim();
-      writeFileSync(filePath, `${updated}\n\n${requireBlock}\n`);
-      this.runGoModTidy(filePath);
+      writeGoMod(filePath, `${updated}\n\n${requireBlock}\n`, this.options);
       return;
     }
 
-    writeFileSync(filePath, `${content.trim()}\n\n${requireBlock}\n`);
-    this.runGoModTidy(filePath);
-  }
-
-  private runGoModTidy(filePath: string): void {
-    if (this.options.isTesting) return;
-
-    try {
-      execFileSync(LANGUAGES.GO, ["mod", "tidy"], {
-        cwd: dirname(filePath),
-        stdio: "ignore",
-      });
-    } catch (error) {
-      if (this.options.debug) {
-        logger.error("Failed to run go mod tidy", error as Error);
-      }
-    }
+    writeGoMod(filePath, `${content.trim()}\n\n${requireBlock}\n`, this.options);
   }
 
   validatePackageName(packageName: string): boolean {

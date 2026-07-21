@@ -46,7 +46,7 @@ export const TARGET_POLICY_FIELDS = [
   "mode",
   "rootDir",
 ] as const;
-export const TARGET_FIELDS = ["manager", ...TARGET_POLICY_FIELDS] as const;
+export const TARGET_FIELDS = ["manager", "lockfile", ...TARGET_POLICY_FIELDS] as const;
 export const BOOLEAN_OPTION_FIELDS = [
   "update",
   "debug",
@@ -68,6 +68,7 @@ export const KNOWN_FIELDS = [
   "level",
   "mode",
   "rootDir",
+  "lockfile",
   ...BOOLEAN_OPTION_FIELDS,
   "format",
   "outputFile",

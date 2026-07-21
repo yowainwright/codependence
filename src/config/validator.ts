@@ -1,3 +1,4 @@
+import { isAbsolute, win32 } from "node:path";
 import { error } from "../utils/colors";
 import {
   BOOLEAN_OPTION_FIELDS,
@@ -253,6 +254,36 @@ const validateRootDir = validateStringField("rootDir");
 const validateOutputFile = validateStringField("outputFile");
 const validateBooleanOptions = BOOLEAN_OPTION_FIELDS.map(validateBooleanField);
 
+const isSafeLockfilePath = (path: string): boolean => {
+  const segments = path.split(/[\\/]/);
+  const hasValue = path.length > 0;
+  const isRepositoryRelative = !isAbsolute(path) && !win32.isAbsolute(path);
+  const hasNoParentTraversal = !segments.includes("..");
+  return hasValue && isRepositoryRelative && hasNoParentTraversal;
+};
+
+const validateLockfile = (config: Record<string, unknown>): ValidationError[] => {
+  if (!("lockfile" in config)) return [];
+
+  const lockfile = config.lockfile;
+  if (isBoolean(lockfile)) return [];
+
+  const paths = isString(lockfile) ? [lockfile] : lockfile;
+  const isStringArray = isArray(paths) && paths.every(isString);
+  const hasPaths = isStringArray && paths.length > 0;
+  const hasSafePaths = hasPaths && paths.every(isSafeLockfilePath);
+  const isValid = hasSafePaths;
+  if (isValid) return [];
+
+  return [
+    {
+      field: "lockfile",
+      message: '"lockfile" must be a boolean or non-empty repository-relative path list',
+      suggestion: 'Use true, false, "path/to/lockfile", or ["path/to/lockfile"]',
+    },
+  ];
+};
+
 const validateUnknownFields = (
   config: Record<string, unknown>,
   knownFields: readonly string[] = KNOWN_FIELDS,
@@ -286,6 +317,7 @@ const targetFieldErrors = (target: Record<string, unknown>): ValidationError[] =
     validateMode(target),
     validateFiles(target),
     validateIgnore(target),
+    validateLockfile(target),
     validateRootDir(target),
     validateUnknownFields(target, TARGET_FIELDS),
   );
@@ -395,6 +427,7 @@ export const validateConfig = (
     validateMode(typedConfig),
     validateFiles(typedConfig),
     validateIgnore(typedConfig),
+    validateLockfile(typedConfig),
     validateRootDir(typedConfig),
     validateOutputFile(typedConfig),
     validateFormat(typedConfig),

@@ -11,9 +11,11 @@ Use one root `.codependencerc` for repository policy. CLI and Action inputs cont
 
 ### `targets`: `CodependenceTarget[]`
 
-The primary config shape is a non-empty `targets` array. Every target requires a `manager` plus `codependencies`, `permissive`, or `mode`, and can define its own `files`, `rootDir`, `ignore`, and `level`.
+The primary config shape is a non-empty `targets` array. Every target requires a `manager` plus `codependencies`, `permissive`, or `mode`, and can define its own `files`, `rootDir`, `ignore`, `level`, and `lockfile` policy.
 
 Supported managers are `bun`, `npm`, `pnpm`, `yarn`, `conda`, `pip`, `pipenv`, `poetry`, `uv`, `go`, `rust`, `docker`, and `github-actions`. Codependence loads `.codependencerc` once and executes every target independently.
+
+Use `--target bun`, `--target go`, or another configured manager to run only that part of the policy.
 
 ---
 
@@ -67,6 +69,10 @@ Applies the correct version policy per package. Packages without specific config
 ### `files`: `Array<string>`
 
 Target-scoped manifest or workflow glob patterns. Defaults depend on the selected manager.
+
+### `lockfile`: `boolean | string | Array<string>`
+
+Require the manager's standard lockfile, or provide repository-relative lockfile paths. A root value is inherited by every manager target; a target can override it. The GitHub Action enables this by default for selected targets.
 
 ### `update`: `boolean`
 
