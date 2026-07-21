@@ -184,6 +184,13 @@ runs:
             echo "::error::$manager requires an exact version"
             exit 2
           fi
+          if [ "$manager" = "rust" ]; then
+            rust_toolchain="${tool_version#v}"
+            if [[ ! "$rust_toolchain" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::rust requires an exact stable version"
+              exit 2
+            fi
+          fi
           echo "$manager-version=$tool_version" >> "$GITHUB_OUTPUT"
         done
 
@@ -246,9 +253,10 @@ runs:
           echo "::error::Rust targets require rustup on the runner"
           exit 2
         fi
-        rustup toolchain install "$TOOL_VERSION" --profile minimal
-        rustup default "$TOOL_VERSION"
-        echo "RUSTUP_TOOLCHAIN=$TOOL_VERSION" >> "$GITHUB_ENV"
+        rust_toolchain="${TOOL_VERSION#v}"
+        rustup toolchain install "$rust_toolchain" --profile minimal
+        rustup default "$rust_toolchain"
+        echo "RUSTUP_TOOLCHAIN=$rust_toolchain" >> "$GITHUB_ENV"
 
     - name: Setup uv
       if: steps.targets.outputs.uv-version != ''

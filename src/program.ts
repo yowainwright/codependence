@@ -28,6 +28,7 @@ import {
   NODE_MANAGERS,
   REGEX_SPECIAL_CHARACTERS_PATTERN,
   RUST_TOOLCHAIN_CHANNEL_PATTERN,
+  RUST_TOOLCHAIN_VERSION_PATTERN,
   TOOL_VERSIONS_VERSION_PATTERN,
   UPPERCASE_IDENTIFIER_PATTERN,
   VERSIONED_MANAGERS,
@@ -250,8 +251,11 @@ const detectedVersion = (
 };
 
 const exactVersion = (manager: DependencyManager, version: string): string => {
-  const isExact = EXACT_TOOL_VERSION_PATTERN.test(version);
-  if (isExact) return version;
+  const isRust = manager === LANGUAGES.RUST;
+  const normalizedVersion = isRust && version.startsWith("v") ? version.slice(1) : version;
+  const isExactVersion = EXACT_TOOL_VERSION_PATTERN.test(normalizedVersion);
+  const isExactRustVersion = !isRust || RUST_TOOLCHAIN_VERSION_PATTERN.test(normalizedVersion);
+  if (isExactVersion && isExactRustVersion) return normalizedVersion;
 
   throw new Error(`${manager} requires an exact tool version, received: ${version}`);
 };

@@ -1468,7 +1468,10 @@ const createActionsProject = (): string => {
     JSON.stringify({ name: "fixture", packageManager: "bun@1.3.14" }),
   );
   fs.writeFileSync(join(rootDir, "go.mod"), "module example.com/fixture\n\ngo 1.26.4\n");
-  fs.writeFileSync(join(rootDir, "rust-toolchain.toml"), '[toolchain]\nchannel = "1.88.0"\n');
+  fs.writeFileSync(
+    join(rootDir, "rust-toolchain.toml"),
+    '[toolchain]\nchannel = "1.88.0" # CI toolchain\n',
+  );
   fs.writeFileSync(join(rootDir, "mise.toml"), '[tools]\nuv = "0.8.0"\n');
   return rootDir;
 };
@@ -1573,13 +1576,13 @@ describe("GitHub Actions initializer", () => {
     }
   });
 
-  test("detects Rust versions from legacy toolchain files", () => {
+  test("normalizes Rust versions from legacy toolchain files", () => {
     const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
     fs.writeFileSync(
       join(rootDir, ".codependencerc"),
       JSON.stringify({ targets: [{ manager: "rust" }] }),
     );
-    fs.writeFileSync(join(rootDir, "rust-toolchain"), "1.87.0\n");
+    fs.writeFileSync(join(rootDir, "rust-toolchain"), "v1.87.0\n");
 
     try {
       initGitHubActions({ rootDir });
@@ -1603,6 +1606,14 @@ describe("GitHub Actions initializer", () => {
         "rust requires an exact tool version, received: stable",
       );
       expect(fs.existsSync(join(rootDir, ".github"))).toBe(false);
+
+      fs.writeFileSync(
+        join(rootDir, "rust-toolchain.toml"),
+        '[toolchain]\nchannel = "1.88.0-rc.1"\n',
+      );
+      expect(() => initGitHubActions({ rootDir })).toThrow(
+        "rust requires an exact tool version, received: 1.88.0-rc.1",
+      );
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }

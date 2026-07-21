@@ -283,12 +283,24 @@ jobs:
         with:
           config: /tmp/codependence-rust/.codependencerc
           targets: rust
-          version: 1.88.0
+          version: v1.88.0
           fail-on-outdated: true
 
       - name: Verify Rust setup
         run: |
           rustc --version | grep -q 'rustc 1.88.0'
+
+      - name: Reject unsupported Rust version suffix
+        id: unsupported-rust-version
+        continue-on-error: true
+        uses: ./
+        with:
+          config: /tmp/codependence-rust/.codependencerc
+          targets: rust
+          version: 1.88.0-rc.1
+
+      - name: Check unsupported Rust version result
+        run: test "${{ steps.unsupported-rust-version.outcome }}" = "failure"
 
   test-uv-check:
     name: Test uv Check

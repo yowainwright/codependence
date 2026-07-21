@@ -202,7 +202,8 @@ is ignored automatically. An explicit `ignore` input replaces those defaults.
 ```
 
 The Action installs exact Bun, npm, pnpm, Yarn, Go, Rust, or uv versions for
-selected targets. Docker and GitHub Actions targets do not accept `version`.
+selected targets. Rust accepts stable `x.y.z` toolchains and normalizes an
+optional leading `v`. Docker and GitHub Actions targets do not accept `version`.
 Docker `ARG`-backed image tags are updated through their default value.
 Unversioned or URL-based Python requirements remain skipped.
 

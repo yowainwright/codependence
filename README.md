@@ -244,6 +244,9 @@ Run one configured manager target with an exact tool version:
     version: 1.3.14
 ```
 
+Rust accepts exact stable `x.y.z` toolchains and normalizes an optional leading
+`v` before invoking rustup.
+
 PR mode requires a fine-grained PAT and `post-update-command`. Each manager set
 uses a stable branch, so scheduled Bun, Go, Rust, and uv workflows maintain
 separate pull requests while repeated runs update the existing PR. See the
