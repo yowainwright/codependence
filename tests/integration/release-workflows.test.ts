@@ -16,9 +16,11 @@ describe("release workflows", () => {
 
   test("publishes the verified formula through the protected environment", () => {
     const homebrew = readWorkflow("homebrew.yml");
+    const publish = readWorkflow("publish.yml");
 
     expect(homebrew).toContain("environment: homebrew-publish");
     expect(homebrew).toContain("secrets.HOMEBREW_TAP_TOKEN");
+    expect(publish).toContain("HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}");
     expect(homebrew).toContain("gh pr create");
   });
 

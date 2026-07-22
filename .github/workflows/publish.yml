@@ -96,3 +96,5 @@ jobs:
     uses: "./.github/workflows/homebrew.yml"
     with:
       version: ${{ needs.publish.outputs.release-version }}
+    secrets:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
