@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   buildGitHubReleaseCreateArgs,
   buildGitHubReleaseUploadArgs,
@@ -31,6 +34,22 @@ describe("scripts/ci/publish-release", () => {
     expect(resolveDistTag("v1.0.0-beta.1")).toBe("beta");
     expect(resolveDistTag("v1.0.0-rc.1")).toBe("rc");
     expect(resolveDistTag("v1.0.0")).toBe("latest");
+  });
+
+  test("resolve-dist-tag emits the normalized release version", () => {
+    const outputDir = mkdtempSync(join(tmpdir(), "codependence-release-"));
+    const outputPath = join(outputDir, "output");
+
+    try {
+      runPublishReleaseCli({
+        argv: ["resolve-dist-tag"],
+        env: { GITHUB_OUTPUT: outputPath, VERSION: "v1.0.0" },
+      });
+
+      expect(readFileSync(outputPath, "utf8")).toBe("tag=latest\nversion=1.0.0\n");
+    } finally {
+      rmSync(outputDir, { force: true, recursive: true });
+    }
   });
 
   test("resolveDistTag rejects unsupported prerelease identifiers", () => {
@@ -93,7 +112,7 @@ describe("scripts/ci/publish-release", () => {
     expect(args).toContain("--prerelease");
   });
 
-  test("buildGitHubReleaseUploadArgs replaces every release asset", () => {
+  test("buildGitHubReleaseUploadArgs preserves immutable release assets", () => {
     const args = buildGitHubReleaseUploadArgs({
       sigstoreBundle: "codependence.tgz.sigstore.json",
       tarball: "codependence.tgz",
@@ -106,7 +125,6 @@ describe("scripts/ci/publish-release", () => {
       "v1.0.0",
       "codependence.tgz",
       "codependence.tgz.sigstore.json",
-      "--clobber",
     ]);
   });
 
@@ -125,7 +143,7 @@ describe("scripts/ci/publish-release", () => {
     });
 
     expect(calls).toContain(
-      "gh release upload v1.0.0 codependence.tgz codependence.tgz.sigstore.json --clobber",
+      "gh release upload v1.0.0 codependence.tgz codependence.tgz.sigstore.json",
     );
   });
 

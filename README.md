@@ -820,7 +820,10 @@ and add a warning that points users to the last known-good version.
 
 ### Homebrew release
 
-Prepare Homebrew only after the stable npm package and GitHub release exist:
+Stable releases publish to Homebrew after the npm package passes the reusable
+published-package test suite. Configure a protected `homebrew-publish`
+environment with `HOMEBREW_TAP_TOKEN`, scoped to
+`yowainwright/homebrew-tap`. To retry an existing stable release:
 
 ```sh
 gh workflow run homebrew.yml -f version=1.1.0
@@ -829,10 +832,10 @@ gh workflow run homebrew.yml -f version=1.1.0
 The workflow checks out the exact release tag and uses Perry to build and test
 standalone macOS arm64 and Intel binaries. It bundles them into one immutable
 archive, attests and uploads it, generates its SHA256-pinned formula, and installs
-and tests the formula on both architectures before attaching `codependence.rb` to
-the matching GitHub release. Publish that verified file as
-`Formula/codependence.rb` in `yowainwright/homebrew-tap`; do not derive the
-formula SHA from npm or a separate local build.
+and tests the formula on both architectures before attaching `codependence.rb`
+to the matching GitHub release and opening a pull request against
+`Formula/codependence.rb` in `yowainwright/homebrew-tap`. The formula SHA always
+comes from the verified release archive, not npm or a separate local build.
 
 ## Contributing
 

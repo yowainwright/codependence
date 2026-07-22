@@ -12,6 +12,8 @@ jobs:
   publish:
     runs-on: ubuntu-24.04
     environment: npm-publish
+    outputs:
+      release-version: ${{ steps.dist-tag.outputs.version }}
     permissions:
       artifact-metadata: write
       id-token: write
@@ -80,3 +82,17 @@ jobs:
     with:
       version: "${{ github.ref_name }}"
     secrets: inherit
+
+  homebrew:
+    needs:
+      - publish
+      - test-published-release
+    if: ${{ !contains(github.ref_name, '-') }}
+    permissions:
+      artifact-metadata: write
+      attestations: write
+      contents: write
+      id-token: write
+    uses: "./.github/workflows/homebrew.yml"
+    with:
+      version: ${{ needs.publish.outputs.release-version }}
