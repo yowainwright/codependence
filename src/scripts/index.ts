@@ -46,6 +46,7 @@ import type {
   CheckLoadedManifestsOptions,
   DependencySection,
   DependencySections,
+  DependencyUpdateContext,
   LoadedManifest,
   MatchedFileOptions,
   PackageNormalizer,
@@ -979,6 +980,101 @@ const dependenciesForComparison = (
   return Object.fromEntries(entries);
 };
 
+const dependenciesWithoutResolvedVersions = (
+  dependencies: Record<string, string> | undefined,
+  resolvedVersions: ResolvedDependencyVersions | undefined,
+): Record<string, string> | undefined => {
+  if (!dependencies || !resolvedVersions) return dependencies;
+
+  const entries = Object.entries(dependencies).filter(([name]) => !resolvedVersions[name]);
+  return Object.fromEntries(entries);
+};
+
+const resolvedUpdateForVersion = (
+  name: string,
+  currentVersion: string,
+  latestVersion: string,
+  context: DependencyUpdateContext,
+): DepToUpdateItem[] => {
+  const { codependencies, permissive, level, versionStrategy } = context;
+  const current = { [name]: currentVersion };
+  const latest = { [name]: latestVersion };
+  if (permissive) {
+    return constructPermissiveDepsToUpdateList(
+      current,
+      codependencies,
+      latest,
+      level,
+      versionStrategy,
+    );
+  }
+  return constructDepsToUpdateList(current, latest, level, versionStrategy);
+};
+
+const resolvedUpdatesForPackage = (
+  name: string,
+  versions: Readonly<Record<string, string>>,
+  context: DependencyUpdateContext,
+): DepToUpdateItem[] =>
+  Object.entries(versions).flatMap(([currentVersion, latestVersion]) =>
+    resolvedUpdateForVersion(name, currentVersion, latestVersion, context),
+  );
+
+const resolvedUpdatesForSection = (
+  dependencies: Record<string, string> | undefined,
+  resolvedVersions: ResolvedDependencyVersions | undefined,
+  context: DependencyUpdateContext,
+): DepToUpdateItem[] => {
+  if (!dependencies || !resolvedVersions) return [];
+
+  const resolvedEntries = Object.entries(resolvedVersions);
+  const matchingEntries = resolvedEntries.filter(([name]) => dependencies[name] !== undefined);
+  return matchingEntries.flatMap(([name, versions]) =>
+    resolvedUpdatesForPackage(name, versions, context),
+  );
+};
+
+const standardUpdatesForSection = (
+  dependencies: Record<string, string> | undefined,
+  versionMap: Record<string, string>,
+  context: DependencyUpdateContext,
+): DepToUpdateItem[] => {
+  const { codependencies, permissive, level, versionStrategy } = context;
+  if (permissive) {
+    return constructPermissiveDepsToUpdateList(
+      dependencies,
+      codependencies,
+      versionMap,
+      level,
+      versionStrategy,
+    );
+  }
+  return constructDepsToUpdateList(dependencies, versionMap, level, versionStrategy);
+};
+
+const buildSectionUpdateList = (
+  dependencies: Record<string, string> | undefined,
+  json: DependencySections,
+  versionMap: Record<string, string>,
+  options: CheckDependenciesForVersionOptions,
+  codependencies: string[],
+): DepToUpdateItem[] => {
+  const { level = "major", permissive = false, versionStrategy = "semver" } = options;
+  const context = { codependencies, permissive, level, versionStrategy };
+  const unresolved = dependenciesWithoutResolvedVersions(
+    dependencies,
+    json.resolvedDependencyVersions,
+  );
+  const compared = dependenciesForComparison(unresolved, json.dependencyVersions, versionMap);
+  const standardUpdates = standardUpdatesForSection(compared, versionMap, context);
+  const resolvedUpdates = resolvedUpdatesForSection(
+    dependencies,
+    json.resolvedDependencyVersions,
+    context,
+  );
+  return standardUpdates.concat(resolvedUpdates);
+};
+
 export const buildUpdateLists = <T extends DependencySections>(
   versionMap: Record<string, string>,
   json: T,
@@ -986,82 +1082,18 @@ export const buildUpdateLists = <T extends DependencySections>(
   codependencies?: Array<string>,
 ): DepsToUpdate => {
   const { dependencies, devDependencies, peerDependencies, optionalDependencies } = json;
-  const { permissive, level = "major", versionStrategy = "semver" } = options;
-  const dependencyVersions = json.dependencyVersions;
-  const comparedDependencies = dependenciesForComparison(
-    dependencies,
-    dependencyVersions,
-    versionMap,
-  );
-  const comparedDevDependencies = dependenciesForComparison(
-    devDependencies,
-    dependencyVersions,
-    versionMap,
-  );
-  const comparedPeerDependencies = dependenciesForComparison(
-    peerDependencies,
-    dependencyVersions,
-    versionMap,
-  );
-  const comparedOptionalDependencies = dependenciesForComparison(
-    optionalDependencies,
-    dependencyVersions,
-    versionMap,
-  );
-
-  if (permissive) {
-    const coDeps = codependencies || [];
-    return {
-      depList: constructPermissiveDepsToUpdateList(
-        comparedDependencies,
-        coDeps,
-        versionMap,
-        level,
-        versionStrategy,
-      ),
-      devDepList: constructPermissiveDepsToUpdateList(
-        comparedDevDependencies,
-        coDeps,
-        versionMap,
-        level,
-        versionStrategy,
-      ),
-      peerDepList: constructPermissiveDepsToUpdateList(
-        comparedPeerDependencies,
-        coDeps,
-        versionMap,
-        level,
-        versionStrategy,
-      ),
-      optionalDepList: constructPermissiveDepsToUpdateList(
-        comparedOptionalDependencies,
-        coDeps,
-        versionMap,
-        level,
-        versionStrategy,
-      ),
-    };
-  }
+  const coDeps = codependencies || [];
 
   return {
-    depList: constructDepsToUpdateList(comparedDependencies, versionMap, level, versionStrategy),
-    devDepList: constructDepsToUpdateList(
-      comparedDevDependencies,
+    depList: buildSectionUpdateList(dependencies, json, versionMap, options, coDeps),
+    devDepList: buildSectionUpdateList(devDependencies, json, versionMap, options, coDeps),
+    peerDepList: buildSectionUpdateList(peerDependencies, json, versionMap, options, coDeps),
+    optionalDepList: buildSectionUpdateList(
+      optionalDependencies,
+      json,
       versionMap,
-      level,
-      versionStrategy,
-    ),
-    peerDepList: constructDepsToUpdateList(
-      comparedPeerDependencies,
-      versionMap,
-      level,
-      versionStrategy,
-    ),
-    optionalDepList: constructDepsToUpdateList(
-      comparedOptionalDependencies,
-      versionMap,
-      level,
-      versionStrategy,
+      options,
+      coDeps,
     ),
   };
 };

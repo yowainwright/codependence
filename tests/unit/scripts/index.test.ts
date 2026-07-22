@@ -59,6 +59,29 @@ test("buildUpdateLists => compares repeated versions in every dependency section
   expect(result.optionalDepList.map(({ name }) => name)).toEqual(["optional"]);
 });
 
+test("buildUpdateLists => compares each resolved Docker tag family", () => {
+  const result = buildUpdateLists(
+    { node: "24-slim" },
+    {
+      dependencies: { node: "20-slim" },
+      dependencyVersions: { node: ["20-slim", "20-alpine"] },
+      resolvedDependencyVersions: {
+        node: {
+          "20-slim": "24-slim",
+          "20-alpine": "24-alpine",
+        },
+      },
+    },
+    { versionStrategy: "exact" },
+    ["node"],
+  );
+
+  expect(result.depList).toEqual([
+    { name: "node", actual: "20-slim", exact: "24-slim", expected: "24-slim" },
+    { name: "node", actual: "20-alpine", exact: "24-alpine", expected: "24-alpine" },
+  ]);
+});
+
 test("constructVersionMap => pass", async () => {
   const exec = jest.fn(() => ({
     stdout: "4.0.0",

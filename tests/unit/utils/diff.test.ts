@@ -143,6 +143,41 @@ describe("buildVersionDiff", () => {
     expect(diffs[0].latest).toBe(latestVersion);
   });
 
+  test("should compare each resolved Docker tag family", () => {
+    const diffs = buildVersionDiff(
+      { node: "24-slim" },
+      {
+        dependencies: { node: "20-slim" },
+        resolvedDependencyVersions: {
+          node: {
+            "20-slim": "24-slim",
+            "20-alpine": "24-alpine",
+          },
+        },
+        versionStrategy: "exact",
+      },
+      ["node"],
+      false,
+    );
+
+    expect(diffs).toEqual([
+      {
+        package: "node",
+        current: "20-slim",
+        latest: "24-slim",
+        isPinned: true,
+        willUpdate: true,
+      },
+      {
+        package: "node",
+        current: "20-alpine",
+        latest: "24-alpine",
+        isPinned: true,
+        willUpdate: true,
+      },
+    ]);
+  });
+
   test("should skip packages not in versionMap", () => {
     const versionMap = {
       lodash: "4.17.21",

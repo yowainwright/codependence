@@ -2,7 +2,7 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import type { DependencyManifest } from "../providers/types";
 import type { VersionStrategy } from "../providers/types";
-import type { Level, VersionDiff } from "../types";
+import type { Level, VersionDiff, VersionDiffContext } from "../types";
 import { DEP_SECTIONS } from "../scripts/constants";
 import { formatVersionTable } from "./table";
 import { isWithinLevel } from "./semver";
@@ -49,11 +49,9 @@ const toVersionDiff = (
   pkgName: string,
   currentVersion: string,
   latestVersion: string,
-  codependencies: string[],
-  permissive: boolean,
-  level: Level,
-  versionStrategy: VersionStrategy,
+  context: VersionDiffContext,
 ): VersionDiff => {
+  const { codependencies, permissive, level, versionStrategy } = context;
   const withinLevel = isWithinLevel(currentVersion, latestVersion, level, versionStrategy);
   const isPinned = codependencies.includes(pkgName);
   const isPermissiveUpdate = !isPinned && withinLevel;
@@ -69,12 +67,45 @@ const toVersionDiff = (
   };
 };
 
+const resolvedVersionDiffs = (
+  packageJson: Pick<DependencyManifest, "resolvedDependencyVersions">,
+  packageName: string,
+  context: VersionDiffContext,
+): VersionDiff[] => {
+  const resolvedVersions = packageJson.resolvedDependencyVersions?.[packageName];
+  if (!resolvedVersions) return [];
+
+  return Object.entries(resolvedVersions).map(([currentVersion, latestVersion]) =>
+    toVersionDiff(packageName, currentVersion, latestVersion, context),
+  );
+};
+
+const versionDiffsForDependency = (
+  packageJson: Pick<DependencyManifest, "dependencyVersions" | "resolvedDependencyVersions">,
+  packageName: string,
+  currentVersion: string,
+  latestVersion: string,
+  context: VersionDiffContext,
+): VersionDiff[] => {
+  const resolvedDiffs = resolvedVersionDiffs(packageJson, packageName, context);
+  if (resolvedDiffs.length > 0) return resolvedDiffs;
+
+  const comparedVersion = versionForComparison(
+    packageJson,
+    packageName,
+    currentVersion,
+    latestVersion,
+  );
+  return [toVersionDiff(packageName, comparedVersion, latestVersion, context)];
+};
+
 export const buildVersionDiff = (
   versionMap: Record<string, string>,
   packageJson: Pick<
     DependencyManifest,
     | "dependencies"
     | "dependencyVersions"
+    | "resolvedDependencyVersions"
     | "devDependencies"
     | "peerDependencies"
     | "optionalDependencies"
@@ -86,16 +117,13 @@ export const buildVersionDiff = (
 ): VersionDiff[] =>
   extractAllDeps(packageJson)
     .filter(([pkgName]) => versionMap[pkgName] !== undefined)
-    .map(([pkgName, currentVersion]) =>
-      toVersionDiff(
-        pkgName,
-        versionForComparison(packageJson, pkgName, currentVersion, versionMap[pkgName]),
-        versionMap[pkgName],
+    .flatMap(([pkgName, currentVersion]) =>
+      versionDiffsForDependency(packageJson, pkgName, currentVersion, versionMap[pkgName], {
         codependencies,
         permissive,
         level,
         versionStrategy,
-      ),
+      }),
     );
 
 export const displayVersionDiffs = (diffs: VersionDiff[], isDryRun: boolean): void => {
@@ -135,8 +163,9 @@ const readPackageDiffs = (
 export const deduplicateVersionDiffs = (diffs: VersionDiff[]): VersionDiff[] => {
   const seen = new Set<string>();
   return diffs.filter((diff) => {
-    const isDuplicate = seen.has(diff.package);
-    seen.add(diff.package);
+    const key = `${diff.package}\0${diff.latest}`;
+    const isDuplicate = seen.has(key);
+    seen.add(key);
     return !isDuplicate;
   });
 };
