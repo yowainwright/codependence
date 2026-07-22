@@ -13,7 +13,6 @@ import {
 } from "../../../../scripts/ci/publish-release.js";
 
 const releaseAssets = {
-  binary: "codependence-linux-x64",
   sigstoreBundle: "codependence.tgz.sigstore.json",
   tarball: "codependence.tgz",
   version: "v1.0.0",
@@ -44,12 +43,8 @@ describe("scripts/ci/publish-release", () => {
   });
 
   test("resolveDistTag rejects malformed release versions", () => {
-    expect(() => resolveDistTag("v1.0.0beta.1")).toThrow(
-      "Invalid release version: v1.0.0beta.1",
-    );
-    expect(() => resolveDistTag("v1.0.0-")).toThrow(
-      "Invalid release version: v1.0.0-",
-    );
+    expect(() => resolveDistTag("v1.0.0beta.1")).toThrow("Invalid release version: v1.0.0beta.1");
+    expect(() => resolveDistTag("v1.0.0-")).toThrow("Invalid release version: v1.0.0-");
   });
 
   test("readPrereleaseIdentifier reads any semver prerelease identifier", () => {
@@ -89,19 +84,17 @@ describe("scripts/ci/publish-release", () => {
 
   test("buildGitHubReleaseCreateArgs marks prereleases", () => {
     const args = buildGitHubReleaseCreateArgs({
-      binary: "codependence-linux-x64",
       sigstoreBundle: "codependence.tgz.sigstore.json",
       tarball: "codependence.tgz",
       version: "v1.0.0-beta.1",
     });
 
-    expect(args).toContain("codependence-linux-x64");
+    expect(args).toContain("codependence.tgz");
     expect(args).toContain("--prerelease");
   });
 
   test("buildGitHubReleaseUploadArgs replaces every release asset", () => {
     const args = buildGitHubReleaseUploadArgs({
-      binary: "codependence-linux-x64",
       sigstoreBundle: "codependence.tgz.sigstore.json",
       tarball: "codependence.tgz",
       version: "v1.0.0",
@@ -111,21 +104,19 @@ describe("scripts/ci/publish-release", () => {
       "release",
       "upload",
       "v1.0.0",
-      "codependence-linux-x64",
       "codependence.tgz",
       "codependence.tgz.sigstore.json",
       "--clobber",
     ]);
   });
 
-  test("publish-github-release-assets uploads the tested binary", () => {
+  test("publish-github-release-assets uploads npm artifacts only", () => {
     const calls: string[] = [];
     const runner = createRecordingRunner(calls);
 
     runPublishReleaseCli({
       argv: ["publish-github-release-assets"],
       env: {
-        BINARY: releaseAssets.binary,
         SIGSTORE_BUNDLE: releaseAssets.sigstoreBundle,
         TARBALL: releaseAssets.tarball,
         VERSION: releaseAssets.version,
@@ -134,7 +125,7 @@ describe("scripts/ci/publish-release", () => {
     });
 
     expect(calls).toContain(
-      "gh release upload v1.0.0 codependence-linux-x64 codependence.tgz codependence.tgz.sigstore.json --clobber",
+      "gh release upload v1.0.0 codependence.tgz codependence.tgz.sigstore.json --clobber",
     );
   });
 

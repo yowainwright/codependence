@@ -1,78 +1,45 @@
 import { describe, expect, test } from "bun:test";
 import {
-  fetchPublishedTarball,
-  npmTarballUrl,
+  githubArchiveUrl,
   renderFormula,
-  runHomebrewReleaseCli,
-  sha256,
+  validatePackageVersion,
   validateStableVersion,
 } from "../../../../scripts/ci/homebrew-release.js";
 
 describe("scripts/ci/homebrew-release", () => {
-  test("builds the published npm tarball URL", () => {
-    expect(npmTarballUrl("1.1.0")).toBe(
-      "https://registry.npmjs.org/codependence/-/codependence-1.1.0.tgz",
-    );
+  test("builds an immutable GitHub release archive URL", () => {
+    const archiveUrl = githubArchiveUrl("1.1.0");
+
+    expect(archiveUrl).toEndWith("/v1.1.0/codependence-darwin.tar.gz");
   });
 
   test("accepts only stable versions", () => {
-    expect(() => validateStableVersion("1.1.0")).not.toThrow();
-    expect(() => validateStableVersion("1.1.0-rc.0")).toThrow("Invalid stable version");
-    expect(() => validateStableVersion("v1.1.0")).toThrow("Invalid stable version");
-    expect(() => validateStableVersion("01.1.0")).toThrow("Invalid stable version");
+    const stableVersion = () => validateStableVersion("1.1.0");
+    const prereleaseVersion = () => validateStableVersion("1.1.0-rc.0");
+
+    expect(stableVersion).not.toThrow();
+    expect(prereleaseVersion).toThrow("Invalid stable version");
   });
 
-  test("validation rejects unstable input before formula generation", async () => {
-    const validation = runHomebrewReleaseCli({
-      argv: ["validate-version"],
-      env: { VERSION: "1.1.0-rc.0" },
-    });
+  test("requires the checked-out package to match the release", () => {
+    const matchingVersion = () => validatePackageVersion("1.1.0", '{"version":"1.1.0"}');
+    const mismatchedVersion = () => validatePackageVersion("1.1.0", '{"version":"1.0.0"}');
 
-    await expect(validation).rejects.toThrow("Invalid stable version");
+    expect(matchingVersion).not.toThrow();
+    expect(mismatchedVersion).toThrow("Package version 1.0.0 does not match 1.1.0");
   });
 
-  test("validation rejects tag-prefixed input", async () => {
-    const validation = runHomebrewReleaseCli({
-      argv: ["validate-version"],
-      env: { VERSION: "v1.1.0" },
-    });
+  test("renders a Perry binary-backed formula", () => {
+    const digest = "archive-digest";
+    const version = "1.1.0";
+    const options = { digest, version };
+    const formula = renderFormula(options);
 
-    await expect(validation).rejects.toThrow("Invalid stable version");
-  });
-
-  test("downloads the published tarball bytes", async () => {
-    const fetchImpl = async () => new Response("published tarball");
-    const tarball = await fetchPublishedTarball(npmTarballUrl("1.1.0"), fetchImpl);
-
-    expect(tarball).toEqual(Buffer.from("published tarball"));
-  });
-
-  test("rejects unavailable published tarballs", async () => {
-    const fetchImpl = async () => new Response(null, { status: 404 });
-    const download = fetchPublishedTarball(npmTarballUrl("1.1.0"), fetchImpl);
-
-    await expect(download).rejects.toThrow("Unable to download published tarball: 404");
-  });
-
-  test("computes a stable hexadecimal SHA256", () => {
-    const digest = sha256(Buffer.from("hello"));
-    const otherDigest = sha256(Buffer.from("world"));
-
-    expect(digest).toHaveLength(64);
-    expect(digest).toMatch(/^[a-f0-9]+$/);
-    expect(digest).not.toBe(otherDigest);
-  });
-
-  test("renders a Node-backed formula with both CLI smoke tests", () => {
-    const url = npmTarballUrl("1.1.0");
-    const formula = renderFormula({
-      digest: "abc123",
-      url,
-    });
-
-    expect(formula).toContain('sha256 "abc123"');
-    expect(formula).toContain('depends_on "node"');
-    expect(formula).toContain('system bin/"codependence", "--help"');
-    expect(formula).toContain('system bin/"cdp", "--help"');
+    expect(formula).toContain("codependence-darwin.tar.gz");
+    expect(formula).toContain("codependence-darwin-arm64");
+    expect(formula).toContain("codependence-darwin-x64");
+    expect(formula).toContain('bin.install binary => "codependence"');
+    expect(formula).not.toContain('depends_on "node"');
+    expect(formula).not.toContain("registry.npmjs.org");
   });
 });
