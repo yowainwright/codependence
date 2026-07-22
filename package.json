@@ -1,6 +1,6 @@
 {
   "name": "codependence",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "Enforce dependency version policy across projects, workspaces, and CI.",
   "homepage": "https://jeffry.in/codependence",
   "bugs": {
