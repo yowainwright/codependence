@@ -152,12 +152,14 @@ scheduled pull request workflows without replacing existing files.
 #### Testing
 
 **Unit Tests:**
+
 ```sh
 bun test                    # Run all unit tests
 bun test --coverage        # Run with coverage report
 ```
 
 **E2E Tests:**
+
 ```sh
 ./tests/e2e/test-multilang.sh all    # Run all e2e tests
 ./tests/e2e/test-multilang.sh rust
@@ -651,15 +653,15 @@ This utility is built to work alongside dependency automation tools like [Depend
 
 Codependence currently focuses on package manifests and dependency sections. The same policy model can expand to other version surfaces over time.
 
-| Surface | Status | Purpose |
-| --- | --- | --- |
-| `package.json` dependencies | Supported | Enforce dependency policy in Node.js projects and monorepos |
-| Python, Go, and Rust manifests | Experimental | Apply the same check/update workflow outside Node.js |
-| Dockerfiles | Experimental | Check base image versions |
-| GitHub Actions workflows | Experimental | Check action refs in workflow YAML |
-| Local repository scans | Roadmap | Report drift across a directory of projects, such as `~/code` |
-| Toolchain files | Roadmap | Keep `.nvmrc`, `.node-version`, `.tool-versions`, and `.mise.toml` aligned |
-| Compose and other CI YAML | Roadmap | Check service images, actions, and runtime versions in pipeline files |
+| Surface                        | Status       | Purpose                                                                    |
+| ------------------------------ | ------------ | -------------------------------------------------------------------------- |
+| `package.json` dependencies    | Supported    | Enforce dependency policy in Node.js projects and monorepos                |
+| Python, Go, and Rust manifests | Experimental | Apply the same check/update workflow outside Node.js                       |
+| Dockerfiles                    | Experimental | Check base image versions                                                  |
+| GitHub Actions workflows       | Experimental | Check action refs in workflow YAML                                         |
+| Local repository scans         | Roadmap      | Report drift across a directory of projects, such as `~/code`              |
+| Toolchain files                | Roadmap      | Keep `.nvmrc`, `.node-version`, `.tool-versions`, and `.mise.toml` aligned |
+| Compose and other CI YAML      | Roadmap      | Check service images, actions, and runtime versions in pipeline files      |
 
 ---
 
@@ -778,19 +780,17 @@ bun run release:tag
 
 The release helper creates the release commit locally, pushes only the version tag,
 and restores local `main` to its starting commit. The tag triggers the publish
-workflow, which packs the npm tarball and then compiles `codependence-linux-x64`
-with Perry. The standalone executable must pass its help check plus Docker,
-GitHub Actions, and Rust provider E2E tests before npm publication. The workflow
-attests both artifacts, publishes the package with npm provenance, and uploads
-the executable, tarball, and attestation to the GitHub release. It then runs the
-reusable published-package test suite against the exact npm version before the
-release is considered successful.
+workflow, which validates, packs, attests, and publishes the npm package without
+building a standalone executable. The workflow uploads the npm tarball and its
+attestation to the GitHub release, then runs the reusable published-package test
+suite against the exact npm version before the release is considered successful.
 Use `bun run release:tag` when `package.json` already has the version you want
 to publish.
 
-Perry is exact-pinned because newer releases currently fail the native link.
-Only update that pin after `bun run test:e2e:binary` passes on macOS and Ubuntu
-24.04 x64.
+Perry is reserved for Homebrew binaries and is not part of npm publication. It
+is exact-pinned because newer releases currently fail the native link. Only
+update that pin after `bun run test:e2e:binary` passes on both macOS arm64 and
+Intel.
 
 Publishing follows the same posture as Pastoralist: GitHub Actions publishes
 through npm Trusted Publishing/OIDC, not a long-lived npm token. Configure the
@@ -826,11 +826,13 @@ Prepare Homebrew only after the stable npm package and GitHub release exist:
 gh workflow run homebrew.yml -f version=1.1.0
 ```
 
-The workflow downloads the published npm tarball, computes its SHA256, installs
-the generated formula through a temporary tap, runs both `codependence --help`
-and `cdp --help`, and attaches `codependence.rb` to the matching GitHub release.
-Publish that verified file as `Formula/codependence.rb` in
-`yowainwright/homebrew-tap`; do not derive the formula SHA from a local pack.
+The workflow checks out the exact release tag and uses Perry to build and test
+standalone macOS arm64 and Intel binaries. It bundles them into one immutable
+archive, attests and uploads it, generates its SHA256-pinned formula, and installs
+and tests the formula on both architectures before attaching `codependence.rb` to
+the matching GitHub release. Publish that verified file as
+`Formula/codependence.rb` in `yowainwright/homebrew-tap`; do not derive the
+formula SHA from npm or a separate local build.
 
 ## Contributing
 

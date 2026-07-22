@@ -43,12 +43,11 @@ export function buildNpmPublishArgs({ distTag, tarball }) {
   return ["publish", tarball, "--provenance", "--access", "public", "--tag", distTag];
 }
 
-export function buildGitHubReleaseCreateArgs({ binary, sigstoreBundle, tarball, version }) {
+export function buildGitHubReleaseCreateArgs({ sigstoreBundle, tarball, version }) {
   const args = [
     "release",
     "create",
     version,
-    binary,
     tarball,
     sigstoreBundle,
     "--title",
@@ -60,8 +59,8 @@ export function buildGitHubReleaseCreateArgs({ binary, sigstoreBundle, tarball, 
   return args;
 }
 
-export function buildGitHubReleaseUploadArgs({ binary, sigstoreBundle, tarball, version }) {
-  return ["release", "upload", version, binary, tarball, sigstoreBundle, "--clobber"];
+export function buildGitHubReleaseUploadArgs({ sigstoreBundle, tarball, version }) {
+  return ["release", "upload", version, tarball, sigstoreBundle, "--clobber"];
 }
 
 export function createSpawnRunner() {
@@ -90,17 +89,15 @@ function runOrThrow(runner, command, args) {
 }
 
 function readGitHubReleaseAssets(env) {
-  const binary = env.BINARY;
   const sigstoreBundle = env.SIGSTORE_BUNDLE;
   const tarball = env.TARBALL;
   const version = env.VERSION;
   requireValues({
-    BINARY: binary,
     SIGSTORE_BUNDLE: sigstoreBundle,
     TARBALL: tarball,
     VERSION: version,
   });
-  return { binary, sigstoreBundle, tarball, version };
+  return { sigstoreBundle, tarball, version };
 }
 
 function publishGitHubReleaseAssets(env, runner) {
