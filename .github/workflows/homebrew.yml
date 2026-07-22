@@ -99,7 +99,22 @@ jobs:
           node scripts/ci/homebrew-release.js validate-package-version
           node scripts/ci/published-release.js wait-for-npm
 
+      - name: Reuse published Homebrew archive
+        id: published-archive
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          RELEASE_TAG="v${VERSION}"
+          ASSET_URL="$(gh release view "$RELEASE_TAG" --json assets --jq ".assets[] | select(.name == \"$BINARY_ARCHIVE\") | .url")"
+          if [ -z "$ASSET_URL" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          gh release download "$RELEASE_TAG" --pattern "$BINARY_ARCHIVE"
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+
       - name: Create Perry binary archive
+        if: steps.published-archive.outputs.exists != 'true'
         run: |
           chmod +x artifacts/codependence-darwin-arm64 artifacts/codependence-darwin-x64
           tar -czf "$BINARY_ARCHIVE" -C artifacts codependence-darwin-arm64 codependence-darwin-x64
@@ -108,11 +123,13 @@ jobs:
         run: node scripts/ci/homebrew-release.js
 
       - name: Attest Perry binary archive
+        if: steps.published-archive.outputs.exists != 'true'
         uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4
         with:
           subject-path: ${{ env.BINARY_ARCHIVE }}
 
       - name: Publish immutable Homebrew archive
+        if: steps.published-archive.outputs.exists != 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -176,4 +193,13 @@ jobs:
       - name: Attach formula to GitHub release
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: gh release upload "v${VERSION}" codependence.rb
+        run: |
+          RELEASE_TAG="v${VERSION}"
+          ASSET_URL="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[] | select(.name == "codependence.rb") | .url')"
+          if [ -z "$ASSET_URL" ]; then
+            gh release upload "$RELEASE_TAG" codependence.rb
+            exit 0
+          fi
+          mkdir existing-formula
+          gh release download "$RELEASE_TAG" --pattern codependence.rb --dir existing-formula
+          cmp -s codependence.rb existing-formula/codependence.rb
