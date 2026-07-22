@@ -94,8 +94,12 @@ const environmentCredentials = (
   token: process.env[tokenName],
 });
 
-const ghcrEnvironmentCredentials = (): DockerRegistryCredentials =>
-  environmentCredentials("GHCR_USERNAME", "GHCR_TOKEN");
+const ghcrEnvironmentCredentials = (): DockerRegistryCredentials => {
+  const explicit = environmentCredentials("GHCR_USERNAME", "GHCR_TOKEN");
+  if (explicit.username || explicit.token) return explicit;
+
+  return environmentCredentials("GITHUB_ACTOR", "GITHUB_TOKEN");
+};
 
 const dockerHubImage = (displayName: string, name: string): DockerRegistryImage => {
   const repository = name.includes("/") ? name : `${DOCKER_HUB_LIBRARY}/${name}`;
@@ -221,6 +225,9 @@ const responseStatus = (response: Response): string => {
   return `${response.status} ${response.statusText}`;
 };
 
+const isAuthenticationFailure = (response: Response): boolean =>
+  response.status === 401 || response.status === 403;
+
 const readRegistryJson = async (response: Response, message: string): Promise<unknown> => {
   try {
     return await response.json();
@@ -231,7 +238,7 @@ const readRegistryJson = async (response: Response, message: string): Promise<un
 
 const assertRegistryResponse = (response: Response, image: DockerRegistryImage): void => {
   if (response.ok) return;
-  if (response.status === 401 || response.status === 403) {
+  if (isAuthenticationFailure(response)) {
     throw new Error(`Docker registry authentication failed for ${image.displayName}`);
   }
   if (response.status === 404) {
@@ -537,7 +544,12 @@ export class DockerProvider implements DependencyProvider {
     const credentials = this.credentialsFor(image);
     const basic = basicAuthorization(credentials);
     const headers = registryHeaders(basic);
-    const tokenResponse = await this.fetchResponse(image, url, headers);
+    const credentialResponse = await this.fetchResponse(image, url, headers);
+    const shouldRetryAnonymously =
+      image.registry === "ghcr" && basic && isAuthenticationFailure(credentialResponse);
+    const tokenResponse = shouldRetryAnonymously
+      ? await this.fetchResponse(image, url, registryHeaders())
+      : credentialResponse;
     const token = await readRegistryToken(tokenResponse, image);
     const authorization = `Bearer ${token}`;
     return authorization;

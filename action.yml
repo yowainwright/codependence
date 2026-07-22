@@ -325,6 +325,7 @@ runs:
         DOCKERHUB_USERNAME: ${{ inputs.dockerhub-username }}
         GHCR_TOKEN: ${{ inputs.ghcr-token }}
         GHCR_USERNAME: ${{ inputs.ghcr-username }}
+        GITHUB_ACTOR: ${{ github.actor }}
         GITHUB_TOKEN: ${{ github.token }}
         INPUT_CODEDEPENDENCIES: ${{ inputs.codependencies }}
         INPUT_CONFIG: ${{ inputs.config }}

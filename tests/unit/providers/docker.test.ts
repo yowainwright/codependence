@@ -131,6 +131,27 @@ describe("DockerProvider", () => {
     expect(authorizationFor(requests[1])).toBeNull();
   });
 
+  test("should retry public GHCR token requests without rejected credentials", async () => {
+    const scope = "repository:acme/widget:pull";
+    const challenge = bearerChallenge("https://ghcr.io/token", "ghcr.io", scope);
+    const unauthorized = new Response(null, {
+      status: 401,
+      headers: { "WWW-Authenticate": challenge },
+    });
+    const registryCredential = crypto.randomUUID();
+    const tokenResponse = Response.json({ token: registryCredential });
+    const tagsResponse = Response.json({ name: "acme/widget", tags: ["1.0"] });
+    const responses = [unauthorized, responseWithStatus(403), tokenResponse, tagsResponse];
+    const { fetch, requests } = mockFetch(responses);
+    const token = crypto.randomUUID();
+    const provider = new DockerProvider({ fetch, ghcrCredentials: { username: "octocat", token } });
+
+    await expect(provider.getAllVersions("ghcr.io/acme/widget")).resolves.toEqual(["1.0"]);
+    expect(authorizationFor(requests[1])).toBe(`Basic ${btoa(`octocat:${token}`)}`);
+    expect(authorizationFor(requests[2])).toBeNull();
+    expect(authorizationFor(requests[3])).toBe(`Bearer ${registryCredential}`);
+  });
+
   test("should normalize registry-qualified Docker Hub image names", async () => {
     const tagBody = { name: "acme/widget", tags: ["1.0"] };
     const { fetch, requests } = mockFetch([Response.json(tagBody)]);

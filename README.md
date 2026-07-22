@@ -584,9 +584,10 @@ Mutable tags such as `latest` fail rather than guessing a version.
 
 The CLI reads Docker Hub credentials from `DOCKERHUB_USERNAME` and
 `DOCKERHUB_TOKEN`. GHCR uses `GHCR_USERNAME` and `GHCR_TOKEN`. Both values are
-required for authenticated registry access. Public registry lookups remain
-anonymous unless these credentials are explicitly configured. Docker Hub PATs
-should be read-only; private GHCR packages require `read:packages` access.
+required for authenticated registry access. The GitHub Action falls back to its
+workflow token for private GHCR packages and retries anonymously when GHCR
+rejects that token for a public package. Docker Hub PATs should be read-only;
+private GHCR packages require `read:packages` access.
 
 The GitHub Actions provider supports explicit pins, latest release resolution,
 and `mode: "precise"`. Latest versions resolve to immutable commit SHAs, and
