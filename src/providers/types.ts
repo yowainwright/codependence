@@ -7,6 +7,8 @@ import type { NodeJSProvider } from "./nodejs";
 import type { PythonProvider } from "./python";
 import type { RustProvider } from "./rust";
 
+export type ResolvedDependencyVersions = Record<string, Readonly<Record<string, string>>>;
+
 export type Language = (typeof LANGUAGES)[keyof typeof LANGUAGES] | "php";
 
 export interface LanguageDetectionResult {
@@ -21,6 +23,7 @@ export interface DependencyManifest {
   version?: string;
   dependencies: Record<string, string>;
   dependencyVersions?: Record<string, readonly string[]>;
+  resolvedDependencyVersions?: ResolvedDependencyVersions;
   devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;
@@ -38,7 +41,7 @@ export interface DependencyProvider {
   readonly language: Language;
   readonly capabilities: ProviderCapabilities;
 
-  getLatestVersion(packageName: string): Promise<string>;
+  getLatestVersion(packageName: string, currentVersion?: string): Promise<string>;
   getAllVersions(packageName: string): Promise<string[]>;
   readManifest(filePath: string): DependencyManifest;
   writeManifest(filePath: string, manifest: DependencyManifest): void | Promise<void>;
@@ -83,6 +86,56 @@ export interface DockerArgumentReference {
 }
 
 export type DockerArguments = Record<string, string>;
+
+export type DockerFetch = (url: string, init?: RequestInit) => Promise<Response>;
+export type DockerTagsPromise = Promise<string[]>;
+
+export interface DockerRegistryCredentials {
+  readonly username?: string;
+  readonly token?: string;
+}
+
+export interface DockerProviderOptions {
+  readonly fetch?: DockerFetch;
+  readonly dockerHubCredentials?: DockerRegistryCredentials;
+  readonly ghcrCredentials?: DockerRegistryCredentials;
+}
+
+export type DockerRegistryName = "docker-hub" | "ghcr";
+
+export interface DockerRegistryImage {
+  readonly displayName: string;
+  readonly host: string;
+  readonly name: string;
+  readonly registry: DockerRegistryName;
+}
+
+export interface DockerAuthChallenge {
+  readonly realm: string;
+  readonly service: string;
+}
+
+export interface DockerTagsResponse {
+  readonly tags?: unknown;
+}
+
+export interface DockerTokenResponse {
+  readonly token?: unknown;
+  readonly access_token?: unknown;
+}
+
+export interface DockerVersionTag {
+  readonly name: string;
+  readonly parts: readonly number[];
+  readonly prefix: string;
+  readonly specificity: number;
+  readonly suffix: string;
+}
+
+export interface DockerRegistryPage {
+  readonly authorization?: string;
+  readonly response: Response;
+}
 
 export interface GoLineState {
   readonly inReplaceBlock: boolean;

@@ -80,7 +80,7 @@ assert_file_contains() {
   pattern="$2"
   label="$3"
 
-  if grep -Fq "$pattern" "$file"; then
+  if grep -Fq -- "$pattern" "$file"; then
     pass "$label"
     return
   fi
@@ -88,6 +88,19 @@ assert_file_contains() {
   printf 'Expected to find: %s\n' "$pattern"
   printf 'In file: %s\n' "$file"
   fail "$label"
+}
+
+assert_file_not_contains() {
+  file="$1"
+  pattern="$2"
+  label="$3"
+
+  if grep -Fq -- "$pattern" "$file"; then
+    printf 'Expected not to find: %s\n' "$pattern"
+    fail "$label"
+  fi
+
+  pass "$label"
 }
 
 assert_file_equals() {

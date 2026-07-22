@@ -19,6 +19,7 @@ import type {
   DependencyManifest,
   DependencyProvider,
   PythonPackageManager,
+  ResolvedDependencyVersions,
   VersionStrategy,
 } from "../providers/types";
 import { validatePackageName } from "../utils/validate-package";
@@ -45,6 +46,7 @@ import type {
   CheckLoadedManifestsOptions,
   DependencySection,
   DependencySections,
+  DependencyUpdateContext,
   LoadedManifest,
   MatchedFileOptions,
   PackageNormalizer,
@@ -442,6 +444,62 @@ const detectStaleCodependenciesFromManifests = (
   return pinnedNames.filter((name) => !allDepNames.has(name));
 };
 
+const manifestVersionsFor = (manifest: DependencyManifest, packageName: string): string[] => {
+  const recordedVersions = manifest.dependencyVersions?.[packageName];
+  if (recordedVersions) return [...recordedVersions];
+
+  const version = manifest.dependencies[packageName];
+  return version ? [version] : [];
+};
+
+const currentVersionsFor = (manifests: LoadedManifest[], packageName: string): string[] => {
+  const versions = manifests.flatMap(({ manifest }) => manifestVersionsFor(manifest, packageName));
+  return Array.from(new Set(versions));
+};
+
+const resolveDockerVersions = (
+  provider: DependencyProvider,
+  packageName: string,
+  currentVersions: string[],
+): Promise<Record<string, string>> =>
+  currentVersions.reduce<Promise<Record<string, string>>>(async (pending, currentVersion) => {
+    const resolvedVersions = await pending;
+    const latestVersion = await provider.getLatestVersion(packageName, currentVersion);
+    resolvedVersions[currentVersion] = latestVersion;
+    return resolvedVersions;
+  }, Promise.resolve({}));
+
+const resolveProviderVersion = async (
+  provider: DependencyProvider,
+  language: SupportedLanguage,
+  manifests: LoadedManifest[],
+  packageName: string,
+  resolvedDependencyVersions: ResolvedDependencyVersions,
+): Promise<string> => {
+  const currentVersions = currentVersionsFor(manifests, packageName);
+  const hasMultipleDockerVersions = language === LANGUAGES.DOCKER && currentVersions.length > 1;
+  if (!hasMultipleDockerVersions) {
+    return provider.getLatestVersion(packageName, currentVersions[0]);
+  }
+
+  const resolvedVersions = await resolveDockerVersions(provider, packageName, currentVersions);
+  resolvedDependencyVersions[packageName] = resolvedVersions;
+  return resolvedVersions[currentVersions[0]];
+};
+
+const resolutionCachePrefix = (
+  manifests: LoadedManifest[],
+  language: SupportedLanguage,
+  packageManager: DependencyManager,
+): string => {
+  const base = `${language}:${packageManager}`;
+  if (language !== LANGUAGES.DOCKER) return base;
+
+  const names = collectAllDepNamesFromManifests(manifests).sort();
+  const entries = names.map((name) => `${name}@${currentVersionsFor(manifests, name).join(",")}`);
+  return `${base}:${entries.join("|")}`;
+};
+
 const createVersionResolver = (
   manifests: LoadedManifest[],
   rootDir: string,
@@ -466,11 +524,20 @@ const createVersionResolver = (
       const filePath = resolveManifestPath(rootDir, defaultFile);
       return createProvider(language, filePath, options);
     })();
+  const resolvedDependencyVersions: ResolvedDependencyVersions = {};
 
   return {
     provider,
-    resolveVersion: (packageName: string) => provider.getLatestVersion(packageName),
-    cachePrefix: `${language}:${packageManager}`,
+    resolveVersion: (packageName: string) =>
+      resolveProviderVersion(
+        provider,
+        language,
+        manifests,
+        packageName,
+        resolvedDependencyVersions,
+      ),
+    cachePrefix: resolutionCachePrefix(manifests, language, packageManager),
+    resolvedDependencyVersions,
   };
 };
 
@@ -618,10 +685,13 @@ const handleVersionMapError = (
       err.message.includes("EAI_AGAIN"));
 
   const isValidationError = err instanceof Error && err.message.includes("Invalid package");
+  const isDockerResolutionError = err instanceof Error && err.message.startsWith("Docker ");
 
   const packageName = typeof dep === "string" ? dep : "unknown";
 
-  if (!isValidationError) {
+  if (isDockerResolutionError) {
+    logger.error(err.message);
+  } else if (!isValidationError) {
     const errorContext = {
       packageName,
       error: err as Error,
@@ -910,6 +980,101 @@ const dependenciesForComparison = (
   return Object.fromEntries(entries);
 };
 
+const dependenciesWithoutResolvedVersions = (
+  dependencies: Record<string, string> | undefined,
+  resolvedVersions: ResolvedDependencyVersions | undefined,
+): Record<string, string> | undefined => {
+  if (!dependencies || !resolvedVersions) return dependencies;
+
+  const entries = Object.entries(dependencies).filter(([name]) => !resolvedVersions[name]);
+  return Object.fromEntries(entries);
+};
+
+const resolvedUpdateForVersion = (
+  name: string,
+  currentVersion: string,
+  latestVersion: string,
+  context: DependencyUpdateContext,
+): DepToUpdateItem[] => {
+  const { codependencies, permissive, level, versionStrategy } = context;
+  const current = { [name]: currentVersion };
+  const latest = { [name]: latestVersion };
+  if (permissive) {
+    return constructPermissiveDepsToUpdateList(
+      current,
+      codependencies,
+      latest,
+      level,
+      versionStrategy,
+    );
+  }
+  return constructDepsToUpdateList(current, latest, level, versionStrategy);
+};
+
+const resolvedUpdatesForPackage = (
+  name: string,
+  versions: Readonly<Record<string, string>>,
+  context: DependencyUpdateContext,
+): DepToUpdateItem[] =>
+  Object.entries(versions).flatMap(([currentVersion, latestVersion]) =>
+    resolvedUpdateForVersion(name, currentVersion, latestVersion, context),
+  );
+
+const resolvedUpdatesForSection = (
+  dependencies: Record<string, string> | undefined,
+  resolvedVersions: ResolvedDependencyVersions | undefined,
+  context: DependencyUpdateContext,
+): DepToUpdateItem[] => {
+  if (!dependencies || !resolvedVersions) return [];
+
+  const resolvedEntries = Object.entries(resolvedVersions);
+  const matchingEntries = resolvedEntries.filter(([name]) => dependencies[name] !== undefined);
+  return matchingEntries.flatMap(([name, versions]) =>
+    resolvedUpdatesForPackage(name, versions, context),
+  );
+};
+
+const standardUpdatesForSection = (
+  dependencies: Record<string, string> | undefined,
+  versionMap: Record<string, string>,
+  context: DependencyUpdateContext,
+): DepToUpdateItem[] => {
+  const { codependencies, permissive, level, versionStrategy } = context;
+  if (permissive) {
+    return constructPermissiveDepsToUpdateList(
+      dependencies,
+      codependencies,
+      versionMap,
+      level,
+      versionStrategy,
+    );
+  }
+  return constructDepsToUpdateList(dependencies, versionMap, level, versionStrategy);
+};
+
+const buildSectionUpdateList = (
+  dependencies: Record<string, string> | undefined,
+  json: DependencySections,
+  versionMap: Record<string, string>,
+  options: CheckDependenciesForVersionOptions,
+  codependencies: string[],
+): DepToUpdateItem[] => {
+  const { level = "major", permissive = false, versionStrategy = "semver" } = options;
+  const context = { codependencies, permissive, level, versionStrategy };
+  const unresolved = dependenciesWithoutResolvedVersions(
+    dependencies,
+    json.resolvedDependencyVersions,
+  );
+  const compared = dependenciesForComparison(unresolved, json.dependencyVersions, versionMap);
+  const standardUpdates = standardUpdatesForSection(compared, versionMap, context);
+  const resolvedUpdates = resolvedUpdatesForSection(
+    dependencies,
+    json.resolvedDependencyVersions,
+    context,
+  );
+  return standardUpdates.concat(resolvedUpdates);
+};
+
 export const buildUpdateLists = <T extends DependencySections>(
   versionMap: Record<string, string>,
   json: T,
@@ -917,82 +1082,18 @@ export const buildUpdateLists = <T extends DependencySections>(
   codependencies?: Array<string>,
 ): DepsToUpdate => {
   const { dependencies, devDependencies, peerDependencies, optionalDependencies } = json;
-  const { permissive, level = "major", versionStrategy = "semver" } = options;
-  const dependencyVersions = json.dependencyVersions;
-  const comparedDependencies = dependenciesForComparison(
-    dependencies,
-    dependencyVersions,
-    versionMap,
-  );
-  const comparedDevDependencies = dependenciesForComparison(
-    devDependencies,
-    dependencyVersions,
-    versionMap,
-  );
-  const comparedPeerDependencies = dependenciesForComparison(
-    peerDependencies,
-    dependencyVersions,
-    versionMap,
-  );
-  const comparedOptionalDependencies = dependenciesForComparison(
-    optionalDependencies,
-    dependencyVersions,
-    versionMap,
-  );
-
-  if (permissive) {
-    const coDeps = codependencies || [];
-    return {
-      depList: constructPermissiveDepsToUpdateList(
-        comparedDependencies,
-        coDeps,
-        versionMap,
-        level,
-        versionStrategy,
-      ),
-      devDepList: constructPermissiveDepsToUpdateList(
-        comparedDevDependencies,
-        coDeps,
-        versionMap,
-        level,
-        versionStrategy,
-      ),
-      peerDepList: constructPermissiveDepsToUpdateList(
-        comparedPeerDependencies,
-        coDeps,
-        versionMap,
-        level,
-        versionStrategy,
-      ),
-      optionalDepList: constructPermissiveDepsToUpdateList(
-        comparedOptionalDependencies,
-        coDeps,
-        versionMap,
-        level,
-        versionStrategy,
-      ),
-    };
-  }
+  const coDeps = codependencies || [];
 
   return {
-    depList: constructDepsToUpdateList(comparedDependencies, versionMap, level, versionStrategy),
-    devDepList: constructDepsToUpdateList(
-      comparedDevDependencies,
+    depList: buildSectionUpdateList(dependencies, json, versionMap, options, coDeps),
+    devDepList: buildSectionUpdateList(devDependencies, json, versionMap, options, coDeps),
+    peerDepList: buildSectionUpdateList(peerDependencies, json, versionMap, options, coDeps),
+    optionalDepList: buildSectionUpdateList(
+      optionalDependencies,
+      json,
       versionMap,
-      level,
-      versionStrategy,
-    ),
-    peerDepList: constructDepsToUpdateList(
-      comparedPeerDependencies,
-      versionMap,
-      level,
-      versionStrategy,
-    ),
-    optionalDepList: constructDepsToUpdateList(
-      comparedOptionalDependencies,
-      versionMap,
-      level,
-      versionStrategy,
+      options,
+      coDeps,
     ),
   };
 };
@@ -1407,6 +1508,19 @@ const resolveEffectiveMode = ({
   return Array.isArray(codependencies) && codependencies.length > 0 ? "verbose" : "precise";
 };
 
+const withResolvedDependencyVersions = (
+  manifests: LoadedManifest[],
+  resolvedDependencyVersions: ResolvedDependencyVersions,
+): LoadedManifest[] => {
+  const hasResolvedVersions = Object.keys(resolvedDependencyVersions).length > 0;
+  if (!hasResolvedVersions) return manifests;
+
+  return manifests.map((loadedManifest) => ({
+    ...loadedManifest,
+    manifest: { ...loadedManifest.manifest, resolvedDependencyVersions },
+  }));
+};
+
 export const checkFiles = async ({
   codependencies,
   files: matchers,
@@ -1521,8 +1635,12 @@ export const checkFiles = async ({
       });
     }
 
-    versionMap = aliasVersionMapForManifests(versionMap, manifests);
-    depNames = aliasCodependenciesForManifests(depNames, manifests);
+    const resolvedManifests = withResolvedDependencyVersions(
+      manifests,
+      versionResolver.resolvedDependencyVersions,
+    );
+    versionMap = aliasVersionMapForManifests(versionMap, resolvedManifests);
+    depNames = aliasCodependenciesForManifests(depNames, resolvedManifests);
 
     const isOutputEnabled = !silent && !quiet;
     const hasUpdateOutput = update || dryRun;
@@ -1531,7 +1649,7 @@ export const checkFiles = async ({
     const allDiffs = shouldCollectDiffs
       ? collectDiffsFromManifests(
           versionMap,
-          manifests.map(({ manifest, provider }) => ({
+          resolvedManifests.map(({ manifest, provider }) => ({
             ...manifest,
             versionStrategy: provider.capabilities.versionStrategy,
           })),
@@ -1559,7 +1677,7 @@ export const checkFiles = async ({
 
     const shouldDeferFailure = format !== undefined || deferFailure;
     const isOutOfDate = await checkLoadedManifests({
-      manifests,
+      manifests: resolvedManifests,
       versionMap,
       isCLI,
       isSilent: silent || format !== undefined,

@@ -1,5 +1,6 @@
 import * as readline from "readline";
 import type { PromptChoice } from "./types";
+import { logger } from "../logger";
 
 export class Prompt {
   protected rl: readline.Interface;
@@ -23,9 +24,7 @@ export class Prompt {
 
   input(message: string, defaultValue?: string): Promise<string> {
     return new Promise((resolve) => {
-      const prompt = defaultValue
-        ? `${message} (${defaultValue}): `
-        : `${message}: `;
+      const prompt = defaultValue ? `${message} (${defaultValue}): ` : `${message}: `;
       this.ensureCookedMode();
       this.rl.question(prompt, (answer) => {
         resolve(answer.trim() || defaultValue || "");
@@ -49,10 +48,10 @@ export class Prompt {
   }
 
   list(message: string, choices: PromptChoice[]): Promise<string> {
-    console.log(`\n${message}`);
+    logger.print(`\n${message}`);
 
     choices.forEach((choice, index) => {
-      console.log(`  ${index + 1}. ${choice.name}`);
+      logger.print(`  ${index + 1}. ${choice.name}`);
     });
 
     return new Promise((resolve) => {
@@ -62,7 +61,7 @@ export class Prompt {
           const num = parseInt(answer.trim(), 10);
 
           if (isNaN(num) || num < 1 || num > choices.length) {
-            console.log(
+            logger.print(
               `▲  Invalid choice. Please enter a number between 1 and ${choices.length}`,
             );
             askForChoice();
@@ -77,11 +76,11 @@ export class Prompt {
   }
 
   checkbox(message: string, choices: PromptChoice[]): Promise<string[]> {
-    console.log(`\n${message}`);
-    console.log("(Use comma-separated numbers, e.g., 1,3,5)\n");
+    logger.print(`\n${message}`);
+    logger.print("(Use comma-separated numbers, e.g., 1,3,5)\n");
 
     choices.forEach((choice, index) => {
-      console.log(`  ${index + 1}. ${choice.name}`);
+      logger.print(`  ${index + 1}. ${choice.name}`);
     });
 
     return new Promise((resolve) => {
@@ -97,15 +96,13 @@ export class Prompt {
               return;
             }
 
-            const numbers = trimmed
-              .split(",")
-              .map((n) => parseInt(n.trim(), 10));
+            const numbers = trimmed.split(",").map((n) => parseInt(n.trim(), 10));
             const isValid = numbers.every(
               (num) => !isNaN(num) && num >= 1 && num <= choices.length,
             );
 
             if (!isValid) {
-              console.log(
+              logger.print(
                 `▲  Invalid input. Please enter numbers between 1 and ${choices.length}, separated by commas.`,
               );
               askForChoices();
@@ -122,9 +119,7 @@ export class Prompt {
   }
 }
 
-export const createPrompt = async <T>(
-  callback: (prompt: Prompt) => Promise<T>,
-): Promise<T> => {
+export const createPrompt = async <T>(callback: (prompt: Prompt) => Promise<T>): Promise<T> => {
   const prompt = new Prompt();
   try {
     const result = await callback(prompt);

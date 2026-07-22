@@ -5,7 +5,12 @@ import type {
   Level,
   SupportedLanguage,
 } from "../types";
-import type { DependencyManifest, DependencyProvider } from "../providers/types";
+import type {
+  DependencyManifest,
+  DependencyProvider,
+  ResolvedDependencyVersions,
+  VersionStrategy,
+} from "../providers/types";
 import type { DEP_SECTIONS } from "./constants";
 
 export type DependencySection = (typeof DEP_SECTIONS)[number];
@@ -22,9 +27,17 @@ export interface LoadedManifest {
 export interface DependencySections {
   dependencies?: Record<string, string>;
   dependencyVersions?: Record<string, readonly string[]>;
+  resolvedDependencyVersions?: ResolvedDependencyVersions;
   devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;
+}
+
+export interface DependencyUpdateContext {
+  codependencies: string[];
+  permissive: boolean;
+  level: Level;
+  versionStrategy: VersionStrategy;
 }
 
 export type PackageNormalizer = (packageName: string) => string;
@@ -38,6 +51,7 @@ export interface VersionResolver {
   provider: DependencyProvider;
   resolveVersion: (packageName: string) => Promise<string>;
   cachePrefix: string;
+  resolvedDependencyVersions: ResolvedDependencyVersions;
 }
 
 export interface MatchedFileOptions {

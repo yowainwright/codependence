@@ -3,6 +3,7 @@ import * as fs from "fs";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { logger } from "../../../src/logger";
+import { DockerProvider } from "../../../src/providers/docker";
 import { GitHubActionsProvider } from "../../../src/providers/github-actions";
 import { NodeJSProvider } from "../../../src/providers/nodejs";
 import { versionCache, requestDeduplicator } from "../../../src/utils/cache";
@@ -56,6 +57,29 @@ test("buildUpdateLists => compares repeated versions in every dependency section
   expect(result.devDepList.map(({ name }) => name)).toEqual(["development"]);
   expect(result.peerDepList.map(({ name }) => name)).toEqual(["peer"]);
   expect(result.optionalDepList.map(({ name }) => name)).toEqual(["optional"]);
+});
+
+test("buildUpdateLists => compares each resolved Docker tag family", () => {
+  const result = buildUpdateLists(
+    { node: "24-slim" },
+    {
+      dependencies: { node: "20-slim" },
+      dependencyVersions: { node: ["20-slim", "20-alpine"] },
+      resolvedDependencyVersions: {
+        node: {
+          "20-slim": "24-slim",
+          "20-alpine": "24-alpine",
+        },
+      },
+    },
+    { versionStrategy: "exact" },
+    ["node"],
+  );
+
+  expect(result.depList).toEqual([
+    { name: "node", actual: "20-slim", exact: "24-slim", expected: "24-slim" },
+    { name: "node", actual: "20-alpine", exact: "24-alpine", expected: "24-alpine" },
+  ]);
 });
 
 test("constructVersionMap => pass", async () => {
@@ -1765,11 +1789,15 @@ test("checkFiles => explicit ignore patterns replace compatibility defaults", as
   }
 });
 
-test("checkFiles => rejects Docker precise mode", async () => {
+test("checkFiles => supports Docker precise mode", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-precise");
+  const dockerfilePath = join(tempDir, "Dockerfile");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
-  writeFileSync(join(tempDir, "Dockerfile"), "FROM node:20.11.1\n");
+  writeFileSync(dockerfilePath, "FROM node:20.11.1\n");
+  const latestVersionSpy = jest
+    .spyOn(DockerProvider.prototype, "getLatestVersion")
+    .mockResolvedValue("24.0.0");
 
   try {
     await expect(
@@ -1777,20 +1805,27 @@ test("checkFiles => rejects Docker precise mode", async () => {
         rootDir: tempDir,
         files: ["Dockerfile"],
         mode: "precise",
-        isTesting: true,
+        update: true,
         silent: true,
       }),
-    ).rejects.toThrow("docker provider requires explicit version pins");
+    ).resolves.toEqual([]);
+    expect(latestVersionSpy).toHaveBeenCalledWith("node", "20.11.1");
+    expect(readFileSync(dockerfilePath, "utf8")).toBe("FROM node:24.0.0\n");
   } finally {
+    latestVersionSpy.mockRestore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
-test("checkFiles => rejects Docker string codependencies", async () => {
+test("checkFiles => supports Docker string codependencies", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-string-deps");
+  const dockerfilePath = join(tempDir, "Dockerfile");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
-  writeFileSync(join(tempDir, "Dockerfile"), "FROM node:20.11.1\n");
+  writeFileSync(dockerfilePath, "FROM node:20.11.1\n");
+  const latestVersionSpy = jest
+    .spyOn(DockerProvider.prototype, "getLatestVersion")
+    .mockResolvedValue("24.0.0");
 
   try {
     await expect(
@@ -1799,21 +1834,27 @@ test("checkFiles => rejects Docker string codependencies", async () => {
         rootDir: tempDir,
         files: ["Dockerfile"],
         mode: "verbose",
-        isTesting: true,
+        update: true,
         silent: true,
       }),
-    ).rejects.toThrow("docker provider requires explicit version pins");
+    ).resolves.toEqual([]);
+    expect(readFileSync(dockerfilePath, "utf8")).toBe("FROM node:24.0.0\n");
   } finally {
+    latestVersionSpy.mockRestore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
-test("checkFiles => rejects Docker string codependencies in Node roots", async () => {
+test("checkFiles => resolves Docker string codependencies in Node roots", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-node-root");
+  const dockerfilePath = join(tempDir, "Dockerfile");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(join(tempDir, "package.json"), '{"dependencies":{"lodash":"4.17.21"}}\n');
-  writeFileSync(join(tempDir, "Dockerfile"), "FROM node:20.11.1\n");
+  writeFileSync(dockerfilePath, "FROM node:20.11.1\n");
+  const latestVersionSpy = jest
+    .spyOn(DockerProvider.prototype, "getLatestVersion")
+    .mockResolvedValue("24.0.0");
 
   try {
     await expect(
@@ -1822,11 +1863,78 @@ test("checkFiles => rejects Docker string codependencies in Node roots", async (
         rootDir: tempDir,
         files: ["Dockerfile"],
         mode: "verbose",
-        isTesting: true,
+        update: true,
         silent: true,
       }),
-    ).rejects.toThrow("docker provider requires explicit version pins");
+    ).resolves.toEqual([]);
+    expect(readFileSync(dockerfilePath, "utf8")).toBe("FROM node:24.0.0\n");
   } finally {
+    latestVersionSpy.mockRestore();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => resolves multiple current Docker tags independently", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-conflict");
+  const dockerfilePath = join(tempDir, "Dockerfile");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(dockerfilePath, "FROM node:20-slim\nFROM node:20-alpine\n");
+  const latestVersionSpy = jest
+    .spyOn(DockerProvider.prototype, "getLatestVersion")
+    .mockImplementation(async (_name, currentVersion) => {
+      if (currentVersion === "20-slim") return "24-slim";
+      return "24-alpine";
+    });
+
+  try {
+    await expect(
+      checkFiles({
+        codependencies: ["node"],
+        rootDir: tempDir,
+        files: ["Dockerfile"],
+        mode: "verbose",
+        update: true,
+        silent: true,
+      }),
+    ).resolves.toEqual([]);
+    expect(latestVersionSpy).toHaveBeenCalledWith("node", "20-slim");
+    expect(latestVersionSpy).toHaveBeenCalledWith("node", "20-alpine");
+    expect(readFileSync(dockerfilePath, "utf8")).toBe("FROM node:24-slim\nFROM node:24-alpine\n");
+  } finally {
+    latestVersionSpy.mockRestore();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => scopes Docker version cache by current tag", async () => {
+  const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-cache");
+  const slimDir = join(tempDir, "slim");
+  const alpineDir = join(tempDir, "alpine");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(slimDir, { recursive: true });
+  mkdirSync(alpineDir, { recursive: true });
+  writeFileSync(join(slimDir, "Dockerfile"), "FROM node:20-slim\n");
+  writeFileSync(join(alpineDir, "Dockerfile"), "FROM node:20-alpine\n");
+  const latestVersionSpy = jest
+    .spyOn(DockerProvider.prototype, "getLatestVersion")
+    .mockImplementation(async (_name, currentVersion) => {
+      if (currentVersion === "20-slim") return "24-slim";
+      return "24-alpine";
+    });
+
+  try {
+    const options = {
+      codependencies: ["node"],
+      files: ["Dockerfile"],
+      silent: true,
+      update: true,
+    };
+    await checkFiles({ ...options, rootDir: slimDir });
+    await checkFiles({ ...options, rootDir: alpineDir });
+    expect(latestVersionSpy).toHaveBeenCalledTimes(2);
+  } finally {
+    latestVersionSpy.mockRestore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });

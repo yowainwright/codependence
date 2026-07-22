@@ -78,6 +78,10 @@ The default secret name is `CODEPENDENCE_TOKEN`; change it with
 | `lockfile` | Require lockfiles for selected targets | No | `true` |
 | `pull-request` | Create or update a pull request | No | `false` |
 | `token` | Fine-grained PAT used for pull requests | In PR mode | - |
+| `dockerhub-username` | Docker Hub username for private image metadata | No | - |
+| `dockerhub-token` | Docker Hub read-only PAT or organization access token | No | - |
+| `ghcr-username` | GitHub username for private GHCR image metadata | No | `${{ github.actor }}` |
+| `ghcr-token` | GitHub token with read access to GHCR packages | No | `${{ github.token }}` |
 | `post-update-command` | Trusted lockfile regeneration command | In PR mode | - |
 | `draft` | Create a draft pull request | No | `false` |
 | `branch-prefix` | Stable pull request branch prefix | No | `update-dependencies` |
@@ -112,10 +116,14 @@ coverage and update semantics settle.
 
 <!-- provider capabilities from src/providers/*/index.ts -->
 
-Docker requires explicit object pins in verbose mode. GitHub Actions supports
-explicit pins, latest release resolution, and precise mode. Latest releases are
-pinned by immutable commit SHA. The action passes its GitHub token to
-Codependence for authenticated version lookups.
+Docker supports explicit pins, latest tag resolution, and precise mode for
+Docker Hub and GHCR. Numeric tag selection preserves the current prefix and
+suffix; digest pins are never replaced. Public images need no additional
+credentials. Private Docker Hub images use `dockerhub-username` plus a
+read-only `dockerhub-token`. Private GHCR images use `ghcr-username` plus a
+classic PAT with `read:packages`, or the default workflow token when the
+repository has package access. GitHub Actions latest releases are pinned by
+immutable commit SHA.
 
 ## Examples
 
@@ -183,8 +191,7 @@ is ignored automatically. An explicit `ignore` input replaces those defaults.
     },
     {
       "manager": "docker",
-      "mode": "verbose",
-      "codependencies": [{ "node": "24-slim" }]
+      "mode": "precise"
     },
     {
       "manager": "github-actions",

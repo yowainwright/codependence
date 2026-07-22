@@ -165,6 +165,12 @@ describe("Logger", () => {
       expect(consoleSpy.log).toHaveBeenCalledWith("Plain message");
     });
 
+    it("should print plain errors", () => {
+      const logger = createLogger();
+      logger.printError("Plain error");
+      expect(consoleSpy.error).toHaveBeenCalledWith("Plain error");
+    });
+
     it("should print lines with newline prefix", () => {
       const logger = createLogger();
       logger.line("Line message");
@@ -205,6 +211,7 @@ describe("Logger", () => {
       const logger = createLogger({ silent: true });
 
       logger.print("test");
+      logger.printError("test");
       logger.line("test");
       logger.indent("test");
       logger.item(1, "test");
@@ -212,6 +219,7 @@ describe("Logger", () => {
       logger.separator();
 
       expect(consoleSpy.log).not.toHaveBeenCalled();
+      expect(consoleSpy.error).not.toHaveBeenCalled();
     });
   });
 

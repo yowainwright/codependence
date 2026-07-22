@@ -674,7 +674,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
     silent: isQuiet,
     structured: false,
   };
-  const logger = createLogger(loggerConfig);
+  const actionLogger = createLogger(loggerConfig);
 
   const { baseConfig, pathConfig } = loadActionConfigs(options);
   const mergedOptions = mergeConfigs(options, baseConfig, pathConfig);
@@ -684,7 +684,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
 
   // capture/test CLI options
   if (isTestingCLI) {
-    console.info({ updatedOptions: mergedOptions });
+    logger.print({ updatedOptions: mergedOptions });
     return;
   }
 
@@ -703,7 +703,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
     const isWatchMode = updatedOptions.watch === true;
 
     if (isDryRun) {
-      console.log(cyan(`\n${SYMBOLS.info} Dry run - no files will be modified\n`));
+      actionLogger.print(cyan(`\n${SYMBOLS.info} Dry run - no files will be modified\n`));
     }
 
     if (isWatchMode) {
@@ -743,9 +743,9 @@ export async function action(options: Options = {}): Promise<void | Options> {
 
       if (updatedOptions.outputFile) {
         writeFileSync(updatedOptions.outputFile, formattedOutput);
-        console.log(`Output written to ${updatedOptions.outputFile}`);
+        actionLogger.print(`Output written to ${updatedOptions.outputFile}`);
       } else {
-        console.log(formattedOutput);
+        actionLogger.print(formattedOutput);
       }
     } else {
       const successMessage = isDryRun
@@ -765,7 +765,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
     }
   } catch (err) {
     spinner?.stop();
-    logger.error(errorMessage(err));
+    actionLogger.error(errorMessage(err));
     process.exit(CLI_ERROR_EXIT_CODE);
   }
 }
@@ -796,33 +796,33 @@ const showPerformanceMetrics = (duration: number): void => {
   const stats = versionCache.getStats();
   const hitRate = versionCache.getHitRate();
   const lines = formatPerformanceMetrics(duration, stats, hitRate);
-  lines.forEach((line) => console.log(line));
+  lines.forEach((line) => logger.print(line));
 };
 
 const runWatchMode = async (targets: CheckFiles[]): Promise<void> => {
-  console.log(cyan(`\n${SYMBOLS.info} Watch mode enabled - checking every 30 seconds...\n`));
-  console.log(gray("Press Ctrl+C to stop\n"));
+  logger.print(cyan(`\n${SYMBOLS.info} Watch mode enabled - checking every 30 seconds...\n`));
+  logger.print(gray("Press Ctrl+C to stop\n"));
   let isChecking = false;
 
   const checkDependencies = async () => {
     if (isChecking) {
-      console.log(gray("Previous check still running, skipping this interval."));
+      logger.print(gray("Previous check still running, skipping this interval."));
       return;
     }
 
     isChecking = true;
     const now = new Date().toLocaleTimeString();
-    console.log(gray(`\n[${now}] Checking dependencies...`));
+    logger.print(gray(`\n[${now}] Checking dependencies...`));
 
     try {
       const { failed } = await runTargets(targets, () => {});
       if (failed) {
-        console.error(red(`${SYMBOLS.error} Dependency issues found (${now})`));
+        logger.printError(red(`${SYMBOLS.error} Dependency issues found (${now})`));
         return;
       }
-      console.log(green(`${SYMBOLS.success} All dependencies checked (${now})`));
+      logger.print(green(`${SYMBOLS.success} All dependencies checked (${now})`));
     } catch (err) {
-      console.error(red(`${SYMBOLS.error} Check failed: ${(err as Error).message}`));
+      logger.printError(red(`${SYMBOLS.error} Check failed: ${(err as Error).message}`));
     } finally {
       isChecking = false;
     }
@@ -889,8 +889,8 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
 
     spinner.stop();
 
-    console.log(`\n🤼‍♀️ Welcome to ${gradient("Codependence")} setup!\n`);
-    console.log("Codependence helps you manage dependency versions in your project.\n");
+    logger.print(`\n🤼‍♀️ Welcome to ${gradient("Codependence")} setup!\n`);
+    logger.print("Codependence helps you manage dependency versions in your project.\n");
 
     let pinnedDeps: string[] = [];
     let outputType: "rc" | "package" = "rc";
@@ -916,10 +916,10 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
 
       if (managementMode === "permissive") {
         usePermissive = true;
-        console.log(
+        logger.print(
           `\n${SYMBOLS.bullet} In permissive mode, you'll select dependencies to PIN (keep at current version).`,
         );
-        console.log("   All other dependencies will be updated to their latest versions.\n");
+        logger.print("   All other dependencies will be updated to their latest versions.\n");
 
         const depChoices = Object.keys(allDeps).map((dep) => {
           const currentVersion = allDeps[dep];
@@ -936,7 +936,7 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
         pinnedDeps = userPinnedDeps;
 
         if (pinnedDeps.length === 0) {
-          console.log(
+          logger.print(
             `\n${SYMBOLS.success} Great! All dependencies will be updated to latest versions.`,
           );
         }
@@ -944,7 +944,7 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
         // Pin all dependencies mode
         usePermissive = false;
         pinnedDeps = Object.keys(allDeps);
-        console.log(
+        logger.print(
           `\n${SYMBOLS.pinned} All dependencies will be pinned at their current versions.`,
         );
       }
@@ -987,19 +987,19 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
       spinner2.succeed("Created .codependencerc configuration file");
     }
 
-    console.log(`\n🤼‍♀️ ${gradient("Codependence")} setup complete!\n`);
+    logger.print(`\n🤼‍♀️ ${gradient("Codependence")} setup complete!\n`);
 
     if (usePermissive) {
-      console.log("> Next steps:");
-      console.log("   • Run `codependence --update` to update dependencies");
+      logger.print("> Next steps:");
+      logger.print("   • Run `codependence --update` to update dependencies");
       if (pinnedDeps.length > 0) {
-        console.log(`   • These dependencies will stay pinned: ${pinnedDeps.join(", ")}`);
+        logger.print(`   • These dependencies will stay pinned: ${pinnedDeps.join(", ")}`);
       }
-      console.log("   • All other dependencies will update to latest versions\n");
+      logger.print("   • All other dependencies will update to latest versions\n");
     } else {
-      console.log("> Next steps:");
-      console.log("   • Run `codependence` to check dependency versions");
-      console.log("   • Run `codependence --update` to update dependencies\n");
+      logger.print("> Next steps:");
+      logger.print("   • Run `codependence` to check dependency versions");
+      logger.print("   • Run `codependence --update` to update dependencies\n");
     }
   } catch (err) {
     spinner.stop();

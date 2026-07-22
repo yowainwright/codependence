@@ -247,10 +247,24 @@ Run one configured manager target with an exact tool version:
 Rust accepts exact stable `x.y.z` toolchains and normalizes an optional leading
 `v` before invoking rustup.
 
+Public Docker Hub and GHCR images need no registry inputs. Private images use
+repository secrets without placing credentials in `.codependencerc`:
+
+```yaml
+- uses: yowainwright/codependence@v1
+  with:
+    targets: docker
+    dockerhub-username: ${{ vars.DOCKERHUB_USERNAME }}
+    dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+    ghcr-username: ${{ github.actor }}
+    ghcr-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
 PR mode requires a fine-grained PAT and `post-update-command`. Each manager set
-uses a stable branch, so scheduled Bun, Go, Rust, and uv workflows maintain
-separate pull requests while repeated runs update the existing PR. See the
-[GitHub Action guide](.github/ACTION.md) for lockfile policy and PAT permissions.
+uses a stable branch, so scheduled Bun, Go, Rust, uv, and infrastructure
+workflows maintain separate pull requests while repeated runs update the
+existing PR. See the [GitHub Action guide](.github/ACTION.md) for lockfile
+policy and PAT permissions.
 
 ## Codependence in Node
 
@@ -558,10 +572,22 @@ codependence --language github-actions
 
 <!-- provider capabilities from src/providers/*/index.ts -->
 
-The Docker provider currently supports explicit pinned updates only. Use object
-codependencies such as `{"node":"24-slim"}` with `mode: "verbose"`.
-`Dockerfile`, `Dockerfile.*`, and their recursive equivalents are discovered by
-default. `FROM` values assembled from Docker `ARG` variables are not resolved.
+The Docker provider supports explicit pins, latest tag resolution, and
+`mode: "precise"` for Docker Hub and GHCR images. It selects the highest stable
+numeric tag that is at least as specific as the current tag and has its exact
+prefix and suffix, so `20-slim` remains in the `-slim` family and `3.19` does
+not switch to a date tag. Repeated images with different tag families resolve
+independently. `FROM` tags assembled from one Docker `ARG` are resolved and
+updated without changing the composition. Digest-pinned images, scratch
+stages, unresolved variables, and unsupported registries remain unchanged.
+Mutable tags such as `latest` fail rather than guessing a version.
+
+The CLI reads Docker Hub credentials from `DOCKERHUB_USERNAME` and
+`DOCKERHUB_TOKEN`. GHCR uses `GHCR_USERNAME` and `GHCR_TOKEN`. Both values are
+required for authenticated registry access. The GitHub Action falls back to its
+workflow token for private GHCR packages and retries anonymously when GHCR
+rejects that token for a public package. Docker Hub PATs should be read-only;
+private GHCR packages require `read:packages` access.
 
 The GitHub Actions provider supports explicit pins, latest release resolution,
 and `mode: "precise"`. Latest versions resolve to immutable commit SHAs, and

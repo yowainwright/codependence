@@ -354,6 +354,58 @@ jobs:
         run: |
           uv --version | grep -q '0.8.0'
 
+  test-docker-check:
+    name: Test Docker Registry Check
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      FIXTURE_ROOT: /tmp/codependence-docker
+    steps:
+      # actions/checkout v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+
+      - name: Download build artifacts
+        # actions/download-artifact v8.0.1
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: dist
+          path: dist/
+
+      - name: Setup Docker fixture
+        run: |
+          mkdir -p "$FIXTURE_ROOT"
+          printf 'FROM alpine:3.19\n' > "$FIXTURE_ROOT/Dockerfile"
+          cat > "$FIXTURE_ROOT/.codependencerc" <<'EOF'
+          {
+            "targets": [
+              {
+                "manager": "docker",
+                "rootDir": "/tmp/codependence-docker",
+                "mode": "precise"
+              }
+            ]
+          }
+          EOF
+
+      - name: Run Codependence Action for Docker
+        id: codependence
+        uses: ./
+        with:
+          config: /tmp/codependence-docker/.codependencerc
+          targets: docker
+          update: true
+          noCache: true
+
+      - name: Verify Docker update
+        run: |
+          test "${{ steps.codependence.outputs.outdated }}" = "false"
+          if grep -q '^FROM alpine:3.19$' "$FIXTURE_ROOT/Dockerfile"; then
+            exit 1
+          fi
+          grep -Eq '^FROM alpine:[0-9]+(\.[0-9]+){0,2}$' "$FIXTURE_ROOT/Dockerfile"
+
   test-github-actions-check:
     name: Test GitHub Actions Check
     needs: build
@@ -420,6 +472,7 @@ jobs:
         test-go-check,
         test-rust-check,
         test-uv-check,
+        test-docker-check,
         test-github-actions-check,
       ]
     runs-on: ubuntu-latest
@@ -433,6 +486,7 @@ jobs:
              [ "${{ needs.test-go-check.result }}" != "success" ] || \
              [ "${{ needs.test-rust-check.result }}" != "success" ] || \
              [ "${{ needs.test-uv-check.result }}" != "success" ] || \
+             [ "${{ needs.test-docker-check.result }}" != "success" ] || \
              [ "${{ needs.test-github-actions-check.result }}" != "success" ]; then
             echo "One or more action tests failed"
             exit 1

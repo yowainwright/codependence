@@ -197,6 +197,13 @@ export type VersionDiff = {
   willUpdate: boolean;
 };
 
+export type VersionDiffContext = {
+  codependencies: string[];
+  permissive: boolean;
+  level: Level;
+  versionStrategy: VersionStrategy;
+};
+
 export type DependencyInfo = {
   name: string;
   current: string;

@@ -6,6 +6,7 @@
     }
   ],
   "rules": {
+    "no-console": "error",
     "legibility/max-array-chain-depth": [
       "warn",
       {
@@ -19,5 +20,13 @@
       }
     ],
     "legibility/no-quadratic-patterns": "warn"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["src/logger/index.ts"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
 }

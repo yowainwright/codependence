@@ -44,7 +44,7 @@ run_package_script() {
   mkdir -p "$PROJECT_DIR/node_modules" "$HOME_DIR" "$CODEX_DIR"
   mkdir -p "$PROJECT_DIR/scripts"
   if [ ! -e "$PROJECT_DIR/node_modules/eslint-plugin-legibility" ]; then
-    cp -R "$ROOT_DIR/node_modules/eslint-plugin-legibility" "$PROJECT_DIR/node_modules/eslint-plugin-legibility"
+    cp -RL "$ROOT_DIR/node_modules/eslint-plugin-legibility" "$PROJECT_DIR/node_modules/eslint-plugin-legibility"
   fi
   cp "$ROOT_DIR/scripts/install-legibility-skill.js" "$PROJECT_DIR/scripts/install-legibility-skill.js"
 

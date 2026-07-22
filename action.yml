@@ -32,6 +32,18 @@ inputs:
   token:
     description: 'Fine-grained PAT used to create pull requests'
     required: false
+  dockerhub-username:
+    description: 'Docker Hub username for private image metadata'
+    required: false
+  dockerhub-token:
+    description: 'Docker Hub read-only PAT or organization access token'
+    required: false
+  ghcr-username:
+    description: 'GitHub username for private GHCR image metadata'
+    required: false
+  ghcr-token:
+    description: 'GitHub token with read access to GHCR packages'
+    required: false
   post-update-command:
     description: 'Trusted command that regenerates lockfiles after updates'
     required: false
@@ -309,6 +321,11 @@ runs:
       id: codependence
       shell: bash
       env:
+        DOCKERHUB_TOKEN: ${{ inputs.dockerhub-token }}
+        DOCKERHUB_USERNAME: ${{ inputs.dockerhub-username }}
+        GHCR_TOKEN: ${{ inputs.ghcr-token }}
+        GHCR_USERNAME: ${{ inputs.ghcr-username }}
+        GITHUB_ACTOR: ${{ github.actor }}
         GITHUB_TOKEN: ${{ github.token }}
         INPUT_CODEDEPENDENCIES: ${{ inputs.codependencies }}
         INPUT_CONFIG: ${{ inputs.config }}
