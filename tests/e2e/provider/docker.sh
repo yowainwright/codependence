@@ -34,15 +34,23 @@ assert_file_unchanged_after_update "$WORK_DIR" "$WORK_DIR/Dockerfile" "docker up
 make_tmp_dir
 cp "$FIXTURE_DIR/docker-Dockerfile.fixture" "$WORK_DIR/Dockerfile"
 cat > "$WORK_DIR/.codependencerc" <<'JSON'
-{"mode":"verbose","codependencies":["node"]}
+{"mode":"verbose","codependencies":["alpine"]}
 JSON
 
-assert_update_fails_unchanged "$WORK_DIR" "$WORK_DIR/Dockerfile" "docker provider requires explicit version pins" "docker string codependency"
+run_update "$WORK_DIR"
+
+assert_file_not_contains "$WORK_DIR/Dockerfile" "ARG ALPINE_VERSION=3.19" "Docker Hub tag resolved"
+assert_file_contains "$WORK_DIR/Dockerfile" "$variable_tag_line" "resolved ARG reference preserved"
+assert_file_contains "$WORK_DIR/Dockerfile" "$digest_line" "resolved update preserves digest image"
+assert_file_unchanged_after_update "$WORK_DIR" "$WORK_DIR/Dockerfile" "resolved Docker update is idempotent"
 
 make_tmp_dir
 cp "$FIXTURE_DIR/docker-Dockerfile.fixture" "$WORK_DIR/Dockerfile"
 cat > "$WORK_DIR/.codependencerc" <<'JSON'
-{"mode":"precise"}
+{"mode":"precise","codependencies":[{"node":"20-slim"},{"nginx":"1.25-alpine"}]}
 JSON
 
-assert_update_fails_unchanged "$WORK_DIR" "$WORK_DIR/Dockerfile" "docker provider requires explicit version pins" "docker precise mode"
+run_update "$WORK_DIR"
+
+assert_file_not_contains "$WORK_DIR/Dockerfile" "ARG ALPINE_VERSION=3.19" "Docker precise mode resolves unpinned images"
+assert_file_contains "$WORK_DIR/Dockerfile" "$digest_line" "Docker precise mode preserves digest image"

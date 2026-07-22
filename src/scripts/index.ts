@@ -442,6 +442,46 @@ const detectStaleCodependenciesFromManifests = (
   return pinnedNames.filter((name) => !allDepNames.has(name));
 };
 
+const manifestVersionsFor = (manifest: DependencyManifest, packageName: string): string[] => {
+  const recordedVersions = manifest.dependencyVersions?.[packageName];
+  if (recordedVersions) return [...recordedVersions];
+
+  const version = manifest.dependencies[packageName];
+  return version ? [version] : [];
+};
+
+const currentVersionsFor = (manifests: LoadedManifest[], packageName: string): string[] => {
+  const versions = manifests.flatMap(({ manifest }) => manifestVersionsFor(manifest, packageName));
+  return Array.from(new Set(versions));
+};
+
+const currentVersionForResolution = (
+  manifests: LoadedManifest[],
+  language: SupportedLanguage,
+  packageName: string,
+): string | undefined => {
+  const versions = currentVersionsFor(manifests, packageName);
+  const hasDockerConflict = language === LANGUAGES.DOCKER && versions.length > 1;
+  if (hasDockerConflict) {
+    throw new Error(`Docker image ${packageName} uses multiple tags: ${versions.join(", ")}`);
+  }
+
+  return versions[0];
+};
+
+const resolutionCachePrefix = (
+  manifests: LoadedManifest[],
+  language: SupportedLanguage,
+  packageManager: DependencyManager,
+): string => {
+  const base = `${language}:${packageManager}`;
+  if (language !== LANGUAGES.DOCKER) return base;
+
+  const names = collectAllDepNamesFromManifests(manifests).sort();
+  const entries = names.map((name) => `${name}@${currentVersionsFor(manifests, name).join(",")}`);
+  return `${base}:${entries.join("|")}`;
+};
+
 const createVersionResolver = (
   manifests: LoadedManifest[],
   rootDir: string,
@@ -469,8 +509,11 @@ const createVersionResolver = (
 
   return {
     provider,
-    resolveVersion: (packageName: string) => provider.getLatestVersion(packageName),
-    cachePrefix: `${language}:${packageManager}`,
+    resolveVersion: (packageName: string) => {
+      const currentVersion = currentVersionForResolution(manifests, language, packageName);
+      return provider.getLatestVersion(packageName, currentVersion);
+    },
+    cachePrefix: resolutionCachePrefix(manifests, language, packageManager),
   };
 };
 
@@ -618,10 +661,13 @@ const handleVersionMapError = (
       err.message.includes("EAI_AGAIN"));
 
   const isValidationError = err instanceof Error && err.message.includes("Invalid package");
+  const isDockerResolutionError = err instanceof Error && err.message.startsWith("Docker ");
 
   const packageName = typeof dep === "string" ? dep : "unknown";
 
-  if (!isValidationError) {
+  if (isDockerResolutionError) {
+    logger.error(err.message);
+  } else if (!isValidationError) {
     const errorContext = {
       packageName,
       error: err as Error,

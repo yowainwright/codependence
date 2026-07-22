@@ -90,6 +90,19 @@ assert_file_contains() {
   fail "$label"
 }
 
+assert_file_not_contains() {
+  file="$1"
+  pattern="$2"
+  label="$3"
+
+  if grep -Fq "$pattern" "$file"; then
+    printf 'Expected not to find: %s\n' "$pattern"
+    fail "$label"
+  fi
+
+  pass "$label"
+}
+
 assert_file_equals() {
   expected="$1"
   actual="$2"
