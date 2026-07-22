@@ -357,4 +357,28 @@ describe("collectAllDiffs", () => {
     expect(diffs).toHaveLength(1);
     expect(diffs[0].package).toBe("lodash");
   });
+
+  test("should preserve distinct current versions with the same target", () => {
+    const manifest = {
+      dependencies: { node: "20-slim" },
+      resolvedDependencyVersions: {
+        node: {
+          "20-slim": "24-slim",
+          "22-slim": "24-slim",
+        },
+      },
+    };
+
+    writeFileSync(join(testDir, "Dockerfile.json"), JSON.stringify(manifest));
+
+    const diffs = collectAllDiffs(
+      { node: "24-slim" },
+      ["Dockerfile.json"],
+      testDir + "/",
+      ["node"],
+      false,
+    );
+
+    expect(diffs.map(({ current }) => current)).toEqual(["20-slim", "22-slim"]);
+  });
 });
