@@ -125,7 +125,7 @@ const resolveRegistryImage = (packageName: string): DockerRegistryImage => {
   if (DOCKER_HUB_NAMES.has(first) && remaining.length > 0) {
     return dockerHubImage(packageName, remaining.join("/"));
   }
-  if (DOCKER_PATTERNS.REGISTRY_HOST.test(first)) {
+  if (first.match(DOCKER_PATTERNS.REGISTRY_HOST)) {
     throw new Error(`Unsupported Docker registry for ${packageName}; use Docker Hub or GHCR`);
   }
 
