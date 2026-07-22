@@ -791,7 +791,7 @@
 
     "parse-url": ["parse-url@9.2.0", "", { "dependencies": { "@types/parse-path": "^7.0.0", "parse-path": "^7.0.0" } }, "sha512-bCgsFI+GeGWPAvAiUv63ZorMeif3/U0zaXABGJbOWt5OH2KCaPHF6S+0ok4aqM9RuIPGyZdx9tR9l13PsW4AYQ=="],
 
-    "pastoralist": ["pastoralist@1.12.8", "", { "bin": { "pastoralist": "dist/index.js", "pastoralist-setup-local-dev": "scripts/setup-local-dev.sh", "pastoralist-setup-skill": "scripts/setup-pastoralist-skill.sh" } }, "sha512-5w6rTXIpu43G9uLxipPnu6gHA4YCaJydXcB+Y/v6JxunFN2dvu6iMulRiNUQgTihP9kVoSnAzvYOE5Dn4cWWdA=="],
+    "pastoralist": ["pastoralist@1.12.9", "", { "bin": { "pastoralist": "dist/index.js", "pastoralist-setup-local-dev": "scripts/setup-local-dev.sh", "pastoralist-setup-skill": "scripts/setup-pastoralist-skill.sh" } }, "sha512-YI2PdVA9wMfJ/GL0RWHNf9+b9NpoWiZB3XtCPvgWbWbgIjKGwEQ+WXME4Vq7UUKSfTssEv6T2X0KjhVgoC4Ryw=="],
 
     "pathe": ["pathe@2.0.3", "", {}, "sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w=="],
 
