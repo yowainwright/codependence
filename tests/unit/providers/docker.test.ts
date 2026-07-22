@@ -115,6 +115,22 @@ describe("DockerProvider", () => {
     expect(authorizationFor(requests[2])).toBe(expectedBearer);
   });
 
+  test("should resolve public GHCR tags without workflow credentials", async () => {
+    const scope = "repository:acme/widget:pull";
+    const challenge = bearerChallenge("https://ghcr.io/token", "ghcr.io", scope);
+    const unauthorized = new Response(null, {
+      status: 401,
+      headers: { "WWW-Authenticate": challenge },
+    });
+    const tokenResponse = Response.json({ token: crypto.randomUUID() });
+    const tagsResponse = Response.json({ name: "acme/widget", tags: ["1.0"] });
+    const { fetch, requests } = mockFetch([unauthorized, tokenResponse, tagsResponse]);
+    const provider = new DockerProvider({ fetch, ghcrCredentials: {} });
+
+    await expect(provider.getAllVersions("ghcr.io/acme/widget")).resolves.toEqual(["1.0"]);
+    expect(authorizationFor(requests[1])).toBeNull();
+  });
+
   test("should normalize registry-qualified Docker Hub image names", async () => {
     const tagBody = { name: "acme/widget", tags: ["1.0"] };
     const { fetch, requests } = mockFetch([Response.json(tagBody)]);
@@ -122,6 +138,13 @@ describe("DockerProvider", () => {
 
     await expect(provider.getAllVersions("docker.io/acme/widget")).resolves.toEqual(["1.0"]);
     expect(requests[0].url).toBe("https://registry-1.docker.io/v2/acme/widget/tags/list?n=100");
+  });
+
+  test("should ignore numeric tags less specific than the current tag", async () => {
+    const tagBody = { name: "library/alpine", tags: ["3.20", "3.21.1", "20260127"] };
+    const provider = new DockerProvider({ fetch: mockFetch([Response.json(tagBody)]).fetch });
+
+    await expect(provider.getLatestVersion("alpine", "3.19")).resolves.toBe("3.21.1");
   });
 
   test("should fail safely for unsupported or ambiguous tag resolution", async () => {

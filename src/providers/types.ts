@@ -7,6 +7,8 @@ import type { NodeJSProvider } from "./nodejs";
 import type { PythonProvider } from "./python";
 import type { RustProvider } from "./rust";
 
+export type ResolvedDependencyVersions = Record<string, Readonly<Record<string, string>>>;
+
 export type Language = (typeof LANGUAGES)[keyof typeof LANGUAGES] | "php";
 
 export interface LanguageDetectionResult {
@@ -21,6 +23,7 @@ export interface DependencyManifest {
   version?: string;
   dependencies: Record<string, string>;
   dependencyVersions?: Record<string, readonly string[]>;
+  resolvedDependencyVersions?: ResolvedDependencyVersions;
   devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;

@@ -12,7 +12,8 @@ export interface Logger {
   info: (message: string) => void;
   debug: (message: string, data?: unknown) => void;
   verbose: (message: string, data?: unknown) => void;
-  print: (message: string) => void;
+  print: (message?: unknown) => void;
+  printError: (message: string) => void;
   line: (message: string) => void;
   indent: (message: string, spaces?: number) => void;
   item: (n: number, message: string) => void;

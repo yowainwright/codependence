@@ -1851,12 +1851,18 @@ test("checkFiles => resolves Docker string codependencies in Node roots", async 
   }
 });
 
-test("checkFiles => rejects conflicting current Docker tags", async () => {
+test("checkFiles => resolves multiple current Docker tags independently", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-conflict");
+  const dockerfilePath = join(tempDir, "Dockerfile");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
-  writeFileSync(join(tempDir, "Dockerfile"), "FROM node:20-slim\nFROM node:20-alpine\n");
-  const latestVersionSpy = jest.spyOn(DockerProvider.prototype, "getLatestVersion");
+  writeFileSync(dockerfilePath, "FROM node:20-slim\nFROM node:20-alpine\n");
+  const latestVersionSpy = jest
+    .spyOn(DockerProvider.prototype, "getLatestVersion")
+    .mockImplementation(async (_name, currentVersion) => {
+      if (currentVersion === "20-slim") return "24-slim";
+      return "24-alpine";
+    });
 
   try {
     await expect(
@@ -1865,10 +1871,13 @@ test("checkFiles => rejects conflicting current Docker tags", async () => {
         rootDir: tempDir,
         files: ["Dockerfile"],
         mode: "verbose",
+        update: true,
         silent: true,
       }),
-    ).rejects.toThrow("Docker image node uses multiple tags: 20-slim, 20-alpine");
-    expect(latestVersionSpy).not.toHaveBeenCalled();
+    ).resolves.toEqual([]);
+    expect(latestVersionSpy).toHaveBeenCalledWith("node", "20-slim");
+    expect(latestVersionSpy).toHaveBeenCalledWith("node", "20-alpine");
+    expect(readFileSync(dockerfilePath, "utf8")).toBe("FROM node:24-slim\nFROM node:24-alpine\n");
   } finally {
     latestVersionSpy.mockRestore();
     rmSync(tempDir, { recursive: true, force: true });

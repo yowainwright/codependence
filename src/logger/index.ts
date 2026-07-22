@@ -24,10 +24,20 @@ export const createLogger = (options: Partial<LoggerConfig> = {}): Logger => {
     });
   };
 
-  const formatPlain = (icon: string, color: (text: string) => string, message: string, extra?: string | unknown) => {
+  const formatPlain = (
+    icon: string,
+    color: (text: string) => string,
+    message: string,
+    extra?: string | unknown,
+  ) => {
     const prefix = color("codependence");
     const content = `${prefix}\n  ${icon}  ${message}`;
-    const extraString = typeof extra === "string" ? extra : typeof extra === "object" ? JSON.stringify(extra, null, 2) : undefined;
+    const extraString =
+      typeof extra === "string"
+        ? extra
+        : typeof extra === "object"
+          ? JSON.stringify(extra, null, 2)
+          : undefined;
     return extraString ? `${content}\n     ${extraString}` : content;
   };
 
@@ -42,7 +52,13 @@ export const createLogger = (options: Partial<LoggerConfig> = {}): Logger => {
     else console.log(message);
   };
 
-  const log = (level: LogLevel, icon: string, color: (text: string) => string, message: string, extra?: string | unknown) => {
+  const log = (
+    level: LogLevel,
+    icon: string,
+    color: (text: string) => string,
+    message: string,
+    extra?: string | unknown,
+  ) => {
     if (!shouldLog(level)) return;
 
     const formatted = config.structured
@@ -74,8 +90,12 @@ export const createLogger = (options: Partial<LoggerConfig> = {}): Logger => {
       log("verbose", ICONS.verbose, gray, message, data);
     },
 
-    print: (message: string) => {
+    print: (message?: unknown) => {
       if (!config.silent) console.log(message);
+    },
+
+    printError: (message: string) => {
+      if (!config.silent) console.error(message);
     },
 
     line: (message: string) => {

@@ -19,6 +19,7 @@ import type {
   DependencyManifest,
   DependencyProvider,
   PythonPackageManager,
+  ResolvedDependencyVersions,
   VersionStrategy,
 } from "../providers/types";
 import { validatePackageName } from "../utils/validate-package";
@@ -455,18 +456,34 @@ const currentVersionsFor = (manifests: LoadedManifest[], packageName: string): s
   return Array.from(new Set(versions));
 };
 
-const currentVersionForResolution = (
-  manifests: LoadedManifest[],
-  language: SupportedLanguage,
+const resolveDockerVersions = (
+  provider: DependencyProvider,
   packageName: string,
-): string | undefined => {
-  const versions = currentVersionsFor(manifests, packageName);
-  const hasDockerConflict = language === LANGUAGES.DOCKER && versions.length > 1;
-  if (hasDockerConflict) {
-    throw new Error(`Docker image ${packageName} uses multiple tags: ${versions.join(", ")}`);
+  currentVersions: string[],
+): Promise<Record<string, string>> =>
+  currentVersions.reduce<Promise<Record<string, string>>>(async (pending, currentVersion) => {
+    const resolvedVersions = await pending;
+    const latestVersion = await provider.getLatestVersion(packageName, currentVersion);
+    resolvedVersions[currentVersion] = latestVersion;
+    return resolvedVersions;
+  }, Promise.resolve({}));
+
+const resolveProviderVersion = async (
+  provider: DependencyProvider,
+  language: SupportedLanguage,
+  manifests: LoadedManifest[],
+  packageName: string,
+  resolvedDependencyVersions: ResolvedDependencyVersions,
+): Promise<string> => {
+  const currentVersions = currentVersionsFor(manifests, packageName);
+  const hasMultipleDockerVersions = language === LANGUAGES.DOCKER && currentVersions.length > 1;
+  if (!hasMultipleDockerVersions) {
+    return provider.getLatestVersion(packageName, currentVersions[0]);
   }
 
-  return versions[0];
+  const resolvedVersions = await resolveDockerVersions(provider, packageName, currentVersions);
+  resolvedDependencyVersions[packageName] = resolvedVersions;
+  return resolvedVersions[currentVersions[0]];
 };
 
 const resolutionCachePrefix = (
@@ -506,14 +523,20 @@ const createVersionResolver = (
       const filePath = resolveManifestPath(rootDir, defaultFile);
       return createProvider(language, filePath, options);
     })();
+  const resolvedDependencyVersions: ResolvedDependencyVersions = {};
 
   return {
     provider,
-    resolveVersion: (packageName: string) => {
-      const currentVersion = currentVersionForResolution(manifests, language, packageName);
-      return provider.getLatestVersion(packageName, currentVersion);
-    },
+    resolveVersion: (packageName: string) =>
+      resolveProviderVersion(
+        provider,
+        language,
+        manifests,
+        packageName,
+        resolvedDependencyVersions,
+      ),
     cachePrefix: resolutionCachePrefix(manifests, language, packageManager),
+    resolvedDependencyVersions,
   };
 };
 
@@ -1453,6 +1476,19 @@ const resolveEffectiveMode = ({
   return Array.isArray(codependencies) && codependencies.length > 0 ? "verbose" : "precise";
 };
 
+const withResolvedDependencyVersions = (
+  manifests: LoadedManifest[],
+  resolvedDependencyVersions: ResolvedDependencyVersions,
+): LoadedManifest[] => {
+  const hasResolvedVersions = Object.keys(resolvedDependencyVersions).length > 0;
+  if (!hasResolvedVersions) return manifests;
+
+  return manifests.map((loadedManifest) => ({
+    ...loadedManifest,
+    manifest: { ...loadedManifest.manifest, resolvedDependencyVersions },
+  }));
+};
+
 export const checkFiles = async ({
   codependencies,
   files: matchers,
@@ -1567,8 +1603,12 @@ export const checkFiles = async ({
       });
     }
 
-    versionMap = aliasVersionMapForManifests(versionMap, manifests);
-    depNames = aliasCodependenciesForManifests(depNames, manifests);
+    const resolvedManifests = withResolvedDependencyVersions(
+      manifests,
+      versionResolver.resolvedDependencyVersions,
+    );
+    versionMap = aliasVersionMapForManifests(versionMap, resolvedManifests);
+    depNames = aliasCodependenciesForManifests(depNames, resolvedManifests);
 
     const isOutputEnabled = !silent && !quiet;
     const hasUpdateOutput = update || dryRun;
@@ -1577,7 +1617,7 @@ export const checkFiles = async ({
     const allDiffs = shouldCollectDiffs
       ? collectDiffsFromManifests(
           versionMap,
-          manifests.map(({ manifest, provider }) => ({
+          resolvedManifests.map(({ manifest, provider }) => ({
             ...manifest,
             versionStrategy: provider.capabilities.versionStrategy,
           })),
@@ -1605,7 +1645,7 @@ export const checkFiles = async ({
 
     const shouldDeferFailure = format !== undefined || deferFailure;
     const isOutOfDate = await checkLoadedManifests({
-      manifests,
+      manifests: resolvedManifests,
       versionMap,
       isCLI,
       isSilent: silent || format !== undefined,

@@ -5,7 +5,7 @@
       "files": ["package.json"],
       "codependencies": [
         {
-          "@perryts/perry": "0.5.1220"
+          "@perryts/perry": "0.5.1182"
         },
         "bun-types",
         "fast-check",

@@ -7,6 +7,7 @@ import { DEP_SECTIONS } from "../scripts/constants";
 import { formatVersionTable } from "./table";
 import { isWithinLevel } from "./semver";
 import { SYMBOLS } from "./constants";
+import { logger } from "../logger";
 
 const extractDepsFromSection = (
   packageJson: Pick<
@@ -101,7 +102,7 @@ export const displayVersionDiffs = (diffs: VersionDiff[], isDryRun: boolean): vo
   const diffsToShow = diffs.filter((d) => d.current !== d.latest);
 
   if (diffsToShow.length === 0) {
-    console.log(`\n${SYMBOLS.success} All dependencies are up-to-date!\n`);
+    logger.print(`\n${SYMBOLS.success} All dependencies are up-to-date!\n`);
     return;
   }
 
@@ -109,9 +110,9 @@ export const displayVersionDiffs = (diffs: VersionDiff[], isDryRun: boolean): vo
     ? `\n${SYMBOLS.info} Dependencies that would be updated:`
     : `\n${SYMBOLS.info} Dependency Updates Available:`;
 
-  console.log(header);
-  console.log(formatVersionTable(diffsToShow));
-  console.log("");
+  logger.print(header);
+  logger.print(formatVersionTable(diffsToShow));
+  logger.print("");
 };
 
 const readPackageDiffs = (

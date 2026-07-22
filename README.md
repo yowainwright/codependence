@@ -574,17 +574,19 @@ codependence --language github-actions
 
 The Docker provider supports explicit pins, latest tag resolution, and
 `mode: "precise"` for Docker Hub and GHCR images. It selects the highest stable
-numeric tag with the current tag's exact prefix and suffix, so `20-slim`
-remains in the `-slim` family. `FROM` tags assembled from one Docker `ARG` are
-resolved and updated without changing the composition. Digest-pinned images,
-scratch stages, unresolved variables, and unsupported registries remain
-unchanged. Mutable tags such as `latest` fail rather than guessing a version.
+numeric tag that is at least as specific as the current tag and has its exact
+prefix and suffix, so `20-slim` remains in the `-slim` family and `3.19` does
+not switch to a date tag. Repeated images with different tag families resolve
+independently. `FROM` tags assembled from one Docker `ARG` are resolved and
+updated without changing the composition. Digest-pinned images, scratch
+stages, unresolved variables, and unsupported registries remain unchanged.
+Mutable tags such as `latest` fail rather than guessing a version.
 
 The CLI reads Docker Hub credentials from `DOCKERHUB_USERNAME` and
-`DOCKERHUB_TOKEN`. GHCR uses `GHCR_USERNAME` and `GHCR_TOKEN`, with
-`GITHUB_ACTOR` and `GITHUB_TOKEN` as the GitHub Actions fallback. Both values
-are required for authenticated registry access. Docker Hub PATs should be
-read-only; private GHCR packages require `read:packages` access.
+`DOCKERHUB_TOKEN`. GHCR uses `GHCR_USERNAME` and `GHCR_TOKEN`. Both values are
+required for authenticated registry access. Public registry lookups remain
+anonymous unless these credentials are explicitly configured. Docker Hub PATs
+should be read-only; private GHCR packages require `read:packages` access.
 
 The GitHub Actions provider supports explicit pins, latest release resolution,
 and `mode: "precise"`. Latest versions resolve to immutable commit SHAs, and

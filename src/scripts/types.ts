@@ -5,7 +5,11 @@ import type {
   Level,
   SupportedLanguage,
 } from "../types";
-import type { DependencyManifest, DependencyProvider } from "../providers/types";
+import type {
+  DependencyManifest,
+  DependencyProvider,
+  ResolvedDependencyVersions,
+} from "../providers/types";
 import type { DEP_SECTIONS } from "./constants";
 
 export type DependencySection = (typeof DEP_SECTIONS)[number];
@@ -38,6 +42,7 @@ export interface VersionResolver {
   provider: DependencyProvider;
   resolveVersion: (packageName: string) => Promise<string>;
   cachePrefix: string;
+  resolvedDependencyVersions: ResolvedDependencyVersions;
 }
 
 export interface MatchedFileOptions {

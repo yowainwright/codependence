@@ -43,21 +43,21 @@ describe("Action Function Tests (Fast)", () => {
   });
 
   test("handles isTestingCLI flag", async () => {
-    const consoleInfoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
+    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
 
     await action({
       isTestingCLI: true,
       codependencies: ["lodash", "fs-extra"],
     });
 
-    expect(consoleInfoSpy).toHaveBeenCalledWith({
+    expect(consoleLogSpy).toHaveBeenCalledWith({
       updatedOptions: {
         isCLI: true,
         codependencies: ["lodash", "fs-extra"],
       },
     });
 
-    consoleInfoSpy.mockRestore();
+    consoleLogSpy.mockRestore();
   });
 
   test("merges CLI options with config", async () => {
@@ -92,7 +92,7 @@ describe("Action Function Tests (Fast)", () => {
   });
 
   test("processes multiple CLI flags", async () => {
-    const consoleInfoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
+    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
 
     await action({
       isTestingCLI: true,
@@ -106,7 +106,7 @@ describe("Action Function Tests (Fast)", () => {
       rootDir: "./test",
     });
 
-    expect(consoleInfoSpy).toHaveBeenCalledWith({
+    expect(consoleLogSpy).toHaveBeenCalledWith({
       updatedOptions: {
         isCLI: true,
         codependencies: ["lodash"],
@@ -120,7 +120,7 @@ describe("Action Function Tests (Fast)", () => {
       },
     });
 
-    consoleInfoSpy.mockRestore();
+    consoleLogSpy.mockRestore();
   });
 
   test("processes config with searchPath", async () => {
@@ -300,7 +300,7 @@ describe("Action Function Tests (Fast)", () => {
   });
 
   test("handles array of files", async () => {
-    const consoleInfoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
+    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
 
     await action({
       isTestingCLI: true,
@@ -308,7 +308,7 @@ describe("Action Function Tests (Fast)", () => {
       files: ["package.json", "packages/*/package.json", "apps/*/package.json"],
     });
 
-    expect(consoleInfoSpy).toHaveBeenCalledWith({
+    expect(consoleLogSpy).toHaveBeenCalledWith({
       updatedOptions: {
         isCLI: true,
         codependencies: ["lodash"],
@@ -316,11 +316,11 @@ describe("Action Function Tests (Fast)", () => {
       },
     });
 
-    consoleInfoSpy.mockRestore();
+    consoleLogSpy.mockRestore();
   });
 
   test("handles ignore patterns", async () => {
-    const consoleInfoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
+    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
 
     await action({
       isTestingCLI: true,
@@ -328,7 +328,7 @@ describe("Action Function Tests (Fast)", () => {
       ignore: ["**/node_modules/**", "**/dist/**", "**/.next/**"],
     });
 
-    expect(consoleInfoSpy).toHaveBeenCalledWith({
+    expect(consoleLogSpy).toHaveBeenCalledWith({
       updatedOptions: {
         isCLI: true,
         codependencies: ["react"],
@@ -336,25 +336,25 @@ describe("Action Function Tests (Fast)", () => {
       },
     });
 
-    consoleInfoSpy.mockRestore();
+    consoleLogSpy.mockRestore();
   });
 
   test("handles complex codependencies", async () => {
-    const consoleInfoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
+    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
 
     await action({
       isTestingCLI: true,
       codependencies: ["lodash", { "fs-extra": "10.0.1" }, "react@^18.0.0"],
     });
 
-    expect(consoleInfoSpy).toHaveBeenCalledWith({
+    expect(consoleLogSpy).toHaveBeenCalledWith({
       updatedOptions: {
         isCLI: true,
         codependencies: ["lodash", { "fs-extra": "10.0.1" }, "react@^18.0.0"],
       },
     });
 
-    consoleInfoSpy.mockRestore();
+    consoleLogSpy.mockRestore();
   });
 
   test("combines all options", async () => {

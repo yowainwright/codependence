@@ -17,9 +17,11 @@ import type {
   DockerTagsPromise,
   DockerTokenResponse,
   DockerVersionTag,
+  ResolvedDependencyVersions,
 } from "../types";
 import {
   DOCKER_AUTH_HOSTS,
+  DOCKER_BEARER_PREFIX,
   DOCKER_HUB_HOST,
   DOCKER_HUB_LIBRARY,
   DOCKER_HUB_NAMES,
@@ -92,14 +94,8 @@ const environmentCredentials = (
   token: process.env[tokenName],
 });
 
-const ghcrEnvironmentCredentials = (): DockerRegistryCredentials => {
-  const explicit = environmentCredentials("GHCR_USERNAME", "GHCR_TOKEN");
-  if (explicit.username || explicit.token) return explicit;
-
-  const username = process.env.GITHUB_ACTOR;
-  const token = username ? process.env.GITHUB_TOKEN : undefined;
-  return { username, token };
-};
+const ghcrEnvironmentCredentials = (): DockerRegistryCredentials =>
+  environmentCredentials("GHCR_USERNAME", "GHCR_TOKEN");
 
 const dockerHubImage = (displayName: string, name: string): DockerRegistryImage => {
   const repository = name.includes("/") ? name : `${DOCKER_HUB_LIBRARY}/${name}`;
@@ -118,6 +114,9 @@ const ghcrImage = (displayName: string, name: string): DockerRegistryImage => ({
   registry: "ghcr",
 });
 
+const isRegistryHost = (value: string): boolean =>
+  value.includes(".") || value.includes(":") || value === "localhost";
+
 const resolveRegistryImage = (packageName: string): DockerRegistryImage => {
   const [first, ...remaining] = packageName.split("/");
   if (first === GHCR_HOST && remaining.length > 0)
@@ -125,7 +124,7 @@ const resolveRegistryImage = (packageName: string): DockerRegistryImage => {
   if (DOCKER_HUB_NAMES.has(first) && remaining.length > 0) {
     return dockerHubImage(packageName, remaining.join("/"));
   }
-  if (first.match(DOCKER_PATTERNS.REGISTRY_HOST)) {
+  if (isRegistryHost(first)) {
     throw new Error(`Unsupported Docker registry for ${packageName}; use Docker Hub or GHCR`);
   }
 
@@ -160,12 +159,25 @@ const basicAuthorization = (credentials: DockerRegistryCredentials): string | un
   return `Basic ${value}`;
 };
 
-const parseAuthChallenge = (header: string | null): DockerAuthChallenge => {
-  const bearer = header?.match(DOCKER_PATTERNS.BEARER_CHALLENGE);
-  if (!bearer) throw new Error("Docker registry did not provide a Bearer authentication challenge");
+const authAttributes = (value: string): Record<string, string> =>
+  value.split(",").reduce<Record<string, string>>((attributes, item) => {
+    const separator = item.indexOf("=");
+    if (separator < 1) return attributes;
 
-  const matches = bearer[1].matchAll(DOCKER_PATTERNS.AUTH_ATTRIBUTE);
-  const attributes = Object.fromEntries(Array.from(matches, (match) => [match[1], match[2]]));
+    const name = item.slice(0, separator).trim();
+    const rawValue = item.slice(separator + 1).trim();
+    const hasQuotes = rawValue.startsWith('"') && rawValue.endsWith('"');
+    if (name && hasQuotes) attributes[name] = rawValue.slice(1, -1);
+    return attributes;
+  }, {});
+
+const parseAuthChallenge = (header: string | null): DockerAuthChallenge => {
+  const scheme = header?.slice(0, DOCKER_BEARER_PREFIX.length).toLowerCase();
+  if (!header || scheme !== DOCKER_BEARER_PREFIX) {
+    throw new Error("Docker registry did not provide a Bearer authentication challenge");
+  }
+
+  const attributes = authAttributes(header.slice(DOCKER_BEARER_PREFIX.length));
   const realm = attributes.realm;
   const service = attributes.service;
   if (!realm || !service) throw new Error("Docker registry authentication challenge is incomplete");
@@ -195,12 +207,13 @@ const trustedAuthUrl = (image: DockerRegistryImage, realm: string): URL => {
   return url;
 };
 
-const authenticationUrl = (image: DockerRegistryImage, challenge: DockerAuthChallenge): URL => {
+const authenticationUrl = (image: DockerRegistryImage, challenge: DockerAuthChallenge): string => {
   const url = trustedAuthUrl(image, challenge.realm);
   const scope = `repository:${image.name}:pull`;
-  url.searchParams.set("service", challenge.service);
-  url.searchParams.set("scope", scope);
-  return url;
+  const serviceQuery = `service=${encodeURIComponent(challenge.service)}`;
+  const scopeQuery = `scope=${encodeURIComponent(scope)}`;
+  const separator = url.search ? "&" : "?";
+  return `${url.toString()}${separator}${serviceQuery}&${scopeQuery}`;
 };
 
 const responseStatus = (response: Response): string => {
@@ -316,7 +329,10 @@ const matchingVersionTag = (
   current: DockerVersionTag,
 ): candidate is DockerVersionTag => {
   if (!candidate) return false;
-  return candidate.prefix === current.prefix && candidate.suffix === current.suffix;
+  const hasCompatibleSpecificity = candidate.specificity >= current.specificity;
+  const hasMatchingFormat =
+    candidate.prefix === current.prefix && candidate.suffix === current.suffix;
+  return hasCompatibleSpecificity && hasMatchingFormat;
 };
 
 const assertResolvableTag = (packageName: string, version: string): void => {
@@ -392,10 +408,18 @@ const readDockerArguments = (lines: string[]): DockerArguments =>
     return args;
   }, {} as DockerArguments);
 
+const targetVersionFor = (
+  image: DockerImage,
+  dependencies: Record<string, string>,
+  resolvedDependencyVersions?: ResolvedDependencyVersions,
+): string | undefined =>
+  resolvedDependencyVersions?.[image.name]?.[image.version] || dependencies[image.name];
+
 const requestedArgumentUpdate = (
   line: string,
   args: DockerArguments,
   dependencies: Record<string, string>,
+  resolvedDependencyVersions?: ResolvedDependencyVersions,
 ): readonly [string, string] | null => {
   const match = line.match(DOCKER_PATTERNS.FROM_LINE);
   if (!match || match[3].trimStart().startsWith("@")) return null;
@@ -407,8 +431,12 @@ const requestedArgumentUpdate = (
   if (!reference) return null;
 
   const argumentDefault = args[reference.name];
-  const version = dependencies[imageSpec.name];
-  if (!argumentDefault || !version) return null;
+  const currentVersion = resolveDockerVersion(imageSpec.version, args);
+  if (!argumentDefault || !currentVersion) return null;
+
+  const image = { name: imageSpec.name, version: currentVersion };
+  const version = targetVersionFor(image, dependencies, resolvedDependencyVersions);
+  if (!version) return null;
 
   const argumentValue = argumentValueForVersion(version, reference);
   return argumentValue ? [reference.name, argumentValue] : null;
@@ -418,12 +446,13 @@ const collectArgumentUpdates = (
   lines: string[],
   args: DockerArguments,
   dependencies: Record<string, string>,
+  resolvedDependencyVersions?: ResolvedDependencyVersions,
 ): DockerArguments => {
   const updates: DockerArguments = {};
   const conflicts = new Set<string>();
 
   lines.forEach((line) => {
-    const update = requestedArgumentUpdate(line, args, dependencies);
+    const update = requestedArgumentUpdate(line, args, dependencies, resolvedDependencyVersions);
     if (!update) return;
 
     const [name, version] = update;
@@ -448,6 +477,7 @@ const updateDockerArgumentLine = (line: string, updates: DockerArguments): strin
 export const updateDockerFromLine = (
   line: string,
   dependencies: Record<string, string>,
+  resolvedDependencyVersions?: ResolvedDependencyVersions,
 ): string => {
   const match = line.match(DOCKER_PATTERNS.FROM_LINE);
   if (!match) return line;
@@ -457,7 +487,7 @@ export const updateDockerFromLine = (
   const imageSpec = splitDockerImage(match[2]);
   if (isScratchImage(imageSpec)) return line;
 
-  const version = dependencies[imageSpec.name];
+  const version = targetVersionFor(imageSpec, dependencies, resolvedDependencyVersions);
   if (!version) return line;
 
   const updatedImage = `${imageSpec.name}:${version}`;
@@ -507,7 +537,7 @@ export class DockerProvider implements DependencyProvider {
     const credentials = this.credentialsFor(image);
     const basic = basicAuthorization(credentials);
     const headers = registryHeaders(basic);
-    const tokenResponse = await this.fetchResponse(image, url.toString(), headers);
+    const tokenResponse = await this.fetchResponse(image, url, headers);
     const token = await readRegistryToken(tokenResponse, image);
     const authorization = `Bearer ${token}`;
     return authorization;
@@ -596,10 +626,11 @@ export class DockerProvider implements DependencyProvider {
     const content = readFileSync(filePath, "utf8");
     const lines = content.split("\n");
     const args = readDockerArguments(lines);
-    const updates = collectArgumentUpdates(lines, args, manifest.dependencies);
+    const resolvedVersions = manifest.resolvedDependencyVersions;
+    const updates = collectArgumentUpdates(lines, args, manifest.dependencies, resolvedVersions);
     const updatedLines = lines.map((line) => {
       const updatedArgument = updateDockerArgumentLine(line, updates);
-      return updateDockerFromLine(updatedArgument, manifest.dependencies);
+      return updateDockerFromLine(updatedArgument, manifest.dependencies, resolvedVersions);
     });
 
     const updated = updatedLines.join("\n");

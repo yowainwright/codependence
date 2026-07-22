@@ -1,4 +1,5 @@
 import { OPTION_DEFINITIONS, HELP_TEXT, ARGS_START_INDEX } from "./constants";
+import { logger } from "../logger";
 import type {
   ArgumentResult,
   ArgumentState,
@@ -156,5 +157,5 @@ export const parseArgs = (argv: string[]): ParsedArgs => {
 };
 
 export const showHelp = (): void => {
-  console.log(HELP_TEXT);
+  logger.print(HELP_TEXT);
 };
