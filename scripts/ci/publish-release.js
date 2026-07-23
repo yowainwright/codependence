@@ -60,7 +60,7 @@ export function buildGitHubReleaseCreateArgs({ sigstoreBundle, tarball, version 
 }
 
 export function buildGitHubReleaseUploadArgs({ sigstoreBundle, tarball, version }) {
-  return ["release", "upload", version, tarball, sigstoreBundle, "--clobber"];
+  return ["release", "upload", version, tarball, sigstoreBundle];
 }
 
 export function createSpawnRunner() {
@@ -125,6 +125,7 @@ export function runPublishReleaseCli({
   if (command === "resolve-dist-tag") {
     requireValues({ VERSION: env.VERSION });
     writeOutput(env.GITHUB_OUTPUT, "tag", resolveDistTag(env.VERSION));
+    writeOutput(env.GITHUB_OUTPUT, "version", stripTagPrefix(env.VERSION));
     return 0;
   }
 

@@ -1,10 +1,19 @@
-name: Prepare Homebrew formula
+name: Publish Homebrew formula
 
 on:
+  workflow_call:
+    inputs:
+      version:
+        description: Stable npm version to publish to Homebrew
+        required: true
+        type: string
+    secrets:
+      HOMEBREW_TAP_TOKEN:
+        required: false
   workflow_dispatch:
     inputs:
       version:
-        description: Stable npm version to package for Homebrew
+        description: Stable npm version to publish to Homebrew
         required: true
         type: string
 
@@ -176,9 +185,10 @@ jobs:
           codependence --help
           cdp --help
 
-  attach-formula:
+  publish-formula:
     needs: test-formula
     runs-on: ubuntu-24.04
+    environment: homebrew-publish
     permissions:
       contents: write
     env:
@@ -203,3 +213,21 @@ jobs:
           mkdir existing-formula
           gh release download "$RELEASE_TAG" --pattern codependence.rb --dir existing-formula
           cmp -s codependence.rb existing-formula/codependence.rb
+
+      - name: Update Homebrew tap
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAP_BRANCH: codependence-${{ inputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          test -n "$GH_TOKEN"
+          gh repo clone yowainwright/homebrew-tap tap
+          if cmp -s codependence.rb tap/Formula/codependence.rb; then
+            exit 0
+          fi
+          cd tap
+          git switch -c "$TAP_BRANCH"
+          cp ../codependence.rb Formula/codependence.rb
+          git add Formula/codependence.rb
+          git -c user.name=github-actions -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -m "codependence $VERSION"
+          git push --set-upstream origin "$TAP_BRANCH"
+          gh pr create --base main --head "$TAP_BRANCH" --title "codependence $VERSION" --body "Automated formula update for codependence $VERSION."
