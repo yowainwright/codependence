@@ -16,6 +16,10 @@ const execute = (command: string, args: string[], cwd: string): Promise<string> 
     let stdout = "";
     let stderr = "";
     let settled = false;
+    let stdoutEnded = false;
+    let stderrEnded = false;
+    let processExited = false;
+    let processSucceeded = false;
     const workingDirectory = cwd || process.cwd();
     const child: ChildProcess = spawn(command, args, {
       cwd: workingDirectory,
@@ -26,21 +30,41 @@ const execute = (command: string, args: string[], cwd: string): Promise<string> 
       settled = true;
       resolve(hostResult(stdout, stderr, error));
     };
+    const finishIfComplete = (): void => {
+      const isComplete = processExited && stdoutEnded && stderrEnded;
+      if (!isComplete) return;
+
+      const error = processSucceeded ? "" : `Command failed: ${command}\n${stderr}`;
+      finish(error);
+    };
 
     if (child.stdout) {
       child.stdout.on("data", (chunk: Buffer) => {
         stdout += chunk.toString();
       });
+      child.stdout.on("end", () => {
+        stdoutEnded = true;
+        finishIfComplete();
+      });
+    } else {
+      stdoutEnded = true;
     }
     if (child.stderr) {
       child.stderr.on("data", (chunk: Buffer) => {
         stderr += chunk.toString();
       });
+      child.stderr.on("end", () => {
+        stderrEnded = true;
+        finishIfComplete();
+      });
+    } else {
+      stderrEnded = true;
     }
     child.on("error", (error) => finish(error.message));
     child.on("exit", (code) => {
-      const error = code === 0 ? "" : `Command failed: ${command}\n${stderr}`;
-      finish(error);
+      processExited = true;
+      processSucceeded = code === 0;
+      finishIfComplete();
     });
   });
 

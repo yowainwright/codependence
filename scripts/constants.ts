@@ -7,8 +7,8 @@ export const SAFE_SHELL_ARG_PATTERN = /^[A-Za-z0-9_./:=@-]+$/;
 
 export const BIN_OUTPUT_DIR = "artifacts";
 export const BIN_OUTPUT_FILE = `${BIN_OUTPUT_DIR}/codependence`;
-export const BIN_ENTRY_SOURCE_FILE = "scripts/codependence-entry.ts";
-export const BIN_ENTRY_FILE = `${BIN_OUTPUT_DIR}/codependence-entry.ts`;
+export const BIN_ENTRY_SOURCE_FILE = "scripts/bin/entry.ts";
+export const BIN_ENTRY_FILE = `${BIN_OUTPUT_DIR}/entry.ts`;
 export const BIN_RUNTIME_NAME = "codependence-runtime";
 export const BIN_RUNTIME_SOURCE_FILE = "src/bin/runtime.ts";
 export const BIN_RUNTIME_DIR = `${BIN_OUTPUT_DIR}/node_modules/${BIN_RUNTIME_NAME}`;
