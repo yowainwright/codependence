@@ -790,15 +790,12 @@ export const constructVersionTypes = (version: string): Record<string, string> =
   const isStrictInequality = STRICT_INEQUALITY_VERSION_PREFIXES.some(
     (strictPrefix) => strictPrefix === prefix,
   );
-  const bumpCharacter = isStrictInequality
-    ? ""
-    : prefix === "^" || prefix === "~"
-      ? version[0]
-      : prefix;
-  const exactVersion =
-    prefix === "^" || prefix === "~"
-      ? stripRepeatingVersionPrefixes(version)
-      : version.slice(prefix.length);
+  const isRepeatingPrefix = prefix === "^" || prefix === "~";
+  const repeatedBumpCharacter = isRepeatingPrefix ? version[0] : prefix;
+  const bumpCharacter = isStrictInequality ? "" : repeatedBumpCharacter;
+  const exactVersion = isRepeatingPrefix
+    ? stripRepeatingVersionPrefixes(version)
+    : version.slice(prefix.length);
 
   return { bumpCharacter, bumpVersion: version, exactVersion };
 };
@@ -841,21 +838,24 @@ export const constructPermissiveDepsToUpdateList = (
 ): Array<DepToUpdateItem> => {
   if (!Object.keys(dep).length) return [];
 
-  return Object.entries(dep)
-    .filter(([name]) => !codependencies.includes(name))
-    .map(([name, version]) => {
-      const { exactVersion, bumpCharacter } = constructVersionTypes(version);
-      return { name, version, exactVersion, bumpCharacter };
-    })
-    .filter(({ name, version, exactVersion }) =>
+  const unpinnedDependencies = Object.entries(dep).filter(
+    ([name]) => !codependencies.includes(name),
+  );
+  const normalizedDependencies = unpinnedDependencies.map(([name, version]) => {
+    const { exactVersion, bumpCharacter } = constructVersionTypes(version);
+    return { name, version, exactVersion, bumpCharacter };
+  });
+  const updatableDependencies = normalizedDependencies.filter(
+    ({ name, version, exactVersion }) =>
       isUpdatablePermissiveDep(name, version, exactVersion, versionMap, level, versionStrategy),
-    )
-    .map(({ name, version, bumpCharacter }) => ({
+  );
+
+  return updatableDependencies.map(({ name, version, bumpCharacter }) => ({
       name,
       actual: version,
       exact: constructVersionTypes(versionMap[name]).exactVersion,
       expected: constructExpectedVersion(bumpCharacter, versionMap[name]),
-    }));
+  }));
 };
 
 const isUpdatableDep = (
@@ -884,20 +884,21 @@ export const constructDepsToUpdateList = (
 ): Array<DepToUpdateItem> => {
   if (!Object.keys(dep).length) return [];
 
-  return Object.entries(dep)
-    .map(([name, version]) => {
-      const { exactVersion, bumpCharacter, bumpVersion } = constructVersionTypes(version);
-      return { name, exactVersion, bumpCharacter, bumpVersion };
-    })
-    .filter(({ name, bumpVersion, exactVersion }) =>
+  const normalizedDependencies = Object.entries(dep).map(([name, version]) => {
+    const { exactVersion, bumpCharacter, bumpVersion } = constructVersionTypes(version);
+    return { name, exactVersion, bumpCharacter, bumpVersion };
+  });
+  const updatableDependencies = normalizedDependencies.filter(
+    ({ name, bumpVersion, exactVersion }) =>
       isUpdatableDep(name, bumpVersion, exactVersion, versionMap, level, versionStrategy),
-    )
-    .map(({ name, bumpVersion, bumpCharacter }) => ({
+  );
+
+  return updatableDependencies.map(({ name, bumpVersion, bumpCharacter }) => ({
       name,
       actual: bumpVersion,
       exact: constructVersionTypes(versionMap[name]).exactVersion,
       expected: constructExpectedVersion(bumpCharacter, versionMap[name]),
-    }));
+  }));
 };
 
 export const constructDeps = <T extends DependencySections>(
@@ -1098,27 +1099,38 @@ export const buildUpdateLists = <T extends DependencySections>(
   };
 };
 
-const logDependencyIssues = (depsToUpdate: DepsToUpdate): void => {
-  const allLists = [
+const dependencyUpdateLists = (depsToUpdate: DepsToUpdate): DepToUpdateItem[][] => [
     depsToUpdate.depList,
     depsToUpdate.devDepList,
     depsToUpdate.peerDepList,
     depsToUpdate.optionalDepList,
-  ];
-  allLists.forEach((list) => {
-    if (!list.length) return;
+];
 
-    const issueCount = list.length;
-    const pluralizedIssues = issueCount > 1 ? "s" : "";
-    logger.info(`Found ${issueCount} dependency issue${pluralizedIssues}`);
+const hasDependencySections = (manifest: DependencySections): boolean => {
+  return DEP_SECTIONS.some((section) => manifest[section] !== undefined);
+};
 
-    list.forEach(({ name: depName, expected, actual }, index) => {
-      const versionMessage = `${depName}: found ${actual}, expected ${expected}`;
-      defaultOutput.writeLine(item(index + 1, versionMessage, 4));
-    });
+const hasDependencyIssues = (depsToUpdate: DepsToUpdate): boolean => {
+  return dependencyUpdateLists(depsToUpdate).some((list) => list.length > 0);
+};
 
-    logger.space();
+const logDependencyIssueList = (list: DepToUpdateItem[]): void => {
+  if (!list.length) return;
+
+  const issueCount = list.length;
+  const pluralizedIssues = issueCount > 1 ? "s" : "";
+  logger.info(`Found ${issueCount} dependency issue${pluralizedIssues}`);
+
+  list.forEach(({ name: depName, expected, actual }, index) => {
+    const versionMessage = `${depName}: found ${actual}, expected ${expected}`;
+    defaultOutput.writeLine(item(index + 1, versionMessage, 4));
   });
+
+  logger.space();
+};
+
+const logDependencyIssues = (depsToUpdate: DepsToUpdate): void => {
+  dependencyUpdateLists(depsToUpdate).forEach(logDependencyIssueList);
 };
 
 const applyUpdates = <T extends PackageJSON>(
@@ -1167,11 +1179,9 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
   options: CheckDependenciesForVersionOptions,
   codependencies?: Array<string>,
 ): boolean => {
-  const { dependencies, devDependencies, peerDependencies, optionalDependencies } = json;
   const { isUpdating, isDebugging, isSilent, isTesting } = options;
 
-  const hasNoDeps = !dependencies && !devDependencies && !peerDependencies && !optionalDependencies;
-  if (hasNoDeps) return false;
+  if (!hasDependencySections(json)) return false;
 
   const depsToUpdate = buildUpdateLists(versionMap, json, options, codependencies);
 
@@ -1179,12 +1189,7 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
     logger.debug("checkDependenciesForVersion debug info", depsToUpdate);
   }
 
-  const hasNoDependencyIssues =
-    !depsToUpdate.depList.length &&
-    !depsToUpdate.devDepList.length &&
-    !depsToUpdate.peerDepList.length &&
-    !depsToUpdate.optionalDepList.length;
-  if (hasNoDependencyIssues) return false;
+  if (!hasDependencyIssues(depsToUpdate)) return false;
 
   if (!isSilent) {
     logDependencyIssues(depsToUpdate);
@@ -1203,12 +1208,9 @@ const checkManifestDependenciesForVersion = async (
   options: CheckDependenciesForVersionOptions,
   codependencies?: Array<string>,
 ): Promise<boolean> => {
-  const { dependencies, devDependencies, peerDependencies, optionalDependencies } =
-    loadedManifest.manifest;
   const { isUpdating, isDebugging, isSilent, isTesting } = options;
 
-  const hasNoDeps = !dependencies && !devDependencies && !peerDependencies && !optionalDependencies;
-  if (hasNoDeps) return false;
+  if (!hasDependencySections(loadedManifest.manifest)) return false;
 
   const depsToUpdate = buildUpdateLists(
     versionMap,
@@ -1221,12 +1223,7 @@ const checkManifestDependenciesForVersion = async (
     logger.debug("checkManifestDependenciesForVersion debug info", depsToUpdate);
   }
 
-  const hasNoDependencyIssues =
-    !depsToUpdate.depList.length &&
-    !depsToUpdate.devDepList.length &&
-    !depsToUpdate.peerDepList.length &&
-    !depsToUpdate.optionalDepList.length;
-  if (hasNoDependencyIssues) return false;
+  if (!hasDependencyIssues(depsToUpdate)) return false;
 
   if (!isSilent) {
     logDependencyIssues(depsToUpdate);
@@ -1382,9 +1379,10 @@ const extractDepNamesFromFile = (rootDir: string, file: string): string[] => {
   const path = resolveManifestPath(rootDir, file);
   try {
     const json = JSON.parse(readFileSync(path, "utf8"));
-    return DEP_SECTIONS.map((section) => json[section])
-      .filter(Boolean)
-      .flatMap((section: Record<string, string>) => Object.keys(section));
+    return DEP_SECTIONS.flatMap((section) => {
+      const dependencies = json[section] as Record<string, string> | undefined;
+      return dependencies ? Object.keys(dependencies) : [];
+    });
   } catch {
     return [];
   }

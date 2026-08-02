@@ -565,12 +565,11 @@ export const mergeConfigs = (
 ): Options => {
   const hasPathConfig = Object.keys(pathConfig).length > 0;
   const selectedBaseConfig = hasPathConfig ? {} : baseConfig;
+  const codependenceConfig = pathConfig.codependence;
   const hasCodependenceKey =
-    pathConfig?.codependence !== undefined &&
-    typeof pathConfig.codependence === "object" &&
-    pathConfig.codependence !== null;
+    typeof codependenceConfig === "object" && codependenceConfig !== null;
   const normalizedPathConfig = hasCodependenceKey
-    ? (pathConfig.codependence as Record<string, unknown>)
+    ? (codependenceConfig as Record<string, unknown>)
     : pathConfig;
   const effectiveBaseConfig = omitOverriddenTargets(selectedBaseConfig, options);
   const effectivePathConfig = omitOverriddenTargets(normalizedPathConfig, options);

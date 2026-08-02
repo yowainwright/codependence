@@ -3,6 +3,11 @@ import type { PromptChoice } from "./types";
 import { logger } from "../logger";
 import { askBinaryHost, hasBinaryHost } from "../bin/runtime";
 
+const isValidChoiceNumber = (value: number, choiceCount: number): boolean => {
+  if (isNaN(value)) return false;
+  return value >= 1 && value <= choiceCount;
+};
+
 export class Prompt {
   protected rl: readline.Interface | undefined;
 
@@ -111,7 +116,9 @@ export class Prompt {
           }
 
           const numbers = trimmed.split(",").map((n) => parseInt(n.trim(), 10));
-          const isValid = numbers.every((num) => !isNaN(num) && num >= 1 && num <= choices.length);
+          const isValid = numbers.every((number) =>
+            isValidChoiceNumber(number, choices.length),
+          );
 
           if (!isValid) {
             logger.print(

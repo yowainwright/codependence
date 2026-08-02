@@ -3,8 +3,16 @@ import { extname } from "path";
 import { SPLIT_INITIAL } from "./constants";
 import type { ParsedBlock, ParsedField, ParsedLine, SplitState } from "./types";
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  if (typeof value !== "object" || value === null) return false;
+  return !Array.isArray(value);
+};
+
+const isQuoteCharacter = (value: string): boolean => value === '"' || value === "'";
+
+const togglesQuote = (character: string, previous?: string): boolean => {
+  return isQuoteCharacter(character) && previous !== "\\";
+};
 
 export class ConfigLoadError extends Error {
   constructor(filepath: string, message: string) {
@@ -29,7 +37,7 @@ const stripComment = (line: string): string => {
     const char = line[index];
     const previous = line[index - 1];
 
-    if ((char === '"' || char === "'") && previous !== "\\") {
+    if (togglesQuote(char, previous)) {
       quote = quote === char ? null : quote || char;
     }
 
@@ -57,7 +65,7 @@ const parseLines = (content: string): ParsedLine[] =>
 const unquote = (value: string): string => {
   const trimmed = value.trim();
   const quote = trimmed[0];
-  const isQuoted = (quote === '"' || quote === "'") && trimmed.endsWith(quote);
+  const isQuoted = isQuoteCharacter(quote) && trimmed.endsWith(quote);
 
   if (!isQuoted) return trimmed;
 
@@ -79,7 +87,7 @@ const findSeparator = (value: string): number => {
     const char = value[index];
     const previous = value[index - 1];
 
-    if ((char === '"' || char === "'") && previous !== "\\") {
+    if (togglesQuote(char, previous)) {
       quote = quote === char ? null : quote || char;
     }
 
@@ -359,10 +367,9 @@ export const loadPackageJson = (filepath: string): Record<string, unknown> | nul
 export const loadRcFile = (filepath: string): Record<string, unknown> => {
   const content = readFileSync(filepath, "utf8");
   const extension = extname(filepath);
+  const isYaml = extension === ".yaml" || extension === ".yml";
   const config =
-    extension === ".yaml" || extension === ".yml"
-      ? parseYAML(content)
-      : (parseJSON(content) ?? parseYAML(content));
+    isYaml ? parseYAML(content) : (parseJSON(content) ?? parseYAML(content));
 
   if (!config) {
     throw new ConfigLoadError(filepath, "file is empty, invalid, or did not export an object");
