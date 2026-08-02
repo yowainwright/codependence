@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "fs";
 import { execFileSync } from "child_process";
 import { dirname } from "path";
+import { runBinaryExecFileSync } from "../../bin/runtime";
 import { exec } from "../../utils/exec";
 import { logger } from "../../logger";
 import { LANGUAGES } from "../constants";
@@ -159,6 +160,13 @@ export const runGoModTidy = (
   if (options.isTesting || options.regenerateLockfile === false) return;
 
   try {
+    const ranWithBinaryHost = runBinaryExecFileSync(
+      LANGUAGES.GO,
+      ["mod", "tidy"],
+      dirname(filePath),
+    );
+    if (ranWithBinaryHost) return;
+
     execute(LANGUAGES.GO, ["mod", "tidy"], {
       cwd: dirname(filePath),
       stdio: "ignore",

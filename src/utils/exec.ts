@@ -1,5 +1,6 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { binaryExecFile } from "../bin/runtime";
 import type { ExecFileFn, ExecFn, ExecOptions, ExecResult, RetryableError, SleepFn } from "./types";
 
 const execFileAsync = promisify(execFile) as ExecFileFn;
@@ -66,11 +67,12 @@ export const exec: ExecFn = async (
   args: string[],
   options: ExecOptions = {},
 ): Promise<ExecResult> => {
+  const defaultExecFile = binaryExecFile() || execFileAsync;
   const {
     cwd,
     maxRetries = 3,
     retryDelay = 1000,
-    execFileFn: execFileFnOpt = execFileAsync,
+    execFileFn: execFileFnOpt = defaultExecFile,
     sleepFn: sleepFnOpt = sleep,
   } = options;
 

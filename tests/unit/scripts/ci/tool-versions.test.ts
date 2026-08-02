@@ -53,13 +53,13 @@ describe("scripts/ci/tool-versions", () => {
     ).toBe(nodeSlimImage);
   });
 
-  test("dependency policy preserves the exact Perry compiler pin", () => {
+  test("dependency policy preserves the exact ScriptC compiler pin", () => {
     const packageJson = JSON.parse(readRootFile("package.json"));
-    const perryVersion = packageJson.devDependencies["@perryts/perry"];
+    const scriptcVersion = packageJson.devDependencies.scriptc;
     const codependenceConfig = readRootFile(".codependencerc");
 
-    expect(perryVersion).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(codependenceConfig).toContain(`"@perryts/perry": "${perryVersion}"`);
+    expect(scriptcVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(codependenceConfig).toContain(`"scriptc": "${scriptcVersion}"`);
   });
 
   test("e2e Dockerfiles share the same pinned Node slim image", () => {

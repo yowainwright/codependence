@@ -52,7 +52,7 @@ jobs:
           node scripts/ci/homebrew-release.js validate-version
           node scripts/ci/homebrew-release.js validate-package-version
 
-      - name: Build and test Perry binary
+      - name: Build and test ScriptC binary
         run: bun run test:e2e:binary
 
       - name: Prepare architecture asset
@@ -122,16 +122,16 @@ jobs:
           gh release download "$RELEASE_TAG" --pattern "$BINARY_ARCHIVE"
           echo "exists=true" >> "$GITHUB_OUTPUT"
 
-      - name: Create Perry binary archive
+      - name: Create ScriptC binary archive
         if: steps.published-archive.outputs.exists != 'true'
         run: |
           chmod +x artifacts/codependence-darwin-arm64 artifacts/codependence-darwin-x64
           tar -czf "$BINARY_ARCHIVE" -C artifacts codependence-darwin-arm64 codependence-darwin-x64
 
-      - name: Generate formula from Perry binary archive
+      - name: Generate formula from ScriptC binary archive
         run: node scripts/ci/homebrew-release.js
 
-      - name: Attest Perry binary archive
+      - name: Attest ScriptC binary archive
         if: steps.published-archive.outputs.exists != 'true'
         uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4
         with:

@@ -787,10 +787,9 @@ suite against the exact npm version before the release is considered successful.
 Use `bun run release:tag` when `package.json` already has the version you want
 to publish.
 
-Perry is reserved for Homebrew binaries and is not part of npm publication. It
-is exact-pinned because newer releases currently fail the native link. Only
-update that pin after `bun run test:e2e:binary` passes on both macOS arm64 and
-Intel.
+ScriptC is reserved for Homebrew binaries and is not part of npm publication.
+It is exact-pinned while the compiler is experimental. Only update that pin
+after `bun run test:e2e:binary` passes on both macOS arm64 and Intel.
 
 Publishing follows the same posture as Pastoralist: GitHub Actions publishes
 through npm Trusted Publishing/OIDC, not a long-lived npm token. Configure the
@@ -829,7 +828,7 @@ environment with `HOMEBREW_TAP_TOKEN`, scoped to
 gh workflow run homebrew.yml -f version=1.1.0
 ```
 
-The workflow checks out the exact release tag and uses Perry to build and test
+The workflow checks out the exact release tag and uses ScriptC to build and test
 standalone macOS arm64 and Intel binaries. It bundles them into one immutable
 archive, attests and uploads it, generates its SHA256-pinned formula, and installs
 and tests the formula on both architectures before attaching `codependence.rb`

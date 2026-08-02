@@ -1,11 +1,14 @@
 import * as readline from "readline";
 import type { PromptChoice } from "./types";
 import { logger } from "../logger";
+import { askBinaryHost, hasBinaryHost } from "../bin/runtime";
 
 export class Prompt {
-  protected rl: readline.Interface;
+  protected rl: readline.Interface | undefined;
 
   constructor() {
+    if (hasBinaryHost()) return;
+
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -13,7 +16,7 @@ export class Prompt {
   }
 
   close(): void {
-    this.rl.close();
+    this.rl?.close();
   }
 
   private ensureCookedMode(): void {
@@ -22,11 +25,22 @@ export class Prompt {
     }
   }
 
+  private ask(message: string): Promise<string> {
+    const binaryAnswer = askBinaryHost(message);
+    if (binaryAnswer) return binaryAnswer;
+    if (!this.rl) throw new Error("Prompt input is unavailable");
+    const input = this.rl;
+
+    return new Promise((resolve) => {
+      input.question(message, resolve);
+    });
+  }
+
   input(message: string, defaultValue?: string): Promise<string> {
     return new Promise((resolve) => {
       const prompt = defaultValue ? `${message} (${defaultValue}): ` : `${message}: `;
       this.ensureCookedMode();
-      this.rl.question(prompt, (answer) => {
+      void this.ask(prompt).then((answer) => {
         resolve(answer.trim() || defaultValue || "");
       });
     });
@@ -36,7 +50,7 @@ export class Prompt {
     return new Promise((resolve) => {
       const defaultText = defaultValue ? "Y/n" : "y/N";
       this.ensureCookedMode();
-      this.rl.question(`${message} (${defaultText}): `, (answer) => {
+      void this.ask(`${message} (${defaultText}): `).then((answer) => {
         const normalized = answer.trim().toLowerCase();
         if (normalized === "") {
           resolve(defaultValue);
@@ -57,7 +71,7 @@ export class Prompt {
     return new Promise((resolve) => {
       const askForChoice = () => {
         this.ensureCookedMode();
-        this.rl.question("\nEnter your choice (number): ", (answer) => {
+        void this.ask("\nEnter your choice (number): ").then((answer) => {
           const num = parseInt(answer.trim(), 10);
 
           if (isNaN(num) || num < 1 || num > choices.length) {
@@ -86,32 +100,29 @@ export class Prompt {
     return new Promise((resolve) => {
       const askForChoices = () => {
         this.ensureCookedMode();
-        this.rl.question(
+        void this.ask(
           "\nEnter your choices (comma-separated numbers or press Enter for none): ",
-          (answer) => {
-            const trimmed = answer.trim();
+        ).then((answer) => {
+          const trimmed = answer.trim();
 
-            if (trimmed === "") {
-              resolve([]);
-              return;
-            }
+          if (trimmed === "") {
+            resolve([]);
+            return;
+          }
 
-            const numbers = trimmed.split(",").map((n) => parseInt(n.trim(), 10));
-            const isValid = numbers.every(
-              (num) => !isNaN(num) && num >= 1 && num <= choices.length,
+          const numbers = trimmed.split(",").map((n) => parseInt(n.trim(), 10));
+          const isValid = numbers.every((num) => !isNaN(num) && num >= 1 && num <= choices.length);
+
+          if (!isValid) {
+            logger.print(
+              `▲  Invalid input. Please enter numbers between 1 and ${choices.length}, separated by commas.`,
             );
-
-            if (!isValid) {
-              logger.print(
-                `▲  Invalid input. Please enter numbers between 1 and ${choices.length}, separated by commas.`,
-              );
-              askForChoices();
-            } else {
-              const selected = numbers.map((num) => choices[num - 1].value);
-              resolve(selected);
-            }
-          },
-        );
+            askForChoices();
+          } else {
+            const selected = numbers.map((num) => choices[num - 1].value);
+            resolve(selected);
+          }
+        });
       };
 
       askForChoices();

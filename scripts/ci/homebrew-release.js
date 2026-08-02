@@ -115,7 +115,7 @@ export async function runHomebrewReleaseCli({
   }
 
   const result = generateFormula(env, version);
-  logger.log(`Generated ${result.outputPath} from the Perry binary archive`);
+  logger.log(`Generated ${result.outputPath} from the ScriptC binary archive`);
   logger.log(`SHA256: ${result.digest}`);
 }
 
