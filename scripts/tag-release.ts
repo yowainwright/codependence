@@ -12,6 +12,8 @@ import type {
 
 export type { GitResult, GitRunner, ReleaseTagOptions } from "./types";
 
+const COMMIT_PATTERN = /^[0-9a-f]{40}$/i;
+
 export function parseArgs(args: readonly string[]): ReleaseTagArgs {
   return { dryRun: args.includes("--dry-run") };
 }
@@ -21,6 +23,10 @@ export function formatTagName(version: string): string {
     throw new Error(`Invalid package version: ${version}`);
   }
   return `v${version}`;
+}
+
+export function buildTagPushArgs(tagName: string): string[] {
+  return ["push", "origin", `refs/tags/${tagName}`];
 }
 
 export function readPackageVersion(cwd: string): string {
@@ -58,10 +64,18 @@ export function assertMissingTag(git: GitRunner, tagName: string): void {
   throw new Error(remoteTag.stderr.trim() || `Unable to check remote tag: ${tagName}`);
 }
 
+function assertTargetCommitOnMain(git: GitRunner, targetCommit: string): void {
+  if (!COMMIT_PATTERN.test(targetCommit)) throw new Error(`Invalid target commit: ${targetCommit}`);
+
+  const result = git(["merge-base", "--is-ancestor", targetCommit, "origin/main"]);
+  if (result.status === 0) return;
+  throw new Error(`Target commit is not on origin/main: ${targetCommit}`);
+}
+
 export function assertReleaseReady(
   git: GitRunner,
   tagName: string,
-  { dryRun = false, requireUpstream = true }: ReleaseReadyOptions = {},
+  { dryRun = false, requireUpstream = true, targetCommit }: ReleaseReadyOptions = {},
 ): void {
   const branch = gitText(git, ["branch", "--show-current"], "Unable to read current branch");
   if (branch !== "main") throw new Error("Release tags must be created from main");
@@ -70,6 +84,7 @@ export function assertReleaseReady(
   if (status) throw new Error("Working tree must be clean before tagging a release");
 
   if (!dryRun) gitText(git, ["fetch", "origin", "main", "--tags"], "Unable to fetch origin/main");
+  if (targetCommit) assertTargetCommitOnMain(git, targetCommit);
   if (!requireUpstream) {
     assertMissingTag(git, tagName);
     return;
@@ -82,28 +97,32 @@ export function assertReleaseReady(
   assertMissingTag(git, tagName);
 }
 
+function buildCreateTagArgs(version: string, tagName: string, targetCommit?: string): string[] {
+  const args = ["tag", "--annotate", tagName, "--message", `Release ${version}`];
+  if (targetCommit) return args.concat(targetCommit);
+  return args;
+}
+
 export function runReleaseTag({
   cwd = process.cwd(),
   dryRun = false,
   git = createGitRunner(cwd),
   logger = console,
   requireUpstream = true,
+  targetCommit,
   version = readPackageVersion(cwd),
 }: ReleaseTagOptions = {}): number {
   const tagName = formatTagName(version);
-  assertReleaseReady(git, tagName, { dryRun, requireUpstream });
+  assertReleaseReady(git, tagName, { dryRun, requireUpstream, targetCommit });
 
   if (dryRun) {
     logger.log(`Dry run: would create and push ${tagName}`);
     return 0;
   }
 
-  gitText(
-    git,
-    ["tag", "--annotate", tagName, "--message", `Release ${version}`],
-    "Unable to create tag",
-  );
-  const push = git(["push", "origin", `refs/tags/${tagName}`]);
+  const createTagArgs = buildCreateTagArgs(version, tagName, targetCommit);
+  gitText(git, createTagArgs, "Unable to create tag");
+  const push = git(buildTagPushArgs(tagName));
   if (push.status === 0) {
     logger.log(`Pushed ${tagName}`);
     return 0;

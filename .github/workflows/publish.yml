@@ -10,10 +10,11 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-24.04
+    runs-on: macos-latest
     environment: npm-publish
-    outputs:
-      release-version: ${{ steps.dist-tag.outputs.version }}
+    env:
+      FORMULA_PATH: codependence.rb
+      TAP_NAME: codependence/release-preflight
     permissions:
       artifact-metadata: write
       id-token: write
@@ -30,7 +31,15 @@ jobs:
         with:
           registry-url: "https://registry.npmjs.org"
 
-      - run: bun run validate:full
+      - name: Validate release version
+        env:
+          RELEASE_REF: ${{ github.ref_name }}
+        run: |
+          VERSION="${RELEASE_REF#v}"
+          PACKAGE_VERSION="$(bun -p 'require("./package.json").version')"
+          test "$VERSION" = "$PACKAGE_VERSION"
+
+      - run: bun run validate
         env:
           CI: true
 
@@ -40,13 +49,36 @@ jobs:
 
       - name: Resolve npm dist-tag
         id: dist-tag
-        run: node scripts/ci/publish-release.js resolve-dist-tag
-        env:
-          VERSION: ${{ github.ref_name }}
+        run: |
+          VERSION="${{ github.ref_name }}"
+          if [[ "$VERSION" =~ -(alpha|beta|rc) ]]; then
+            echo "tag=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Pack npm tarball
         id: pack
-        run: node scripts/ci/publish-release.js pack
+        run: |
+          npm pack --ignore-scripts --json > npm-pack.json
+          TARBALL="$(node -e "const fs = require('node:fs'); const text = fs.readFileSync('npm-pack.json', 'utf8'); const start = text.indexOf('['); if (start < 0) throw new Error('npm pack JSON output not found'); const [pkg] = JSON.parse(text.slice(start)); console.log(pkg.filename)")"
+          test -n "$TARBALL"
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+
+      - name: Generate formula from packed tarball
+        env:
+          TARBALL_PATH: ${{ steps.pack.outputs.tarball }}
+        run: |
+          case "$GITHUB_REF_NAME" in *-*) exit 0 ;; esac
+          VERSION="${GITHUB_REF_NAME#v}" bun scripts/brew.ts generate-local
+
+      - name: Audit formula before publishing
+        run: |
+          case "$GITHUB_REF_NAME" in *-*) exit 0 ;; esac
+          brew tap-new --no-git "$TAP_NAME"
+          TAP_PATH="$(brew --repository "$TAP_NAME")"
+          cp "$FORMULA_PATH" "$TAP_PATH/Formula/codependence.rb"
+          brew audit --strict --formula "$TAP_NAME/codependence"
 
       - name: Attest npm tarball
         id: attest
@@ -56,17 +88,22 @@ jobs:
 
       - name: Prepare release attestation
         id: release-attestation
-        run: node scripts/ci/publish-release.js prepare-attestation
-        env:
-          ATTESTATION_BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
-          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          SIGSTORE_BUNDLE="${{ steps.pack.outputs.tarball }}.sigstore.json"
+          cp "${{ steps.attest.outputs.bundle-path }}" "$SIGSTORE_BUNDLE"
+          echo "sigstore_bundle=$SIGSTORE_BUNDLE" >> "$GITHUB_OUTPUT"
 
       - name: Publish npm package
         env:
           PACKAGE_VERSION: ${{ github.ref_name }}
-          TARBALL: ${{ steps.pack.outputs.tarball }}
-          DIST_TAG: ${{ steps.dist-tag.outputs.tag }}
-        run: node scripts/ci/publish-release.js publish-npm
+        run: |
+          VERSION="${PACKAGE_VERSION#v}"
+          if npm view "codependence@$VERSION" version > /dev/null 2>&1; then
+            echo "codependence@$VERSION is already published"
+            exit 0
+          fi
+
+          npm publish "${{ steps.pack.outputs.tarball }}" --provenance --access public --tag "${{ steps.dist-tag.outputs.tag }}"
 
       - name: Publish GitHub release assets
         env:
@@ -74,19 +111,26 @@ jobs:
           SIGSTORE_BUNDLE: ${{ steps.release-attestation.outputs.sigstore_bundle }}
           TARBALL: ${{ steps.pack.outputs.tarball }}
           VERSION: ${{ github.ref_name }}
-        run: node scripts/ci/publish-release.js publish-github-release-assets
+        run: |
+          RELEASE_ARGS=()
+          if [[ "$VERSION" =~ -(alpha|beta|rc) ]]; then
+            RELEASE_ARGS+=(--prerelease)
+          else
+            RELEASE_ARGS+=(--draft)
+          fi
 
-  test-published-release:
-    needs: publish
-    uses: "./.github/workflows/test-release.yml"
-    with:
-      version: "${{ github.ref_name }}"
-    secrets: inherit
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            sh scripts/upload-release-assets.sh "$VERSION" "$TARBALL" "$SIGSTORE_BUNDLE"
+            exit 0
+          fi
+
+          gh release create "$VERSION" "$TARBALL" "$SIGSTORE_BUNDLE" \
+            --title "$VERSION" \
+            --generate-notes \
+            "${RELEASE_ARGS[@]}"
 
   homebrew:
-    needs:
-      - publish
-      - test-published-release
+    needs: publish
     if: ${{ !contains(github.ref_name, '-') }}
     permissions:
       artifact-metadata: write
@@ -95,6 +139,6 @@ jobs:
       id-token: write
     uses: "./.github/workflows/homebrew.yml"
     with:
-      version: ${{ needs.publish.outputs.release-version }}
+      version: ${{ github.ref_name }}
     secrets:
       HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

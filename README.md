@@ -761,80 +761,8 @@ bun install
 
 ## Release Strategy
 
-<!-- release flow from scripts/release.ts and .github/workflows/publish.yml, test-release.yml, and homebrew.yml -->
-
-Git tags must match `package.json` versions. Stable tags like `v1.0.0` publish
-to npm `latest`. Supported prerelease tags use `alpha`, `beta`, or `rc`, such as
-`v1.0.0-beta.1`, and publish to the matching npm dist-tag.
-
-Local release helpers keep the release commit and the publish trigger composable:
-
-```sh
-bun run release:dry
-bun run release:alpha:dry
-bun run release:beta:dry
-bun run release:rc:dry
-bun run release
-bun run release:tag
-```
-
-The release helper creates the release commit locally, pushes only the version tag,
-and restores local `main` to its starting commit. The tag triggers the publish
-workflow, which validates, packs, attests, and publishes the npm package without
-building a standalone executable. The workflow uploads the npm tarball and its
-attestation to the GitHub release, then runs the reusable published-package test
-suite against the exact npm version before the release is considered successful.
-Use `bun run release:tag` when `package.json` already has the version you want
-to publish.
-
-Standalone binaries are reserved for Homebrew and are not part of npm publication.
-The compiler is exact-pinned while it is experimental. Only update that pin after
-`bun run test:e2e:binary` passes on both macOS arm64 and Intel.
-
-Publishing follows the same posture as Pastoralist: GitHub Actions publishes
-through npm Trusted Publishing/OIDC, not a long-lived npm token. Configure the
-`codependence` package on npm with a trusted publisher for
-`yowainwright/codependence`, workflow file `publish.yml`, environment
-`npm-publish`, and allowed action `npm publish`. After the trusted publisher is
-working, npm package settings should require 2FA and disallow token publishing.
-
-### npm rollback
-
-npm versions are immutable. Roll back a bad stable release by restoring the
-last known-good `latest` tag and deprecating the bad version instead of
-unpublishing it:
-
-```sh
-GOOD_VERSION=1.0.1
-BAD_VERSION=1.1.0
-
-npm dist-tag add "codependence@$GOOD_VERSION" latest
-npm deprecate "codependence@$BAD_VERSION" "Deprecated after release validation failed. Use codependence@$GOOD_VERSION."
-npm view codependence dist-tags --json
-npm view codependence@latest version
-```
-
-Keep the failed GitHub release and provenance assets available for auditability,
-and add a warning that points users to the last known-good version.
-
-### Homebrew release
-
-Stable releases publish to Homebrew after the npm package passes the reusable
-published-package test suite. Configure a protected `homebrew-publish`
-environment with `HOMEBREW_TAP_TOKEN`, scoped to
-`yowainwright/homebrew-tap`. To retry an existing stable release:
-
-```sh
-gh workflow run homebrew.yml -f version=1.1.0
-```
-
-The workflow checks out the exact release tag and builds and tests standalone
-macOS arm64 and Intel binaries. It bundles them into one immutable
-archive, attests and uploads it, generates its SHA256-pinned formula, and installs
-and tests the formula on both architectures before attaching `codependence.rb`
-to the matching GitHub release and opening a pull request against
-`Formula/codependence.rb` in `yowainwright/homebrew-tap`. The formula SHA always
-comes from the verified release archive, not npm or a separate local build.
+Codependence publishes securely to npm with trusted publishing, provenance attestations, and immutable GitHub release assets.
+Stable releases also publish an audited, SHA256-pinned Homebrew formula through a protected environment and reviewed tap pull request.
 
 ## Contributing
 

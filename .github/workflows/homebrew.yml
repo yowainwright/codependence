@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       version:
-        description: Stable npm version to publish to Homebrew
+        description: Stable release tag to publish to Homebrew
         required: true
         type: string
     secrets:
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Stable npm version to publish to Homebrew
+        description: Stable release tag to publish to Homebrew
         required: true
         type: string
 
@@ -21,213 +21,146 @@ permissions:
   contents: read
 
 concurrency:
-  group: homebrew-${{ inputs.version }}
+  group: homebrew-codependence
   cancel-in-progress: false
 
 jobs:
-  build-binary:
-    strategy:
-      matrix:
-        include:
-          - runner: macos-15
-            asset: codependence-darwin-arm64
-          - runner: macos-15-intel
-            asset: codependence-darwin-x64
-    runs-on: ${{ matrix.runner }}
-    env:
-      VERSION: ${{ inputs.version }}
-
-    steps:
-      - name: Checkout release tag
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-          ref: v${{ inputs.version }}
-
-      - name: Setup toolchain
-        uses: ./.github/actions/setup-toolchain
-
-      - name: Validate release version
-        run: |
-          node scripts/ci/homebrew-release.js validate-version
-          node scripts/ci/homebrew-release.js validate-package-version
-
-      - name: Build and test binary
-        run: bun run test:e2e:binary
-
-      - name: Prepare architecture asset
-        env:
-          ASSET: ${{ matrix.asset }}
-        run: mv artifacts/codependence "$ASSET"
-
-      - name: Upload tested binary
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: ${{ matrix.asset }}
-          path: ${{ matrix.asset }}
-          if-no-files-found: error
-          retention-days: 1
-
-  publish-binaries:
-    needs: build-binary
-    runs-on: ubuntu-24.04
+  homebrew:
+    runs-on: macos-latest
+    environment: homebrew-publish
     permissions:
-      artifact-metadata: write
-      attestations: write
       contents: write
       id-token: write
+      attestations: write
     env:
-      BINARY_ARCHIVE: codependence-darwin.tar.gz
       FORMULA_PATH: codependence.rb
-      VERSION: ${{ inputs.version }}
-
-    steps:
-      - name: Checkout release tag
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-          ref: v${{ inputs.version }}
-
-      - name: Setup toolchain
-        uses: ./.github/actions/setup-toolchain
-        with:
-          cache: "false"
-          install: "false"
-
-      - name: Download tested binaries
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: codependence-darwin-*
-          path: artifacts
-          merge-multiple: true
-
-      - name: Validate coordinated npm release
-        env:
-          CODEPENDENCE_VERSION: ${{ inputs.version }}
-        run: |
-          node scripts/ci/homebrew-release.js validate-package-version
-          node scripts/ci/published-release.js wait-for-npm
-
-      - name: Reuse published Homebrew archive
-        id: published-archive
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          RELEASE_TAG="v${VERSION}"
-          ASSET_URL="$(gh release view "$RELEASE_TAG" --json assets --jq ".assets[] | select(.name == \"$BINARY_ARCHIVE\") | .url")"
-          if [ -z "$ASSET_URL" ]; then
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          gh release download "$RELEASE_TAG" --pattern "$BINARY_ARCHIVE"
-          echo "exists=true" >> "$GITHUB_OUTPUT"
-
-      - name: Create binary archive
-        if: steps.published-archive.outputs.exists != 'true'
-        run: |
-          chmod +x artifacts/codependence-darwin-arm64 artifacts/codependence-darwin-x64
-          tar -czf "$BINARY_ARCHIVE" -C artifacts codependence-darwin-arm64 codependence-darwin-x64
-
-      - name: Generate formula from binary archive
-        run: node scripts/ci/homebrew-release.js
-
-      - name: Attest binary archive
-        if: steps.published-archive.outputs.exists != 'true'
-        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4
-        with:
-          subject-path: ${{ env.BINARY_ARCHIVE }}
-
-      - name: Publish immutable Homebrew archive
-        if: steps.published-archive.outputs.exists != 'true'
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          RELEASE_TAG="v${VERSION}"
-          gh release view "$RELEASE_TAG"
-          gh release upload "$RELEASE_TAG" "$BINARY_ARCHIVE"
-
-      - name: Upload formula for verification
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: homebrew-formula
-          path: codependence.rb
-          if-no-files-found: error
-          retention-days: 1
-
-  test-formula:
-    needs: publish-binaries
-    strategy:
-      matrix:
-        runner:
-          - macos-15
-          - macos-15-intel
-    runs-on: ${{ matrix.runner }}
-    env:
+      RELEASE_REF: "${{ inputs.version }}"
       TAP_NAME: codependence/release-test
 
     steps:
-      - name: Download formula
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          name: homebrew-formula
+          persist-credentials: false
+          ref: "refs/tags/${{ inputs.version }}"
+
+      - name: Verify release tag
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          [[ "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          PACKAGE_VERSION="$(jq -r '.version // empty' package.json)"
+          test "${RELEASE_REF#v}" = "$PACKAGE_VERSION"
+          TAG_COMMIT="$(git rev-parse "refs/tags/${RELEASE_REF}^{commit}")"
+          test "$(git rev-parse HEAD)" = "$TAG_COMMIT"
+          test "$(gh release view "$RELEASE_REF" --json tagName --jq .tagName)" = "$RELEASE_REF"
+          echo "VERSION=$PACKAGE_VERSION" >> "$GITHUB_ENV"
+
+      - name: Checkout release tooling
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: release-tools
+          persist-credentials: false
+          ref: "${{ github.workflow_sha }}"
+          sparse-checkout: scripts/upload-release-assets.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-toolchain
+
+      - name: Validate stable version
+        run: |
+          bun scripts/brew.ts validate-version
+
+      - name: Wait for npm package availability
+        run: |
+          export CODEPENDENCE_VERSION="$VERSION"
+          node scripts/ci/published-release.js wait-for-npm
+
+      - name: Build and test binary
+        id: binary
+        run: |
+          bun run test:e2e:binary
+
+          case "$(uname -m)" in
+            arm64) ARCH=arm64 ;;
+            x86_64) ARCH=x64 ;;
+            *) exit 1 ;;
+          esac
+
+          BINARY="codependence-darwin-${ARCH}"
+          cp artifacts/codependence "$BINARY"
+          echo "binary=$BINARY" >> "$GITHUB_OUTPUT"
+
+      - name: Attest binary
+        id: binary-attest
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4
+        with:
+          subject-path: ${{ steps.binary.outputs.binary }}
+
+      - name: Prepare binary attestation
+        id: binary-attestation
+        env:
+          BINARY: ${{ steps.binary.outputs.binary }}
+          BUNDLE_PATH: ${{ steps.binary-attest.outputs.bundle-path }}
+        run: |
+          SIGSTORE_BUNDLE="${BINARY}.sigstore.json"
+          cp "$BUNDLE_PATH" "$SIGSTORE_BUNDLE"
+          echo "sigstore_bundle=$SIGSTORE_BUNDLE" >> "$GITHUB_OUTPUT"
+
+      - name: Generate formula from published tarball
+        run: bun scripts/brew.ts generate
 
       - name: Create formula test tap
         run: |
           brew tap-new --no-git "$TAP_NAME"
           TAP_PATH="$(brew --repository "$TAP_NAME")"
-          cp codependence.rb "$TAP_PATH/Formula/codependence.rb"
+          cp "$FORMULA_PATH" "$TAP_PATH/Formula/codependence.rb"
 
-      - name: Audit, install, and test formula
+      - name: Install and test formula
         run: |
+          brew audit --new --formula "$TAP_NAME/codependence"
           brew audit --strict --online "$TAP_NAME/codependence"
-          brew install "$TAP_NAME/codependence"
+          brew install --build-from-source "$TAP_NAME/codependence"
           brew test "$TAP_NAME/codependence"
           codependence --help
           cdp --help
 
-  publish-formula:
-    needs: test-formula
-    runs-on: ubuntu-24.04
-    environment: homebrew-publish
-    permissions:
-      contents: write
-    env:
-      VERSION: ${{ inputs.version }}
-
-    steps:
-      - name: Download verified formula
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: homebrew-formula
-
       - name: Attach formula to GitHub release
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          BINARY: ${{ steps.binary.outputs.binary }}
+          GITHUB_TOKEN: "${{ github.token }}"
+          SIGSTORE_BUNDLE: ${{ steps.binary-attestation.outputs.sigstore_bundle }}
         run: |
+          RELEASE_SCRIPT="release-tools/scripts/upload-release-assets.sh"
           RELEASE_TAG="v${VERSION}"
-          ASSET_URL="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[] | select(.name == "codependence.rb") | .url')"
-          if [ -z "$ASSET_URL" ]; then
-            gh release upload "$RELEASE_TAG" codependence.rb
-            exit 0
-          fi
-          mkdir existing-formula
-          gh release download "$RELEASE_TAG" --pattern codependence.rb --dir existing-formula
-          cmp -s codependence.rb existing-formula/codependence.rb
+          RELEASE_ASSETS=("$FORMULA_PATH" "$BINARY" "$SIGSTORE_BUNDLE")
+          RELEASE_ID="$(sh "$RELEASE_SCRIPT" "$RELEASE_TAG" "${RELEASE_ASSETS[@]}")"
+          test -n "$RELEASE_ID"
+          echo "RELEASE_ID=$RELEASE_ID" >> "$GITHUB_ENV"
 
       - name: Update Homebrew tap
         env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          TAP_BRANCH: codependence-${{ inputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          GH_TOKEN: "${{ secrets.HOMEBREW_TAP_TOKEN }}"
+          TAP_BRANCH: "codependence-${{ inputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}"
         run: |
           test -n "$GH_TOKEN"
+          gh auth setup-git --hostname github.com --force
           gh repo clone yowainwright/homebrew-tap tap
-          if cmp -s codependence.rb tap/Formula/codependence.rb; then
+          if cmp -s "$FORMULA_PATH" tap/Formula/codependence.rb; then
             exit 0
           fi
           cd tap
           git switch -c "$TAP_BRANCH"
-          cp ../codependence.rb Formula/codependence.rb
+          cp "../$FORMULA_PATH" Formula/codependence.rb
           git add Formula/codependence.rb
           git -c user.name=github-actions -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -m "codependence $VERSION"
           git push --set-upstream origin "$TAP_BRANCH"
           gh pr create --base main --head "$TAP_BRANCH" --title "codependence $VERSION" --body "Automated formula update for codependence $VERSION."
+
+      - name: Publish GitHub release
+        env:
+          GITHUB_TOKEN: "${{ github.token }}"
+        run: |
+          RELEASE_ENDPOINT="repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID"
+          gh api --method PATCH "$RELEASE_ENDPOINT" -F draft=false --silent

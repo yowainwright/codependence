@@ -1,153 +1,199 @@
 import { describe, expect, mock, test } from "bun:test";
 import {
-  buildReleaseCommands,
+  buildCurrentVersionTagPlan,
   buildReleaseItArgs,
   buildReleasePlan,
   formatReleasePlan,
-  formatShellCommand,
   incrementPreReleaseVersion,
+  incrementStableVersion,
   parseArgs,
   parseReleaseVersion,
-  quoteShellArg,
   releaseTagExists,
   resolveAvailableReleaseVersion,
   runRelease,
   type ReleaseRunner,
 } from "../../../scripts/release";
 import type { GitResult } from "../../../scripts/tag-release";
-import {
-  AVAILABLE_VERSION_OVERRIDES,
-  MISSING_TAG_OVERRIDES,
-  READY_RELEASE_OVERRIDES,
-} from "./constants";
 
+const MERGE_COMMIT = "a".repeat(40);
 const ok = (stdout = ""): GitResult => ({ status: 0, stdout, stderr: "" });
+const absent = (): GitResult => ({ status: 1, stdout: "", stderr: "" });
 const missing = (): GitResult => ({ status: 2, stdout: "", stderr: "" });
-const fail = (stderr: string): GitResult => ({ status: 1, stdout: "", stderr });
 
-function createRunner(overrides: Record<string, GitResult> = {}) {
-  let calls: string[][] = [];
-  const runner = mock<ReleaseRunner>((command, args) => {
-    const key = [command, ...args].join(" ");
-    calls = calls.concat([[command, ...Array.from(args)]]);
-    return overrides[key] ?? ok("");
-  });
-  return { calls: () => calls, runner };
+interface ReleaseFlowState {
+  extraMergedFile?: boolean;
+  extraReleaseFile?: boolean;
+  existingPullRequest?: boolean;
+  localBranch?: boolean;
+  mergedPullRequest?: boolean;
+  mergedVersion?: boolean;
+  mismatchedMergedAncestry?: boolean;
+  mismatchedMergedDiff?: boolean;
+  mismatchedMergedRefs?: boolean;
+  mismatchedPullRequest?: boolean;
+  mismatchedReleaseDiff?: boolean;
+  remoteBranch?: boolean;
 }
 
-describe("scripts/release", () => {
-  test("parseArgs reads release options", () => {
-    expect(parseArgs(["--preRelease=beta", "--dry-run"])).toEqual({
-      dryRun: true,
-      preRelease: "beta",
-    });
+function createRunner(overrides: Record<string, GitResult> = {}) {
+  const calls: string[][] = [];
+  const runner = mock<ReleaseRunner>((command, args) => {
+    const call = [command, ...Array.from(args)];
+    calls.push(call);
+    return overrides[call.join(" ")] ?? ok();
   });
+  return { calls, runner };
+}
 
-  test("parseArgs rejects invalid prerelease names", () => {
-    expect(() => parseArgs(["--preRelease=nightly"])).toThrow("Invalid prerelease");
-  });
+function createLogger() {
+  return { error: mock(() => {}), log: mock(() => {}), warn: mock(() => {}) };
+}
 
-  test("buildReleaseItArgs disables tag push and upstream requirements", () => {
-    expect(buildReleaseItArgs({ preRelease: "beta" })).toEqual([
-      "--preRelease=beta",
-      "--git.tag=false",
-      "--git.push=false",
-      "--git.requireUpstream=false",
-      "--git.getLatestTagFromAllRefs=true",
-      "--ci",
-    ]);
-  });
+const readyMain = {
+  "git branch --show-current": ok("main\n"),
+  "git status --short": ok(),
+  "git fetch origin main --tags": ok(),
+  "git rev-parse HEAD": ok("abc\n"),
+  "git rev-parse origin/main": ok("abc\n"),
+};
 
-  test("buildReleaseItArgs accepts an explicit release version", () => {
-    expect(buildReleaseItArgs({ preRelease: "beta", version: "1.2.4-beta.7" })).toEqual([
-      "1.2.4-beta.7",
-      "--preRelease=beta",
-      "--git.tag=false",
-      "--git.push=false",
-      "--git.requireUpstream=false",
-      "--git.getLatestTagFromAllRefs=true",
-      "--ci",
-    ]);
-  });
+function mergedVersionResult(
+  key: string,
+  prUrl: string,
+  state: ReleaseFlowState,
+): GitResult | undefined {
+  if (!state.mergedVersion) return undefined;
+  if (key === "git rev-parse -q --verify refs/tags/v1.2.3") return missing();
+  if (key === "git ls-remote --tags origin refs/tags/v1.2.3") return ok();
+  if (key === "git ls-remote --exit-code --tags origin refs/tags/v1.2.3") return missing();
+  if (!key.startsWith("gh pr list --head release/v1.2.3")) return undefined;
+  const pullRequest = {
+    baseRefName: "main",
+    headRefName: state.mismatchedMergedRefs ? "release/v9.9.9" : "release/v1.2.3",
+    mergeCommit: { oid: MERGE_COMMIT },
+    mergedAt: "now",
+    state: "MERGED",
+    url: prUrl,
+  };
+  return ok(JSON.stringify([pullRequest]));
+}
 
-  test("parseReleaseVersion reads the release-it version output", () => {
-    expect(parseReleaseVersion("Let's release codependence (1.2.3...1.2.4-beta.6)")).toBe(
-      "1.2.4-beta.6",
-    );
-  });
-
-  test("quoteShellArg leaves safe args alone", () => {
-    expect(quoteShellArg("--preRelease=beta")).toBe("--preRelease=beta");
-  });
-
-  test("formatShellCommand quotes args with spaces", () => {
-    expect(formatShellCommand("git", ["tag", "--message", "Release 1.2.4"])).toBe(
-      'git tag --message "Release 1.2.4"',
-    );
-  });
-
-  test("buildReleaseCommands returns the local release commands", () => {
-    expect(buildReleaseCommands("1.2.4-beta.6", { dryRun: true, preRelease: "beta" })).toEqual([
-      "./node_modules/.bin/release-it 1.2.4-beta.6 --preRelease=beta --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci",
-      'git tag --annotate v1.2.4-beta.6 --message "Release 1.2.4-beta.6"',
-      "git push origin refs/tags/v1.2.4-beta.6",
-    ]);
-  });
-
-  test("buildReleasePlan returns the local release plan", () => {
-    expect(buildReleasePlan("1.2.4-beta.6", { dryRun: true, preRelease: "beta" })).toEqual({
-      commands: [
-        "./node_modules/.bin/release-it 1.2.4-beta.6 --preRelease=beta --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci",
-        'git tag --annotate v1.2.4-beta.6 --message "Release 1.2.4-beta.6"',
-        "git push origin refs/tags/v1.2.4-beta.6",
-      ],
-      steps: [
-        "verify clean, up-to-date main",
-        "create the release commit without pushing main",
-        "push v1.2.4-beta.6 to trigger publishing",
-        "restore local main to its starting commit",
-      ],
-      tagName: "v1.2.4-beta.6",
-      version: "1.2.4-beta.6",
-    });
-  });
-
-  test("formatReleasePlan prints the planned release commands", () => {
-    const plan = buildReleasePlan("1.2.4-beta.6", { dryRun: true, preRelease: "beta" });
-
-    expect(formatReleasePlan(plan)).toContain("Dry run release commands for v1.2.4-beta.6");
-    expect(formatReleasePlan(plan)).toContain("3. git push origin refs/tags/v1.2.4-beta.6");
-  });
-
-  test("runRelease dry run validates main and reports the planned release", () => {
-    let output = "";
-    const logger = {
-      error: mock(() => {}),
-      log: mock((message: string) => {
-        output = message;
-      }),
-      warn: mock(() => {}),
+function releaseBranchResult(
+  key: string,
+  prUrl: string,
+  state: ReleaseFlowState,
+): GitResult | undefined {
+  if (key.startsWith("gh pr list --head release/v1.2.4")) {
+    const headRefOid = state.mismatchedPullRequest ? "b".repeat(40) : MERGE_COMMIT;
+    const pullRequest = {
+      baseRefName: "main",
+      headRefName: state.mismatchedMergedRefs ? "release/v9.9.9" : "release/v1.2.4",
+      headRefOid,
+      mergeCommit: state.mergedPullRequest ? { oid: MERGE_COMMIT } : undefined,
+      mergedAt: state.mergedPullRequest ? "now" : undefined,
+      state: "OPEN",
+      url: prUrl,
     };
-    const { calls, runner } = createRunner({
-      ...READY_RELEASE_OVERRIDES,
-      "git rev-parse -q --verify refs/tags/v1.2.4-beta.6": missing(),
-      "git ls-remote --tags origin refs/tags/v1.2.4-beta.6": ok(""),
-      "./node_modules/.bin/release-it --release-version --preRelease=beta --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
-        ok("1.2.4-beta.6\n"),
-    });
+    const pullRequests = state.existingPullRequest || state.mergedPullRequest ? [pullRequest] : [];
+    return ok(JSON.stringify(pullRequests));
+  }
+  if (key === "git show-ref --verify --quiet refs/heads/release/v1.2.4") {
+    if (state.localBranch) return ok();
+    return absent();
+  }
+  if (key === "git ls-remote --exit-code --heads origin refs/heads/release/v1.2.4") {
+    if (state.remoteBranch) return ok(`${MERGE_COMMIT} refs/heads/release/v1.2.4\n`);
+    return missing();
+  }
+  if (key === "git show release/v1.2.4:package.json") {
+    return ok(JSON.stringify({ version: "1.2.4" }));
+  }
+  if (key === "git log -1 --format=%s release/v1.2.4") return ok("chore(release): 1.2.4\n");
+  if (key === "git rev-parse release/v1.2.4^") return ok("abc\n");
+  if (key === "git rev-parse refs/heads/release/v1.2.4") return ok(`${MERGE_COMMIT}\n`);
+  if (key === "git diff-tree --no-commit-id --name-only -r release/v1.2.4") {
+    const changedFiles = state.extraReleaseFile ? "package.json\nsrc/index.ts\n" : "package.json\n";
+    return ok(changedFiles);
+  }
+  if (key === "git diff --unified=0 origin/main release/v1.2.4 -- package.json") {
+    if (state.mismatchedReleaseDiff) {
+      return ok('-  "version": "1.2.3",\n+  "version": "1.2.4",\n+  "private": false,\n');
+    }
+    return ok('-  "version": "1.2.3",\n+  "version": "1.2.4",\n');
+  }
+  return undefined;
+}
 
-    const code = runRelease({
+function mergedCommitResult(key: string, state: ReleaseFlowState): GitResult | undefined {
+  const version = state.mergedVersion ? "1.2.3" : "1.2.4";
+  if (key === "git rev-list --first-parent --parents origin/main") {
+    if (state.mismatchedMergedAncestry) return ok("abc def\n");
+    return ok(`${MERGE_COMMIT} abc\nabc def\n`);
+  }
+  if (key === `git show ${MERGE_COMMIT}:package.json`) {
+    return ok(JSON.stringify({ version }));
+  }
+  if (key === `git diff-tree --no-commit-id --name-only -r ${MERGE_COMMIT}`) {
+    const files = state.extraMergedFile ? "package.json\nsrc/index.ts\n" : "package.json\n";
+    return ok(files);
+  }
+  if (key === `git diff --unified=0 abc ${MERGE_COMMIT} -- package.json`) {
+    const extra = state.mismatchedMergedDiff ? '+  "private": false,\n' : "";
+    return ok(`-  "version": "1.2.2",\n+  "version": "${version}",\n${extra}`);
+  }
+  return undefined;
+}
+
+function releaseFlowResult(key: string, prUrl: string, state: ReleaseFlowState): GitResult {
+  const mergedResult = mergedVersionResult(key, prUrl, state);
+  if (mergedResult) return mergedResult;
+  const branchResult = releaseBranchResult(key, prUrl, state);
+  if (branchResult) return branchResult;
+  const mergedCommit = mergedCommitResult(key, state);
+  if (mergedCommit) return mergedCommit;
+  if (key.includes("release-it --release-version")) return ok("1.2.4\n");
+  if (key.includes("rev-parse -q --verify refs/tags/v1.2.4")) return missing();
+  if (key === "git ls-remote --tags origin refs/tags/v1.2.4") return ok();
+  if (key.startsWith("gh pr create ")) return ok(`${prUrl}\n`);
+  if (key.endsWith("state,mergedAt,mergeCommit,mergeStateStatus")) {
+    return ok(JSON.stringify({ mergeStateStatus: "CLEAN", state: "OPEN" }));
+  }
+  if (key.endsWith("state,mergedAt,mergeCommit")) {
+    const state = { mergeCommit: { oid: MERGE_COMMIT }, mergedAt: "now", state: "MERGED" };
+    return ok(JSON.stringify(state));
+  }
+  if (key.includes("ls-remote --exit-code --tags")) return missing();
+  return readyMain[key as keyof typeof readyMain] ?? ok();
+}
+
+function createReleaseFlowRunner(prUrl: string, state: ReleaseFlowState = {}) {
+  const calls: string[][] = [];
+  const runner = mock<ReleaseRunner>((command, args) => {
+    const call = [command, ...Array.from(args)];
+    calls.push(call);
+    return releaseFlowResult(call.join(" "), prUrl, state);
+  });
+  return { calls, runner };
+}
+
+describe("scripts/release arguments", () => {
+  test("reads explicit stable release options", () => {
+    expect(parseArgs(["--increment=minor", "--dry-run", "--timeout-minutes=15"])).toEqual({
       dryRun: true,
-      logger,
-      preRelease: "beta",
-      runner,
+      increment: "minor",
+      timeoutMinutes: 15,
     });
+  });
 
-    expect(code).toBe(0);
-    expect(output).toContain("Dry run release commands for v1.2.4-beta.6");
-    expect(calls()).not.toContainEqual([
-      "./node_modules/.bin/release-it",
-      "--preRelease=beta",
+  test("rejects unsafe and invalid options", () => {
+    expect(() => parseArgs(["--no-wait"])).toThrow("cannot safely tag");
+    expect(() => parseArgs(["--increment=nightly"])).toThrow("Invalid release increment");
+    expect(() => parseArgs(["--timeout-minutes=0"])).toThrow("Invalid timeout");
+  });
+
+  test("builds non-publishing release-it arguments", () => {
+    expect(buildReleaseItArgs({ increment: "patch" })).toEqual([
+      "--increment=patch",
       "--git.tag=false",
       "--git.push=false",
       "--git.requireUpstream=false",
@@ -156,181 +202,228 @@ describe("scripts/release", () => {
     ]);
   });
 
-  test("runRelease requires a clean main branch", () => {
-    const { runner } = createRunner({
-      "git branch --show-current": ok("release-fix\n"),
-      "git status --short": ok(""),
-    });
+  test("reads release-it version output", () => {
+    expect(parseReleaseVersion("codependence 1.2.3 to 1.2.4-beta.6")).toBe("1.2.4-beta.6");
+  });
+});
 
-    expect(() => runRelease({ dryRun: true, runner })).toThrow("Run releases from main");
+describe("scripts/release plans", () => {
+  test("describes the release PR gate", () => {
+    const plan = buildReleasePlan("1.2.4");
+    const output = formatReleasePlan(plan);
+    expect(plan.branch).toBe("release/v1.2.4");
+    expect(plan.pullRequestTitle).toBe("chore(release): v1.2.4");
+    expect(output).toContain("wait for required checks");
+    expect(output).toContain("squash-merge the release PR");
   });
 
-  test("runRelease surfaces command failures", () => {
-    const { runner } = createRunner({
-      ...READY_RELEASE_OVERRIDES,
-      "./node_modules/.bin/release-it --release-version --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
-        fail("release-it failed"),
-    });
-
-    expect(() => runRelease({ dryRun: true, runner })).toThrow("release-it failed");
+  test("describes tagging an existing prerelease package version", () => {
+    const plan = buildCurrentVersionTagPlan("1.2.4-beta.2");
+    expect(plan.commands).toContain("git push origin refs/tags/v1.2.4-beta.2");
   });
+});
 
-  test("incrementPreReleaseVersion advances the prerelease number", () => {
+describe("scripts/release versions", () => {
+  test("advances stable and prerelease versions", () => {
+    expect(incrementStableVersion("1.2.3", "patch")).toBe("1.2.4");
+    expect(incrementStableVersion("1.2.3", "minor")).toBe("1.3.0");
+    expect(incrementStableVersion("1.2.3", "major")).toBe("2.0.0");
     expect(incrementPreReleaseVersion("1.2.4-beta.7", "beta")).toBe("1.2.4-beta.8");
   });
 
-  test("incrementPreReleaseVersion rejects a mismatched prerelease", () => {
-    expect(() => incrementPreReleaseVersion("1.2.4-alpha.7", "beta")).toThrow(
-      "Unable to advance beta release version",
-    );
-  });
-
-  test("releaseTagExists checks local and remote tags", () => {
+  test("checks local and remote tags", () => {
     const { runner } = createRunner({
-      "git rev-parse -q --verify refs/tags/v1.2.4-beta.7": missing(),
-      "git ls-remote --tags origin refs/tags/v1.2.4-beta.7": ok("489e1e refs/tags/v1.2.4-beta.7\n"),
+      "git rev-parse -q --verify refs/tags/v1.2.4": missing(),
+      "git ls-remote --tags origin refs/tags/v1.2.4": ok("abc refs/tags/v1.2.4\n"),
     });
-
-    expect(releaseTagExists(runner, "v1.2.4-beta.7")).toBe(true);
+    expect(releaseTagExists(runner, "v1.2.4")).toBe(true);
   });
 
-  test("releaseTagExists returns false when local and remote tags are missing", () => {
+  test("skips occupied stable release tags", () => {
     const { runner } = createRunner({
-      "git rev-parse -q --verify refs/tags/v1.2.4-beta.7": missing(),
-      "git ls-remote --tags origin refs/tags/v1.2.4-beta.7": ok(""),
-    });
-
-    expect(releaseTagExists(runner, "v1.2.4-beta.7")).toBe(false);
-  });
-
-  test("resolveAvailableReleaseVersion skips existing prerelease tags", () => {
-    const { runner } = createRunner({
-      "git rev-parse -q --verify refs/tags/v1.2.4-beta.6": ok("489e1e\n"),
-      "git rev-parse -q --verify refs/tags/v1.2.4-beta.7": missing(),
-      "git ls-remote --tags origin refs/tags/v1.2.4-beta.7": ok("489e1e refs/tags/v1.2.4-beta.7\n"),
-      "git rev-parse -q --verify refs/tags/v1.2.4-beta.8": missing(),
-      "git ls-remote --tags origin refs/tags/v1.2.4-beta.8": ok(""),
-    });
-
-    expect(
-      resolveAvailableReleaseVersion(runner, { dryRun: true, preRelease: "beta" }, "1.2.4-beta.6"),
-    ).toBe("1.2.4-beta.8");
-  });
-
-  test("resolveAvailableReleaseVersion skips existing stable tags", () => {
-    const { runner } = createRunner({
-      "git rev-parse -q --verify refs/tags/v1.2.4": ok("489e1e\n"),
+      "git rev-parse -q --verify refs/tags/v1.2.4": ok("abc\n"),
       "git rev-parse -q --verify refs/tags/v1.2.5": missing(),
-      "git ls-remote --tags origin refs/tags/v1.2.5": ok(""),
+      "git ls-remote --tags origin refs/tags/v1.2.5": ok(),
     });
+    const args = { dryRun: true, increment: "patch" as const, timeoutMinutes: 90 };
+    expect(resolveAvailableReleaseVersion(runner, args, "1.2.4")).toBe("1.2.5");
+  });
+});
 
-    expect(resolveAvailableReleaseVersion(runner, { dryRun: true }, "1.2.4")).toBe("1.2.5");
+describe("scripts/release flow", () => {
+  test("requires an explicit stable increment", async () => {
+    const { runner } = createRunner(readyMain);
+    const options = { packageVersion: "1.2.3", runner };
+    const release = runRelease(options);
+    await expect(release).rejects.toThrow("explicit increment");
   });
 
-  test("runRelease dry run advances past an existing prerelease tag", () => {
-    let output = "";
-    const logger = {
-      error: mock(() => {}),
-      log: mock((message: string) => {
-        output = message;
-      }),
-      warn: mock(() => {}),
+  test("dry-runs an existing prerelease version as a tag-only release", async () => {
+    const logger = createLogger();
+    const overrides = {
+      ...readyMain,
+      "git rev-parse -q --verify refs/tags/v1.2.4-beta.2": missing(),
+      "git ls-remote --tags origin refs/tags/v1.2.4-beta.2": ok(),
     };
-    const { runner } = createRunner({
-      ...READY_RELEASE_OVERRIDES,
-      "git rev-parse -q --verify refs/tags/v1.2.4-beta.6": missing(),
-      "git ls-remote --tags origin refs/tags/v1.2.4-beta.6": ok("489e1e refs/tags/v1.2.4-beta.6\n"),
-      "git rev-parse -q --verify refs/tags/v1.2.4-beta.7": missing(),
-      "git ls-remote --tags origin refs/tags/v1.2.4-beta.7": ok(""),
-      "./node_modules/.bin/release-it --release-version --preRelease=beta --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
-        ok("1.2.4-beta.6\n"),
-    });
-
-    const code = runRelease({
-      dryRun: true,
-      logger,
-      preRelease: "beta",
-      runner,
-    });
-
+    const { runner } = createRunner(overrides);
+    const options = { dryRun: true, logger, packageVersion: "1.2.4-beta.2", runner };
+    const code = await runRelease(options);
+    const expected = expect.stringContaining("git push origin refs/tags/v1.2.4-beta.2");
     expect(code).toBe(0);
-    expect(output).toContain("Dry run release commands for v1.2.4-beta.7");
-    expect(output).toContain("./node_modules/.bin/release-it 1.2.4-beta.7 --preRelease=beta");
+    expect(logger.log).toHaveBeenCalledWith(expected);
   });
 
-  test("runRelease creates a release commit and pushes the release tag", () => {
-    const logger = {
-      error: mock(() => {}),
-      log: mock(() => {}),
-      warn: mock(() => {}),
-    };
-    const { calls, runner } = createRunner({
-      ...READY_RELEASE_OVERRIDES,
-      ...AVAILABLE_VERSION_OVERRIDES,
-      ...MISSING_TAG_OVERRIDES,
-      "./node_modules/.bin/release-it --release-version --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
-        ok("1.2.4\n"),
-      "./node_modules/.bin/release-it 1.2.4 --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
-        ok(""),
-      "git tag --annotate v1.2.4 --message Release 1.2.4": ok(""),
-      "git push origin refs/tags/v1.2.4": ok(""),
-      "git reset --hard abc": ok(""),
-    });
-
-    const code = runRelease({ logger, runner });
-
+  test("merges the release PR before tagging its merge commit", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const { calls, runner } = createReleaseFlowRunner(prUrl);
+    const code = await runRelease({ increment: "patch", logger, runner });
+    const mergeCall = [
+      "gh",
+      "pr",
+      "merge",
+      "--squash",
+      "--delete-branch",
+      "--match-head-commit",
+      MERGE_COMMIT,
+      prUrl,
+    ];
+    const tagCall = [
+      "git",
+      "tag",
+      "--annotate",
+      "v1.2.4",
+      "--message",
+      "Release 1.2.4",
+      MERGE_COMMIT,
+    ];
     expect(code).toBe(0);
-    expect(logger.log).toHaveBeenCalledWith("Pushed v1.2.4");
-    expect(logger.log).toHaveBeenCalledWith("No PR was created and main was not pushed.");
-    expect(calls()).toContainEqual(["git", "reset", "--hard", "abc"]);
+    expect(calls).toContainEqual(mergeCall);
+    expect(calls).toContainEqual(tagCall);
   });
 
-  test("runRelease does not call GitHub PR commands", () => {
-    const logger = {
-      error: mock(() => {}),
-      log: mock(() => {}),
-      warn: mock(() => {}),
-    };
-    const { calls, runner } = createRunner({
-      ...READY_RELEASE_OVERRIDES,
-      ...AVAILABLE_VERSION_OVERRIDES,
-      ...MISSING_TAG_OVERRIDES,
-      "./node_modules/.bin/release-it --release-version --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
-        ok("1.2.4\n"),
-      "./node_modules/.bin/release-it 1.2.4 --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
-        ok(""),
-      "git tag --annotate v1.2.4 --message Release 1.2.4": ok(""),
-      "git push origin refs/tags/v1.2.4": ok(""),
-      "git reset --hard abc": ok(""),
-    });
-
-    runRelease({ logger, runner });
-
-    expect(calls().some((call) => call[0] === "gh")).toBe(false);
+  test("resumes an existing release PR", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { existingPullRequest: true, localBranch: true };
+    const { calls, runner } = createReleaseFlowRunner(prUrl, state);
+    const code = await runRelease({ increment: "patch", logger, runner });
+    const createBranch = ["git", "switch", "--create", "release/v1.2.4"];
+    expect(code).toBe(0);
+    expect(logger.log).toHaveBeenCalledWith(`Resuming ${prUrl}`);
+    expect(calls).not.toContainEqual(createBranch);
   });
 
-  test("runRelease restores main when tag push fails", () => {
-    const logger = {
-      error: mock(() => {}),
-      log: mock(() => {}),
-      warn: mock(() => {}),
-    };
-    const { calls, runner } = createRunner({
-      ...READY_RELEASE_OVERRIDES,
-      ...AVAILABLE_VERSION_OVERRIDES,
-      ...MISSING_TAG_OVERRIDES,
-      "./node_modules/.bin/release-it --release-version --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
-        ok("1.2.4\n"),
-      "./node_modules/.bin/release-it 1.2.4 --git.tag=false --git.push=false --git.requireUpstream=false --git.getLatestTagFromAllRefs=true --ci":
-        ok(""),
-      "git tag --annotate v1.2.4 --message Release 1.2.4": ok(""),
-      "git push origin refs/tags/v1.2.4": fail("push rejected"),
-      "git tag --delete v1.2.4": ok(""),
-      "git reset --hard abc": ok(""),
-    });
+  test("fetches a missing local branch before resuming an existing PR", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const { calls, runner } = createReleaseFlowRunner(prUrl, { existingPullRequest: true });
+    const code = await runRelease({ increment: "patch", logger, runner });
+    const source = "refs/heads/release/v1.2.4";
+    expect(code).toBe(0);
+    expect(calls).toContainEqual(["git", "fetch", "origin", `${source}:${source}`]);
+  });
 
-    expect(() => runRelease({ logger, runner })).toThrow("push rejected");
-    expect(calls()).toContainEqual(["git", "tag", "--delete", "v1.2.4"]);
-    expect(calls()).toContainEqual(["git", "reset", "--hard", "abc"]);
+  test("rejects an existing PR whose head changed", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { existingPullRequest: true, localBranch: true, mismatchedPullRequest: true };
+    const { runner } = createReleaseFlowRunner(prUrl, state);
+    const release = runRelease({ increment: "patch", logger, runner });
+    await expect(release).rejects.toThrow("Release PR head does not match");
+  });
+
+  test("rejects an existing release commit with unrelated files", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { existingPullRequest: true, extraReleaseFile: true, localBranch: true };
+    const { runner } = createReleaseFlowRunner(prUrl, state);
+    const release = runRelease({ increment: "patch", logger, runner });
+    await expect(release).rejects.toThrow("Unverified release files");
+  });
+
+  test("rejects unrelated package changes in an existing release commit", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { existingPullRequest: true, localBranch: true, mismatchedReleaseDiff: true };
+    const { runner } = createReleaseFlowRunner(prUrl, state);
+    const release = runRelease({ increment: "patch", logger, runner });
+    await expect(release).rejects.toThrow("Unverified release diff");
+  });
+
+  test("opens a PR for an already-pushed release branch", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { remoteBranch: true };
+    const { calls, runner } = createReleaseFlowRunner(prUrl, state);
+    const code = await runRelease({ increment: "patch", logger, runner });
+    const createBranch = ["git", "switch", "--create", "release/v1.2.4"];
+    const createdPullRequest = calls.some((call) => call[0] === "gh" && call[1] === "pr");
+    expect(code).toBe(0);
+    expect(calls).not.toContainEqual(createBranch);
+    expect(createdPullRequest).toBe(true);
+  });
+
+  test("rejects unrelated files in an already-merged release", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { extraMergedFile: true, mergedVersion: true };
+    const { runner } = createReleaseFlowRunner(prUrl, state);
+    const options = { increment: "patch" as const, logger, packageVersion: "1.2.3", runner };
+    const release = runRelease(options);
+    await expect(release).rejects.toThrow("Unverified release files");
+  });
+
+  test("rejects unrelated package changes in a merged release PR", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { mergedPullRequest: true, mismatchedMergedDiff: true };
+    const { runner } = createReleaseFlowRunner(prUrl, state);
+    const release = runRelease({ increment: "patch", logger, runner });
+    await expect(release).rejects.toThrow("Unverified release diff");
+  });
+
+  test("rejects a merged release outside the first-parent history", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { mergedVersion: true, mismatchedMergedAncestry: true };
+    const { runner } = createReleaseFlowRunner(prUrl, state);
+    const options = { increment: "patch" as const, logger, packageVersion: "1.2.3", runner };
+    const release = runRelease(options);
+    await expect(release).rejects.toThrow("Unverified release ancestry");
+  });
+
+  test("rejects unexpected refs on a merged release PR", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { mergedPullRequest: true, mismatchedMergedRefs: true };
+    const { runner } = createReleaseFlowRunner(prUrl, state);
+    const release = runRelease({ increment: "patch", logger, runner });
+    await expect(release).rejects.toThrow("Unverified release PR");
+  });
+
+  test("retries an unpushed local release branch", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { localBranch: true };
+    const { calls, runner } = createReleaseFlowRunner(prUrl, state);
+    const code = await runRelease({ increment: "patch", logger, runner });
+    const push = ["git", "push", "--set-upstream", "origin", "release/v1.2.4"];
+    expect(code).toBe(0);
+    expect(calls).toContainEqual(["git", "switch", "release/v1.2.4"]);
+    expect(calls).toContainEqual(push);
+  });
+
+  test("retries a merged release whose tag push failed", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const { calls, runner } = createReleaseFlowRunner(prUrl, { mergedVersion: true });
+    const options = { increment: "patch" as const, logger, packageVersion: "1.2.3", runner };
+    const code = await runRelease(options);
+    const tag = ["git", "tag", "--annotate", "v1.2.3", "--message", "Release 1.2.3", MERGE_COMMIT];
+    const ranReleaseIt = calls.some((call) => call[0] === "./node_modules/.bin/release-it");
+    expect(code).toBe(0);
+    expect(calls).toContainEqual(tag);
+    expect(ranReleaseIt).toBe(false);
   });
 });

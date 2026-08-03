@@ -44,7 +44,7 @@ describe("scripts/ci/cli-entrypoint", () => {
     const metaUrl = new URL("../../../../scripts/ci/tool-versions.js", import.meta.url).href;
 
     expect(isDirectCliExecution(metaUrl, ["node", "scripts/ci/tool-versions.js"])).toBe(true);
-    expect(isDirectCliExecution(metaUrl, ["node", "scripts/ci/publish-release.js"])).toBe(false);
+    expect(isDirectCliExecution(metaUrl, ["node", "scripts/ci/published-release.js"])).toBe(false);
     expect(isDirectCliExecution(metaUrl, ["node"])).toBe(false);
   });
 });
