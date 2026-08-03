@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from "bun:test";
+import { describe, it, expect, beforeEach, jest } from "bun:test";
 import {
   createOutput,
   defaultOutput,

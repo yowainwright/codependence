@@ -1,6 +1,5 @@
 import { describe, test, expect, mock } from "bun:test";
 import { Prompt, createPrompt } from "../../../src/utils/prompts";
-import * as readline from "readline";
 
 describe("Prompt", () => {
   test("should create readline interface on construction", () => {
@@ -362,7 +361,7 @@ describe("Prompt", () => {
 
 describe("createPrompt", () => {
   test("should create prompt and execute callback", async () => {
-    const result = await createPrompt(async (prompt) => {
+    const result = await createPrompt(async () => {
       return "test result";
     });
 

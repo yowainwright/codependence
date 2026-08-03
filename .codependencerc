@@ -4,9 +4,6 @@
       "manager": "bun",
       "files": ["package.json"],
       "codependencies": [
-        {
-          "@perryts/perry": "0.5.1182"
-        },
         "bun-types",
         "fast-check",
         "oxfmt",
@@ -14,6 +11,9 @@
         "pastoralist",
         "prettier",
         "release-it",
+        {
+          "scriptc": "0.0.21"
+        },
         "turbo",
         {
           "typescript": "^5.9.3"

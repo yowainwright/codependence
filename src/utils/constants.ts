@@ -23,8 +23,9 @@ export const VERSION_PREFIXES = ["==", ">=", "<=", "~=", ">", "<", "=", "^", "~"
 
 export const REPEATING_VERSION_PREFIXES = ["^", "~"] as const;
 export const STRICT_INEQUALITY_VERSION_PREFIXES = [">", "<"] as const;
+const REPEATING_VERSION_PREFIX_SET = new Set<string>(REPEATING_VERSION_PREFIXES);
 export const VERSION_COMPARISON_PREFIXES = VERSION_PREFIXES.filter(
-  (prefix) => !REPEATING_VERSION_PREFIXES.some((repeatable) => repeatable === prefix),
+  (prefix) => !REPEATING_VERSION_PREFIX_SET.has(prefix),
 );
 
 const REGEX_SPECIAL_CHARS = /[.*+?^${}()|[\]\\]/g;

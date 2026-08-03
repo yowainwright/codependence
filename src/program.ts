@@ -565,12 +565,11 @@ export const mergeConfigs = (
 ): Options => {
   const hasPathConfig = Object.keys(pathConfig).length > 0;
   const selectedBaseConfig = hasPathConfig ? {} : baseConfig;
+  const codependenceConfig = pathConfig.codependence;
   const hasCodependenceKey =
-    pathConfig?.codependence !== undefined &&
-    typeof pathConfig.codependence === "object" &&
-    pathConfig.codependence !== null;
+    typeof codependenceConfig === "object" && codependenceConfig !== null;
   const normalizedPathConfig = hasCodependenceKey
-    ? (pathConfig.codependence as Record<string, unknown>)
+    ? (codependenceConfig as Record<string, unknown>)
     : pathConfig;
   const effectiveBaseConfig = omitOverriddenTargets(selectedBaseConfig, options);
   const effectivePathConfig = omitOverriddenTargets(normalizedPathConfig, options);
@@ -662,12 +661,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
   const isDebug = options.debug;
   const isQuiet = options.quiet || false;
 
-  let logLevel: "verbose" | "debug" | "info" = "info";
-  if (isVerbose) {
-    logLevel = "verbose";
-  } else if (isDebug) {
-    logLevel = "debug";
-  }
+  const logLevel: "verbose" | "debug" | "info" = isVerbose ? "verbose" : isDebug ? "debug" : "info";
 
   const loggerConfig = {
     level: logLevel,
@@ -682,13 +676,11 @@ export async function action(options: Options = {}): Promise<void | Options> {
   const isTestingCLI = (options as Record<string, unknown>).isTestingCLI === true;
   const isTestingAction = (options as Record<string, unknown>).isTestingAction === true;
 
-  // capture/test CLI options
   if (isTestingCLI) {
     logger.print({ updatedOptions: mergedOptions });
     return;
   }
 
-  // capture action unit test options
   if (isTestingAction) return mergedOptions;
 
   let spinner: ReturnType<typeof createSpinner> | null = null;

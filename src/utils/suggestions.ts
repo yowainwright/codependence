@@ -2,32 +2,34 @@ import { COMMON_PACKAGES } from "./constants";
 import type { ErrorContext } from "./types";
 
 const levenshteinDistance = (a: string, b: string): number => {
-  const matrix: number[][] = [];
+  const columnCount = a.length + 1;
+  const rowCount = b.length + 1;
+  const matrix = Array<number>(columnCount * rowCount).fill(0);
 
-  for (let i = 0; i <= b.length; i++) {
-    matrix[i] = [i];
-  }
+  for (let index = 0; index < matrix.length; index++) {
+    const row = Math.floor(index / columnCount);
+    const column = index % columnCount;
 
-  for (let j = 0; j <= a.length; j++) {
-    matrix[0][j] = j;
-  }
-
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      const isMatch = b.charAt(i - 1) === a.charAt(j - 1);
-      if (isMatch) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1,
-          matrix[i][j - 1] + 1,
-          matrix[i - 1][j] + 1,
-        );
-      }
+    if (row === 0) {
+      matrix[index] = column;
+      continue;
     }
+
+    if (column === 0) {
+      matrix[index] = row;
+      continue;
+    }
+
+    const diagonal = index - columnCount - 1;
+    const replacementCost = b.charAt(row - 1) === a.charAt(column - 1) ? 0 : 1;
+    matrix[index] = Math.min(
+      matrix[diagonal] + replacementCost,
+      matrix[index - 1] + 1,
+      matrix[index - columnCount] + 1,
+    );
   }
 
-  return matrix[b.length][a.length];
+  return matrix[matrix.length - 1];
 };
 
 export const findSimilarPackages = (

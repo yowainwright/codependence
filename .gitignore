@@ -108,6 +108,7 @@ docs/app/page
 .pnpm-store
 .turbo
 .perry-cache/
+.scriptc/
 artifacts/
 .vscode
 .DS_Store

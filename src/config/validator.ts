@@ -19,8 +19,10 @@ const isBoolean = (value: unknown): value is boolean => typeof value === "boolea
 
 const isArray = (value: unknown): value is unknown[] => Array.isArray(value);
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const isObject = (value: unknown): value is Record<string, unknown> => {
+  if (typeof value !== "object" || value === null) return false;
+  return !Array.isArray(value);
+};
 
 const concat = <T>(...arrays: T[][]): T[] => arrays.reduce((acc, arr) => [...acc, ...arr], []);
 
@@ -93,9 +95,9 @@ const validateRequiredFields = (config: Record<string, unknown>): ValidationErro
   const hasCodependencies = "codependencies" in config;
   const hasPermissive = "permissive" in config;
   const hasMode = "mode" in config;
-  const hasNeitherRequired = !hasCodependencies && !hasPermissive && !hasMode;
+  const hasRequiredField = hasCodependencies || hasPermissive || hasMode;
 
-  return hasNeitherRequired
+  return !hasRequiredField
     ? [
         {
           field: "root",
@@ -441,8 +443,10 @@ export const validateConfig = (
 export const formatValidationErrors = (errors: ValidationError[]): string => {
   const errorLines = errors.flatMap((validationError, index) => {
     const mainLine = `${index + 1}. ${validationError.field}: ${validationError.message}`;
-    const suggestionLine = validationError.suggestion ? `   > ${validationError.suggestion}` : null;
-    return [mainLine, suggestionLine, ""].filter((line): line is string => line !== null);
+    const suggestionLines = validationError.suggestion
+      ? [`   > ${validationError.suggestion}`]
+      : [];
+    return [mainLine, ...suggestionLines, ""];
   });
 
   return [`${error("x")} Invalid configuration:\n`, ...errorLines].join("\n");

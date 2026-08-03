@@ -23,6 +23,12 @@
   },
   "overrides": [
     {
+      "files": ["scripts/**/*.{js,ts}"],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
       "files": ["src/logger/index.ts"],
       "rules": {
         "no-console": "off"

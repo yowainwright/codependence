@@ -5,24 +5,26 @@ import { MANIFEST_FILES } from "../providers/constants";
 import { loadPackageJson, loadRcFile } from "./utils";
 import type { ConfigResult } from "./types";
 
+const loadConfigFromDirectory = (directory: string): ConfigResult | null => {
+  const filename = CONFIG_FILES.find((candidate) => existsSync(resolve(directory, candidate)));
+  if (!filename) return null;
+
+  const filepath = resolve(directory, filename);
+  if (filename !== MANIFEST_FILES.PACKAGE_JSON) {
+    return { config: loadRcFile(filepath), filepath };
+  }
+
+  const config = loadPackageJson(filepath);
+  return config ? { config, filepath } : null;
+};
+
 const searchForConfig = (searchFrom: string): ConfigResult | null => {
   let currentDir = resolve(searchFrom);
   const root = resolve("/");
 
   while (currentDir !== root) {
-    for (const filename of CONFIG_FILES) {
-      const filepath = resolve(currentDir, filename);
-
-      if (!existsSync(filepath)) continue;
-
-      if (filename === MANIFEST_FILES.PACKAGE_JSON) {
-        const config = loadPackageJson(filepath);
-        if (config) return { config, filepath };
-        continue;
-      }
-
-      return { config: loadRcFile(filepath), filepath };
-    }
+    const result = loadConfigFromDirectory(currentDir);
+    if (result) return result;
 
     currentDir = dirname(currentDir);
   }

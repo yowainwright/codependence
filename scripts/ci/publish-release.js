@@ -68,9 +68,9 @@ export function createSpawnRunner() {
 }
 
 export function requireValues(values) {
-  for (const [name, value] of Object.entries(values)) {
+  Object.entries(values).forEach(([name, value]) => {
     if (!value) throw new Error(`${name} is required`);
-  }
+  });
 }
 
 export function writeOutput(outputPath, key, value) {

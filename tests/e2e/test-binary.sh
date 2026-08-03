@@ -16,6 +16,7 @@ help_output=$("$BIN" --help)
 printf '%s\n' "$help_output" | grep -Fq "Codependence" || fail "binary help"
 printf '[PASS] binary help\n'
 
+CODEPENDENCE_E2E_BINARY="$BIN" "$SCRIPT_DIR/scripts/test-binary-runtime.sh"
 CODEPENDENCE_E2E_BINARY="$BIN" "$SCRIPT_DIR/provider/docker.sh"
 CODEPENDENCE_E2E_BINARY="$BIN" "$SCRIPT_DIR/provider/github-actions.sh"
 CODEPENDENCE_E2E_BINARY="$BIN" "$SCRIPT_DIR/provider/rust.sh"
