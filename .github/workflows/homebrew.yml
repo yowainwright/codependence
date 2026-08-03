@@ -226,6 +226,7 @@ jobs:
           TAP_BRANCH: codependence-${{ inputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           test -n "$GH_TOKEN"
+          gh auth setup-git
           gh repo clone yowainwright/homebrew-tap tap
           if cmp -s codependence.rb tap/Formula/codependence.rb; then
             exit 0

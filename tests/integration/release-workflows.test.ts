@@ -20,6 +20,8 @@ describe("release workflows", () => {
     const publishFormulaIndex = homebrew.indexOf("publish-formula:");
     const checkoutIndex = homebrew.indexOf("- name: Checkout release tag", publishFormulaIndex);
     const attachIndex = homebrew.indexOf("- name: Attach formula to GitHub release");
+    const authIndex = homebrew.indexOf("gh auth setup-git", attachIndex);
+    const cloneIndex = homebrew.indexOf("gh repo clone yowainwright/homebrew-tap tap", authIndex);
 
     expect(homebrew).toContain("environment: homebrew-publish");
     expect(homebrew).toContain("secrets.HOMEBREW_TAP_TOKEN");
@@ -27,6 +29,8 @@ describe("release workflows", () => {
     expect(homebrew).toContain("gh pr create");
     expect(checkoutIndex).toBeGreaterThan(publishFormulaIndex);
     expect(attachIndex).toBeGreaterThan(checkoutIndex);
+    expect(authIndex).toBeGreaterThan(attachIndex);
+    expect(cloneIndex).toBeGreaterThan(authIndex);
   });
 
   test("does not overwrite release assets", () => {
