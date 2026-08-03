@@ -21,10 +21,15 @@ const absent = (): GitResult => ({ status: 1, stdout: "", stderr: "" });
 const missing = (): GitResult => ({ status: 2, stdout: "", stderr: "" });
 
 interface ReleaseFlowState {
+  extraMergedFile?: boolean;
   extraReleaseFile?: boolean;
   existingPullRequest?: boolean;
   localBranch?: boolean;
+  mergedPullRequest?: boolean;
   mergedVersion?: boolean;
+  mismatchedMergedAncestry?: boolean;
+  mismatchedMergedDiff?: boolean;
+  mismatchedMergedRefs?: boolean;
   mismatchedPullRequest?: boolean;
   mismatchedReleaseDiff?: boolean;
   remoteBranch?: boolean;
@@ -63,6 +68,8 @@ function mergedVersionResult(
   if (key === "git ls-remote --exit-code --tags origin refs/tags/v1.2.3") return missing();
   if (!key.startsWith("gh pr list --head release/v1.2.3")) return undefined;
   const pullRequest = {
+    baseRefName: "main",
+    headRefName: state.mismatchedMergedRefs ? "release/v9.9.9" : "release/v1.2.3",
     mergeCommit: { oid: MERGE_COMMIT },
     mergedAt: "now",
     state: "MERGED",
@@ -80,12 +87,14 @@ function releaseBranchResult(
     const headRefOid = state.mismatchedPullRequest ? "b".repeat(40) : MERGE_COMMIT;
     const pullRequest = {
       baseRefName: "main",
-      headRefName: "release/v1.2.4",
+      headRefName: state.mismatchedMergedRefs ? "release/v9.9.9" : "release/v1.2.4",
       headRefOid,
+      mergeCommit: state.mergedPullRequest ? { oid: MERGE_COMMIT } : undefined,
+      mergedAt: state.mergedPullRequest ? "now" : undefined,
       state: "OPEN",
       url: prUrl,
     };
-    const pullRequests = state.existingPullRequest ? [pullRequest] : [];
+    const pullRequests = state.existingPullRequest || state.mergedPullRequest ? [pullRequest] : [];
     return ok(JSON.stringify(pullRequests));
   }
   if (key === "git show-ref --verify --quiet refs/heads/release/v1.2.4") {
@@ -115,11 +124,33 @@ function releaseBranchResult(
   return undefined;
 }
 
+function mergedCommitResult(key: string, state: ReleaseFlowState): GitResult | undefined {
+  const version = state.mergedVersion ? "1.2.3" : "1.2.4";
+  if (key === "git rev-list --first-parent --parents origin/main") {
+    if (state.mismatchedMergedAncestry) return ok("abc def\n");
+    return ok(`${MERGE_COMMIT} abc\nabc def\n`);
+  }
+  if (key === `git show ${MERGE_COMMIT}:package.json`) {
+    return ok(JSON.stringify({ version }));
+  }
+  if (key === `git diff-tree --no-commit-id --name-only -r ${MERGE_COMMIT}`) {
+    const files = state.extraMergedFile ? "package.json\nsrc/index.ts\n" : "package.json\n";
+    return ok(files);
+  }
+  if (key === `git diff --unified=0 abc ${MERGE_COMMIT} -- package.json`) {
+    const extra = state.mismatchedMergedDiff ? '+  "private": false,\n' : "";
+    return ok(`-  "version": "1.2.2",\n+  "version": "${version}",\n${extra}`);
+  }
+  return undefined;
+}
+
 function releaseFlowResult(key: string, prUrl: string, state: ReleaseFlowState): GitResult {
   const mergedResult = mergedVersionResult(key, prUrl, state);
   if (mergedResult) return mergedResult;
   const branchResult = releaseBranchResult(key, prUrl, state);
   if (branchResult) return branchResult;
+  const mergedCommit = mergedCommitResult(key, state);
+  if (mergedCommit) return mergedCommit;
   if (key.includes("release-it --release-version")) return ok("1.2.4\n");
   if (key.includes("rev-parse -q --verify refs/tags/v1.2.4")) return missing();
   if (key === "git ls-remote --tags origin refs/tags/v1.2.4") return ok();
@@ -283,12 +314,14 @@ describe("scripts/release flow", () => {
     expect(calls).not.toContainEqual(createBranch);
   });
 
-  test("rejects an existing PR without its generated local branch", async () => {
+  test("fetches a missing local branch before resuming an existing PR", async () => {
     const prUrl = "https://github.com/yowainwright/codependence/pull/300";
     const logger = createLogger();
-    const { runner } = createReleaseFlowRunner(prUrl, { existingPullRequest: true });
-    const release = runRelease({ increment: "patch", logger, runner });
-    await expect(release).rejects.toThrow("Cannot verify release/v1.2.4");
+    const { calls, runner } = createReleaseFlowRunner(prUrl, { existingPullRequest: true });
+    const code = await runRelease({ increment: "patch", logger, runner });
+    const source = "refs/heads/release/v1.2.4";
+    expect(code).toBe(0);
+    expect(calls).toContainEqual(["git", "fetch", "origin", `${source}:${source}`]);
   });
 
   test("rejects an existing PR whose head changed", async () => {
@@ -321,7 +354,7 @@ describe("scripts/release flow", () => {
   test("opens a PR for an already-pushed release branch", async () => {
     const prUrl = "https://github.com/yowainwright/codependence/pull/300";
     const logger = createLogger();
-    const state = { localBranch: true, remoteBranch: true };
+    const state = { remoteBranch: true };
     const { calls, runner } = createReleaseFlowRunner(prUrl, state);
     const code = await runRelease({ increment: "patch", logger, runner });
     const createBranch = ["git", "switch", "--create", "release/v1.2.4"];
@@ -329,6 +362,44 @@ describe("scripts/release flow", () => {
     expect(code).toBe(0);
     expect(calls).not.toContainEqual(createBranch);
     expect(createdPullRequest).toBe(true);
+  });
+
+  test("rejects unrelated files in an already-merged release", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { extraMergedFile: true, mergedVersion: true };
+    const { runner } = createReleaseFlowRunner(prUrl, state);
+    const options = { increment: "patch" as const, logger, packageVersion: "1.2.3", runner };
+    const release = runRelease(options);
+    await expect(release).rejects.toThrow("Unverified release files");
+  });
+
+  test("rejects unrelated package changes in a merged release PR", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { mergedPullRequest: true, mismatchedMergedDiff: true };
+    const { runner } = createReleaseFlowRunner(prUrl, state);
+    const release = runRelease({ increment: "patch", logger, runner });
+    await expect(release).rejects.toThrow("Unverified release diff");
+  });
+
+  test("rejects a merged release outside the first-parent history", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { mergedVersion: true, mismatchedMergedAncestry: true };
+    const { runner } = createReleaseFlowRunner(prUrl, state);
+    const options = { increment: "patch" as const, logger, packageVersion: "1.2.3", runner };
+    const release = runRelease(options);
+    await expect(release).rejects.toThrow("Unverified release ancestry");
+  });
+
+  test("rejects unexpected refs on a merged release PR", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { mergedPullRequest: true, mismatchedMergedRefs: true };
+    const { runner } = createReleaseFlowRunner(prUrl, state);
+    const release = runRelease({ increment: "patch", logger, runner });
+    await expect(release).rejects.toThrow("Unverified release PR");
   });
 
   test("retries an unpushed local release branch", async () => {

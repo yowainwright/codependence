@@ -52,6 +52,7 @@ interface ReleasePullRequest extends PullRequestState {
 
 interface ReleasePullRequestTarget {
   headCommit?: string;
+  mergeCommit?: string;
   url: string;
 }
 
@@ -420,6 +421,12 @@ function localReleaseBranchExists(runner: ReleaseRunner, branch: string): boolea
   throw new Error(result.stderr.trim() || `Unable to check local branch: ${branch}`);
 }
 
+function ensureLocalReleaseBranch(runner: ReleaseRunner, branch: string): void {
+  if (localReleaseBranchExists(runner, branch)) return;
+  const source = `refs/heads/${branch}`;
+  runCommand(runner, "git", ["fetch", "origin", `${source}:${source}`]);
+}
+
 function readRemoteReleaseBranchCommit(runner: ReleaseRunner, branch: string): string | undefined {
   const args = ["ls-remote", "--exit-code", "--heads", "origin", `refs/heads/${branch}`];
   const result = runner("git", args);
@@ -432,11 +439,11 @@ function readRemoteReleaseBranchCommit(runner: ReleaseRunner, branch: string): s
   throw new Error(`Invalid remote branch commit: ${branch}`);
 }
 
-function readBranchVersion(runner: ReleaseRunner, branch: string): string {
-  const manifest = commandText(runner, "git", ["show", `${branch}:package.json`]);
+function readRefVersion(runner: ReleaseRunner, ref: string): string {
+  const manifest = commandText(runner, "git", ["show", `${ref}:package.json`]);
   const { version } = JSON.parse(manifest) as { version?: unknown };
   if (typeof version === "string") return version;
-  throw new Error(`package.json version is missing on ${branch}`);
+  throw new Error(`package.json version is missing on ${ref}`);
 }
 
 function isDiffChangeLine(line: string): boolean {
@@ -445,8 +452,13 @@ function isDiffChangeLine(line: string): boolean {
   return isChange && !isHeader;
 }
 
-function assertReleaseDiff(runner: ReleaseRunner, branch: string, version: string): void {
-  const args = ["diff", "--unified=0", "origin/main", branch, "--", "package.json"];
+function assertReleaseDiff(
+  runner: ReleaseRunner,
+  base: string,
+  target: string,
+  version: string,
+): void {
+  const args = ["diff", "--unified=0", base, target, "--", "package.json"];
   const diff = commandText(runner, "git", args);
   const changes = diff.split("\n").filter(isDiffChangeLine);
   const addedVersion = `+  "version": "${version}",`;
@@ -455,21 +467,44 @@ function assertReleaseDiff(runner: ReleaseRunner, branch: string, version: strin
     REMOVED_VERSION_LINE_PATTERN.test(changes[0] ?? "") &&
     changes[1] === addedVersion;
   if (isVersionOnly) return;
-  throw new Error(`Unverified release diff: ${branch}`);
+  throw new Error(`Unverified release diff: ${target}`);
+}
+
+function assertReleaseFiles(runner: ReleaseRunner, target: string): void {
+  const args = ["diff-tree", "--no-commit-id", "--name-only", "-r", target];
+  const changedFiles = commandText(runner, "git", args);
+  if (changedFiles === "package.json") return;
+  throw new Error(`Unverified release files: ${target}`);
 }
 
 function assertReleaseCommitShape(runner: ReleaseRunner, branch: string, version: string): void {
   const parent = commandText(runner, "git", ["rev-parse", `${branch}^`]);
   const main = commandText(runner, "git", ["rev-parse", "origin/main"]);
   if (parent !== main) throw new Error(`Unverified release parent: ${branch}`);
-  const args = ["diff-tree", "--no-commit-id", "--name-only", "-r", branch];
-  const changedFiles = commandText(runner, "git", args);
-  if (changedFiles !== "package.json") throw new Error(`Unverified release files: ${branch}`);
-  assertReleaseDiff(runner, branch, version);
+  assertReleaseFiles(runner, branch);
+  assertReleaseDiff(runner, "origin/main", branch, version);
+}
+
+function readFirstParent(runner: ReleaseRunner, commit: string): string {
+  if (!COMMIT_PATTERN.test(commit)) throw new Error(`Invalid merge commit: ${commit}`);
+  const args = ["rev-list", "--first-parent", "--parents", "origin/main"];
+  const history = commandText(runner, "git", args);
+  const commitLine = history.split("\n").find((line) => line.startsWith(`${commit} `));
+  const parts = commitLine?.split(/\s+/) ?? [];
+  if (parts.length === 2) return parts[1] ?? "";
+  throw new Error(`Unverified release ancestry: ${commit}`);
+}
+
+function assertMergedReleaseCommit(runner: ReleaseRunner, commit: string, version: string): void {
+  const parent = readFirstParent(runner, commit);
+  const mergedVersion = readRefVersion(runner, commit);
+  if (mergedVersion !== version) throw new Error(`Unexpected merged version: ${mergedVersion}`);
+  assertReleaseFiles(runner, commit);
+  assertReleaseDiff(runner, parent, commit, version);
 }
 
 function readReleaseBranchCommit(runner: ReleaseRunner, branch: string, version: string): string {
-  const branchVersion = readBranchVersion(runner, branch);
+  const branchVersion = readRefVersion(runner, branch);
   if (branchVersion !== version)
     throw new Error(`Unexpected version on ${branch}: ${branchVersion}`);
   const title = commandText(runner, "git", ["log", "-1", "--format=%s", branch]);
@@ -495,7 +530,7 @@ function checkoutReleaseBranch(
   const exists = localReleaseBranchExists(context.runner, branch);
   const args = exists ? ["switch", branch] : ["switch", "--create", branch];
   runCommand(context.runner, "git", args);
-  const hasReleaseVersion = exists && readBranchVersion(context.runner, branch) === version;
+  const hasReleaseVersion = exists && readRefVersion(context.runner, branch) === version;
   if (exists && !hasReleaseVersion) assertReleaseBranchBase(context.runner, branch);
   if (!hasReleaseVersion) createReleaseCommit(context.runner, releaseArgs, version);
   return readReleaseBranchCommit(context.runner, branch, version);
@@ -528,12 +563,29 @@ function verifyExistingPullRequest(
   branch: string,
   version: string,
 ): string {
-  const hasExpectedRefs = pullRequest.baseRefName === "main" && pullRequest.headRefName === branch;
-  if (!hasExpectedRefs) throw new Error(`Unverified release PR: ${pullRequest.url}`);
-  if (!localReleaseBranchExists(runner, branch)) throw new Error(`Cannot verify ${branch}`);
+  assertPullRequestRefs(pullRequest, branch);
+  ensureLocalReleaseBranch(runner, branch);
   const commit = readReleaseBranchCommit(runner, branch, version);
   if (pullRequest.headRefOid === commit) return commit;
   throw new Error(`Release PR head does not match ${branch}`);
+}
+
+function assertPullRequestRefs(pullRequest: ReleasePullRequest, branch: string): void {
+  const hasExpectedRefs = pullRequest.baseRefName === "main" && pullRequest.headRefName === branch;
+  if (hasExpectedRefs) return;
+  throw new Error(`Unverified release PR: ${pullRequest.url}`);
+}
+
+function verifyMergedPullRequest(
+  runner: ReleaseRunner,
+  pullRequest: ReleasePullRequest,
+  branch: string,
+  version: string,
+): string {
+  assertPullRequestRefs(pullRequest, branch);
+  const commit = readMergeCommit(pullRequest, pullRequest.url);
+  assertMergedReleaseCommit(runner, commit, version);
+  return commit;
 }
 
 function verifyRemoteReleaseBranch(
@@ -542,7 +594,7 @@ function verifyRemoteReleaseBranch(
   version: string,
   remoteCommit: string,
 ): string {
-  if (!localReleaseBranchExists(runner, branch)) throw new Error(`Cannot verify ${branch}`);
+  ensureLocalReleaseBranch(runner, branch);
   const commit = readReleaseBranchCommit(runner, branch, version);
   if (remoteCommit === commit) return commit;
   throw new Error(`Remote release branch does not match ${branch}`);
@@ -556,7 +608,10 @@ function resumeReleasePullRequest(
 ): ReleasePullRequestTarget | undefined {
   if (!pullRequest) return undefined;
   context.logger.log(`Resuming ${pullRequest.url}`);
-  if (pullRequest.mergedAt) return { url: pullRequest.url };
+  if (pullRequest.mergedAt) {
+    const mergeCommit = verifyMergedPullRequest(context.runner, pullRequest, branch, version);
+    return { mergeCommit, url: pullRequest.url };
+  }
   const headCommit = verifyExistingPullRequest(context.runner, pullRequest, branch, version);
   return { headCommit, url: pullRequest.url };
 }
@@ -680,7 +735,8 @@ function resolveMergeCommit(
   deadline: number,
   existingMergeCommit?: string,
 ) {
-  if (existingMergeCommit) return Promise.resolve(existingMergeCommit);
+  const mergeCommit = target.mergeCommit ?? existingMergeCommit;
+  if (mergeCommit) return Promise.resolve(mergeCommit);
   return mergeReleasePullRequest(context, target, deadline);
 }
 
@@ -711,9 +767,10 @@ function resumeMergedVersion(
   version: string,
 ): number | undefined {
   if (releaseTagExists(context.runner, `v${version}`)) return undefined;
-  const pullRequest = findReleasePullRequest(context.runner, buildReleaseBranch(version));
+  const branch = buildReleaseBranch(version);
+  const pullRequest = findReleasePullRequest(context.runner, branch);
   if (!pullRequest?.mergedAt) return undefined;
-  const mergeCommit = readMergeCommit(pullRequest, pullRequest.url);
+  const mergeCommit = verifyMergedPullRequest(context.runner, pullRequest, branch, version);
   if (!releaseArgs.dryRun) return pushVersionTag(context, version, mergeCommit);
   context.logger.log(formatReleasePlan(buildCurrentVersionTagPlan(version)));
   return 0;
@@ -751,6 +808,7 @@ async function publishReleasePullRequest(
   const existingCommit = await pollForMergeReadiness(context, target.url, deadline);
   const mergeCommit = await resolveMergeCommit(context, target, deadline, existingCommit);
   checkoutMergedMain(context.runner);
+  assertMergedReleaseCommit(context.runner, mergeCommit, version);
   return pushVersionTag(context, version, mergeCommit);
 }
 
