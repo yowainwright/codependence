@@ -1,4 +1,4 @@
-import { expect, test, jest, beforeEach, afterEach, describe, mock } from "bun:test";
+import { expect, test, jest, beforeEach, afterEach, describe } from "bun:test";
 import {
   action,
   mergeConfigs,
@@ -858,10 +858,7 @@ describe("run", () => {
   });
 
   test("should call initAction for init command", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
-      // Config already exists - should warn
-      return true;
-    });
+    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation(() => true);
     const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
 
     await run(["node", "script.js", "init", "rc"]);

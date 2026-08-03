@@ -1,6 +1,6 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { binaryExecFile } from "../bin/runtime";
+import { binaryExecFile } from "../bin/utils";
 import type { ExecFileFn, ExecFn, ExecOptions, ExecResult, RetryableError, SleepFn } from "./types";
 
 const execFileAsync = promisify(execFile) as ExecFileFn;

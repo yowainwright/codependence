@@ -1,5 +1,5 @@
 import { describe, it, expect, jest, beforeEach } from "bun:test";
-import type { ExecFileFn, ExecFn } from "../../../src/utils/types";
+import type { ExecFn } from "../../../src/utils/types";
 
 let exec: ExecFn;
 

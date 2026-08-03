@@ -36,7 +36,7 @@ const prepareBinaryRuntime = (): void => {
     "type Exec = (command: string, args: string[], cwd: string) => Promise<string>;",
     "type ExecSync = (command: string, args: string[], cwd: string) => string;",
     "type Question = (message: string) => Promise<string>;",
-    "export function configureBinaryHost(exec: Exec, execSync: ExecSync, question: Question): void;",
+    "export function configureBinaryHost(exec: Exec, execSync: ExecSync, question: Question): () => void;",
     "export function runBinary(argv: readonly string[]): Promise<void>;",
     "",
   ].join("\n");

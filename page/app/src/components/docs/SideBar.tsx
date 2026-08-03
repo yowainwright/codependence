@@ -1,7 +1,11 @@
 import { useLocation, Link } from "@tanstack/react-router";
 import { SIDEBAR } from "@/content/constants";
-import { resolveUrl } from "@/utils/urlResolver";
 import type { SideBarItemProps } from "@/types";
+
+type SideBarSectionProps = {
+  pathname: string;
+  section: (typeof SIDEBAR)[number];
+};
 
 function SideBarHeader() {
   return (
@@ -14,8 +18,7 @@ function SideBarHeader() {
 }
 
 function SideBarItem({ href, title, isActive }: SideBarItemProps) {
-  const baseClass =
-    "block py-1.5 pl-[20px] -ml-[10px] -mr-[16px] transition text-sm";
+  const baseClass = "block py-1.5 pl-[20px] -ml-[10px] -mr-[16px] transition text-sm";
   const activeClass = "text-primary border-l-2 border-primary";
   const inactiveClass =
     "hover:text-primary border-l-2 border-transparent hover:border-base-content/30";
@@ -34,37 +37,36 @@ function SideBarItem({ href, title, isActive }: SideBarItemProps) {
   );
 }
 
+function SideBarSection({ pathname, section }: SideBarSectionProps) {
+  const items = section.items.map((item) => (
+    <SideBarItem
+      key={item.href}
+      href={item.href}
+      title={item.title}
+      isActive={pathname === item.href}
+    />
+  ));
+
+  return (
+    <li>
+      <h2 className="menu-title flex items-center gap-4 px-1.5">{section.title}</h2>
+      <ul className="border-l border-base-content/10 ml-3">{items}</ul>
+    </li>
+  );
+}
+
 export function SideBar() {
   const { pathname } = useLocation();
+  const sections = SIDEBAR.map((section) => (
+    <SideBarSection key={section.title} pathname={pathname} section={section} />
+  ));
 
   return (
     <div className="drawer-side z-40 md:border-r md:border-base-content/10">
-      <label
-        htmlFor="my-drawer-2"
-        aria-label="close sidebar"
-        className="drawer-overlay"
-      />
+      <label htmlFor="my-drawer-2" aria-label="close sidebar" className="drawer-overlay" />
       <aside className="bg-base-100 min-h-screen w-80">
         <SideBarHeader />
-        <ul className="menu w-full px-4 py-0 font-sans">
-          {SIDEBAR.map((section) => (
-            <li key={section.title}>
-              <h2 className="menu-title flex items-center gap-4 px-1.5">
-                {section.title}
-              </h2>
-              <ul className="border-l border-base-content/10 ml-3">
-                {section.items.map((item) => (
-                  <SideBarItem
-                    key={item.href}
-                    href={item.href}
-                    title={item.title}
-                    isActive={pathname === item.href}
-                  />
-                ))}
-              </ul>
-            </li>
-          ))}
-        </ul>
+        <ul className="menu w-full px-4 py-0 font-sans">{sections}</ul>
       </aside>
     </div>
   );

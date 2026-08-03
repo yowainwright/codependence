@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from "fs";
 import { execFileSync } from "child_process";
 import { dirname } from "path";
-import { runBinaryExecFileSync } from "../../bin/runtime";
+import { runBinaryExecFileSync } from "../../bin/utils";
 import { exec } from "../../utils/exec";
 import { logger } from "../../logger";
 import { LANGUAGES } from "../constants";

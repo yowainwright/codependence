@@ -1,7 +1,59 @@
-import { logger } from "../logger";
-import { run } from "../program";
+import type { ExecFileFn, ExecResult } from "../utils/types";
 import { BINARY_SCRIPT_NAME, SCRIPT_PATH_EXTENSIONS } from "./constants";
-import type { BinaryArgv } from "./types";
+import type {
+  BinaryArgv,
+  BinaryHost,
+  BinaryHostExec,
+  BinaryHostExecSync,
+  BinaryHostQuestion,
+  BinaryHostRestore,
+  BinaryHostResult,
+} from "./types";
+
+let binaryHost: BinaryHost | undefined;
+
+const parseHostResult = (result: string): ExecResult => {
+  const parsed = JSON.parse(result) as BinaryHostResult;
+  if (parsed.error) throw new Error(parsed.error);
+
+  return { stdout: parsed.stdout || "", stderr: parsed.stderr || "" };
+};
+
+export const configureBinaryHost = (
+  exec: BinaryHostExec,
+  execSync: BinaryHostExecSync,
+  question: BinaryHostQuestion,
+): BinaryHostRestore => {
+  const previousHost = binaryHost;
+  binaryHost = { exec, execSync, question };
+
+  return () => {
+    binaryHost = previousHost;
+  };
+};
+
+export const hasBinaryHost = (): boolean => binaryHost !== undefined;
+
+export const binaryExecFile = (): ExecFileFn | undefined => {
+  if (!binaryHost) return undefined;
+  const host = binaryHost;
+
+  return async (command, args, options) => {
+    const result = await host.exec(command, args, options.cwd || "");
+
+    return parseHostResult(result);
+  };
+};
+
+export const runBinaryExecFileSync = (command: string, args: string[], cwd: string): boolean => {
+  if (!binaryHost) return false;
+
+  parseHostResult(binaryHost.execSync(command, args, cwd));
+  return true;
+};
+
+export const askBinaryHost = (message: string): Promise<string> | undefined =>
+  binaryHost?.question(message);
 
 const hasPathSegment = (value: string): boolean => value.includes("/") || value.includes("\\");
 
@@ -27,14 +79,4 @@ export const normalizeBinaryArgv = (argv: BinaryArgv): string[] => {
   if (needsScriptArg) return [firstArg, BINARY_SCRIPT_NAME, ...argv.slice(1)];
 
   return [...argv];
-};
-
-export const runBinary = async (argv: BinaryArgv): Promise<void> => {
-  try {
-    await run(normalizeBinaryArgv(argv));
-  } catch (error) {
-    const err = error as Error;
-    logger.error(err.message || err.toString());
-    process.exit(2);
-  }
 };
