@@ -40,6 +40,10 @@ interface PullRequestState {
   state: string;
 }
 
+interface ReleasePullRequest extends PullRequestState {
+  url: string;
+}
+
 interface ReleaseContext {
   cwd: string;
   logger: ReleaseLogger;
@@ -387,15 +391,86 @@ function createPullRequest(context: ReleaseContext, version: string, branch: str
   return readPullRequestUrl(context.runner, branch);
 }
 
-function createReleasePullRequest(
+function findReleasePullRequest(
+  runner: ReleaseRunner,
+  branch: string,
+): ReleasePullRequest | undefined {
+  const fields = "url,state,mergedAt,mergeCommit";
+  const args = ["pr", "list", "--head", branch, "--state", "all", "--json", fields, "--limit", "1"];
+  const pullRequests = JSON.parse(commandText(runner, "gh", args)) as ReleasePullRequest[];
+  return pullRequests.at(0);
+}
+
+function localReleaseBranchExists(runner: ReleaseRunner, branch: string): boolean {
+  const args = ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`];
+  const result = runner("git", args);
+  if (result.status === 0) return true;
+  if (result.status === 1) return false;
+  throw new Error(result.stderr.trim() || `Unable to check local branch: ${branch}`);
+}
+
+function remoteReleaseBranchExists(runner: ReleaseRunner, branch: string): boolean {
+  const args = ["ls-remote", "--exit-code", "--heads", "origin", `refs/heads/${branch}`];
+  const result = runner("git", args);
+  if (result.status === 0) return true;
+  if (result.status === 2) return false;
+  throw new Error(result.stderr.trim() || `Unable to check remote branch: ${branch}`);
+}
+
+function readBranchVersion(runner: ReleaseRunner, branch: string): string {
+  const manifest = commandText(runner, "git", ["show", `${branch}:package.json`]);
+  const { version } = JSON.parse(manifest) as { version?: unknown };
+  if (typeof version === "string") return version;
+  throw new Error(`package.json version is missing on ${branch}`);
+}
+
+function checkoutReleaseBranch(
+  context: ReleaseContext,
+  releaseArgs: ReleaseArgs,
+  version: string,
+  branch: string,
+): void {
+  const exists = localReleaseBranchExists(context.runner, branch);
+  const args = exists ? ["switch", branch] : ["switch", "--create", branch];
+  runCommand(context.runner, "git", args);
+  if (exists && readBranchVersion(context.runner, branch) === version) return;
+  createReleaseCommit(context.runner, releaseArgs, version);
+}
+
+function restoreMain(runner: ReleaseRunner): void {
+  const branch = commandText(runner, "git", ["branch", "--show-current"]);
+  if (branch === "main") return;
+  runCommand(runner, "git", ["switch", "main"]);
+}
+
+function pushReleaseBranch(
+  context: ReleaseContext,
+  releaseArgs: ReleaseArgs,
+  version: string,
+  branch: string,
+): void {
+  try {
+    checkoutReleaseBranch(context, releaseArgs, version, branch);
+    runCommand(context.runner, "git", ["push", "--set-upstream", "origin", branch]);
+  } finally {
+    restoreMain(context.runner);
+  }
+}
+
+function resolveReleasePullRequest(
   context: ReleaseContext,
   releaseArgs: ReleaseArgs,
   version: string,
   branch: string,
 ): string {
-  runCommand(context.runner, "git", ["switch", "--create", branch]);
-  createReleaseCommit(context.runner, releaseArgs, version);
-  runCommand(context.runner, "git", ["push", "--set-upstream", "origin", branch]);
+  const existing = findReleasePullRequest(context.runner, branch);
+  if (existing) {
+    context.logger.log(`Resuming ${existing.url}`);
+    return existing.url;
+  }
+  if (!remoteReleaseBranchExists(context.runner, branch)) {
+    pushReleaseBranch(context, releaseArgs, version, branch);
+  }
   const prUrl = createPullRequest(context, version, branch);
   context.logger.log(`Opened ${prUrl}`);
   return prUrl;
@@ -506,6 +581,20 @@ function pushVersionTag(context: ReleaseContext, version: string, targetCommit?:
   });
 }
 
+function resumeMergedVersion(
+  context: ReleaseContext,
+  releaseArgs: ReleaseArgs,
+  version: string,
+): number | undefined {
+  if (releaseTagExists(context.runner, `v${version}`)) return undefined;
+  const pullRequest = findReleasePullRequest(context.runner, buildReleaseBranch(version));
+  if (!pullRequest?.mergedAt) return undefined;
+  const mergeCommit = readMergeCommit(pullRequest, pullRequest.url);
+  if (!releaseArgs.dryRun) return pushVersionTag(context, version, mergeCommit);
+  context.logger.log(formatReleasePlan(buildCurrentVersionTagPlan(version)));
+  return 0;
+}
+
 function runCurrentVersionRelease(
   context: ReleaseContext,
   releaseArgs: ReleaseArgs,
@@ -533,7 +622,7 @@ async function publishReleasePullRequest(
   version: string,
 ) {
   const branch = buildReleaseBranch(version);
-  const prUrl = createReleasePullRequest(context, releaseArgs, version, branch);
+  const prUrl = resolveReleasePullRequest(context, releaseArgs, version, branch);
   const deadline = Date.now() + releaseArgs.timeoutMinutes * 60_000;
   const existingCommit = await pollForMergeReadiness(context, prUrl, deadline);
   const mergeCommit = await resolveMergeCommit(context, prUrl, deadline, existingCommit);
@@ -541,8 +630,14 @@ async function publishReleasePullRequest(
   return pushVersionTag(context, version, mergeCommit);
 }
 
-async function runVersionRelease(context: ReleaseContext, releaseArgs: ReleaseArgs) {
+async function runVersionRelease(
+  context: ReleaseContext,
+  releaseArgs: ReleaseArgs,
+  packageVersion: string,
+) {
   assertVersionChangeRequested(releaseArgs);
+  const resumed = resumeMergedVersion(context, releaseArgs, packageVersion);
+  if (resumed !== undefined) return resumed;
   const version = resolveReleaseVersion(context.runner, releaseArgs);
   if (!releaseArgs.dryRun) return publishReleasePullRequest(context, releaseArgs, version);
 
@@ -559,7 +654,7 @@ export async function runRelease(options: ReleaseOptions = {}) {
   if (isCurrentVersionRelease) {
     return runCurrentVersionRelease(context, releaseArgs, packageVersion);
   }
-  return runVersionRelease(context, releaseArgs);
+  return runVersionRelease(context, releaseArgs, packageVersion);
 }
 
 if (import.meta.main) {

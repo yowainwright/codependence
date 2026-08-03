@@ -34,6 +34,16 @@ describe("release workflows", () => {
     expect(homebrew).toContain("sparse-checkout: scripts/upload-release-assets.sh");
   });
 
+  test("verifies a release tag before running repository code", () => {
+    const homebrew = readWorkflow("homebrew.yml");
+    const verify = homebrew.indexOf("- name: Verify release tag");
+    const setup = homebrew.indexOf("- name: Setup toolchain");
+    expect(homebrew).toContain('ref: "refs/tags/${{ inputs.version }}"');
+    expect(homebrew).toContain('gh release view "$RELEASE_REF"');
+    expect(verify).toBeGreaterThan(-1);
+    expect(setup).toBeGreaterThan(verify);
+  });
+
   test("audits the npm-backed formula before and after npm publication", () => {
     const homebrew = readWorkflow("homebrew.yml");
     const publish = readWorkflow("publish.yml");

@@ -42,7 +42,19 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-          ref: "${{ inputs.version }}"
+          ref: "refs/tags/${{ inputs.version }}"
+
+      - name: Verify release tag
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          [[ "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          PACKAGE_VERSION="$(jq -r '.version // empty' package.json)"
+          test "${RELEASE_REF#v}" = "$PACKAGE_VERSION"
+          TAG_COMMIT="$(git rev-parse "refs/tags/${RELEASE_REF}^{commit}")"
+          test "$(git rev-parse HEAD)" = "$TAG_COMMIT"
+          test "$(gh release view "$RELEASE_REF" --json tagName --jq .tagName)" = "$RELEASE_REF"
+          echo "VERSION=$PACKAGE_VERSION" >> "$GITHUB_ENV"
 
       - name: Checkout release tooling
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -58,10 +70,6 @@ jobs:
 
       - name: Validate stable version
         run: |
-          export VERSION="${RELEASE_REF#v}"
-          PACKAGE_VERSION="$(bun -p 'require("./package.json").version')"
-          test "$VERSION" = "$PACKAGE_VERSION"
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           bun scripts/brew.ts validate-version
 
       - name: Wait for npm package availability
