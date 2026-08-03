@@ -845,16 +845,15 @@ export const constructPermissiveDepsToUpdateList = (
     const { exactVersion, bumpCharacter } = constructVersionTypes(version);
     return { name, version, exactVersion, bumpCharacter };
   });
-  const updatableDependencies = normalizedDependencies.filter(
-    ({ name, version, exactVersion }) =>
-      isUpdatablePermissiveDep(name, version, exactVersion, versionMap, level, versionStrategy),
+  const updatableDependencies = normalizedDependencies.filter(({ name, version, exactVersion }) =>
+    isUpdatablePermissiveDep(name, version, exactVersion, versionMap, level, versionStrategy),
   );
 
   return updatableDependencies.map(({ name, version, bumpCharacter }) => ({
-      name,
-      actual: version,
-      exact: constructVersionTypes(versionMap[name]).exactVersion,
-      expected: constructExpectedVersion(bumpCharacter, versionMap[name]),
+    name,
+    actual: version,
+    exact: constructVersionTypes(versionMap[name]).exactVersion,
+    expected: constructExpectedVersion(bumpCharacter, versionMap[name]),
   }));
 };
 
@@ -894,10 +893,10 @@ export const constructDepsToUpdateList = (
   );
 
   return updatableDependencies.map(({ name, bumpVersion, bumpCharacter }) => ({
-      name,
-      actual: bumpVersion,
-      exact: constructVersionTypes(versionMap[name]).exactVersion,
-      expected: constructExpectedVersion(bumpCharacter, versionMap[name]),
+    name,
+    actual: bumpVersion,
+    exact: constructVersionTypes(versionMap[name]).exactVersion,
+    expected: constructExpectedVersion(bumpCharacter, versionMap[name]),
   }));
 };
 
@@ -1100,10 +1099,10 @@ export const buildUpdateLists = <T extends DependencySections>(
 };
 
 const dependencyUpdateLists = (depsToUpdate: DepsToUpdate): DepToUpdateItem[][] => [
-    depsToUpdate.depList,
-    depsToUpdate.devDepList,
-    depsToUpdate.peerDepList,
-    depsToUpdate.optionalDepList,
+  depsToUpdate.depList,
+  depsToUpdate.devDepList,
+  depsToUpdate.peerDepList,
+  depsToUpdate.optionalDepList,
 ];
 
 const hasDependencySections = (manifest: DependencySections): boolean => {
