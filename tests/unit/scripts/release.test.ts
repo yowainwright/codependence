@@ -24,6 +24,7 @@ interface ReleaseFlowState {
   existingPullRequest?: boolean;
   localBranch?: boolean;
   mergedVersion?: boolean;
+  mismatchedPullRequest?: boolean;
   remoteBranch?: boolean;
 }
 
@@ -74,7 +75,14 @@ function releaseBranchResult(
   state: ReleaseFlowState,
 ): GitResult | undefined {
   if (key.startsWith("gh pr list --head release/v1.2.4")) {
-    const pullRequest = { state: "OPEN", url: prUrl };
+    const headRefOid = state.mismatchedPullRequest ? "b".repeat(40) : MERGE_COMMIT;
+    const pullRequest = {
+      baseRefName: "main",
+      headRefName: "release/v1.2.4",
+      headRefOid,
+      state: "OPEN",
+      url: prUrl,
+    };
     const pullRequests = state.existingPullRequest ? [pullRequest] : [];
     return ok(JSON.stringify(pullRequests));
   }
@@ -83,12 +91,14 @@ function releaseBranchResult(
     return absent();
   }
   if (key === "git ls-remote --exit-code --heads origin refs/heads/release/v1.2.4") {
-    if (state.remoteBranch) return ok("abc refs/heads/release/v1.2.4\n");
+    if (state.remoteBranch) return ok(`${MERGE_COMMIT} refs/heads/release/v1.2.4\n`);
     return missing();
   }
   if (key === "git show release/v1.2.4:package.json") {
     return ok(JSON.stringify({ version: "1.2.4" }));
   }
+  if (key === "git log -1 --format=%s release/v1.2.4") return ok("chore(release): 1.2.4\n");
+  if (key === "git rev-parse refs/heads/release/v1.2.4") return ok(`${MERGE_COMMIT}\n`);
   return undefined;
 }
 
@@ -224,7 +234,16 @@ describe("scripts/release flow", () => {
     const logger = createLogger();
     const { calls, runner } = createReleaseFlowRunner(prUrl);
     const code = await runRelease({ increment: "patch", logger, runner });
-    const mergeCall = ["gh", "pr", "merge", "--squash", "--delete-branch", prUrl];
+    const mergeCall = [
+      "gh",
+      "pr",
+      "merge",
+      "--squash",
+      "--delete-branch",
+      "--match-head-commit",
+      MERGE_COMMIT,
+      prUrl,
+    ];
     const tagCall = [
       "git",
       "tag",
@@ -242,7 +261,7 @@ describe("scripts/release flow", () => {
   test("resumes an existing release PR", async () => {
     const prUrl = "https://github.com/yowainwright/codependence/pull/300";
     const logger = createLogger();
-    const state = { existingPullRequest: true };
+    const state = { existingPullRequest: true, localBranch: true };
     const { calls, runner } = createReleaseFlowRunner(prUrl, state);
     const code = await runRelease({ increment: "patch", logger, runner });
     const createBranch = ["git", "switch", "--create", "release/v1.2.4"];
@@ -251,10 +270,27 @@ describe("scripts/release flow", () => {
     expect(calls).not.toContainEqual(createBranch);
   });
 
+  test("rejects an existing PR without its generated local branch", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const { runner } = createReleaseFlowRunner(prUrl, { existingPullRequest: true });
+    const release = runRelease({ increment: "patch", logger, runner });
+    await expect(release).rejects.toThrow("Cannot verify release/v1.2.4");
+  });
+
+  test("rejects an existing PR whose head changed", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { existingPullRequest: true, localBranch: true, mismatchedPullRequest: true };
+    const { runner } = createReleaseFlowRunner(prUrl, state);
+    const release = runRelease({ increment: "patch", logger, runner });
+    await expect(release).rejects.toThrow("Release PR head does not match");
+  });
+
   test("opens a PR for an already-pushed release branch", async () => {
     const prUrl = "https://github.com/yowainwright/codependence/pull/300";
     const logger = createLogger();
-    const state = { remoteBranch: true };
+    const state = { localBranch: true, remoteBranch: true };
     const { calls, runner } = createReleaseFlowRunner(prUrl, state);
     const code = await runRelease({ increment: "patch", logger, runner });
     const createBranch = ["git", "switch", "--create", "release/v1.2.4"];
