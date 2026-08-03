@@ -13,12 +13,14 @@ export interface ReleaseTagOptions {
   git?: GitRunner;
   logger?: TagReleaseLogger;
   requireUpstream?: boolean;
+  targetCommit?: string;
   version?: string;
 }
 
 export interface ReleaseReadyOptions {
   dryRun?: boolean;
   requireUpstream?: boolean;
+  targetCommit?: string;
 }
 
 export interface ReleaseTagArgs {
@@ -30,6 +32,7 @@ export interface PackageManifest {
 }
 
 export type PreRelease = "alpha" | "beta" | "rc";
+export type ReleaseIncrement = "patch" | "minor" | "major";
 export type ReleaseRunner = (
   command: string,
   args: readonly string[],
@@ -39,22 +42,37 @@ export type ReleaseLogger = Pick<Console, "error" | "log" | "warn">;
 export interface ReleaseOptions {
   cwd?: string;
   dryRun?: boolean;
+  increment?: ReleaseIncrement;
   logger?: ReleaseLogger;
+  packageVersion?: string;
+  pollIntervalMs?: number;
   preRelease?: PreRelease;
   runner?: ReleaseRunner;
+  timeoutMinutes?: number;
 }
 
 export interface ReleaseArgs {
   dryRun: boolean;
+  increment?: ReleaseIncrement;
   preRelease?: PreRelease;
+  timeoutMinutes: number;
 }
 
 export interface ReleaseItArgsOptions {
+  increment?: ReleaseIncrement;
   preRelease?: PreRelease;
   version?: string;
 }
 
 export interface ReleasePlan {
+  branch: string;
+  pullRequestTitle: string;
+  steps: string[];
+  tagName: string;
+  version: string;
+}
+
+export interface TagPlan {
   commands: string[];
   steps: string[];
   tagName: string;

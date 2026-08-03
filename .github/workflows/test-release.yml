@@ -41,7 +41,7 @@ jobs:
         id: version
         run: bash scripts/ci/published-release_test.sh resolve-version
         env:
-          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_VERSION: ${{ inputs.version || github.event.release.tag_name }}
 
       - name: Wait for NPM Package Availability
         run: bash scripts/ci/published-release_test.sh wait-for-npm

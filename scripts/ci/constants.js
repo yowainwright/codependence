@@ -7,6 +7,5 @@ export const TOOL_OUTPUT_KEYS = {
   nodeVersion: "node_version",
 };
 
-export const SUPPORTED_PRERELEASES = new Set(["alpha", "beta", "rc"]);
 export const RELEASE_VERSION_PATTERN =
   /^v?\d+\.\d+\.\d+(?:-([0-9A-Za-z-]+)(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z.-]+)?$/;

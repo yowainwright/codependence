@@ -100,6 +100,12 @@
     "prepublishOnly": "bun run clean-dist && bun run build-dist",
     "preview": "turbo run preview",
     "release": "bun scripts/release.ts",
+    "release:patch": "bun scripts/release.ts --increment=patch",
+    "release:patch:dry": "bun scripts/release.ts --increment=patch --dry-run",
+    "release:minor": "bun scripts/release.ts --increment=minor",
+    "release:minor:dry": "bun scripts/release.ts --increment=minor --dry-run",
+    "release:major": "bun scripts/release.ts --increment=major",
+    "release:major:dry": "bun scripts/release.ts --increment=major --dry-run",
     "release:alpha": "bun scripts/release.ts --preRelease=alpha",
     "release:alpha:dry": "bun scripts/release.ts --preRelease=alpha --dry-run",
     "release:beta": "bun scripts/release.ts --preRelease=beta",
@@ -171,6 +177,18 @@
       "provider": "osv",
       "severityThreshold": "medium",
       "hasWorkspaceSecurityChecks": true
+    }
+  },
+  "release-it": {
+    "git": {
+      "commitMessage": "chore(release): ${version}",
+      "commitArgs": [
+        "--no-verify"
+      ],
+      "tagName": "v${version}"
+    },
+    "npm": {
+      "publish": false
     }
   },
   "dependencies": {},

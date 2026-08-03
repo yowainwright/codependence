@@ -1,39 +1,84 @@
 import { spawnSync } from "node:child_process";
-import { runReleaseTag } from "./tag-release";
 import {
+  DEFAULT_RELEASE_TIMEOUT_MINUTES,
   PRE_RELEASES,
+  RELEASE_INCREMENTS,
+  RELEASE_POLL_INTERVAL_MS,
   RELEASE_VERSION_PATTERN,
   SAFE_SHELL_ARG_PATTERN,
+  STABLE_VERSION_PATTERN,
 } from "./constants";
+import { readPackageVersion, runReleaseTag } from "./tag-release";
 import type {
   PreRelease,
   ReleaseArgs,
+  ReleaseIncrement,
   ReleaseItArgsOptions,
+  ReleaseLogger,
   ReleaseOptions,
   ReleasePlan,
   ReleaseRunner,
+  TagPlan,
 } from "./types";
 
-export type { PreRelease, ReleaseRunner } from "./types";
+export type {
+  PreRelease,
+  ReleaseArgs,
+  ReleaseIncrement,
+  ReleaseItArgsOptions,
+  ReleaseLogger,
+  ReleaseOptions,
+  ReleasePlan,
+  ReleaseRunner,
+  TagPlan,
+} from "./types";
 
-export function parseArgs(args: readonly string[]): ReleaseArgs {
-  const preRelease = parsePreRelease(args);
-  return {
-    dryRun: args.includes("--dry-run"),
-    preRelease,
-  };
+interface PullRequestState {
+  mergeCommit?: { oid?: string } | null;
+  mergeStateStatus?: string;
+  mergedAt?: string | null;
+  state: string;
 }
 
-export function buildReleaseItArgs(options: ReleaseItArgsOptions): string[] {
-  const args = [
+interface ReleaseContext {
+  cwd: string;
+  logger: ReleaseLogger;
+  pollIntervalMs: number;
+  runner: ReleaseRunner;
+}
+
+export function parseArgs(args: readonly string[]): ReleaseArgs {
+  if (args.includes("--no-wait")) {
+    throw new Error("--no-wait cannot safely tag the merged release commit");
+  }
+
+  const increment = parseIncrement(args);
+  const preRelease = parsePreRelease(args);
+  const timeoutMinutes = parseTimeout(args);
+  const dryRun = args.includes("--dry-run");
+  return Object.assign(
+    { dryRun, timeoutMinutes },
+    increment ? { increment } : undefined,
+    preRelease ? { preRelease } : undefined,
+  );
+}
+
+function baseReleaseItArgs(): string[] {
+  return [
     "--git.tag=false",
     "--git.push=false",
     "--git.requireUpstream=false",
     "--git.getLatestTagFromAllRefs=true",
     "--ci",
   ];
+}
+
+export function buildReleaseItArgs(options: ReleaseItArgsOptions): string[] {
+  const args = baseReleaseItArgs();
   const releaseArgs = options.preRelease ? [`--preRelease=${options.preRelease}`, ...args] : args;
-  return options.version ? [options.version, ...releaseArgs] : releaseArgs;
+  if (options.version) return [options.version, ...releaseArgs];
+  if (options.increment) return [`--increment=${options.increment}`, ...releaseArgs];
+  return releaseArgs;
 }
 
 export function parseReleaseVersion(output: string): string {
@@ -44,53 +89,80 @@ export function parseReleaseVersion(output: string): string {
 }
 
 export function quoteShellArg(arg: string): string {
-  return SAFE_SHELL_ARG_PATTERN.test(arg) ? arg : JSON.stringify(arg);
+  if (SAFE_SHELL_ARG_PATTERN.test(arg)) return arg;
+  return JSON.stringify(arg);
 }
 
 export function formatShellCommand(command: string, args: readonly string[]): string {
   return [command, ...args].map(quoteShellArg).join(" ");
 }
 
-export function buildReleaseCommands(version: string, releaseArgs: ReleaseArgs): string[] {
-  const tagName = `v${version}`;
+export function buildReleaseBranch(version: string): string {
+  return `release/v${version}`;
+}
+
+export function buildPullRequestBody(version: string): string {
   return [
-    formatShellCommand(
-      "./node_modules/.bin/release-it",
-      buildReleaseItArgs({ preRelease: releaseArgs.preRelease, version }),
-    ),
-    formatShellCommand("git", ["tag", "--annotate", tagName, "--message", `Release ${version}`]),
-    formatShellCommand("git", ["push", "origin", `refs/tags/${tagName}`]),
+    `Release v${version}.`,
+    "",
+    "This PR was created by `bun run release`.",
+    "After checks pass, the release command merges this PR and pushes the version tag.",
+  ].join("\n");
+}
+
+function buildReleaseSteps(branch: string, tagName: string): string[] {
+  return [
+    "verify clean, up-to-date main",
+    `create ${branch}`,
+    "run release-it without pushing main or creating a tag",
+    "push the release branch",
+    "open a release PR",
+    "wait for required checks",
+    "squash-merge the release PR",
+    "pull merged main",
+    `push ${tagName} to trigger publishing`,
   ];
 }
 
-export function buildReleasePlan(version: string, releaseArgs: ReleaseArgs): ReleasePlan {
+export function buildReleasePlan(version: string): ReleasePlan {
+  const branch = buildReleaseBranch(version);
   const tagName = `v${version}`;
   return {
-    commands: buildReleaseCommands(version, releaseArgs),
-    steps: [
-      "verify clean, up-to-date main",
-      "create the release commit without pushing main",
-      `push ${tagName} to trigger publishing`,
-      "restore local main to its starting commit",
-    ],
+    branch,
+    pullRequestTitle: `chore(release): ${tagName}`,
+    steps: buildReleaseSteps(branch, tagName),
     tagName,
     version,
   };
 }
 
-export function formatReleasePlan(plan: ReleasePlan): string {
+export function buildCurrentVersionTagPlan(version: string): TagPlan {
+  const tagName = `v${version}`;
+  const tagArgs = ["tag", "--annotate", tagName, "--message", `Release ${version}`];
+  return {
+    commands: [
+      formatShellCommand("git", tagArgs),
+      formatShellCommand("git", ["push", "origin", `refs/tags/${tagName}`]),
+    ],
+    steps: ["verify clean, up-to-date main", `push ${tagName} to trigger publishing`],
+    tagName,
+    version,
+  };
+}
+
+function formatDetailedPlan(plan: ReleasePlan, summary: string[]): string {
+  const steps = plan.steps.map((step, index) => `${index + 1}. ${step}`).join("\n");
+  const details = [`Branch: ${plan.branch}`, `PR title: ${plan.pullRequestTitle}`];
+  return summary.concat(details, "", steps).join("\n");
+}
+
+export function formatReleasePlan(plan: ReleasePlan | TagPlan): string {
+  const summary = [`Dry run release commands for ${plan.tagName}`, `Version: ${plan.version}`];
+  if ("branch" in plan) return formatDetailedPlan(plan, summary);
+
   const steps = plan.steps.map((step, index) => `${index + 1}. ${step}`).join("\n");
   const commands = plan.commands.map((command, index) => `${index + 1}. ${command}`).join("\n");
-  return [
-    `Dry run release commands for ${plan.tagName}`,
-    `Version: ${plan.version}`,
-    "",
-    "Steps:",
-    steps,
-    "",
-    "Commands:",
-    commands,
-  ].join("\n");
+  return summary.concat("", "Steps:", steps, "", "Commands:", commands).join("\n");
 }
 
 export function createRunner(cwd: string): ReleaseRunner {
@@ -104,48 +176,55 @@ export function createRunner(cwd: string): ReleaseRunner {
   };
 }
 
-export function runRelease(options: ReleaseOptions = {}): number {
+function createReleaseContext(options: ReleaseOptions): ReleaseContext {
   const cwd = options.cwd ?? process.cwd();
-  const logger = options.logger ?? console;
-  const runner = options.runner ?? createRunner(cwd);
-  const releaseArgs = normalizeOptions(options);
-  const startingHead = assertMainReady(runner);
-
-  const version = resolveReleaseVersion(runner, releaseArgs);
-
-  if (releaseArgs.dryRun) {
-    logger.log(formatReleasePlan(buildReleasePlan(version, releaseArgs)));
-    return 0;
-  }
-
-  try {
-    createReleaseCommit(runner, releaseArgs, version);
-    runReleaseTag({
-      cwd,
-      git: (args) => runner("git", args),
-      logger,
-      requireUpstream: false,
-      version,
-    });
-    logger.log("No PR was created and main was not pushed.");
-    return 0;
-  } finally {
-    restoreStartingHead(runner, startingHead);
-  }
+  return {
+    cwd,
+    logger: options.logger ?? console,
+    pollIntervalMs: options.pollIntervalMs ?? RELEASE_POLL_INTERVAL_MS,
+    runner: options.runner ?? createRunner(cwd),
+  };
 }
 
 function normalizeOptions(options: ReleaseOptions): ReleaseArgs {
   return {
     dryRun: options.dryRun ?? false,
+    increment: options.increment,
     preRelease: options.preRelease,
+    timeoutMinutes: options.timeoutMinutes ?? DEFAULT_RELEASE_TIMEOUT_MINUTES,
   };
 }
 
+function parseIncrement(args: readonly string[]): ReleaseIncrement | undefined {
+  const flag = args.find((arg) => arg.startsWith("--increment="));
+  const flagValue = flag?.split("=")[1];
+  if (flagValue) return validateIncrement(flagValue);
+
+  const positional = args.find((arg) => RELEASE_INCREMENTS.has(arg as ReleaseIncrement));
+  return positional as ReleaseIncrement | undefined;
+}
+
+function validateIncrement(value: string): ReleaseIncrement {
+  if (RELEASE_INCREMENTS.has(value as ReleaseIncrement)) return value as ReleaseIncrement;
+  throw new Error(`Invalid release increment: ${value}`);
+}
+
 function parsePreRelease(args: readonly string[]): PreRelease | undefined {
-  const value = args.find((arg) => arg.startsWith("--preRelease="))?.split("=")[1];
+  const flag = args.find((arg) => arg.startsWith("--preRelease="));
+  const value = flag?.split("=")[1];
   if (!value) return undefined;
   if (PRE_RELEASES.has(value as PreRelease)) return value as PreRelease;
   throw new Error(`Invalid prerelease identifier: ${value}`);
+}
+
+function parseTimeout(args: readonly string[]): number {
+  const flag = args.find((arg) => arg.startsWith("--timeout-minutes="));
+  const value = flag?.split("=")[1];
+  if (!value) return DEFAULT_RELEASE_TIMEOUT_MINUTES;
+
+  const timeout = Number(value);
+  if (Number.isInteger(timeout) && timeout > 0) return timeout;
+  throw new Error(`Invalid timeout: ${value}`);
 }
 
 function commandText(runner: ReleaseRunner, command: string, args: readonly string[]): string {
@@ -158,27 +237,28 @@ function runCommand(runner: ReleaseRunner, command: string, args: readonly strin
   commandText(runner, command, args);
 }
 
-function assertMainReady(runner: ReleaseRunner): string {
+function assertMainReady(runner: ReleaseRunner): void {
   const branch = commandText(runner, "git", ["branch", "--show-current"]);
   if (branch !== "main") throw new Error("Run releases from main");
 
   const status = commandText(runner, "git", ["status", "--short"]);
   if (status) throw new Error("Working tree must be clean before starting a release");
+  assertMainMatchesOrigin(runner);
+}
 
+function assertMainMatchesOrigin(runner: ReleaseRunner): void {
   runCommand(runner, "git", ["fetch", "origin", "main", "--tags"]);
   const head = commandText(runner, "git", ["rev-parse", "HEAD"]);
   const upstream = commandText(runner, "git", ["rev-parse", "origin/main"]);
   if (head !== upstream) throw new Error("Local main must match origin/main before release");
-  return head;
 }
 
-function resolveReleaseVersion(runner: ReleaseRunner, releaseArgs: ReleaseArgs): string {
-  const output = commandText(runner, "./node_modules/.bin/release-it", [
-    "--release-version",
-    ...buildReleaseItArgs(releaseArgs),
-  ]);
-  const version = parseReleaseVersion(output);
-  return resolveAvailableReleaseVersion(runner, releaseArgs, version);
+export function isPreReleaseVersion(version: string): boolean {
+  return /^\d+\.\d+\.\d+-[0-9A-Za-z.-]+(?:\+[0-9A-Za-z.-]+)?$/.test(version);
+}
+
+export function isStableVersion(version: string): boolean {
+  return STABLE_VERSION_PATTERN.test(version);
 }
 
 export function incrementPreReleaseVersion(version: string, preRelease: PreRelease): string {
@@ -187,40 +267,70 @@ export function incrementPreReleaseVersion(version: string, preRelease: PreRelea
     throw new Error(`Unable to advance ${preRelease} release version: ${version}`);
   }
 
-  const nextPrerelease = Number(match[3]) + 1;
-  return `${match[1]}-${preRelease}.${nextPrerelease}${match[4] ?? ""}`;
+  const next = Number(match[3]) + 1;
+  return `${match[1]}-${preRelease}.${next}${match[4] ?? ""}`;
 }
 
-function incrementStableReleaseVersion(version: string): string {
+export function incrementStableVersion(version: string, increment: ReleaseIncrement): string {
   const match = version.match(/^(\d+)\.(\d+)\.(\d+)$/);
-  const isInvalidStableVersion = !match;
-  if (isInvalidStableVersion) {
-    throw new Error(`Unable to advance stable release version: ${version}`);
-  }
+  if (!match) throw new Error(`Unable to advance stable release version: ${version}`);
 
-  const nextPatch = Number(match[3]) + 1;
-  return `${match[1]}.${match[2]}.${nextPatch}`;
-}
-
-function incrementReleaseVersion(version: string, preRelease?: PreRelease): string {
-  const hasPreRelease = preRelease !== undefined;
-  if (hasPreRelease) return incrementPreReleaseVersion(version, preRelease);
-  return incrementStableReleaseVersion(version);
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  const patch = Number(match[3]);
+  if (increment === "major") return `${major + 1}.0.0`;
+  if (increment === "minor") return `${major}.${minor + 1}.0`;
+  return `${major}.${minor}.${patch + 1}`;
 }
 
 export function releaseTagExists(runner: ReleaseRunner, tagName: string): boolean {
-  const localTag = runner("git", ["rev-parse", "-q", "--verify", `refs/tags/${tagName}`]);
-  const localTagError = localTag.stderr.trim();
-  if (localTag.status !== 0 && localTagError) {
-    throw new Error(localTagError);
-  }
-  if (localTag.status === 0) return true;
+  const local = runner("git", ["rev-parse", "-q", "--verify", `refs/tags/${tagName}`]);
+  if (local.status === 0) return true;
+  if (local.stderr.trim()) throw new Error(local.stderr.trim());
 
-  const remoteTag = runner("git", ["ls-remote", "--tags", "origin", `refs/tags/${tagName}`]);
-  if (remoteTag.status !== 0) {
-    throw new Error(remoteTag.stderr.trim() || `Unable to check remote tag: ${tagName}`);
+  const remote = runner("git", ["ls-remote", "--tags", "origin", `refs/tags/${tagName}`]);
+  if (remote.status !== 0) {
+    throw new Error(remote.stderr.trim() || `Unable to check remote tag: ${tagName}`);
   }
-  return remoteTag.stdout.trim().length > 0;
+  return remote.stdout.trim().length > 0;
+}
+
+function resolveStableVersion(
+  runner: ReleaseRunner,
+  version: string,
+  increment: ReleaseIncrement,
+  attempt = 0,
+): string {
+  if (attempt >= 100) throw new Error(`Unable to find an available release tag for ${version}`);
+  if (!releaseTagExists(runner, `v${version}`)) return version;
+  const candidate = incrementStableVersion(version, increment);
+  return resolveStableVersion(runner, candidate, increment, attempt + 1);
+}
+
+function resolvePreReleaseVersion(
+  runner: ReleaseRunner,
+  version: string,
+  preRelease: PreRelease,
+  attempt = 0,
+): string {
+  if (attempt >= 100) throw new Error(`Unable to find an available release tag for ${version}`);
+  if (!releaseTagExists(runner, `v${version}`)) return version;
+  const candidate = incrementPreReleaseVersion(version, preRelease);
+  return resolvePreReleaseVersion(runner, candidate, preRelease, attempt + 1);
+}
+
+function resolveStableReleaseVersion(
+  runner: ReleaseRunner,
+  releaseArgs: ReleaseArgs,
+  version: string,
+): string {
+  if (!releaseArgs.increment) {
+    throw new Error("Stable release resolution requires an explicit increment");
+  }
+  if (!isStableVersion(version)) {
+    throw new Error(`release-it resolved a prerelease version for a stable release: ${version}`);
+  }
+  return resolveStableVersion(runner, version, releaseArgs.increment);
 }
 
 export function resolveAvailableReleaseVersion(
@@ -228,14 +338,20 @@ export function resolveAvailableReleaseVersion(
   releaseArgs: ReleaseArgs,
   version: string,
 ): string {
-  let candidate = version;
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    const tagName = `v${candidate}`;
-    if (!releaseTagExists(runner, tagName)) return candidate;
-    candidate = incrementReleaseVersion(candidate, releaseArgs.preRelease);
-  }
+  if (!releaseArgs.preRelease) return resolveStableReleaseVersion(runner, releaseArgs, version);
+  return resolvePreReleaseVersion(runner, version, releaseArgs.preRelease);
+}
 
-  throw new Error(`Unable to find an available release tag for ${version}`);
+function resolveReleaseVersion(runner: ReleaseRunner, releaseArgs: ReleaseArgs): string {
+  const command = "./node_modules/.bin/release-it";
+  const args = ["--release-version", ...buildReleaseItArgs(releaseArgs)];
+  const version = parseReleaseVersion(commandText(runner, command, args));
+  return resolveAvailableReleaseVersion(runner, releaseArgs, version);
+}
+
+function assertReleaseTagAvailable(runner: ReleaseRunner, version: string): void {
+  const tagName = `v${version}`;
+  if (releaseTagExists(runner, tagName)) throw new Error(`Release tag already exists: ${tagName}`);
 }
 
 function createReleaseCommit(
@@ -243,20 +359,212 @@ function createReleaseCommit(
   releaseArgs: ReleaseArgs,
   version: string,
 ): void {
-  runCommand(
-    runner,
-    "./node_modules/.bin/release-it",
-    buildReleaseItArgs({ preRelease: releaseArgs.preRelease, version }),
-  );
+  const options = { preRelease: releaseArgs.preRelease, version };
+  const args = buildReleaseItArgs(options);
+  runCommand(runner, "./node_modules/.bin/release-it", args);
 }
 
-function restoreStartingHead(runner: ReleaseRunner, startingHead: string): void {
-  runCommand(runner, "git", ["reset", "--hard", startingHead]);
+function buildPullRequestArgs(version: string, branch: string): string[] {
+  const title = `chore(release): v${version}`;
+  const body = buildPullRequestBody(version);
+  return ["pr", "create", "--base", "main", "--head", branch, "--title", title, "--body", body];
+}
+
+function readPullRequestUrl(runner: ReleaseRunner, reference: string): string {
+  const args = ["pr", "view", reference, "--json", "url"];
+  const output = commandText(runner, "gh", args);
+  const parsed = JSON.parse(output) as { url?: string };
+  if (parsed.url) return parsed.url;
+  throw new Error(`Unable to find release PR for ${reference}`);
+}
+
+function createPullRequest(context: ReleaseContext, version: string, branch: string): string {
+  const result = context.runner("gh", buildPullRequestArgs(version, branch));
+  if (result.status === 0) return result.stdout.trim();
+
+  const error = result.stderr.trim() || "no error output";
+  context.logger.warn(`gh pr create failed: ${error}`);
+  return readPullRequestUrl(context.runner, branch);
+}
+
+function createReleasePullRequest(
+  context: ReleaseContext,
+  releaseArgs: ReleaseArgs,
+  version: string,
+  branch: string,
+): string {
+  runCommand(context.runner, "git", ["switch", "--create", branch]);
+  createReleaseCommit(context.runner, releaseArgs, version);
+  runCommand(context.runner, "git", ["push", "--set-upstream", "origin", branch]);
+  const prUrl = createPullRequest(context, version, branch);
+  context.logger.log(`Opened ${prUrl}`);
+  return prUrl;
+}
+
+function readPullRequestState(
+  runner: ReleaseRunner,
+  prUrl: string,
+  fields: string,
+): PullRequestState {
+  const args = ["pr", "view", prUrl, "--json", fields];
+  const output = commandText(runner, "gh", args);
+  const state = JSON.parse(output) as PullRequestState;
+  return state;
+}
+
+function readMergeCommit(state: PullRequestState, prUrl: string): string {
+  const mergeCommit = state.mergeCommit?.oid;
+  if (mergeCommit) return mergeCommit;
+  throw new Error(`Release PR is merged without a merge commit: ${prUrl}`);
+}
+
+function assertPullRequestOpen(state: PullRequestState, prUrl: string, deadline: number): void {
+  if (state.state === "CLOSED") throw new Error(`Release PR closed without merging: ${prUrl}`);
+  if (Date.now() <= deadline) return;
+  throw new Error(`Timed out waiting for release PR: ${prUrl}`);
+}
+
+async function delay(milliseconds: number) {
+  await Bun.sleep(milliseconds);
+}
+
+function refreshReleaseBranch(context: ReleaseContext, prUrl: string): void {
+  context.logger.log(`Updating release PR branch from main: ${prUrl}`);
+  runCommand(context.runner, "gh", ["pr", "update-branch", prUrl]);
+}
+
+function assertReadinessCanContinue(
+  state: PullRequestState,
+  prUrl: string,
+  deadline: number,
+): void {
+  assertPullRequestOpen(state, prUrl, deadline);
+  if (state.mergeStateStatus !== "DIRTY") return;
+  throw new Error(`Release PR has merge conflicts: ${prUrl}`);
+}
+
+async function pollForMergeReadiness(context: ReleaseContext, prUrl: string, deadline: number) {
+  const fields = "state,mergedAt,mergeCommit,mergeStateStatus";
+  const state = readPullRequestState(context.runner, prUrl, fields);
+  if (state.mergedAt) return readMergeCommit(state, prUrl);
+
+  assertReadinessCanContinue(state, prUrl, deadline);
+  const isMergeable = ["CLEAN", "UNSTABLE"].includes(state.mergeStateStatus ?? "");
+  if (isMergeable) return undefined;
+  if (state.mergeStateStatus === "BEHIND") refreshReleaseBranch(context, prUrl);
+
+  context.logger.log(`Waiting for release PR checks to pass: ${prUrl}`);
+  await delay(context.pollIntervalMs);
+  return pollForMergeReadiness(context, prUrl, deadline);
+}
+
+async function waitForMergeCompletion(context: ReleaseContext, prUrl: string, deadline: number) {
+  const fields = "state,mergedAt,mergeCommit";
+  const state = readPullRequestState(context.runner, prUrl, fields);
+  if (state.mergedAt) return readMergeCommit(state, prUrl);
+
+  assertPullRequestOpen(state, prUrl, deadline);
+  context.logger.log(`Waiting for release PR to merge: ${prUrl}`);
+  await delay(context.pollIntervalMs);
+  return waitForMergeCompletion(context, prUrl, deadline);
+}
+
+function mergeReleasePullRequest(context: ReleaseContext, prUrl: string, deadline: number) {
+  const args = ["pr", "merge", "--squash", "--delete-branch", prUrl];
+  runCommand(context.runner, "gh", args);
+  return waitForMergeCompletion(context, prUrl, deadline);
+}
+
+function resolveMergeCommit(
+  context: ReleaseContext,
+  prUrl: string,
+  deadline: number,
+  existingMergeCommit?: string,
+) {
+  if (existingMergeCommit) return Promise.resolve(existingMergeCommit);
+  return mergeReleasePullRequest(context, prUrl, deadline);
+}
+
+function checkoutMergedMain(runner: ReleaseRunner): void {
+  runCommand(runner, "git", ["switch", "main"]);
+  runCommand(runner, "git", ["pull", "--ff-only", "origin", "main"]);
+}
+
+function shouldTagCurrentVersion(releaseArgs: ReleaseArgs, packageVersion: string): boolean {
+  const hasVersionChange = Boolean(releaseArgs.preRelease || releaseArgs.increment);
+  return !hasVersionChange && isPreReleaseVersion(packageVersion);
+}
+
+function pushVersionTag(context: ReleaseContext, version: string, targetCommit?: string): number {
+  const git = (args: readonly string[]) => context.runner("git", args);
+  return runReleaseTag({
+    cwd: context.cwd,
+    git,
+    logger: context.logger,
+    targetCommit,
+    version,
+  });
+}
+
+function runCurrentVersionRelease(
+  context: ReleaseContext,
+  releaseArgs: ReleaseArgs,
+  packageVersion: string,
+): number {
+  if (!releaseArgs.dryRun) {
+    const code = pushVersionTag(context, packageVersion);
+    context.logger.log(`Tagged current package version ${packageVersion}.`);
+    return code;
+  }
+
+  assertReleaseTagAvailable(context.runner, packageVersion);
+  context.logger.log(formatReleasePlan(buildCurrentVersionTagPlan(packageVersion)));
+  return 0;
+}
+
+function assertVersionChangeRequested(releaseArgs: ReleaseArgs): void {
+  if (releaseArgs.preRelease || releaseArgs.increment) return;
+  throw new Error("Stable releases require an explicit increment: patch, minor, or major");
+}
+
+async function publishReleasePullRequest(
+  context: ReleaseContext,
+  releaseArgs: ReleaseArgs,
+  version: string,
+) {
+  const branch = buildReleaseBranch(version);
+  const prUrl = createReleasePullRequest(context, releaseArgs, version, branch);
+  const deadline = Date.now() + releaseArgs.timeoutMinutes * 60_000;
+  const existingCommit = await pollForMergeReadiness(context, prUrl, deadline);
+  const mergeCommit = await resolveMergeCommit(context, prUrl, deadline, existingCommit);
+  checkoutMergedMain(context.runner);
+  return pushVersionTag(context, version, mergeCommit);
+}
+
+async function runVersionRelease(context: ReleaseContext, releaseArgs: ReleaseArgs) {
+  assertVersionChangeRequested(releaseArgs);
+  const version = resolveReleaseVersion(context.runner, releaseArgs);
+  if (!releaseArgs.dryRun) return publishReleasePullRequest(context, releaseArgs, version);
+
+  context.logger.log(formatReleasePlan(buildReleasePlan(version)));
+  return 0;
+}
+
+export async function runRelease(options: ReleaseOptions = {}) {
+  const context = createReleaseContext(options);
+  const releaseArgs = normalizeOptions(options);
+  assertMainReady(context.runner);
+  const packageVersion = options.packageVersion ?? readPackageVersion(context.cwd);
+  const isCurrentVersionRelease = shouldTagCurrentVersion(releaseArgs, packageVersion);
+  if (isCurrentVersionRelease) {
+    return runCurrentVersionRelease(context, releaseArgs, packageVersion);
+  }
+  return runVersionRelease(context, releaseArgs);
 }
 
 if (import.meta.main) {
   try {
-    process.exitCode = runRelease(parseArgs(process.argv.slice(2)));
+    process.exitCode = await runRelease(parseArgs(process.argv.slice(2)));
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

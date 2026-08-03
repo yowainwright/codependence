@@ -95,6 +95,27 @@ describe("scripts/tag-release", () => {
     expect(calls()).toContainEqual(["push", "origin", "refs/tags/v1.2.3-beta.6"]);
   });
 
+  test("runReleaseTag tags the verified merge commit", () => {
+    const targetCommit = "a".repeat(40);
+    const logger = { log: mock(() => {}), error: mock(() => {}) };
+    const overrides = Object.assign({}, READY_GIT_OVERRIDES, {
+      [`merge-base --is-ancestor ${targetCommit} origin/main`]: ok(),
+      "rev-parse -q --verify refs/tags/v1.2.3": fail("missing"),
+      "ls-remote --exit-code --tags origin refs/tags/v1.2.3": missing(),
+    });
+    const { calls, git } = createGit(overrides);
+    const options = { git, logger, targetCommit, version: "1.2.3" };
+    expect(runReleaseTag(options)).toBe(0);
+    expect(calls()).toContainEqual([
+      "tag",
+      "--annotate",
+      "v1.2.3",
+      "--message",
+      "Release 1.2.3",
+      targetCommit,
+    ]);
+  });
+
   test("runReleaseTag deletes the local tag when push fails", () => {
     const { calls, git } = createGit(
       Object.assign({}, READY_GIT_OVERRIDES, {

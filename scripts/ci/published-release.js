@@ -3,8 +3,17 @@
 import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { isDirectCliExecution, runCliEntrypoint } from "./cli-entrypoint.js";
-import { stripTagPrefix, validateReleaseVersion } from "./publish-release.js";
+import { RELEASE_VERSION_PATTERN } from "./constants.js";
 import { resolveToolVersions, readToolVersionInputs } from "./tool-versions.js";
+
+export function stripTagPrefix(version) {
+  return version.startsWith("v") ? version.slice(1) : version;
+}
+
+export function validateReleaseVersion(version) {
+  if (RELEASE_VERSION_PATTERN.test(version)) return;
+  throw new Error(`Invalid release version: ${version}`);
+}
 
 export function packageSpec(packageName, version) {
   return `${packageName}@${version}`;
@@ -149,6 +158,21 @@ function resolveRequestedVersion(version, packageName, runner) {
   return runOrThrow(runner, "npm", ["view", packageName, "version"]).stdout?.trim();
 }
 
+function waitForNpmPackage(packageName, version, runner) {
+  const spec = packageSpec(packageName, version);
+  const attempts = Array.from({ length: 30 }, (_, index) => index + 1);
+  const available = attempts.some((attempt) => {
+    const result = runner("npm", ["view", spec, "version"]);
+    if (commandSucceeded(result)) return true;
+    if (attempt === attempts.length) return false;
+    console.log(`Attempt ${attempt}/30: package not yet available, waiting 30 seconds...`);
+    runOrThrow(runner, "sleep", ["30"]);
+    return false;
+  });
+  if (available) return;
+  throw new Error(`Package ${spec} was not available after 30 attempts`);
+}
+
 export function runTestPublishedReleaseCli({
   argv = process.argv.slice(2),
   env = process.env,
@@ -171,17 +195,9 @@ export function runTestPublishedReleaseCli({
   if (command === "wait-for-npm") {
     requireVersion(version, command);
     console.log(`Waiting for ${packageSpec(packageName, version)} to be available on npm...`);
-    for (let attempt = 1; attempt <= 30; attempt += 1) {
-      if (commandSucceeded(runner("npm", ["view", packageSpec(packageName, version), "version"]))) {
-        console.log(`Package ${packageSpec(packageName, version)} is available on npm`);
-        return 0;
-      }
-      if (attempt < 30) {
-        console.log(`Attempt ${attempt}/30: package not yet available, waiting 30 seconds...`);
-        runOrThrow(runner, "sleep", ["30"]);
-      }
-    }
-    throw new Error(`Package ${packageSpec(packageName, version)} was not available after 30 attempts`);
+    waitForNpmPackage(packageName, version, runner);
+    console.log(`Package ${packageSpec(packageName, version)} is available on npm`);
+    return 0;
   }
 
   if (command === "build-release-image") {
