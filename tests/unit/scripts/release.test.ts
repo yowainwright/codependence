@@ -21,10 +21,12 @@ const absent = (): GitResult => ({ status: 1, stdout: "", stderr: "" });
 const missing = (): GitResult => ({ status: 2, stdout: "", stderr: "" });
 
 interface ReleaseFlowState {
+  extraReleaseFile?: boolean;
   existingPullRequest?: boolean;
   localBranch?: boolean;
   mergedVersion?: boolean;
   mismatchedPullRequest?: boolean;
+  mismatchedReleaseDiff?: boolean;
   remoteBranch?: boolean;
 }
 
@@ -98,7 +100,18 @@ function releaseBranchResult(
     return ok(JSON.stringify({ version: "1.2.4" }));
   }
   if (key === "git log -1 --format=%s release/v1.2.4") return ok("chore(release): 1.2.4\n");
+  if (key === "git rev-parse release/v1.2.4^") return ok("abc\n");
   if (key === "git rev-parse refs/heads/release/v1.2.4") return ok(`${MERGE_COMMIT}\n`);
+  if (key === "git diff-tree --no-commit-id --name-only -r release/v1.2.4") {
+    const changedFiles = state.extraReleaseFile ? "package.json\nsrc/index.ts\n" : "package.json\n";
+    return ok(changedFiles);
+  }
+  if (key === "git diff --unified=0 origin/main release/v1.2.4 -- package.json") {
+    if (state.mismatchedReleaseDiff) {
+      return ok('-  "version": "1.2.3",\n+  "version": "1.2.4",\n+  "private": false,\n');
+    }
+    return ok('-  "version": "1.2.3",\n+  "version": "1.2.4",\n');
+  }
   return undefined;
 }
 
@@ -285,6 +298,24 @@ describe("scripts/release flow", () => {
     const { runner } = createReleaseFlowRunner(prUrl, state);
     const release = runRelease({ increment: "patch", logger, runner });
     await expect(release).rejects.toThrow("Release PR head does not match");
+  });
+
+  test("rejects an existing release commit with unrelated files", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { existingPullRequest: true, extraReleaseFile: true, localBranch: true };
+    const { runner } = createReleaseFlowRunner(prUrl, state);
+    const release = runRelease({ increment: "patch", logger, runner });
+    await expect(release).rejects.toThrow("Unverified release files");
+  });
+
+  test("rejects unrelated package changes in an existing release commit", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { existingPullRequest: true, localBranch: true, mismatchedReleaseDiff: true };
+    const { runner } = createReleaseFlowRunner(prUrl, state);
+    const release = runRelease({ increment: "patch", logger, runner });
+    await expect(release).rejects.toThrow("Unverified release diff");
   });
 
   test("opens a PR for an already-pushed release branch", async () => {

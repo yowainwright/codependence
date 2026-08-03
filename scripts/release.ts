@@ -34,6 +34,7 @@ export type {
 } from "./types";
 
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/i;
+const REMOVED_VERSION_LINE_PATTERN = /^-\s*"version":\s*"[^"]+",\s*$/;
 
 interface PullRequestState {
   mergeCommit?: { oid?: string } | null;
@@ -438,6 +439,35 @@ function readBranchVersion(runner: ReleaseRunner, branch: string): string {
   throw new Error(`package.json version is missing on ${branch}`);
 }
 
+function isDiffChangeLine(line: string): boolean {
+  const isChange = line.startsWith("+") || line.startsWith("-");
+  const isHeader = line.startsWith("+++") || line.startsWith("---");
+  return isChange && !isHeader;
+}
+
+function assertReleaseDiff(runner: ReleaseRunner, branch: string, version: string): void {
+  const args = ["diff", "--unified=0", "origin/main", branch, "--", "package.json"];
+  const diff = commandText(runner, "git", args);
+  const changes = diff.split("\n").filter(isDiffChangeLine);
+  const addedVersion = `+  "version": "${version}",`;
+  const isVersionOnly =
+    changes.length === 2 &&
+    REMOVED_VERSION_LINE_PATTERN.test(changes[0] ?? "") &&
+    changes[1] === addedVersion;
+  if (isVersionOnly) return;
+  throw new Error(`Unverified release diff: ${branch}`);
+}
+
+function assertReleaseCommitShape(runner: ReleaseRunner, branch: string, version: string): void {
+  const parent = commandText(runner, "git", ["rev-parse", `${branch}^`]);
+  const main = commandText(runner, "git", ["rev-parse", "origin/main"]);
+  if (parent !== main) throw new Error(`Unverified release parent: ${branch}`);
+  const args = ["diff-tree", "--no-commit-id", "--name-only", "-r", branch];
+  const changedFiles = commandText(runner, "git", args);
+  if (changedFiles !== "package.json") throw new Error(`Unverified release files: ${branch}`);
+  assertReleaseDiff(runner, branch, version);
+}
+
 function readReleaseBranchCommit(runner: ReleaseRunner, branch: string, version: string): string {
   const branchVersion = readBranchVersion(runner, branch);
   if (branchVersion !== version)
@@ -445,6 +475,7 @@ function readReleaseBranchCommit(runner: ReleaseRunner, branch: string, version:
   const title = commandText(runner, "git", ["log", "-1", "--format=%s", branch]);
   if (title !== `chore(release): ${version}`)
     throw new Error(`Unverified release commit: ${branch}`);
+  assertReleaseCommitShape(runner, branch, version);
   return commandText(runner, "git", ["rev-parse", `refs/heads/${branch}`]);
 }
 
