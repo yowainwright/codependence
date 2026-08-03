@@ -29,10 +29,6 @@ function resolveVersions(overrides = {}) {
   });
 }
 
-function readRootFile(path: string) {
-  return readFileSync(new URL(`../../../../${path}`, import.meta.url), "utf8");
-}
-
 describe("scripts/ci/tool-versions", () => {
   test("parseMiseTool reads quoted tool versions", () => {
     expect(parseMiseTool(miseToml, "bun")).toBe("1.3.14");
@@ -51,15 +47,6 @@ describe("scripts/ci/tool-versions", () => {
         "NODE_SLIM_IMAGE",
       ),
     ).toBe(nodeSlimImage);
-  });
-
-  test("dependency policy preserves the exact ScriptC compiler pin", () => {
-    const packageJson = JSON.parse(readRootFile("package.json"));
-    const scriptcVersion = packageJson.devDependencies.scriptc;
-    const codependenceConfig = readRootFile(".codependencerc");
-
-    expect(scriptcVersion).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(codependenceConfig).toContain(`"scriptc": "${scriptcVersion}"`);
   });
 
   test("e2e Dockerfiles share the same pinned Node slim image", () => {

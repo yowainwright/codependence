@@ -661,12 +661,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
   const isDebug = options.debug;
   const isQuiet = options.quiet || false;
 
-  let logLevel: "verbose" | "debug" | "info" = "info";
-  if (isVerbose) {
-    logLevel = "verbose";
-  } else if (isDebug) {
-    logLevel = "debug";
-  }
+  const logLevel: "verbose" | "debug" | "info" = isVerbose ? "verbose" : isDebug ? "debug" : "info";
 
   const loggerConfig = {
     level: logLevel,
@@ -681,13 +676,11 @@ export async function action(options: Options = {}): Promise<void | Options> {
   const isTestingCLI = (options as Record<string, unknown>).isTestingCLI === true;
   const isTestingAction = (options as Record<string, unknown>).isTestingAction === true;
 
-  // capture/test CLI options
   if (isTestingCLI) {
     logger.print({ updatedOptions: mergedOptions });
     return;
   }
 
-  // capture action unit test options
   if (isTestingAction) return mergedOptions;
 
   let spinner: ReturnType<typeof createSpinner> | null = null;

@@ -29,7 +29,7 @@ describe("scripts/ci/homebrew-release", () => {
     expect(mismatchedVersion).toThrow("Package version 1.0.0 does not match 1.1.0");
   });
 
-  test("renders a ScriptC binary-backed formula", () => {
+  test("renders a standalone binary-backed formula", () => {
     const digest = "archive-digest";
     const version = "1.1.0";
     const options = { digest, version };
