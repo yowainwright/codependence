@@ -17,11 +17,16 @@ describe("release workflows", () => {
   test("publishes the verified formula through the protected environment", () => {
     const homebrew = readWorkflow("homebrew.yml");
     const publish = readWorkflow("publish.yml");
+    const publishFormulaIndex = homebrew.indexOf("publish-formula:");
+    const checkoutIndex = homebrew.indexOf("- name: Checkout release tag", publishFormulaIndex);
+    const attachIndex = homebrew.indexOf("- name: Attach formula to GitHub release");
 
     expect(homebrew).toContain("environment: homebrew-publish");
     expect(homebrew).toContain("secrets.HOMEBREW_TAP_TOKEN");
     expect(publish).toContain("HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}");
     expect(homebrew).toContain("gh pr create");
+    expect(checkoutIndex).toBeGreaterThan(publishFormulaIndex);
+    expect(attachIndex).toBeGreaterThan(checkoutIndex);
   });
 
   test("does not overwrite release assets", () => {
