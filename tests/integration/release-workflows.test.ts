@@ -57,4 +57,12 @@ describe("release workflows", () => {
     files.forEach((file) => expect(file).not.toContain("--clobber"));
     expect(files.at(-1)).toContain("Release asset digest mismatch");
   });
+
+  test("configures tap push authentication before cloning", () => {
+    const homebrew = readWorkflow("homebrew.yml");
+    const auth = homebrew.indexOf("gh auth setup-git --hostname github.com --force");
+    const clone = homebrew.indexOf("gh repo clone yowainwright/homebrew-tap tap");
+    expect(auth).toBeGreaterThan(-1);
+    expect(clone).toBeGreaterThan(auth);
+  });
 });
