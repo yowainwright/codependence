@@ -21,7 +21,7 @@
     "oxlint": "^1.72.0",
     "pastoralist": "^1.12.8",
     "prettier": "^3.9.4",
-    "release-it": "20.2.1",
+    "release-it": "21.0.1",
     "scriptc": "0.0.21",
     "turbo": "^2.10.3",
     "typescript": "^5.9.3"
