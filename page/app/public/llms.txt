@@ -1,0 +1,30 @@
+# Codependence
+
+> Codependence is a CLI-first dependency version policy tool. It checks, reports, and updates dependency versions across Node, Python, Go, Rust, Docker, and GitHub Actions from one root `.codependencerc`, locally, in CI, or as a GitHub Action.
+
+Install as a root devDependency (`npm install codependence --save-dev`) and run `codependence` to check targets or `codependence --update` to apply policy. `codependence init actions` generates split scheduled workflows per manager area, each maintaining a stable pull-request branch such as `update-dependencies/docker`.
+
+## Getting Started
+
+- [Introduction](https://jeffry.in/codependence/docs/introduction): Enforce dependency version policy locally, in CI, and across workspaces
+- [Main Use Case](https://jeffry.in/codependence/docs/main-usecase): Keep important versions intentional with per-manager targets
+
+## Usage
+
+- [CLI](https://jeffry.in/codependence/docs/cli): Commands, flags, and `.codependencerc` configuration
+- [GitHub Action](https://jeffry.in/codependence/docs/github-action): Create small dependency update pull requests by manager
+- [Node.js](https://jeffry.in/codependence/docs/node): Use Codependence as a Node.js module for custom policy checks
+- [Options](https://jeffry.in/codependence/docs/options): Configuration options for targets, managers, and execution
+- [Usage Examples](https://jeffry.in/codependence/docs/usage): Standalone CLI, npm scripts, CI, and Node utility patterns
+
+## Advanced
+
+- [Policy Surface](https://jeffry.in/codependence/docs/policy-surface): What Codependence checks today and where policy can expand next
+- [Recipes](https://jeffry.in/codependence/docs/recipes): Common patterns and usage examples
+
+## Optional
+
+- [Why use Codependence?](https://jeffry.in/codependence/docs/why-use-codependence): When versions need a policy, not just occasional update PRs
+- [Why not use Codependence?](https://jeffry.in/codependence/docs/why-not-use-codependence): When Dependabot or Renovate already cover your workflow
+- [README](https://github.com/yowainwright/codependence/blob/main/README.md): Repository overview and quick start
+- [GitHub Action guide](https://github.com/yowainwright/codependence/blob/main/.github/ACTION.md): Full Action inputs, lockfile policy, and PAT permissions
