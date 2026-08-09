@@ -39,14 +39,22 @@ export const VERSIONED_MANAGERS = new Set<DependencyManager>([
   LANGUAGES.RUST,
 ]);
 
-export const WORKFLOW_AREAS: WorkflowArea[] = ["node", "python", "go", "rust", "infrastructure"];
+export const WORKFLOW_AREAS: WorkflowArea[] = [
+  "node",
+  "python",
+  "go",
+  "rust",
+  "docker",
+  "infrastructure",
+];
 
 export const WORKFLOW_LABELS: Record<WorkflowArea, string> = {
   node: "Node",
   python: "Python",
   go: "Go",
   rust: "Rust",
-  infrastructure: "Docker and GitHub Actions",
+  docker: "Docker",
+  infrastructure: "GitHub Actions",
 };
 
 export const OPTION_DEFINITIONS: OptionDefinition[] = [

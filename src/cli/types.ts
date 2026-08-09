@@ -31,7 +31,7 @@ export interface ArgumentResult extends ArgumentState {
   nextIndex: number;
 }
 
-export type WorkflowArea = "node" | "python" | "go" | "rust" | "infrastructure";
+export type WorkflowArea = "node" | "python" | "go" | "rust" | "docker" | "infrastructure";
 
 export interface WorkflowDefinition {
   area: WorkflowArea;

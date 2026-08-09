@@ -1476,36 +1476,51 @@ const createActionsProject = (): string => {
 const readWorkflow = (rootDir: string, area: string): string =>
   fs.readFileSync(join(rootDir, ".github", "workflows", `codependence-${area}.yml`), "utf8");
 
+const workflowAreas = ["node", "python", "go", "rust", "docker", "infrastructure"];
+
+const expectedWorkflowFiles = workflowAreas.map((area) => `codependence-${area}.yml`);
+
+const readGeneratedWorkflows = (rootDir: string): string[] =>
+  workflowAreas.map((area) => readWorkflow(rootDir, area));
+
+const expectWorkflowTargets = (workflows: string[]): void => {
+  expect(workflows[0]).toContain("targets: bun\n          version: 1.3.14");
+  expect(workflows[1]).toContain("targets: uv\n          version: 0.8.0");
+  expect(workflows[2]).toContain("targets: go\n          version: 1.26.4");
+  expect(workflows[3]).toContain("targets: rust\n          version: 1.88.0");
+  expect(workflows[4]).toContain("targets: docker");
+  expect(workflows[5]).toContain("targets: github-actions");
+};
+
+const expectWorkflowCommands = (workflows: string[]): void => {
+  expect(workflows[0]).toContain("post-update-command: 'bun install'");
+  expect(workflows[1]).toContain("post-update-command: 'uv lock'");
+  expect(workflows[2]).toContain("post-update-command: 'go mod tidy'");
+  expect(workflows[3]).toContain("post-update-command: 'cargo generate-lockfile'");
+  expect(workflows[4]).toContain("post-update-command: 'git diff --check'");
+  expect(workflows[5]).toContain("post-update-command: 'git diff --check'");
+};
+
+const expectWorkflowDefaults = (workflows: string[]): void => {
+  const hasDefaultSchedule = workflows.every((workflow) => workflow.includes('cron: "0 9 * * 1"'));
+  expect(hasDefaultSchedule).toBe(true);
+  expect(workflows[0]).toContain("uses: yowainwright/codependence@v1");
+  expect(workflows[0]).toContain("secrets.CODEPENDENCE_TOKEN");
+  expect(workflows[4]).toContain("pull-request: true");
+};
+
 describe("GitHub Actions initializer", () => {
   test("generates split workflows with one shared default schedule", () => {
     const rootDir = createActionsProject();
 
     try {
       const paths = initGitHubActions({ rootDir });
-      const workflows = ["node", "python", "go", "rust", "infrastructure"].map((area) =>
-        readWorkflow(rootDir, area),
-      );
+      const workflows = readGeneratedWorkflows(rootDir);
 
-      expect(paths.map((path) => path.split("/").at(-1))).toEqual([
-        "codependence-node.yml",
-        "codependence-python.yml",
-        "codependence-go.yml",
-        "codependence-rust.yml",
-        "codependence-infrastructure.yml",
-      ]);
-      expect(workflows.every((workflow) => workflow.includes('cron: "0 9 * * 1"'))).toBe(true);
-      expect(workflows[0]).toContain("targets: bun\n          version: 1.3.14");
-      expect(workflows[1]).toContain("targets: uv\n          version: 0.8.0");
-      expect(workflows[2]).toContain("targets: go\n          version: 1.26.4");
-      expect(workflows[3]).toContain("targets: rust\n          version: 1.88.0");
-      expect(workflows[4]).toContain("docker\n            github-actions");
-      expect(workflows[0]).toContain("uses: yowainwright/codependence@v1");
-      expect(workflows[0]).toContain("secrets.CODEPENDENCE_TOKEN");
-      expect(workflows[0]).toContain("post-update-command: 'bun install'");
-      expect(workflows[1]).toContain("post-update-command: 'uv lock'");
-      expect(workflows[2]).toContain("post-update-command: 'go mod tidy'");
-      expect(workflows[3]).toContain("post-update-command: 'cargo generate-lockfile'");
-      expect(workflows[4]).toContain("post-update-command: 'git diff --check'");
+      expect(paths.map((path) => path.split("/").at(-1))).toEqual(expectedWorkflowFiles);
+      expectWorkflowDefaults(workflows);
+      expectWorkflowTargets(workflows);
+      expectWorkflowCommands(workflows);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }

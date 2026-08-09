@@ -95,6 +95,7 @@ const areaForManager = (manager: DependencyManager): WorkflowArea => {
   if (manager === PYTHON_PACKAGE_MANAGERS.UV) return "python";
   if (manager === LANGUAGES.GO) return "go";
   if (manager === LANGUAGES.RUST) return "rust";
+  if (manager === LANGUAGES.DOCKER) return "docker";
   return "infrastructure";
 };
 
