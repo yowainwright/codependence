@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { join, relative, resolve } from "node:path";
 import { createLogger, logger } from "./logger";
 import { assertTargetLockfiles, checkFiles } from "./scripts";
@@ -428,6 +428,24 @@ ${targetInput}${toolVersions}
 const workflowPath = (rootDir: string, area: WorkflowArea): string =>
   join(rootDir, ".github", "workflows", `codependence-${area}.yml`);
 
+const legacyInfrastructureWorkflowPath = (
+  rootDir: string,
+  managers: DependencyManager[],
+): string | undefined => {
+  const includesDocker = managers.includes(LANGUAGES.DOCKER);
+  if (!includesDocker) return undefined;
+
+  const path = workflowPath(rootDir, "infrastructure");
+  if (!existsSync(path)) return undefined;
+
+  const content = readFileSync(path, "utf8");
+  const isGenerated = content.startsWith(GENERATED_ACTION_HEADER);
+  const targetsDocker = content
+    .split("\n")
+    .some((line) => line.trim() === `targets: ${LANGUAGES.DOCKER}`);
+  return isGenerated && targetsDocker ? path : undefined;
+};
+
 const assertSafeWrites = (rootDir: string, paths: string[], force: boolean): void => {
   if (force) return;
 
@@ -505,7 +523,13 @@ export const initGitHubActions = (options: InitGitHubActionsOptions = {}): strin
   const versions = resolveVersions(rootDir, targets, managers, versionsInput);
   const definitions = workflowDefinitions(managers, schedules);
   const paths = definitions.map(({ area }) => workflowPath(rootDir, area));
-  assertSafeWrites(rootDir, paths, options.force === true);
+  const force = options.force === true;
+  const writesInfrastructure = areas.has("infrastructure");
+  const legacyPath = writesInfrastructure
+    ? undefined
+    : legacyInfrastructureWorkflowPath(rootDir, managers);
+  const protectedPaths = legacyPath ? [...paths, legacyPath] : paths;
+  assertSafeWrites(rootDir, protectedPaths, force);
   writeWorkflows(
     rootDir,
     targets,
@@ -514,6 +538,7 @@ export const initGitHubActions = (options: InitGitHubActionsOptions = {}): strin
     commands,
     tokenSecret(options.tokenSecret),
   );
+  if (force && legacyPath) unlinkSync(legacyPath);
   return paths;
 };
 

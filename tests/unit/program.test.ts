@@ -15,6 +15,7 @@ import { logger } from "../../src/logger";
 import * as scripts from "../../src/scripts";
 import * as config from "../../src/config";
 import { Prompt } from "../../src/utils/prompts";
+import { GENERATED_ACTION_HEADER } from "../../src/cli/constants";
 
 describe("Action Function Tests (Fast)", () => {
   let scriptSpy: ReturnType<typeof jest.spyOn>;
@@ -1473,6 +1474,13 @@ const createActionsProject = (): string => {
   return rootDir;
 };
 
+const createDockerActionsProject = (): string => {
+  const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-docker-actions-unit-"));
+  const targets = [{ manager: "docker" }];
+  fs.writeFileSync(join(rootDir, ".codependencerc"), JSON.stringify({ targets }));
+  return rootDir;
+};
+
 const readWorkflow = (rootDir: string, area: string): string =>
   fs.readFileSync(join(rootDir, ".github", "workflows", `codependence-${area}.yml`), "utf8");
 
@@ -1510,6 +1518,53 @@ const expectWorkflowDefaults = (workflows: string[]): void => {
 };
 
 describe("GitHub Actions initializer", () => {
+  test("retires a legacy generated infrastructure workflow for Docker", () => {
+    const rootDir = createDockerActionsProject();
+    const legacyPath = join(rootDir, ".github/workflows/codependence-infrastructure.yml");
+    fs.mkdirSync(join(rootDir, ".github/workflows"), { recursive: true });
+    fs.writeFileSync(legacyPath, `${GENERATED_ACTION_HEADER}\ntargets: docker\n`);
+
+    try {
+      expect(() => initGitHubActions({ rootDir })).toThrow("Refusing to overwrite");
+      initGitHubActions({ force: true, rootDir });
+      expect(fs.existsSync(legacyPath)).toBe(false);
+      expect(readWorkflow(rootDir, "docker")).toContain("targets: docker");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("preserves a user-authored infrastructure workflow for Docker", () => {
+    const rootDir = createDockerActionsProject();
+    const legacyPath = join(rootDir, ".github/workflows/codependence-infrastructure.yml");
+    const workflow = "name: Custom infrastructure workflow\n";
+    fs.mkdirSync(join(rootDir, ".github/workflows"), { recursive: true });
+    fs.writeFileSync(legacyPath, workflow);
+
+    try {
+      initGitHubActions({ force: true, rootDir });
+      expect(fs.readFileSync(legacyPath, "utf8")).toBe(workflow);
+      expect(readWorkflow(rootDir, "docker")).toContain("targets: docker");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("preserves a generated infrastructure workflow that does not target Docker", () => {
+    const rootDir = createDockerActionsProject();
+    const legacyPath = join(rootDir, ".github/workflows/codependence-infrastructure.yml");
+    const workflow = `${GENERATED_ACTION_HEADER}\ntargets: github-actions\n`;
+    fs.mkdirSync(join(rootDir, ".github/workflows"), { recursive: true });
+    fs.writeFileSync(legacyPath, workflow);
+
+    try {
+      initGitHubActions({ force: true, rootDir });
+      expect(fs.readFileSync(legacyPath, "utf8")).toBe(workflow);
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
   test("generates split workflows with one shared default schedule", () => {
     const rootDir = createActionsProject();
 
