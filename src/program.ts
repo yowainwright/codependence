@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { join, relative, resolve } from "node:path";
 import { createLogger, logger } from "./logger";
 import { assertTargetLockfiles, checkFiles } from "./scripts";
@@ -95,6 +95,7 @@ const areaForManager = (manager: DependencyManager): WorkflowArea => {
   if (manager === PYTHON_PACKAGE_MANAGERS.UV) return "python";
   if (manager === LANGUAGES.GO) return "go";
   if (manager === LANGUAGES.RUST) return "rust";
+  if (manager === LANGUAGES.DOCKER) return "docker";
   return "infrastructure";
 };
 
@@ -427,6 +428,56 @@ ${targetInput}${toolVersions}
 const workflowPath = (rootDir: string, area: WorkflowArea): string =>
   join(rootDir, ".github", "workflows", `codependence-${area}.yml`);
 
+const workflowTargetsManager = (content: string, manager: DependencyManager): boolean => {
+  const lines = content.split("\n");
+  const targetIndex = lines.findIndex((line) => line.trimStart().startsWith("targets:"));
+  if (targetIndex === -1) return false;
+
+  const targetLine = lines[targetIndex];
+  const targetValue = targetLine.trim().slice("targets:".length).trim();
+  if (targetValue !== "|") return targetValue === manager;
+
+  const indentation = targetLine.search(/\S/);
+  const followingLines = lines.slice(targetIndex + 1);
+  const boundaryIndex = followingLines.findIndex(
+    (line) => line.trim().length > 0 && line.search(/\S/) <= indentation,
+  );
+  const targetLines =
+    boundaryIndex === -1 ? followingLines : followingLines.slice(0, boundaryIndex);
+  return targetLines.some((line) => line.trim() === manager);
+};
+
+const legacyInfrastructureWorkflowPath = (
+  rootDir: string,
+  managers: DependencyManager[],
+): string | undefined => {
+  const includesDocker = managers.includes(LANGUAGES.DOCKER);
+  if (!includesDocker) return undefined;
+
+  const path = workflowPath(rootDir, "infrastructure");
+  if (!existsSync(path)) return undefined;
+
+  const content = readFileSync(path, "utf8");
+  const isGenerated = content.startsWith(GENERATED_ACTION_HEADER);
+  const targetsDocker = workflowTargetsManager(content, LANGUAGES.DOCKER);
+  return isGenerated && targetsDocker ? path : undefined;
+};
+
+const migrateLegacyInfrastructureWorkflow = (path: string): void => {
+  const content = readFileSync(path, "utf8");
+  const targetsGitHubActions = workflowTargetsManager(content, LANGUAGES.GITHUB_ACTIONS);
+  if (!targetsGitHubActions) {
+    unlinkSync(path);
+    return;
+  }
+
+  const workflow = content
+    .split("\n")
+    .filter((line) => line.trim() !== LANGUAGES.DOCKER)
+    .join("\n");
+  writeFileSync(path, workflow);
+};
+
 const assertSafeWrites = (rootDir: string, paths: string[], force: boolean): void => {
   if (force) return;
 
@@ -504,7 +555,13 @@ export const initGitHubActions = (options: InitGitHubActionsOptions = {}): strin
   const versions = resolveVersions(rootDir, targets, managers, versionsInput);
   const definitions = workflowDefinitions(managers, schedules);
   const paths = definitions.map(({ area }) => workflowPath(rootDir, area));
-  assertSafeWrites(rootDir, paths, options.force === true);
+  const force = options.force === true;
+  const writesInfrastructure = areas.has("infrastructure");
+  const legacyPath = writesInfrastructure
+    ? undefined
+    : legacyInfrastructureWorkflowPath(rootDir, managers);
+  const protectedPaths = legacyPath ? [...paths, legacyPath] : paths;
+  assertSafeWrites(rootDir, protectedPaths, force);
   writeWorkflows(
     rootDir,
     targets,
@@ -513,6 +570,7 @@ export const initGitHubActions = (options: InitGitHubActionsOptions = {}): strin
     commands,
     tokenSecret(options.tokenSecret),
   );
+  if (force && legacyPath) migrateLegacyInfrastructureWorkflow(legacyPath);
   return paths;
 };
 

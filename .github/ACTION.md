@@ -29,18 +29,19 @@ request workflows:
 codependence init actions
 ```
 
-The command creates at most five stable files:
+The command creates up to six stable files:
 
 - `.github/workflows/codependence-node.yml`
 - `.github/workflows/codependence-python.yml`
 - `.github/workflows/codependence-go.yml`
 - `.github/workflows/codependence-rust.yml`
+- `.github/workflows/codependence-docker.yml`
 - `.github/workflows/codependence-infrastructure.yml`
 
-Node package managers share one workflow, and Docker plus GitHub Actions share
-the infrastructure workflow. Every generated workflow uses the default schedule
-unless an area-specific schedule is configured and updates one stable pull
-request branch.
+Node package managers share one workflow. Docker and GitHub Actions use separate
+workflows so Docker updates stay on the stable `update-dependencies/docker`
+pull-request branch. Every generated workflow uses the default schedule unless
+an area-specific schedule is configured.
 
 Exact versions are read from `package.json#packageManager`, `go.mod`,
 `rust-toolchain.toml`, `rust-toolchain`, `mise.toml`, `.mise.toml`,
@@ -59,7 +60,8 @@ codependence init actions \
   --schedule 'go=30 7 * * 5'
 ```
 
-Schedule keys are `node`, `python`, `go`, `rust`, and `infrastructure`.
+Schedule keys are `node`, `python`, `go`, `rust`, `docker`, and
+`infrastructure`.
 Post-update commands accept either an area or manager name.
 
 The default secret name is `CODEPENDENCE_TOKEN`; change it with
@@ -245,10 +247,9 @@ jobs:
 ```
 
 The stable branch is `update-dependencies/go`, so every Go run updates the same
-open pull request. Bun, Go, Rust, uv, and `docker github-actions` invocations
-use different branches and therefore maintain separate pull requests. If
-multiple managers are intentionally passed together, they produce one pull
-request:
+open pull request. Bun, Go, Rust, uv, Docker, and GitHub Actions workflows use
+different branches and therefore maintain separate pull requests. If multiple
+managers are intentionally passed together, they produce one pull request:
 
 ```yaml
 with:

@@ -231,9 +231,10 @@ Generate the recommended split workflows from the manager targets in
 codependence init actions
 ```
 
-This creates at most five stable workflow files for Node, Python, Go, Rust, and
-the combined Docker/GitHub Actions area. Existing files are preserved unless
-`--force` is provided.
+This creates up to six stable workflow files for Node, Python, Go, Rust,
+Docker, and GitHub Actions. Docker runs alone so its updates stay on the
+`update-dependencies/docker` pull-request branch. Existing files are preserved
+unless `--force` is provided.
 
 <!-- partial update and pull request inputs from action.yml -->
 
@@ -263,7 +264,7 @@ repository secrets without placing credentials in `.codependencerc`:
 ```
 
 PR mode requires a fine-grained PAT and `post-update-command`. Each manager set
-uses a stable branch, so scheduled Bun, Go, Rust, uv, and infrastructure
+uses a stable branch, so scheduled Bun, Go, Rust, uv, Docker, and GitHub Actions
 workflows maintain separate pull requests while repeated runs update the
 existing PR. See the [GitHub Action guide](.github/ACTION.md) for lockfile
 policy and PAT permissions.

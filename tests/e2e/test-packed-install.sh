@@ -378,6 +378,21 @@ JSON
   pass "packed CLI safely initializes split GitHub Actions workflows"
 }
 
+test_installed_docker_action_workflow() {
+  docker_root="$WORK_DIR/init-actions-docker"
+  docker_workflow="$docker_root/.github/workflows/codependence-docker.yml"
+  mkdir -p "$docker_root"
+  printf '%s\n' '{"targets":[{"manager":"docker"},{"manager":"github-actions"}]}' > "$docker_root/.codependencerc"
+  node "$PROJECT_DIR/node_modules/codependence/dist/cli.js" \
+    init actions --rootDir "$docker_root" >/dev/null
+  assert_file_exists "$docker_workflow" "packed CLI initializes Docker-only workflow"
+  grep -q 'targets: docker' "$docker_workflow" || fail "generated Docker-only target"
+  if grep -q 'github-actions' "$docker_workflow"; then
+    fail "generated Docker workflow isolates GitHub Actions"
+  fi
+  grep -q 'pull-request: true' "$docker_workflow" || fail "generated Docker PR mode"
+}
+
 test_installed_skill_script() {
   (
     cd "$PROJECT_DIR"
@@ -399,6 +414,7 @@ main() {
   test_installed_legacy_compatibility
   test_installed_target_selection
   test_installed_init_actions
+  test_installed_docker_action_workflow
   test_installed_skill_script
 }
 
