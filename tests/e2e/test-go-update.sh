@@ -38,7 +38,7 @@ cleanup() { rm -rf "$WORK_DIR"; }
 trap cleanup EXIT
 
 setup_work_dir() {
-  cp -r "$ROOT_DIR/dist" "$WORK_DIR/" || fail "dist/cli.js not found - run bun run build-dist first"
+  cp -r "$ROOT_DIR/dist" "$WORK_DIR/" || fail "dist/cli.js not found - run nub run build-dist first"
 }
 
 write_rc() {

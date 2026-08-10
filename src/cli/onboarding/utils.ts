@@ -13,6 +13,7 @@ import {
   ONBOARDING_SECRET_NAME,
   ONBOARDING_TOKEN_PERMISSIONS,
   ONBOARDING_VERIFY_COMMANDS,
+  ONBOARDING_VERSION_PATTERN,
   ONBOARDING_WORKFLOW_PATH,
 } from "./constants";
 import type {
@@ -41,9 +42,7 @@ export const isIgnoredOnboardingPath = (path: string): boolean =>
 export const isOnboardingPackageFile = (path: string): boolean =>
   normalizeOnboardingPath(path).split("/").at(-1) === ONBOARDING_PACKAGE_FILE;
 
-export const parseOnboardingManifest = (
-  file: OnboardingSourceFile,
-): ParsedOnboardingManifest => {
+export const parseOnboardingManifest = (file: OnboardingSourceFile): ParsedOnboardingManifest => {
   try {
     const packageJson = JSON.parse(file.content) as OnboardingPackageJson;
     const path = normalizeOnboardingPath(file.path);
@@ -107,15 +106,32 @@ export const selectOnboardingManifests = (
   return selected.sort(compareManifestPaths);
 };
 
+export const selectOnboardingSourceFiles = (
+  files: OnboardingSourceFile[],
+): OnboardingSourceFile[] => {
+  const rootFile = files.find(({ path }) => path === ONBOARDING_PACKAGE_FILE);
+  if (!rootFile) throw new Error("package.json not found in the project root");
+  const root = parseOnboardingManifest(rootFile);
+  const patterns = onboardingWorkspacePatterns(root.packageJson);
+  return files.filter(({ path }) => {
+    if (path === ONBOARDING_PACKAGE_FILE) return true;
+    return isDeclaredWorkspace(path, patterns);
+  });
+};
+
+const sectionDependencyEntries = (
+  manifest: ParsedOnboardingManifest,
+  section: OnboardingDependencyUsage["sections"][number],
+): DependencyUsageEntry[] =>
+  Object.entries(manifest.packageJson[section] || {}).map(([name, range]) => ({
+    name,
+    path: manifest.path,
+    range,
+    sections: [section],
+  }));
+
 const manifestDependencyEntries = (manifest: ParsedOnboardingManifest): DependencyUsageEntry[] =>
-  ONBOARDING_DEPENDENCY_SECTIONS.flatMap((section) =>
-    Object.entries(manifest.packageJson[section] || {}).map(([name, range]) => ({
-      name,
-      path: manifest.path,
-      range,
-      sections: [section],
-    })),
-  );
+  ONBOARDING_DEPENDENCY_SECTIONS.flatMap((section) => sectionDependencyEntries(manifest, section));
 
 const usageKey = ({ path, range }: OnboardingDependencyUsage): string => `${path}\u0000${range}`;
 
@@ -130,15 +146,29 @@ const mergeDependencyUsages = (entries: DependencyUsageEntry[]): OnboardingDepen
   return [...usages.values()];
 };
 
+const groupDependencyEntries = (
+  entries: DependencyUsageEntry[],
+): Map<string, DependencyUsageEntry[]> =>
+  entries.reduce((groups, entry) => {
+    const group = groups.get(entry.name);
+    if (group) {
+      group.push(entry);
+      return groups;
+    }
+    groups.set(entry.name, [entry]);
+    return groups;
+  }, new Map<string, DependencyUsageEntry[]>());
+
 export const collectOnboardingDependencies = (
   manifests: ParsedOnboardingManifest[],
 ): OnboardingDependency[] => {
   const entries = manifests.flatMap(manifestDependencyEntries);
-  const names = [...new Set(entries.map(({ name }) => name))].sort();
-  return names.map((name) => ({
+  const groups = groupDependencyEntries(entries);
+  const dependencies = [...groups.entries()].map(([name, group]) => ({
     name,
-    usages: mergeDependencyUsages(entries.filter((entry) => entry.name === name)),
+    usages: mergeDependencyUsages(group),
   }));
+  return dependencies.sort((left, right) => left.name.localeCompare(right.name));
 };
 
 const packageManagerValue = (root: OnboardingPackageJson): [string, string?] => {
@@ -148,9 +178,10 @@ const packageManagerValue = (root: OnboardingPackageJson): [string, string?] => 
 
 const managerFromFiles = (files: OnboardingSourceFile[]): OnboardingManager => {
   const paths = new Set(files.map(({ path }) => normalizeOnboardingPath(path)));
-  const manager = (["bun", "pnpm", "yarn", "npm"] as OnboardingManager[]).find((candidate) =>
-    ONBOARDING_MANAGER_FILES[candidate].some((path) => paths.has(path)),
-  );
+  const hasManagerFile = (candidate: OnboardingManager): boolean =>
+    ONBOARDING_MANAGER_FILES[candidate].some((path) => paths.has(path));
+  const managers: OnboardingManager[] = ["bun", "pnpm", "yarn", "npm"];
+  const manager = managers.find(hasManagerFile);
   return manager || "npm";
 };
 
@@ -186,6 +217,9 @@ const workflowSecretExpression = (): string =>
 export const renderOnboardingWorkflow = (project: OnboardingProject): string => {
   if (!project.managerVersion) {
     throw new Error("packageManager must include an exact version for GitHub Actions");
+  }
+  if (!ONBOARDING_VERSION_PATTERN.test(project.managerVersion)) {
+    throw new Error(`${project.manager} requires an exact package manager version`);
   }
   const secret = workflowSecretExpression();
   const installCommand = `${project.manager} install`;
@@ -239,7 +273,10 @@ export const createOnboardingArtifacts = (
   project: OnboardingProject,
   answers: OnboardingAnswers,
 ): OnboardingArtifact[] => {
-  const config = { path: ONBOARDING_CONFIG_PATH, content: renderOnboardingConfig(project, answers) };
+  const config = {
+    path: ONBOARDING_CONFIG_PATH,
+    content: renderOnboardingConfig(project, answers),
+  };
   if (!githubOnboardingEnabled(answers)) return [config];
   const workflow = { path: ONBOARDING_WORKFLOW_PATH, content: renderOnboardingWorkflow(project) };
   return [config, workflow];

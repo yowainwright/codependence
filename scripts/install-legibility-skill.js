@@ -37,7 +37,7 @@ const resolveInstaller = () => {
 const installer = resolveInstaller();
 
 if (!existsSync(installer)) {
-  console.error("eslint-plugin-legibility is not installed. Run bun install first.");
+  console.error("eslint-plugin-legibility is not installed. Run nub install first.");
   process.exit(1);
 }
 

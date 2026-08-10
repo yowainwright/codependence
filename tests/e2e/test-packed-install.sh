@@ -404,7 +404,7 @@ test_installed_skill_script() {
 
 main() {
   if [ ! -d "$ROOT_DIR/node_modules/eslint-plugin-legibility" ]; then
-    fail "eslint-plugin-legibility not installed - run bun install first"
+    fail "eslint-plugin-legibility not installed - run nub install first"
   fi
 
   pack_package

@@ -20,12 +20,13 @@ jobs:
       - name: Setup toolchain
         uses: ./.github/actions/setup-toolchain
 
-      - run: bun run update
-      - run: bun install
-      - run: bun run deps:security
+      - run: nub run update
+      - run: nub install
+      - run: nub run deps:security
+      - run: nub run deps:audit
 
       - name: Build Codependence
-        run: bun run build
+        run: nub run build
 
       - name: Apply Codependence policies
         uses: ./
@@ -33,7 +34,7 @@ jobs:
           update: true
 
       - name: Refresh lockfile
-        run: bun install
+        run: nub install
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1

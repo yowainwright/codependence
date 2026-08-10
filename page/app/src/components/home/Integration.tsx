@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ChangeEvent, Dispatch, SetStateAction } from "react";
+import { Effect } from "effect";
 import { CopyButton } from "@/components/common/CopyButton";
 import {
   analyzeOnboardingProject,
@@ -98,10 +99,12 @@ const scanDirectory = async (
   for await (const [name, handle] of directory.entries()) {
     const path = prefix ? `${prefix}/${name}` : name;
     const isFile = handle.kind === "file" && shouldReadFile(name, prefix);
-    if (isFile) files.push(await sourceFile(handle, path));
+    const fileHandle = handle as FileSystemFileHandle;
+    if (isFile) files.push(await sourceFile(fileHandle, path));
     const isDirectory = handle.kind === "directory";
     const shouldScan = isDirectory && !IGNORED_DIRECTORIES.has(name);
-    if (shouldScan) files.push(...(await scanDirectory(handle, path)));
+    const directoryHandle = handle as FileSystemDirectoryHandle;
+    if (shouldScan) files.push(...(await scanDirectory(directoryHandle, path)));
   }
   return files;
 };
@@ -110,11 +113,12 @@ const selectProject = async (): Promise<{
   handle: FileSystemDirectoryHandle;
   project: OnboardingProject;
 }> => {
-  const picker = (window as DirectoryPickerWindow).showDirectoryPicker;
-  if (!picker) throw new Error("Directory selection is not supported by this browser");
-  const handle = await picker();
+  const pickerWindow = window as DirectoryPickerWindow;
+  if (!pickerWindow.showDirectoryPicker)
+    throw new Error("Directory selection is not supported by this browser");
+  const handle = await pickerWindow.showDirectoryPicker();
   const files = await scanDirectory(handle);
-  const project = analyzeOnboardingProject(files);
+  const project = await Effect.runPromise(analyzeOnboardingProject(files));
   return { handle, project };
 };
 
@@ -123,7 +127,12 @@ const scanProject = async (setSession: SessionSetter): Promise<void> => {
   try {
     const { handle, project } = await selectProject();
     const managerVersion = project.managerVersion || "";
-    updateSession(setSession, { handle, project, managerVersion, setup: undefined });
+    updateSession(setSession, {
+      handle,
+      project,
+      managerVersion,
+      setup: undefined,
+    });
   } catch (error) {
     updateSession(setSession, { error: errorMessage(error) });
   } finally {
@@ -133,9 +142,12 @@ const scanProject = async (setSession: SessionSetter): Promise<void> => {
 
 const parseRepository = (value: string): OnboardingRepository => {
   const withoutProtocol = value.trim().replace(/^https?:\/\/github\.com\//, "");
-  const normalized = withoutProtocol.replace(/^git@github\.com:/, "").replace(/\.git$/, "");
+  const normalized = withoutProtocol
+    .replace(/^git@github\.com:/, "")
+    .replace(/\.git$/, "");
   const [owner, name, extra] = normalized.split("/");
-  if (!owner || !name || extra) throw new Error("Enter a GitHub repository as owner/name");
+  if (!owner || !name || extra)
+    throw new Error("Enter a GitHub repository as owner/name");
   return { owner, name };
 };
 
@@ -159,10 +171,10 @@ const setupProject = (session: OnboardingSession): OnboardingProject => {
   return { ...session.project, managerVersion: session.managerVersion.trim() };
 };
 
-const generateSetup = (
+const generateSetup = async (
   session: OnboardingSession,
   setSession: SessionSetter,
-): void => {
+): Promise<void> => {
   try {
     const project = setupProject(session);
     const repository = setupRepository(session);
@@ -173,8 +185,14 @@ const generateSetup = (
       repository,
       selectedDependencies,
     };
-    const setup = createOnboardingSetup(project, answers);
-    updateSession(setSession, { setup, error: "", message: "Setup is ready to write." });
+    const setup = await Effect.runPromise(
+      createOnboardingSetup(project, answers),
+    );
+    updateSession(setSession, {
+      setup,
+      error: "",
+      message: "Setup is ready to write.",
+    });
   } catch (error) {
     updateSession(setSession, { error: errorMessage(error), setup: undefined });
   }
@@ -203,6 +221,21 @@ const artifactDirectory = async (
   return directory;
 };
 
+const assertArtifactsMissing = async (
+  root: FileSystemDirectoryHandle,
+  artifacts: OnboardingArtifact[],
+): Promise<void> => {
+  for (const artifact of artifacts) {
+    const segments = artifact.path.split("/");
+    const name = segments.pop();
+    if (!name) throw new Error("Generated artifact path is empty");
+    const directory = await artifactDirectory(root, segments);
+    if (await artifactExists(directory, name)) {
+      throw new Error(`${artifact.path} already exists`);
+    }
+  }
+};
+
 const writeArtifact = async (
   root: FileSystemDirectoryHandle,
   artifact: OnboardingArtifact,
@@ -227,6 +260,7 @@ const writeSetup = async (
   if (!session.handle || !session.setup) return;
   updateSession(setSession, { busy: true, error: "", message: "" });
   try {
+    await assertArtifactsMissing(session.handle, session.setup.artifacts);
     for (const artifact of session.setup.artifacts) {
       await writeArtifact(session.handle, artifact);
     }
@@ -320,17 +354,21 @@ function ModeFields({ session, setSession }: OnboardingProps) {
 const dependencyUsages = (
   dependency: OnboardingProject["dependencies"][number],
 ): string =>
-  dependency.usages
-    .map(({ path, range }) => `${path}: ${range}`)
-    .join("; ");
+  dependency.usages.map(({ path, range }) => `${path}: ${range}`).join("; ");
 
-function DependencyOption({ dependency, session, setSession }: DependencyProps) {
+function DependencyOption({
+  dependency,
+  session,
+  setSession,
+}: DependencyProps) {
   const name = dependency.name;
   const checked = session.selectedDependencies.includes(name);
   const usages = dependencyUsages(dependency);
   const handleChange = () => {
     const selected = session.selectedDependencies;
-    const without = selected.filter((dependencyName) => dependencyName !== name);
+    const without = selected.filter(
+      (dependencyName) => dependencyName !== name,
+    );
     const selectedDependencies = checked ? without : [...without, name];
     updateSession(setSession, { selectedDependencies, setup: undefined });
   };
@@ -498,10 +536,20 @@ function TokenSetup({ setup }: { setup: OnboardingSetup }) {
         Create a fine-grained PAT with {permissions}.
       </p>
       <div className="mt-3 flex flex-wrap gap-3">
-        <a className="link link-primary" href={tokenUrl} target="_blank" rel="noreferrer">
+        <a
+          className="link link-primary"
+          href={tokenUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
           Create token
         </a>
-        <a className="link link-primary" href={secretUrl} target="_blank" rel="noreferrer">
+        <a
+          className="link link-primary"
+          href={secretUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
           Save as {secretName}
         </a>
       </div>
@@ -514,8 +562,12 @@ function SetupCommands({ setup }: { setup: OnboardingSetup }) {
   const verifyCommand = setup.verifyCommand;
   return (
     <div className="grid gap-2">
-      <p><strong>Install:</strong> <code>{installCommand}</code></p>
-      <p><strong>Verify:</strong> <code>{verifyCommand}</code></p>
+      <p>
+        <strong>Install:</strong> <code>{installCommand}</code>
+      </p>
+      <p>
+        <strong>Verify:</strong> <code>{verifyCommand}</code>
+      </p>
     </div>
   );
 }
@@ -553,12 +605,46 @@ function Status({ session }: { session: OnboardingSession }) {
   return null;
 }
 
+function PolicyFields({ session, setSession }: OnboardingProps) {
+  return (
+    <>
+      <ModeFields session={session} setSession={setSession} />
+      <DependencyFields session={session} setSession={setSession} />
+      <EnforcementFields session={session} setSession={setSession} />
+      <GitHubFields session={session} setSession={setSession} />
+    </>
+  );
+}
+
+function OnboardingForm({ session, setSession }: OnboardingProps) {
+  const project = session.project;
+  if (!project) return null;
+  const handleGenerate = () => void generateSetup(session, setSession);
+  return (
+    <div className="mx-auto mt-8 grid max-w-4xl gap-7 rounded-2xl bg-base-200 p-6 shadow-sm md:p-8">
+      <ProjectSummary project={project} />
+      <PolicyFields session={session} setSession={setSession} />
+      <button
+        className="btn btn-secondary justify-self-start"
+        onClick={handleGenerate}
+      >
+        Generate setup
+      </button>
+      <SetupOutput session={session} setSession={setSession} />
+    </div>
+  );
+}
+
 export function Integration() {
   const [session, setSession] = useState(INITIAL_SESSION);
   return (
     <section id="onboarding" className="py-20 lg:py-28">
       <OnboardingHeader />
       <ProjectPicker session={session} setSession={setSession} />
+      <div className="mx-auto mt-4 max-w-4xl">
+        <Status session={session} />
+      </div>
+      <OnboardingForm session={session} setSession={setSession} />
     </section>
   );
 }

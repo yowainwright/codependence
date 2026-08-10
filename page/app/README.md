@@ -15,19 +15,19 @@ This is the documentation website for Codependence, a CLI and Node API for enfor
 1. Install dependencies
 
 ```bash
-bun install
+nub install
 ```
 
 2. Run the dev server
 
 ```bash
-bun run dev
+nub run dev
 ```
 
 3. Build for production
 
 ```bash
-bun run build
+nub run build
 ```
 
 ## Project Structure
@@ -40,7 +40,7 @@ bun run build
 
 ## Deployment
 
-`bun run build` writes the complete static site to `dist`; no server runtime is required. The site is automatically deployed to GitHub Pages when changes are pushed to the main branch.
+`nub run build` writes the complete static site to `dist`; no server runtime is required. The site is automatically deployed to GitHub Pages when changes are pushed to the main branch.
 
 ## Contributing
 

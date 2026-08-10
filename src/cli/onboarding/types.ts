@@ -1,3 +1,10 @@
+import { Data } from "effect";
+
+export class OnboardingError extends Data.TaggedError("OnboardingError")<{
+  readonly message: string;
+  readonly cause?: unknown;
+}> {}
+
 export type OnboardingManager = "bun" | "npm" | "pnpm" | "yarn";
 
 export type OnboardingMode = "verbose" | "precise";

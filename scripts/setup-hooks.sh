@@ -30,9 +30,9 @@ if [ -f "$PRE_COMMIT" ]; then
 else
   cat > "$PRE_COMMIT" << 'EOF'
 #!/bin/sh
-bun run lint
-bun run build
-bun test
+nub run lint
+nub run build
+nub run test
 EOF
   chmod +x "$PRE_COMMIT"
   echo "✓ Created pre-commit hook"
@@ -46,7 +46,7 @@ else
 if git rev-parse --abbrev-ref @{upstream} >/dev/null 2>&1; then
   git pull
 fi
-bun install
+nub install
 EOF
   chmod +x "$POST_CHECKOUT"
   echo "✓ Created post-checkout hook"

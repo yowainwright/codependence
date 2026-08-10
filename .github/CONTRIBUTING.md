@@ -2,22 +2,22 @@
 
 ## Setup
 
-- Use Node.js 18 or newer.
-- Install Bun from https://bun.sh.
-- Run `bun install`.
+- Use Node.js 26.
+- Install Nub and Bun.
+- Run `nub install`.
 
 ## Local Checks
 
 Before opening a pull request, run:
 
 ```sh
-bun run build
-bun run lint
-bun run typecheck
-bun run test
+nub run build
+nub run lint
+nub run typecheck
+nub run test
 ```
 
-Use `bun run coverage` for changes that affect dependency parsing, update
+Use `nub run coverage` for changes that affect dependency parsing, update
 logic, or CLI behavior.
 
 ## Pull Requests

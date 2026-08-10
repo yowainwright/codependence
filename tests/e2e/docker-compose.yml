@@ -68,7 +68,7 @@ services:
       - ..:/app
       - /app/node_modules
     working_dir: /app
-    command: pnpm run build
+    command: nub run build
     environment:
       - NODE_ENV=development
 

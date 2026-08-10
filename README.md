@@ -56,17 +56,17 @@ npx eslint-plugin-legibility-install-skill --target claude
 This repo also has wrapper scripts for contributor setup:
 
 ```sh
-bun run skills:install        # default shared agent skills location
-bun run skills:install:codex  # Codex global skill location
-bun run skills:install:claude # Claude rules location
+nub run skills:install        # default shared agent skills location
+nub run skills:install:codex  # Codex global skill location
+nub run skills:install:claude # Claude rules location
 ```
 
 For project-local installs, generated files are ignored by git:
 
 ```sh
-bun run skills:install:local
-bun run skills:install:codex:local
-bun run skills:install:claude:local
+nub run skills:install:local
+nub run skills:install:codex:local
+nub run skills:install:claude:local
 ```
 
 #### Quick setup
@@ -725,10 +725,11 @@ If there is a `.npmrc` file, there is no issue with **Codependence** monitoring 
 
 This project uses:
 
-- Node.js 20, 22, or 24 in CI; releases run on Node.js 24
+- Node.js 26 for development and releases
+- pnpm 11.21.0 through Nub 0.7.5
 - Bun 1.3.14
 
-We use [mise](https://mise.jdx.dev/) to manage tool versions. If you have mise installed, it will automatically use the correct versions of Node.js and bun.
+We use [mise](https://mise.jdx.dev/) to manage tool versions. If you have mise installed, it will automatically use the correct versions of Node.js, Nub, and Bun.
 
 ### Setup with mise
 
@@ -744,20 +745,21 @@ cd codependence
 mise install
 
 # Install dependencies
-bun install
+nub install
 ```
 
 ### Setup without mise
 
 ```sh
-# Install Node.js 24
-nvm install 24
+# Install Node.js 26
+nvm install 26
 
-# Install pinned bun
+# Install Nub and pinned Bun
+npm install -g @nubjs/nub@0.7.5
 curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14"
 
 # Install dependencies
-bun install
+nub install
 ```
 
 ## Release Strategy

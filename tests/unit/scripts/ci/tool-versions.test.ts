@@ -32,7 +32,7 @@ function resolveVersions(overrides = {}) {
 describe("scripts/ci/tool-versions", () => {
   test("parseMiseTool reads quoted tool versions", () => {
     expect(parseMiseTool(miseToml, "bun")).toBe("1.3.14");
-    expect(parseMiseTool(miseToml, "node")).toBe("24");
+    expect(parseMiseTool(miseToml, "node")).toBe("26.7.0");
   });
 
   test("parsePackageManagerBunVersion reads packageManager", () => {
@@ -110,13 +110,13 @@ describe("scripts/ci/tool-versions", () => {
         miseToml: `
 [tools]
 bun = "1.3.14"
-node = "24.3.0"
+node = "26.3.0"
 `,
       }),
     ).toMatchObject({
       nodeAlpineImage,
       nodeSlimImage,
-      nodeVersion: "24.3.0",
+      nodeVersion: "26.3.0",
     });
   });
 
@@ -129,7 +129,7 @@ node = "24.3.0"
   });
 
   test("resolveToolVersions rejects unpinned Docker image defaults", () => {
-    expect(() => resolveVersions({ nodeSlimImage: "node:24-slim" })).toThrow("Expected slim image");
+    expect(() => resolveVersions({ nodeSlimImage: "node:26-slim" })).toThrow("Expected slim image");
   });
 
   test("formatGitHubOutput emits stable output names", () => {

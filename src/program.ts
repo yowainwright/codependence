@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { dirname, join, relative, resolve } from "node:path";
+import { Effect } from "effect";
 import { createLogger, logger } from "./logger";
 import { assertTargetLockfiles, checkFiles } from "./scripts";
 import { versionCache } from "./utils/cache";
@@ -12,7 +13,7 @@ import { glob } from "./utils/glob";
 import { DEFAULT_IGNORE_PATTERNS } from "./scripts/constants";
 import { expandTargets, formatValidationErrors, loadConfig, validateConfig } from "./config";
 import { parseArgs, showHelp } from "./cli/parser";
-import { analyzeOnboardingProject, createOnboardingSetup } from "./cli/onboarding";
+import { analyzeOnboardingProject, createOnboardingSetup, OnboardingError } from "./cli/onboarding";
 import type {
   OnboardingAnswers,
   OnboardingEnforcement,
@@ -106,10 +107,11 @@ const stringOption = (value: unknown): string | undefined =>
 const isOnboardingMode = (value: string | undefined): value is OnboardingMode =>
   value === "verbose" || value === "precise";
 
-const isOnboardingEnforcement = (
-  value: string | undefined,
-): value is OnboardingEnforcement =>
-  value === "local" || value === "github" || value === "both";
+const isOnboardingEnforcement = (value: string | undefined): value is OnboardingEnforcement => {
+  if (value === "local") return true;
+  if (value === "github") return true;
+  return value === "both";
+};
 
 const readOnboardingFile = (rootDir: string, path: string): OnboardingSourceFile => ({
   path,
@@ -240,15 +242,13 @@ const collectOnboardingAnswers = async (
   return { mode, selectedDependencies, enforcement, repository };
 };
 
-const assertOnboardingWrites = (
-  rootDir: string,
-  setup: OnboardingSetup,
-  force: boolean,
-): void => {
+const assertOnboardingWrites = (rootDir: string, setup: OnboardingSetup, force: boolean): void => {
   if (force) return;
   const existing = setup.artifacts.filter(({ path }) => existsSync(join(rootDir, path)));
   if (existing.length === 0) return;
-  throw new Error(`Refusing to overwrite onboarding files: ${existing.map(({ path }) => path).join(", ")}`);
+  throw new Error(
+    `Refusing to overwrite onboarding files: ${existing.map(({ path }) => path).join(", ")}`,
+  );
 };
 
 const writeOnboardingArtifacts = (rootDir: string, setup: OnboardingSetup): void => {
@@ -277,25 +277,84 @@ const printOnboardingResult = (project: OnboardingProject, setup: OnboardingSetu
   if (!setup.tokenSetup) return;
   logger.print(`Create a fine-grained PAT: ${setup.tokenSetup.personalAccessTokenUrl}`);
   setup.tokenSetup.permissions.forEach((permission) => logger.print(`- ${permission}`));
-  logger.print(`Save it as ${setup.tokenSetup.secretName}: ${setup.tokenSetup.repositorySecretUrl}`);
+  logger.print(
+    `Save it as ${setup.tokenSetup.secretName}: ${setup.tokenSetup.repositorySecretUrl}`,
+  );
 };
 
-export const onboardAction = async (options: Record<string, unknown>): Promise<void> => {
-  const rootDir = resolve(stringOption(options.rootDir) || process.cwd());
-  const analyzedProject = analyzeOnboardingProject(collectOnboardingFiles(rootDir));
-  const prompt = new Prompt();
-  try {
-    const answers = await collectOnboardingAnswers(prompt, analyzedProject, options);
-    const project = await ensureOnboardingVersion(prompt, analyzedProject, answers.enforcement, options);
-    const setup = createOnboardingSetup(project, answers);
-    assertOnboardingWrites(rootDir, setup, options.force === true);
-    writeOnboardingArtifacts(rootDir, setup);
-    await installOnboardingCli(rootDir, answers, setup, options.skipInstall === true);
-    printOnboardingResult(project, setup);
-  } finally {
-    prompt.close();
-  }
+interface ConfiguredOnboarding {
+  answers: OnboardingAnswers;
+  project: OnboardingProject;
+  setup: OnboardingSetup;
+}
+
+const onboardingError = (cause: unknown): OnboardingError => {
+  const message = cause instanceof Error ? cause.message : "Onboarding failed";
+  return new OnboardingError({ message, cause });
 };
+
+const onboardingTry = <Value>(attempt: () => Value): Effect.Effect<Value, OnboardingError> =>
+  Effect.try({ try: attempt, catch: onboardingError });
+
+const onboardingTryPromise = <Value>(
+  attempt: () => Promise<Value>,
+): Effect.Effect<Value, OnboardingError> =>
+  Effect.tryPromise({ try: attempt, catch: onboardingError });
+
+const configureOnboarding = (
+  prompt: Prompt,
+  project: OnboardingProject,
+  options: Record<string, unknown>,
+): Effect.Effect<ConfiguredOnboarding, OnboardingError> =>
+  Effect.gen(function* () {
+    const answers = yield* onboardingTryPromise(() =>
+      collectOnboardingAnswers(prompt, project, options),
+    );
+    const versionedProject = yield* onboardingTryPromise(() =>
+      ensureOnboardingVersion(prompt, project, answers.enforcement, options),
+    );
+    const setup = yield* createOnboardingSetup(versionedProject, answers);
+    return { answers, project: versionedProject, setup };
+  });
+
+const applyOnboarding = (
+  rootDir: string,
+  configured: ConfiguredOnboarding,
+  options: Record<string, unknown>,
+) =>
+  Effect.gen(function* () {
+    const { answers, project, setup } = configured;
+    yield* onboardingTry(() => assertOnboardingWrites(rootDir, setup, options.force === true));
+    yield* onboardingTry(() => writeOnboardingArtifacts(rootDir, setup));
+    yield* onboardingTryPromise(() =>
+      installOnboardingCli(rootDir, answers, setup, options.skipInstall === true),
+    );
+    yield* Effect.sync(() => printOnboardingResult(project, setup));
+  });
+
+const runOnboardingPrompt = (
+  rootDir: string,
+  project: OnboardingProject,
+  options: Record<string, unknown>,
+) =>
+  Effect.acquireUseRelease(
+    Effect.sync(() => new Prompt()),
+    (prompt) =>
+      Effect.flatMap(configureOnboarding(prompt, project, options), (configured) =>
+        applyOnboarding(rootDir, configured, options),
+      ),
+    (prompt) => Effect.sync(() => prompt.close()),
+  );
+
+const onboardingWorkflow = (options: Record<string, unknown>) => {
+  const rootDir = resolve(stringOption(options.rootDir) || process.cwd());
+  const files = onboardingTry(() => collectOnboardingFiles(rootDir));
+  const project = Effect.flatMap(files, analyzeOnboardingProject);
+  return Effect.flatMap(project, (value) => runOnboardingPrompt(rootDir, value, options));
+};
+
+export const onboardAction = (options: Record<string, unknown>): Promise<void> =>
+  Effect.runPromise(onboardingWorkflow(options));
 
 const areaForManager = (manager: DependencyManager): WorkflowArea => {
   if (NODE_MANAGERS.has(manager)) return "node";
@@ -831,8 +890,7 @@ export const mergeConfigs = (
   const hasPathConfig = Object.keys(pathConfig).length > 0;
   const selectedBaseConfig = hasPathConfig ? {} : baseConfig;
   const codependenceConfig = pathConfig.codependence;
-  const hasCodependenceKey =
-    typeof codependenceConfig === "object" && codependenceConfig !== null;
+  const hasCodependenceKey = typeof codependenceConfig === "object" && codependenceConfig !== null;
   const normalizedPathConfig = hasCodependenceKey
     ? (codependenceConfig as Record<string, unknown>)
     : pathConfig;

@@ -4,6 +4,9 @@ import { appendFileSync, readFileSync } from "node:fs";
 import { isDirectCliExecution, runCliEntrypoint } from "./cli-entrypoint.js";
 import { TOOL_OUTPUT_KEYS } from "./constants.js";
 
+const DOCKERFILE_ARG_PATTERN = /^\s*ARG\s+([A-Za-z_][A-Za-z0-9_]*)=([^\s#]+)\s*$/gm;
+const DOCKERFILE_ARG_REFERENCE_PATTERN = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
+
 function nodeMajor(nodeVersion) {
   const match = nodeVersion.match(/^\d+/);
   if (!match) throw new Error(`Unable to resolve Node major version from ${nodeVersion}`);
@@ -38,9 +41,13 @@ export function parsePackageManagerBunVersion(packageJson) {
 }
 
 export function parseDockerfileArg(dockerfile, argName) {
-  const escapedArgName = argName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = dockerfile.match(new RegExp(`^\\s*ARG\\s+${escapedArgName}=([^\\s#]+)`, "m"));
-  return match?.[1] ?? "";
+  const entries = Array.from(dockerfile.matchAll(DOCKERFILE_ARG_PATTERN), (match) => [
+    match[1],
+    match[2],
+  ]);
+  const args = new Map(entries);
+  const value = args.get(argName) ?? "";
+  return value.replace(DOCKERFILE_ARG_REFERENCE_PATTERN, (_, name) => args.get(name) ?? "");
 }
 
 export function resolveToolVersions({

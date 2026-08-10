@@ -108,7 +108,7 @@ test_local_installs() {
 
 main() {
   if [ ! -x "$ROOT_DIR/node_modules/.bin/eslint-plugin-legibility-install-skill" ]; then
-    fail "eslint-plugin-legibility-install-skill not found - run bun install first"
+    fail "eslint-plugin-legibility-install-skill not found - run nub install first"
   fi
 
   test_global_installs
