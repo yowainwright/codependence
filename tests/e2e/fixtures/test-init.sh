@@ -150,4 +150,44 @@ else
   exit 1
 fi
 
+# Test 11: Workspace-aware onboarding
+echo "\n11. Testing workspace-aware onboarding..."
+rm -rf onboarding-test
+mkdir -p onboarding-test/apps/web onboarding-test/examples/demo
+printf '%s\n' '{"name":"workspace","packageManager":"pnpm@9.15.0","workspaces":["apps/*"],"dependencies":{"react":"^19.0.0"}}' > onboarding-test/package.json
+printf '%s\n' '{"name":"@workspace/web","dependencies":{"react":"^19.0.0","vite":"^8.1.0"}}' > onboarding-test/apps/web/package.json
+printf '%s\n' '{"name":"demo","dependencies":{"lodash":"^4.17.21"}}' > onboarding-test/examples/demo/package.json
+touch onboarding-test/pnpm-lock.yaml
+node dist/cli.js onboard \
+  --rootDir onboarding-test \
+  --mode precise \
+  --codependencies react \
+  --enforcement github \
+  --repository acme/workspace \
+  --non-interactive \
+  --skip-install
+
+if [ ! -f onboarding-test/.codependencerc ]; then
+  echo "FAIL: Onboarding did not create .codependencerc"
+  exit 1
+fi
+if [ ! -f onboarding-test/.github/workflows/codependence-node.yml ]; then
+  echo "FAIL: Onboarding did not create the GitHub workflow"
+  exit 1
+fi
+if ! grep -q 'apps/web/package.json' onboarding-test/.codependencerc; then
+  echo "FAIL: Onboarding did not include the declared workspace"
+  exit 1
+fi
+if grep -q 'examples/demo/package.json' onboarding-test/.codependencerc; then
+  echo "FAIL: Onboarding included a non-workspace package"
+  exit 1
+fi
+if ! grep -q 'secrets.CODEPENDENCE_TOKEN' onboarding-test/.github/workflows/codependence-node.yml; then
+  echo "FAIL: Onboarding workflow did not reference the repository secret"
+  exit 1
+fi
+rm -rf onboarding-test
+echo "PASS: Workspace-aware onboarding test"
+
 echo "\n=== All tests passed! ==="

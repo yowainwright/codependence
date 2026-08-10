@@ -1,6 +1,6 @@
 import { CopyButton } from "@/components/common/CopyButton";
 import { ArrowRightIcon, ChevronRightIcon } from "@/components/common/Icons";
-import { resolveUrl, resolveDocsUrl } from "@/utils/urlResolver";
+import { resolveUrl } from "@/utils/urlResolver";
 import { HERO_CLIP_PATH, HERO_INSTALL_COMMAND } from "./constants";
 
 function HeroBackground() {
@@ -36,9 +36,9 @@ function InstallSnippet() {
 function HeroActions() {
   return (
     <div className="flex sm:flex-row flex-col justify-center items-center gap-5">
-      <a href={resolveDocsUrl("introduction")}>
+      <a href="#onboarding">
         <button className="btn bg-primary text-primary-content hover:bg-primary/80 rounded-lg border-none">
-          Get Started
+          Onboard a project
           <ArrowRightIcon className="w-4 h-4" />
         </button>
       </a>

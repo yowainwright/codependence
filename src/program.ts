@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
-import { join, relative, resolve } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
+import { dirname, join, relative, resolve } from "node:path";
 import { createLogger, logger } from "./logger";
 import { assertTargetLockfiles, checkFiles } from "./scripts";
 import { versionCache } from "./utils/cache";
@@ -7,8 +7,21 @@ import { createSpinner } from "./utils/spinner";
 import { cyan, bold, green, gray, red } from "./utils/colors";
 import { SYMBOLS } from "./utils/constants";
 import { Prompt } from "./utils/prompts";
+import { exec } from "./utils/exec";
+import { glob } from "./utils/glob";
+import { DEFAULT_IGNORE_PATTERNS } from "./scripts/constants";
 import { expandTargets, formatValidationErrors, loadConfig, validateConfig } from "./config";
 import { parseArgs, showHelp } from "./cli/parser";
+import { analyzeOnboardingProject, createOnboardingSetup } from "./cli/onboarding";
+import type {
+  OnboardingAnswers,
+  OnboardingEnforcement,
+  OnboardingMode,
+  OnboardingProject,
+  OnboardingRepository,
+  OnboardingSetup,
+  OnboardingSourceFile,
+} from "./cli/onboarding";
 import {
   ACTION_MANAGERS,
   ACTION_REF,
@@ -89,6 +102,200 @@ const stringListOption = (value: unknown): string[] => {
 
 const stringOption = (value: unknown): string | undefined =>
   typeof value === "string" ? value : undefined;
+
+const isOnboardingMode = (value: string | undefined): value is OnboardingMode =>
+  value === "verbose" || value === "precise";
+
+const isOnboardingEnforcement = (
+  value: string | undefined,
+): value is OnboardingEnforcement =>
+  value === "local" || value === "github" || value === "both";
+
+const readOnboardingFile = (rootDir: string, path: string): OnboardingSourceFile => ({
+  path,
+  content: readFileSync(join(rootDir, path), "utf8"),
+});
+
+const onboardingRootFiles = (rootDir: string): OnboardingSourceFile[] =>
+  readdirSync(rootDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map(({ name }) => ({ path: name, content: "" }));
+
+const onboardingManifestFiles = (rootDir: string): OnboardingSourceFile[] => {
+  const paths = glob(["package.json", "**/package.json"], {
+    cwd: rootDir,
+    ignore: [...DEFAULT_IGNORE_PATTERNS],
+  });
+  return paths.map((path) => readOnboardingFile(rootDir, path));
+};
+
+const collectOnboardingFiles = (rootDir: string): OnboardingSourceFile[] => {
+  const entries = onboardingRootFiles(rootDir).map((file) => [file.path, file] as const);
+  const files = new Map(entries);
+  onboardingManifestFiles(rootDir).forEach((file) => files.set(file.path, file));
+  return [...files.values()];
+};
+
+const selectOnboardingMode = async (
+  prompt: Prompt,
+  options: Record<string, unknown>,
+): Promise<OnboardingMode> => {
+  const configured = stringOption(options.mode);
+  if (isOnboardingMode(configured)) return configured;
+  if (options.nonInteractive === true) throw new Error("Onboarding requires --mode");
+  const selected = await prompt.list("How should Codependence manage dependencies?", [
+    { name: "Update everything except selected pinned dependencies", value: "precise" },
+    { name: "Update only selected dependencies", value: "verbose" },
+  ]);
+  return selected as OnboardingMode;
+};
+
+const dependencyChoice = ({ name, usages }: OnboardingProject["dependencies"][number]) => {
+  const locations = usages.map(({ path, range }) => `${path}: ${range}`).join(", ");
+  return { name: `${name} (${locations})`, value: name };
+};
+
+const selectOnboardingDependencies = (
+  prompt: Prompt,
+  project: OnboardingProject,
+  options: Record<string, unknown>,
+): Promise<string[]> => {
+  if (options.codependencies !== undefined) {
+    return Promise.resolve(stringListOption(options.codependencies));
+  }
+  if (options.nonInteractive === true) return Promise.resolve([]);
+  const choices = project.dependencies.map(dependencyChoice);
+  return prompt.checkbox("Select dependencies for this policy", choices);
+};
+
+const selectOnboardingEnforcement = async (
+  prompt: Prompt,
+  options: Record<string, unknown>,
+): Promise<OnboardingEnforcement> => {
+  const configured = stringOption(options.enforcement);
+  if (isOnboardingEnforcement(configured)) return configured;
+  if (options.nonInteractive === true) throw new Error("Onboarding requires --enforcement");
+  const selected = await prompt.list("Where should Codependence run?", [
+    { name: "Locally and in GitHub Actions", value: "both" },
+    { name: "GitHub Actions", value: "github" },
+    { name: "Local CLI", value: "local" },
+  ]);
+  return selected as OnboardingEnforcement;
+};
+
+const parseOnboardingRepository = (value: string): OnboardingRepository => {
+  const withoutProtocol = value.replace(/^https?:\/\/github\.com\//, "");
+  const normalized = withoutProtocol.replace(/^git@github\.com:/, "").replace(/\.git$/, "");
+  const [owner, name, extra] = normalized.split("/");
+  if (!owner || !name || extra) throw new Error("Repository must use owner/name or a GitHub URL");
+  return { owner, name };
+};
+
+const selectOnboardingRepository = async (
+  prompt: Prompt,
+  enforcement: OnboardingEnforcement,
+  options: Record<string, unknown>,
+): Promise<OnboardingRepository | undefined> => {
+  if (enforcement === "local") return undefined;
+  const configured = stringOption(options.repository);
+  if (configured) return parseOnboardingRepository(configured);
+  if (options.nonInteractive === true) throw new Error("GitHub onboarding requires --repository");
+  const answer = await prompt.input("GitHub repository (owner/name)");
+  return parseOnboardingRepository(answer);
+};
+
+const onboardingVersionOption = (
+  manager: DependencyManager,
+  value: unknown,
+): string | undefined => {
+  const values = stringListOption(value);
+  const assignment = values.find((item) => item.startsWith(`${manager}=`));
+  if (assignment) return assignment.slice(manager.length + 1);
+  return values.length === 1 && !values[0].includes("=") ? values[0] : undefined;
+};
+
+const ensureOnboardingVersion = async (
+  prompt: Prompt,
+  project: OnboardingProject,
+  enforcement: OnboardingEnforcement,
+  options: Record<string, unknown>,
+): Promise<OnboardingProject> => {
+  if (project.managerVersion || enforcement === "local") return project;
+  const configured = onboardingVersionOption(project.manager, options.version);
+  if (configured) return { ...project, managerVersion: configured };
+  if (options.nonInteractive === true) throw new Error("GitHub onboarding requires --version");
+  const managerVersion = await prompt.input(`Exact ${project.manager} version`);
+  return { ...project, managerVersion };
+};
+
+const collectOnboardingAnswers = async (
+  prompt: Prompt,
+  project: OnboardingProject,
+  options: Record<string, unknown>,
+): Promise<OnboardingAnswers> => {
+  const mode = await selectOnboardingMode(prompt, options);
+  const selectedDependencies = await selectOnboardingDependencies(prompt, project, options);
+  const enforcement = await selectOnboardingEnforcement(prompt, options);
+  const repository = await selectOnboardingRepository(prompt, enforcement, options);
+  return { mode, selectedDependencies, enforcement, repository };
+};
+
+const assertOnboardingWrites = (
+  rootDir: string,
+  setup: OnboardingSetup,
+  force: boolean,
+): void => {
+  if (force) return;
+  const existing = setup.artifacts.filter(({ path }) => existsSync(join(rootDir, path)));
+  if (existing.length === 0) return;
+  throw new Error(`Refusing to overwrite onboarding files: ${existing.map(({ path }) => path).join(", ")}`);
+};
+
+const writeOnboardingArtifacts = (rootDir: string, setup: OnboardingSetup): void => {
+  setup.artifacts.forEach(({ path, content }) => {
+    const destination = join(rootDir, path);
+    mkdirSync(dirname(destination), { recursive: true });
+    writeFileSync(destination, content);
+  });
+};
+
+const installOnboardingCli = async (
+  rootDir: string,
+  answers: OnboardingAnswers,
+  setup: OnboardingSetup,
+  skipInstall: boolean,
+): Promise<void> => {
+  const needsLocalCli = answers.enforcement === "local" || answers.enforcement === "both";
+  if (!needsLocalCli || skipInstall) return;
+  await exec(setup.install.command, setup.install.args, { cwd: rootDir });
+};
+
+const printOnboardingResult = (project: OnboardingProject, setup: OnboardingSetup): void => {
+  logger.print(`Onboarded ${project.manifests.length} package manifest(s).`);
+  setup.artifacts.forEach(({ path }) => logger.print(`Created ${path}`));
+  logger.print(`Verify with: ${setup.verifyCommand}`);
+  if (!setup.tokenSetup) return;
+  logger.print(`Create a fine-grained PAT: ${setup.tokenSetup.personalAccessTokenUrl}`);
+  setup.tokenSetup.permissions.forEach((permission) => logger.print(`- ${permission}`));
+  logger.print(`Save it as ${setup.tokenSetup.secretName}: ${setup.tokenSetup.repositorySecretUrl}`);
+};
+
+export const onboardAction = async (options: Record<string, unknown>): Promise<void> => {
+  const rootDir = resolve(stringOption(options.rootDir) || process.cwd());
+  const analyzedProject = analyzeOnboardingProject(collectOnboardingFiles(rootDir));
+  const prompt = new Prompt();
+  try {
+    const answers = await collectOnboardingAnswers(prompt, analyzedProject, options);
+    const project = await ensureOnboardingVersion(prompt, analyzedProject, answers.enforcement, options);
+    const setup = createOnboardingSetup(project, answers);
+    assertOnboardingWrites(rootDir, setup, options.force === true);
+    writeOnboardingArtifacts(rootDir, setup);
+    await installOnboardingCli(rootDir, answers, setup, options.skipInstall === true);
+    printOnboardingResult(project, setup);
+  } finally {
+    prompt.close();
+  }
+};
 
 const areaForManager = (manager: DependencyManager): WorkflowArea => {
   if (NODE_MANAGERS.has(manager)) return "node";
@@ -1063,6 +1270,11 @@ export async function run(args: string[] = process.argv): Promise<void> {
   const isHelpRequested = parsed.options.help === true;
   if (isHelpRequested) {
     showHelp();
+    return;
+  }
+
+  if (parsed.command === "onboard") {
+    await onboardAction(parsed.options);
     return;
   }
 

@@ -111,6 +111,30 @@ describe("parseArgs", () => {
     expect(result.options.postUpdateCommand).toBe("go=go mod tidy");
   });
 
+  test("should parse non-interactive onboarding options", () => {
+    const args = [
+      ...baseArgs,
+      "onboard",
+      "--mode",
+      "precise",
+      "--codependencies",
+      "react",
+      "--enforcement",
+      "both",
+      "--repository",
+      "acme/workspace",
+      "--non-interactive",
+      "--skip-install",
+    ];
+    const result = parseArgs(args);
+
+    expect(result.command).toBe("onboard");
+    expect(result.options.enforcement).toBe("both");
+    expect(result.options.repository).toBe("acme/workspace");
+    expect(result.options.nonInteractive).toBe(true);
+    expect(result.options.skipInstall).toBe(true);
+  });
+
   test("should parse lockfile enforcement", () => {
     const required = parseArgs([...baseArgs, "--lockfile"]);
     const disabled = parseArgs([...baseArgs, "--lockfile=false"]);
