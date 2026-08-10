@@ -428,6 +428,25 @@ ${targetInput}${toolVersions}
 const workflowPath = (rootDir: string, area: WorkflowArea): string =>
   join(rootDir, ".github", "workflows", `codependence-${area}.yml`);
 
+const workflowTargetsManager = (content: string, manager: DependencyManager): boolean => {
+  const lines = content.split("\n");
+  const targetIndex = lines.findIndex((line) => line.trimStart().startsWith("targets:"));
+  if (targetIndex === -1) return false;
+
+  const targetLine = lines[targetIndex];
+  const targetValue = targetLine.trim().slice("targets:".length).trim();
+  if (targetValue !== "|") return targetValue === manager;
+
+  const indentation = targetLine.search(/\S/);
+  const followingLines = lines.slice(targetIndex + 1);
+  const boundaryIndex = followingLines.findIndex(
+    (line) => line.trim().length > 0 && line.search(/\S/) <= indentation,
+  );
+  const targetLines =
+    boundaryIndex === -1 ? followingLines : followingLines.slice(0, boundaryIndex);
+  return targetLines.some((line) => line.trim() === manager);
+};
+
 const legacyInfrastructureWorkflowPath = (
   rootDir: string,
   managers: DependencyManager[],
@@ -440,9 +459,7 @@ const legacyInfrastructureWorkflowPath = (
 
   const content = readFileSync(path, "utf8");
   const isGenerated = content.startsWith(GENERATED_ACTION_HEADER);
-  const targetsDocker = content
-    .split("\n")
-    .some((line) => line.trim() === `targets: ${LANGUAGES.DOCKER}`);
+  const targetsDocker = workflowTargetsManager(content, LANGUAGES.DOCKER);
   return isGenerated && targetsDocker ? path : undefined;
 };
 

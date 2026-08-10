@@ -1518,11 +1518,14 @@ const expectWorkflowDefaults = (workflows: string[]): void => {
 };
 
 describe("GitHub Actions initializer", () => {
-  test("retires a legacy generated infrastructure workflow for Docker", () => {
+  test("retires a legacy generated combined infrastructure workflow for Docker", () => {
     const rootDir = createDockerActionsProject();
     const legacyPath = join(rootDir, ".github/workflows/codependence-infrastructure.yml");
     fs.mkdirSync(join(rootDir, ".github/workflows"), { recursive: true });
-    fs.writeFileSync(legacyPath, `${GENERATED_ACTION_HEADER}\ntargets: docker\n`);
+    fs.writeFileSync(
+      legacyPath,
+      `${GENERATED_ACTION_HEADER}\ntargets: |\n  docker\n  github-actions\n`,
+    );
 
     try {
       expect(() => initGitHubActions({ rootDir })).toThrow("Refusing to overwrite");
