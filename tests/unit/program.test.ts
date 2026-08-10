@@ -1481,6 +1481,15 @@ const createDockerActionsProject = (): string => {
   return rootDir;
 };
 
+const legacyCombinedWorkflow = (schedule: string): string => `${GENERATED_ACTION_HEADER}
+on:
+  schedule:
+    - cron: "${schedule}"
+targets: |
+  docker
+  github-actions
+`;
+
 const readWorkflow = (rootDir: string, area: string): string =>
   fs.readFileSync(join(rootDir, ".github", "workflows", `codependence-${area}.yml`), "utf8");
 
@@ -1518,20 +1527,36 @@ const expectWorkflowDefaults = (workflows: string[]): void => {
 };
 
 describe("GitHub Actions initializer", () => {
-  test("retires a legacy generated combined infrastructure workflow for Docker", () => {
+  test("splits a legacy generated combined infrastructure workflow for Docker", () => {
     const rootDir = createDockerActionsProject();
     const legacyPath = join(rootDir, ".github/workflows/codependence-infrastructure.yml");
+    const schedule = "15 4 * * 2";
+    const legacyWorkflow = legacyCombinedWorkflow(schedule);
     fs.mkdirSync(join(rootDir, ".github/workflows"), { recursive: true });
-    fs.writeFileSync(
-      legacyPath,
-      `${GENERATED_ACTION_HEADER}\ntargets: |\n  docker\n  github-actions\n`,
-    );
+    fs.writeFileSync(legacyPath, legacyWorkflow);
 
     try {
       expect(() => initGitHubActions({ rootDir })).toThrow("Refusing to overwrite");
       initGitHubActions({ force: true, rootDir });
-      expect(fs.existsSync(legacyPath)).toBe(false);
+      const infrastructureWorkflow = fs.readFileSync(legacyPath, "utf8");
+      expect(infrastructureWorkflow).toContain("targets: |\n  github-actions");
+      expect(infrastructureWorkflow).not.toContain("\n  docker\n");
+      expect(infrastructureWorkflow).toContain(`cron: "${schedule}"`);
       expect(readWorkflow(rootDir, "docker")).toContain("targets: docker");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("retires a legacy generated Docker-only infrastructure workflow", () => {
+    const rootDir = createDockerActionsProject();
+    const legacyPath = join(rootDir, ".github/workflows/codependence-infrastructure.yml");
+    fs.mkdirSync(join(rootDir, ".github/workflows"), { recursive: true });
+    fs.writeFileSync(legacyPath, `${GENERATED_ACTION_HEADER}\ntargets: docker\n`);
+
+    try {
+      initGitHubActions({ force: true, rootDir });
+      expect(fs.existsSync(legacyPath)).toBe(false);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }

@@ -463,6 +463,21 @@ const legacyInfrastructureWorkflowPath = (
   return isGenerated && targetsDocker ? path : undefined;
 };
 
+const migrateLegacyInfrastructureWorkflow = (path: string): void => {
+  const content = readFileSync(path, "utf8");
+  const targetsGitHubActions = workflowTargetsManager(content, LANGUAGES.GITHUB_ACTIONS);
+  if (!targetsGitHubActions) {
+    unlinkSync(path);
+    return;
+  }
+
+  const workflow = content
+    .split("\n")
+    .filter((line) => line.trim() !== LANGUAGES.DOCKER)
+    .join("\n");
+  writeFileSync(path, workflow);
+};
+
 const assertSafeWrites = (rootDir: string, paths: string[], force: boolean): void => {
   if (force) return;
 
@@ -555,7 +570,7 @@ export const initGitHubActions = (options: InitGitHubActionsOptions = {}): strin
     commands,
     tokenSecret(options.tokenSecret),
   );
-  if (force && legacyPath) unlinkSync(legacyPath);
+  if (force && legacyPath) migrateLegacyInfrastructureWorkflow(legacyPath);
   return paths;
 };
 
