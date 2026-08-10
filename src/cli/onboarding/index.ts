@@ -31,7 +31,7 @@ import {
   selectOnboardingSourceFiles,
 } from "./utils";
 
-const onboardingError = (cause: unknown): OnboardingError => {
+export const onboardingError = (cause: unknown): OnboardingError => {
   const message = cause instanceof Error ? cause.message : "Onboarding failed";
   return new OnboardingError({ message, cause });
 };
@@ -99,6 +99,12 @@ const requestText = (
     catch: onboardingError,
   });
 
+const decodeRepository = (value: unknown) =>
+  Schema.decodeUnknown(repositorySchema)(value).pipe(Effect.mapError(onboardingError));
+
+const decodeTree = (value: unknown) =>
+  Schema.decodeUnknown(treeSchema)(value).pipe(Effect.mapError(onboardingError));
+
 const repositoryApiPath = ({ owner, name }: OnboardingRepository): string =>
   `${ONBOARDING_GITHUB_API_URL}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
 
@@ -133,22 +139,23 @@ const repositorySourceFile = (
   return Effect.map(requestText(fetcher, url), (content) => ({ path, content }));
 };
 
+const repositoryTree = (repository: OnboardingRepository, fetcher: OnboardingFetcher) =>
+  Effect.gen(function* () {
+    const apiPath = repositoryApiPath(repository);
+    const rawRepository = yield* requestJson(fetcher, apiPath);
+    const metadata = yield* decodeRepository(rawRepository);
+    const branch = encodeURIComponent(metadata.default_branch);
+    const treeUrl = `${apiPath}/git/trees/${branch}?recursive=1`;
+    const rawTree = yield* requestJson(fetcher, treeUrl);
+    return yield* decodeTree(rawTree);
+  });
+
 const repositorySourceFiles = (
   repository: OnboardingRepository,
   fetcher: OnboardingFetcher,
 ): Effect.Effect<OnboardingSourceFile[], OnboardingError> =>
   Effect.gen(function* () {
-    const apiPath = repositoryApiPath(repository);
-    const rawRepository = yield* requestJson(fetcher, apiPath);
-    const metadata = yield* Schema.decodeUnknown(repositorySchema)(rawRepository).pipe(
-      Effect.mapError(onboardingError),
-    );
-    const branch = encodeURIComponent(metadata.default_branch);
-    const treeUrl = `${apiPath}/git/trees/${branch}?recursive=1`;
-    const rawTree = yield* requestJson(fetcher, treeUrl);
-    const tree = yield* Schema.decodeUnknown(treeSchema)(rawTree).pipe(
-      Effect.mapError(onboardingError),
-    );
+    const tree = yield* repositoryTree(repository, fetcher);
     if (tree.truncated) {
       const cause = new Error("GitHub repository tree is too large to scan completely");
       return yield* Effect.fail(onboardingError(cause));

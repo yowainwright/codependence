@@ -13,6 +13,8 @@ const packageFile = (path: string, value: Record<string, unknown>) => ({
   content: JSON.stringify(value),
 });
 
+const questionMark = String.fromCharCode(63);
+
 const githubTree = {
   sha: "tree-sha",
   truncated: false,
@@ -104,6 +106,23 @@ describe("onboarding", () => {
       { path: "apps/web/package.json", range: "^19.0.0", sections: ["dependencies"] },
       { path: "packages/ui/package.json", range: "^18.3.1", sections: ["peerDependencies"] },
     ]);
+  });
+
+  test("treats regex question marks as literal workspace path characters", () => {
+    const workspacePath = `packages/ui${questionMark}kit`;
+    const manifestPath = `${workspacePath}/package.json`;
+    const project = Effect.runSync(
+      analyzeOnboardingProject([
+        packageFile("package.json", { workspaces: [workspacePath] }),
+        packageFile(manifestPath, { dependencies: { react: "^19.0.0" } }),
+        packageFile("packages/uikit/package.json", {
+          dependencies: { lodash: "^4.17.21" },
+        }),
+      ]),
+    );
+
+    expect(project.manifests.map(({ path }) => path)).toEqual(["package.json", manifestPath]);
+    expect(project.dependencies.map(({ name }) => name)).toEqual(["react"]);
   });
 
   test("generates one project policy and the selected enforcement artifacts", () => {
@@ -234,5 +253,14 @@ describe("onboarding", () => {
       "apps/web/package.json",
     ]);
     expect(project.dependencies.map(({ name }) => name)).toEqual(["react"]);
+  });
+
+  test("normalizes a trailing slash without accepting extra repository segments", () => {
+    const repository = parseOnboardingRepository("https://github.com/acme/workspace/");
+
+    expect(repository).toEqual({ owner: "acme", name: "workspace" });
+    expect(() => parseOnboardingRepository("acme/workspace/issues")).toThrow(
+      "Enter a GitHub repository as owner/name",
+    );
   });
 });

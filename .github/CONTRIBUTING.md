@@ -3,7 +3,13 @@
 ## Setup
 
 - Use Node.js 26.
-- Install Nub and Bun.
+- Install [Nub 0.7.5][nub-install] from the official `@nubjs/nub` package:
+
+  ```sh
+  npm install --global @nubjs/nub@0.7.5
+  ```
+
+- Install Bun 1.3.14.
 - Run `nub install`.
 
 ## Local Checks
@@ -27,3 +33,5 @@ logic, or CLI behavior.
 - Update README or docs when command flags, config fields, or public APIs
   change.
 - Describe the problem, the approach, and the local checks you ran.
+
+[nub-install]: https://nubjs.com/docs/install

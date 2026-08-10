@@ -16,6 +16,7 @@ import { parseArgs, showHelp } from "./cli/parser";
 import {
   analyzeOnboardingProject,
   createOnboardingSetup,
+  onboardingError,
   OnboardingError,
   parseOnboardingRepository,
 } from "./cli/onboarding";
@@ -288,11 +289,6 @@ interface ConfiguredOnboarding {
   project: OnboardingProject;
   setup: OnboardingSetup;
 }
-
-const onboardingError = (cause: unknown): OnboardingError => {
-  const message = cause instanceof Error ? cause.message : "Onboarding failed";
-  return new OnboardingError({ message, cause });
-};
 
 const onboardingTry = <Value>(attempt: () => Value): Effect.Effect<Value, OnboardingError> =>
   Effect.try({ try: attempt, catch: onboardingError });

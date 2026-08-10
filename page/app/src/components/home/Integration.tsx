@@ -59,6 +59,7 @@ interface DependencyProps extends OnboardingProps {
 }
 
 type SessionSetter = Dispatch<SetStateAction<OnboardingSession>>;
+type ProjectScanner = () => Promise<Partial<OnboardingSession>>;
 
 const INITIAL_SESSION: OnboardingSession = {
   busy: false,
@@ -128,15 +129,15 @@ const selectProject = async (): Promise<{
   return { handle, project };
 };
 
-const scanProject = async (setSession: SessionSetter): Promise<void> => {
+const runProjectScan = async (
+  scanner: ProjectScanner,
+  setSession: SessionSetter,
+): Promise<void> => {
   updateSession(setSession, { busy: true, error: "", message: "" });
   try {
-    const { handle, project } = await selectProject();
-    const managerVersion = project.managerVersion || "";
+    const projectValues = await scanner();
     updateSession(setSession, {
-      handle,
-      project,
-      managerVersion,
+      ...projectValues,
       selectedDependencies: [],
       setup: undefined,
     });
@@ -147,31 +148,35 @@ const scanProject = async (setSession: SessionSetter): Promise<void> => {
   }
 };
 
-const scanGitHubProject = async (
+const localProjectScan = async (): Promise<Partial<OnboardingSession>> => {
+  const { handle, project } = await selectProject();
+  const managerVersion = project.managerVersion || "";
+  return { handle, managerVersion, project };
+};
+
+const repositoryProjectScan = async (
+  value: string,
+): Promise<Partial<OnboardingSession>> => {
+  const repository = parseOnboardingRepository(value);
+  const project = await Effect.runPromise(scanOnboardingRepository(repository));
+  const repositoryName = `${repository.owner}/${repository.name}`;
+  const managerVersion = project.managerVersion || "";
+  return {
+    handle: undefined,
+    managerVersion,
+    project,
+    repository: repositoryName,
+  };
+};
+
+const scanProject = (setSession: SessionSetter): Promise<void> =>
+  runProjectScan(localProjectScan, setSession);
+
+const scanGitHubProject = (
   value: string,
   setSession: SessionSetter,
-): Promise<void> => {
-  updateSession(setSession, { busy: true, error: "", message: "" });
-  try {
-    const repository = parseOnboardingRepository(value);
-    const project = await Effect.runPromise(
-      scanOnboardingRepository(repository),
-    );
-    const repositoryName = `${repository.owner}/${repository.name}`;
-    updateSession(setSession, {
-      handle: undefined,
-      managerVersion: project.managerVersion || "",
-      project,
-      repository: repositoryName,
-      selectedDependencies: [],
-      setup: undefined,
-    });
-  } catch (error) {
-    updateSession(setSession, { error: errorMessage(error) });
-  } finally {
-    updateSession(setSession, { busy: false });
-  }
-};
+): Promise<void> =>
+  runProjectScan(() => repositoryProjectScan(value), setSession);
 
 const githubEnabled = (enforcement: OnboardingEnforcement): boolean =>
   enforcement === "github" || enforcement === "both";
@@ -303,41 +308,54 @@ function OnboardingHeader() {
         Set your dependency policy
       </h2>
       <p className="mt-5 text-lg">
-        Select a Node project. Codependence reads its declared workspaces and
-        builds one policy.
+        Paste a public GitHub repository URL or select a local Node project.
+        Codependence reads its declared workspaces and builds one policy.
       </p>
     </div>
   );
 }
 
-function ProjectPicker({ session, setSession }: OnboardingProps) {
+function LocalProjectButton({ session, setSession }: OnboardingProps) {
   const handleScan = () => void scanProject(setSession);
-  const handleRepositoryScan = () =>
-    void scanGitHubProject(session.repository, setSession);
   const busy = session.busy;
   const buttonLabel = busy ? "Scanning..." : "Select project folder";
+  return (
+    <button
+      className="btn btn-primary rounded-lg"
+      disabled={busy}
+      onClick={handleScan}
+    >
+      {buttonLabel}
+    </button>
+  );
+}
+
+function RepositoryScanButton({ session, setSession }: OnboardingProps) {
+  const handleScan = () =>
+    void scanGitHubProject(session.repository, setSession);
+  const busy = session.busy;
   const repositoryButtonLabel = busy ? "Scanning..." : "Scan GitHub repository";
   const repositoryMissing = session.repository.trim().length === 0;
   return (
+    <button
+      className="btn btn-primary rounded-lg"
+      disabled={busy || repositoryMissing}
+      onClick={handleScan}
+    >
+      {repositoryButtonLabel}
+    </button>
+  );
+}
+
+function ProjectPicker({ session, setSession }: OnboardingProps) {
+  return (
     <div className="mx-auto mt-10 grid max-w-xl gap-4">
       <div className="flex justify-center">
-        <button
-          className="btn btn-primary rounded-lg"
-          disabled={busy}
-          onClick={handleScan}
-        >
-          {buttonLabel}
-        </button>
+        <LocalProjectButton session={session} setSession={setSession} />
       </div>
       <div className="divider">OR</div>
       <RepositoryInput session={session} setSession={setSession} />
-      <button
-        className="btn btn-primary rounded-lg"
-        disabled={busy || repositoryMissing}
-        onClick={handleRepositoryScan}
-      >
-        {repositoryButtonLabel}
-      </button>
+      <RepositoryScanButton session={session} setSession={setSession} />
       <p className="text-sm text-base-content/70">
         Local files stay in your browser. Repository scans read public files
         directly from GitHub.
@@ -480,11 +498,24 @@ function RepositoryInput({ session, setSession }: OnboardingProps) {
   const repository = session.repository;
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const nextRepository = event.currentTarget.value;
+    const hasRemoteProject = Boolean(session.project && !session.handle);
+    if (hasRemoteProject) {
+      updateSession(setSession, {
+        managerVersion: "",
+        project: undefined,
+        repository: nextRepository,
+        selectedDependencies: [],
+        setup: undefined,
+      });
+      return;
+    }
     updateSession(setSession, { repository: nextRepository, setup: undefined });
   };
   return (
     <label className="form-control">
-      <span className="label-text mb-2 font-bold">GitHub repository</span>
+      <span className="label-text mb-2 font-bold">
+        GitHub repository URL or owner/name
+      </span>
       <input
         className="input input-bordered w-full"
         placeholder="owner/name"
@@ -523,9 +554,10 @@ function OptionalVersionInput({ session, setSession }: OnboardingProps) {
 
 function GitHubFields({ session, setSession }: OnboardingProps) {
   if (!githubEnabled(session.enforcement)) return null;
+  const needsVersion = !session.project?.managerVersion;
+  if (!needsVersion) return null;
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <RepositoryInput session={session} setSession={setSession} />
       <OptionalVersionInput session={session} setSession={setSession} />
     </div>
   );

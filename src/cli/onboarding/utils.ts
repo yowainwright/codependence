@@ -91,7 +91,7 @@ export const isOnboardingWorkspace = (
   root.workspaces !== undefined ||
   files.some(({ path }) => path === ONBOARDING_PNPM_WORKSPACE_FILE);
 
-const escapeRegex = (value: string): string => value.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+const escapeRegex = (value: string): string => value.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
 
 const workspacePatternRegex = (pattern: string): RegExp => {
   const escaped = escapeRegex(normalizeOnboardingPath(pattern));
@@ -297,10 +297,13 @@ export const parseOnboardingRepository = (value: string): OnboardingRepository =
     .replace(/^git@github\.com:/, "")
     .replace(/\.git\/?$/, "")
     .replace(/\/$/, "");
-  const [owner, name, extra] = normalized.split("/");
+  const segments = normalized.split("/");
+  const [owner, name] = segments;
   const validOwner = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(owner || "");
   const validName = /^[A-Za-z0-9._-]+$/.test(name || "");
-  if (!validOwner || !validName || extra) {
+  const hasInvalidName = !validOwner || !validName;
+  const hasInvalidSegments = segments.length !== 2;
+  if (hasInvalidName || hasInvalidSegments) {
     throw new Error("Enter a GitHub repository as owner/name");
   }
   return { owner, name };

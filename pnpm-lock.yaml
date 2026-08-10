@@ -22,6 +22,9 @@ importers:
         specifier: ^2.9.0
         version: 2.9.0
     devDependencies:
+      '@nubjs/nub':
+        specifier: 0.7.5
+        version: 0.7.5
       bun-types:
         specifier: 1.3.14
         version: 1.3.14
@@ -38,8 +41,8 @@ importers:
         specifier: ^1.72.0
         version: 1.72.0
       pastoralist:
-        specifier: ^1.12.8
-        version: 1.12.8
+        specifier: 1.13.0
+        version: 1.13.0
       prettier:
         specifier: ^3.9.4
         version: 3.9.4
@@ -272,6 +275,55 @@ packages:
     peerDependencies:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
+
+  '@nubjs/nub-darwin-arm64@0.7.5':
+    resolution: {integrity: sha512-7XBzpw5NWdVxbcxyHvR9DHfip7f3Cxe7CUIJRyGq3vfhxZ/VFGavjeuEwsujxkzHInog/ZSviWRZ4JBqm5DJSQ==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@nubjs/nub-darwin-x64@0.7.5':
+    resolution: {integrity: sha512-f/zXoWBAUYDYr5JPvMvM9/8rxAzi+gJKvSm9ToWcLmQ43fR+8xJdfqhhRThM+FVLInCpv35L9N28lfYiqxw+pw==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@nubjs/nub-linux-arm64-musl@0.7.5':
+    resolution: {integrity: sha512-J33scULMTgPv83LL37gKBrcOOooo6QYdDC6Kz71CDZ96nbOClV2woJjjEQ8cUHkzMxQ9ZBsrIwUsPyqHEHw1NQ==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@nubjs/nub-linux-arm64@0.7.5':
+    resolution: {integrity: sha512-ffJcXQYsSfoWbC3eDYPs4pkCB0WJsycGnjduVVrWbmKy28U9DK9Jq3VXIK1/eivXilOfypnKLgv1MprxsJdUAA==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@nubjs/nub-linux-x64-musl@0.7.5':
+    resolution: {integrity: sha512-5d1sBAlVAjse31gsU9/bTkbfZ2Zlv4V3L4MPDqYU8TPlLjVQb7oUlyFA2I2DePvLhs1rE1y9d6KvnE9LwGD6hw==}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@nubjs/nub-linux-x64@0.7.5':
+    resolution: {integrity: sha512-89oVc561kfaBat4J+iRCYqt0c23hr3zIWh9oHlGh1ghvQTKiPwOynup3q2GFRNiPFTF76Hw+SachTUJSlgM4Ug==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@nubjs/nub-win32-arm64@0.7.5':
+    resolution: {integrity: sha512-4b0VUmXXO/xO5bBMau14s5mad72yN74M2yp13l4M//Ei9KLk9BypcG+eZ3KcTmNtj0j43x40Vr+5yW71z75MtA==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@nubjs/nub-win32-x64@0.7.5':
+    resolution: {integrity: sha512-VRAQWoeHB3K9tUHrSjwctq+UE6CPqNAx2yxSDKcalFMpisCEpkUThsP/459KRAcqQ3To30e2hR12NpSo4aTfAg==}
+    cpu: [x64]
+    os: [win32]
+
+  '@nubjs/nub@0.7.5':
+    resolution: {integrity: sha512-mYU0tWKXjl8pcvULygtLPVOsVMDx2kl3+f0mY/8nJsn8cV1MzJnY/KLM9ecHaouJXZ2W9jsyIarhvS/El0pmiA==}
+    engines: {node: '>=18.19.0'}
+    hasBin: true
 
   '@octokit/auth-token@6.0.0':
     resolution: {integrity: sha512-P4YJBPdPSpWTQ1NU4XYdvHvXJJDxM6YwpS0FZHRgP7YFkdVxsWcpWGy/NVqlAA7PcPCnMacXlRm1y2PFZRWL/w==}
@@ -1590,8 +1642,9 @@ packages:
   parse-url@9.2.0:
     resolution: {integrity: sha512-bCgsFI+GeGWPAvAiUv63ZorMeif3/U0zaXABGJbOWt5OH2KCaPHF6S+0ok4aqM9RuIPGyZdx9tR9l13PsW4AYQ==}
 
-  pastoralist@1.12.8:
-    resolution: {integrity: sha512-5w6rTXIpu43G9uLxipPnu6gHA4YCaJydXcB+Y/v6JxunFN2dvu6iMulRiNUQgTihP9kVoSnAzvYOE5Dn4cWWdA==}
+  pastoralist@1.13.0:
+    resolution: {integrity: sha512-ug6sNNqIBBHeRhpDgbYSuWbMrxH1gu+alEj/fkeilEdu893hb/Af+A3XlwgAAOlKxvMLiUyWz7RW1s2yELNFmw==}
+    engines: {node: '>=20'}
     hasBin: true
 
   pathe@2.0.3:
@@ -2129,6 +2182,41 @@ snapshots:
       '@emnapi/runtime': 1.11.1
       '@tybys/wasm-util': 0.10.3
     optional: true
+
+  '@nubjs/nub-darwin-arm64@0.7.5':
+    optional: true
+
+  '@nubjs/nub-darwin-x64@0.7.5':
+    optional: true
+
+  '@nubjs/nub-linux-arm64-musl@0.7.5':
+    optional: true
+
+  '@nubjs/nub-linux-arm64@0.7.5':
+    optional: true
+
+  '@nubjs/nub-linux-x64-musl@0.7.5':
+    optional: true
+
+  '@nubjs/nub-linux-x64@0.7.5':
+    optional: true
+
+  '@nubjs/nub-win32-arm64@0.7.5':
+    optional: true
+
+  '@nubjs/nub-win32-x64@0.7.5':
+    optional: true
+
+  '@nubjs/nub@0.7.5':
+    optionalDependencies:
+      '@nubjs/nub-darwin-arm64': 0.7.5
+      '@nubjs/nub-darwin-x64': 0.7.5
+      '@nubjs/nub-linux-arm64': 0.7.5
+      '@nubjs/nub-linux-arm64-musl': 0.7.5
+      '@nubjs/nub-linux-x64': 0.7.5
+      '@nubjs/nub-linux-x64-musl': 0.7.5
+      '@nubjs/nub-win32-arm64': 0.7.5
+      '@nubjs/nub-win32-x64': 0.7.5
 
   '@octokit/auth-token@6.0.0': {}
 
@@ -3689,7 +3777,7 @@ snapshots:
       '@types/parse-path': 7.1.0
       parse-path: 7.1.0
 
-  pastoralist@1.12.8: {}
+  pastoralist@1.13.0: {}
 
   pathe@2.0.3: {}
 

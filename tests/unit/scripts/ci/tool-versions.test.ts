@@ -171,6 +171,16 @@ nub = "0.7.5"
     expect(nubPins).toHaveLength(2);
   });
 
+  test("contributor setup names the official scoped Nub package", () => {
+    const contributing = readFileSync(
+      new URL("../../../../.github/CONTRIBUTING.md", import.meta.url),
+      "utf8",
+    );
+
+    expect(contributing).toContain("npm install --global @nubjs/nub@0.7.5");
+    expect(contributing).toContain("https://nubjs.com/docs/install");
+  });
+
   test("resolveToolVersionValue rejects unknown keys", () => {
     expect(() =>
       resolveToolVersionValue("missing", {
