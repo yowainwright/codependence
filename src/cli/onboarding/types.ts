@@ -22,6 +22,15 @@ export interface OnboardingSourceFile {
   content: string;
 }
 
+export interface OnboardingFetchResponse {
+  ok: boolean;
+  status: number;
+  json: () => Promise<unknown>;
+  text: () => Promise<string>;
+}
+
+export type OnboardingFetcher = (url: string) => Promise<OnboardingFetchResponse>;
+
 export interface OnboardingPackageJson {
   name?: string;
   packageManager?: string;
@@ -51,6 +60,7 @@ export interface OnboardingDependency {
 export interface OnboardingProject {
   manager: OnboardingManager;
   managerVersion?: string;
+  workspace: boolean;
   manifests: OnboardingManifest[];
   dependencies: OnboardingDependency[];
 }

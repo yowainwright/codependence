@@ -43,6 +43,7 @@ runs:
       uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
       with:
         node-version: ${{ steps.tool-versions.outputs.node_version }}
+        nub-version: ${{ steps.tool-versions.outputs.nub_version }}
         cache: ${{ inputs.cache }}
 
     - name: Setup Node.js and Nub with npm registry
@@ -50,6 +51,7 @@ runs:
       uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
       with:
         node-version: ${{ steps.tool-versions.outputs.node_version }}
+        nub-version: ${{ steps.tool-versions.outputs.nub_version }}
         cache: ${{ inputs.cache }}
         registry-url: ${{ inputs.registry-url }}
 

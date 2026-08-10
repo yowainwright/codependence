@@ -18,6 +18,9 @@ importers:
       effect:
         specifier: ^3.22.1
         version: 3.22.1
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
     devDependencies:
       bun-types:
         specifier: 1.3.14
@@ -60,13 +63,13 @@ importers:
         version: 4.3.1
       '@tailwindcss/vite':
         specifier: ^4.3.1
-        version: 4.3.2(vite@8.1.3(@types/node@26.1.0)(jiti@2.7.0))
+        version: 4.3.2(vite@8.1.3(@types/node@26.1.0)(jiti@2.7.0)(yaml@2.9.0))
       '@tanstack/react-router':
         specifier: ^1.170.16
         version: 1.170.17(react@19.2.7)(react-dom@19.2.7(react@19.2.7))
       '@vitejs/plugin-react':
         specifier: ^6.0.3
-        version: 6.0.3(vite@8.1.3(@types/node@26.1.0)(jiti@2.7.0))
+        version: 6.0.3(vite@8.1.3(@types/node@26.1.0)(jiti@2.7.0)(yaml@2.9.0))
       fuse.js:
         specifier: ^7.4.2
         version: 7.4.2
@@ -115,7 +118,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^8.1.0
-        version: 8.1.3(@types/node@26.1.0)(jiti@2.7.0)
+        version: 8.1.3(@types/node@26.1.0)(jiti@2.7.0)(yaml@2.9.0)
 
 packages:
 
@@ -1926,6 +1929,11 @@ packages:
   wsl-utils@0.3.1:
     resolution: {integrity: sha512-g/eziiSUNBSsdDJtCLB8bdYEUMj4jR7AGeUo96p/3dTafgjHhpF4RiCFPiRILwjQoDXx5MqkBr4fwWtR3Ky4Wg==}
 
+  yaml@2.9.0:
+    resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
+
   yargs-parser@22.0.0:
     resolution: {integrity: sha512-rwu/ClNdSMpkSrUb+d6BRsSkLUq1fmfsY6TOpYzTwvwkg1/NRG85KBy3kq++A8LKQwX6lsu+aWad+2khvuXrqw==}
 
@@ -2486,12 +2494,12 @@ snapshots:
       postcss-selector-parser: 6.0.10
       tailwindcss: 4.3.2
 
-  '@tailwindcss/vite@4.3.2(vite@8.1.3(@types/node@26.1.0)(jiti@2.7.0))':
+  '@tailwindcss/vite@4.3.2(vite@8.1.3(@types/node@26.1.0)(jiti@2.7.0)(yaml@2.9.0))':
     dependencies:
       '@tailwindcss/node': 4.3.2
       '@tailwindcss/oxide': 4.3.2
       tailwindcss: 4.3.2
-      vite: 8.1.3(@types/node@26.1.0)(jiti@2.7.0)
+      vite: 8.1.3(@types/node@26.1.0)(jiti@2.7.0)(yaml@2.9.0)
 
   '@tanstack/history@1.162.0': {}
 
@@ -2629,10 +2637,10 @@ snapshots:
 
   '@ungap/structured-clone@1.3.2': {}
 
-  '@vitejs/plugin-react@6.0.3(vite@8.1.3(@types/node@26.1.0)(jiti@2.7.0))':
+  '@vitejs/plugin-react@6.0.3(vite@8.1.3(@types/node@26.1.0)(jiti@2.7.0)(yaml@2.9.0))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.1.3(@types/node@26.1.0)(jiti@2.7.0)
+      vite: 8.1.3(@types/node@26.1.0)(jiti@2.7.0)(yaml@2.9.0)
 
   acorn-jsx@5.3.2(acorn@8.17.0):
     dependencies:
@@ -4089,7 +4097,7 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vite@8.1.3(@types/node@26.1.0)(jiti@2.7.0):
+  vite@8.1.3(@types/node@26.1.0)(jiti@2.7.0)(yaml@2.9.0):
     dependencies:
       '@types/node': 26.1.0
       jiti: 2.7.0
@@ -4098,6 +4106,7 @@ snapshots:
       postcss: 8.5.23
       rolldown: 1.1.4
       tinyglobby: 0.2.17
+      yaml: 2.9.0
     optionalDependencies:
       fsevents: 2.3.3
 
@@ -4111,6 +4120,8 @@ snapshots:
     dependencies:
       is-wsl: 3.1.1
       powershell-utils: 0.1.0
+
+  yaml@2.9.0: {}
 
   yargs-parser@22.0.0: {}
 

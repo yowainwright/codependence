@@ -26,7 +26,8 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "effect": "^3.22.1"
+    "effect": "^3.22.1",
+    "yaml": "^2.9.0"
   },
   "exports": {
     ".": {

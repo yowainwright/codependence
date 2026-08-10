@@ -8,14 +8,17 @@ import {
   ONBOARDING_MANAGER_FILES,
   ONBOARDING_MANAGERS,
   ONBOARDING_PACKAGE_FILE,
+  ONBOARDING_PNPM_WORKSPACE_FILE,
   ONBOARDING_PAT_URL,
   ONBOARDING_SCHEDULE,
   ONBOARDING_SECRET_NAME,
   ONBOARDING_TOKEN_PERMISSIONS,
   ONBOARDING_VERIFY_COMMANDS,
   ONBOARDING_VERSION_PATTERN,
+  ONBOARDING_WORKSPACE_INSTALLS,
   ONBOARDING_WORKFLOW_PATH,
 } from "./constants";
+import { parse as parseYaml } from "yaml";
 import type {
   DependencyUsageEntry,
   OnboardingAnswers,
@@ -26,6 +29,7 @@ import type {
   OnboardingManager,
   OnboardingPackageJson,
   OnboardingProject,
+  OnboardingRepository,
   OnboardingSourceFile,
   OnboardingTokenSetup,
   ParsedOnboardingManifest,
@@ -52,10 +56,40 @@ export const parseOnboardingManifest = (file: OnboardingSourceFile): ParsedOnboa
   }
 };
 
-export const onboardingWorkspacePatterns = (root: OnboardingPackageJson): string[] => {
+const packageWorkspacePatterns = (root: OnboardingPackageJson): string[] => {
   if (Array.isArray(root.workspaces)) return root.workspaces;
   return root.workspaces?.packages || [];
 };
+
+const pnpmWorkspacePatterns = (files: OnboardingSourceFile[]): string[] => {
+  const workspace = files.find(({ path }) => path === ONBOARDING_PNPM_WORKSPACE_FILE);
+  if (!workspace) return [];
+  const parsed: unknown = parseYaml(workspace.content);
+  if (typeof parsed !== "object") return [];
+  if (parsed === null) return [];
+  if (!("packages" in parsed)) return [];
+  const packages = parsed.packages;
+  if (!Array.isArray(packages)) {
+    throw new Error(`${ONBOARDING_PNPM_WORKSPACE_FILE} packages must be a list of paths`);
+  }
+  const hasInvalidPackage = packages.some((value) => typeof value !== "string");
+  if (hasInvalidPackage) {
+    throw new Error(`${ONBOARDING_PNPM_WORKSPACE_FILE} packages must be a list of paths`);
+  }
+  return packages;
+};
+
+export const onboardingWorkspacePatterns = (
+  root: OnboardingPackageJson,
+  files: OnboardingSourceFile[] = [],
+): string[] => [...new Set([...packageWorkspacePatterns(root), ...pnpmWorkspacePatterns(files)])];
+
+export const isOnboardingWorkspace = (
+  root: OnboardingPackageJson,
+  files: OnboardingSourceFile[],
+): boolean =>
+  root.workspaces !== undefined ||
+  files.some(({ path }) => path === ONBOARDING_PNPM_WORKSPACE_FILE);
 
 const escapeRegex = (value: string): string => value.replace(/[.+^${}()|[\]\\]/g, "\\$&");
 
@@ -96,10 +130,11 @@ const compareManifestPaths = (
 
 export const selectOnboardingManifests = (
   manifests: ParsedOnboardingManifest[],
+  files: OnboardingSourceFile[] = [],
 ): ParsedOnboardingManifest[] => {
   const root = manifests.find(isRootManifest);
   if (!root) throw new Error("package.json not found in the project root");
-  const patterns = onboardingWorkspacePatterns(root.packageJson);
+  const patterns = onboardingWorkspacePatterns(root.packageJson, files);
   const selected = manifests.filter(
     (manifest) => isRootManifest(manifest) || isDeclaredWorkspace(manifest.path, patterns),
   );
@@ -112,10 +147,11 @@ export const selectOnboardingSourceFiles = (
   const rootFile = files.find(({ path }) => path === ONBOARDING_PACKAGE_FILE);
   if (!rootFile) throw new Error("package.json not found in the project root");
   const root = parseOnboardingManifest(rootFile);
-  const patterns = onboardingWorkspacePatterns(root.packageJson);
+  const patterns = onboardingWorkspacePatterns(root.packageJson, files);
   return files.filter(({ path }) => {
     if (path === ONBOARDING_PACKAGE_FILE) return true;
-    return isDeclaredWorkspace(path, patterns);
+    const isPackageFile = isOnboardingPackageFile(path);
+    return isPackageFile && !isIgnoredOnboardingPath(path) && isDeclaredWorkspace(path, patterns);
   });
 };
 
@@ -255,6 +291,21 @@ jobs:
 export const githubOnboardingEnabled = (answers: OnboardingAnswers): boolean =>
   answers.enforcement === "github" || answers.enforcement === "both";
 
+export const parseOnboardingRepository = (value: string): OnboardingRepository => {
+  const withoutProtocol = value.trim().replace(/^https?:\/\/github\.com\//, "");
+  const normalized = withoutProtocol
+    .replace(/^git@github\.com:/, "")
+    .replace(/\.git\/?$/, "")
+    .replace(/\/$/, "");
+  const [owner, name, extra] = normalized.split("/");
+  const validOwner = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(owner || "");
+  const validName = /^[A-Za-z0-9._-]+$/.test(name || "");
+  if (!validOwner || !validName || extra) {
+    throw new Error("Enter a GitHub repository as owner/name");
+  }
+  return { owner, name };
+};
+
 const repositorySecretUrl = (owner: string, name: string): string =>
   `https://github.com/${owner}/${name}/settings/secrets/actions/new`;
 
@@ -282,10 +333,16 @@ export const createOnboardingArtifacts = (
   return [config, workflow];
 };
 
+const onboardingInstallArgs = (project: OnboardingProject): string[] => {
+  if (!project.workspace) return ONBOARDING_INSTALLS[project.manager];
+  return ONBOARDING_WORKSPACE_INSTALLS[project.manager] || ONBOARDING_INSTALLS[project.manager];
+};
+
 export const onboardingCommands = (
-  manager: OnboardingManager,
+  project: OnboardingProject,
 ): { installCommand: string; install: OnboardingCommand; verifyCommand: string } => {
-  const args = ONBOARDING_INSTALLS[manager];
+  const manager = project.manager;
+  const args = onboardingInstallArgs(project);
   const install = { command: manager, args };
   const installCommand = [manager, ...args].join(" ");
   const verifyCommand = ONBOARDING_VERIFY_COMMANDS[manager];

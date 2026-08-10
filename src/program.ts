@@ -13,7 +13,12 @@ import { glob } from "./utils/glob";
 import { DEFAULT_IGNORE_PATTERNS } from "./scripts/constants";
 import { expandTargets, formatValidationErrors, loadConfig, validateConfig } from "./config";
 import { parseArgs, showHelp } from "./cli/parser";
-import { analyzeOnboardingProject, createOnboardingSetup, OnboardingError } from "./cli/onboarding";
+import {
+  analyzeOnboardingProject,
+  createOnboardingSetup,
+  OnboardingError,
+  parseOnboardingRepository,
+} from "./cli/onboarding";
 import type {
   OnboardingAnswers,
   OnboardingEnforcement,
@@ -49,6 +54,7 @@ import {
   WORKFLOW_AREAS,
   WORKFLOW_LABELS,
 } from "./cli/constants";
+import { ONBOARDING_PNPM_WORKSPACE_FILE } from "./cli/onboarding/constants";
 import type {
   InitGitHubActionsOptions,
   RenderWorkflowOptions,
@@ -121,7 +127,10 @@ const readOnboardingFile = (rootDir: string, path: string): OnboardingSourceFile
 const onboardingRootFiles = (rootDir: string): OnboardingSourceFile[] =>
   readdirSync(rootDir, { withFileTypes: true })
     .filter((entry) => entry.isFile())
-    .map(({ name }) => ({ path: name, content: "" }));
+    .map(({ name }) => {
+      if (name === ONBOARDING_PNPM_WORKSPACE_FILE) return readOnboardingFile(rootDir, name);
+      return { path: name, content: "" };
+    });
 
 const onboardingManifestFiles = (rootDir: string): OnboardingSourceFile[] => {
   const paths = glob(["package.json", "**/package.json"], {
@@ -183,14 +192,6 @@ const selectOnboardingEnforcement = async (
     { name: "Local CLI", value: "local" },
   ]);
   return selected as OnboardingEnforcement;
-};
-
-const parseOnboardingRepository = (value: string): OnboardingRepository => {
-  const withoutProtocol = value.replace(/^https?:\/\/github\.com\//, "");
-  const normalized = withoutProtocol.replace(/^git@github\.com:/, "").replace(/\.git$/, "");
-  const [owner, name, extra] = normalized.split("/");
-  if (!owner || !name || extra) throw new Error("Repository must use owner/name or a GitHub URL");
-  return { owner, name };
 };
 
 const selectOnboardingRepository = async (
@@ -325,10 +326,10 @@ const applyOnboarding = (
   Effect.gen(function* () {
     const { answers, project, setup } = configured;
     yield* onboardingTry(() => assertOnboardingWrites(rootDir, setup, options.force === true));
-    yield* onboardingTry(() => writeOnboardingArtifacts(rootDir, setup));
     yield* onboardingTryPromise(() =>
       installOnboardingCli(rootDir, answers, setup, options.skipInstall === true),
     );
+    yield* onboardingTry(() => writeOnboardingArtifacts(rootDir, setup));
     yield* Effect.sync(() => printOnboardingResult(project, setup));
   });
 

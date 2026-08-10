@@ -28,6 +28,7 @@ export const MISE_TOML = `
 [tools]
 bun = "1.3.14"
 node = "26.7.0"
+nub = "0.7.5"
 `;
 export const NODE_ALPINE_IMAGE = `node:26-alpine@sha256:${NODE_ALPINE_DIGEST}`;
 export const NODE_SLIM_IMAGE = `node:26-slim@sha256:${NODE_SLIM_DIGEST}`;

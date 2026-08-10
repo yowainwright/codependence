@@ -5,6 +5,8 @@ import { CopyButton } from "@/components/common/CopyButton";
 import {
   analyzeOnboardingProject,
   createOnboardingSetup,
+  parseOnboardingRepository,
+  scanOnboardingRepository,
 } from "@codependence/onboarding";
 import type {
   OnboardingArtifact,
@@ -80,14 +82,18 @@ const updateSession = (
 };
 
 const shouldReadFile = (name: string, prefix: string): boolean =>
-  name === "package.json" || prefix.length === 0;
+  name === "package.json" ||
+  name === "pnpm-workspace.yaml" ||
+  prefix.length === 0;
 
 const sourceFile = async (
   handle: FileSystemFileHandle,
   path: string,
 ): Promise<OnboardingSourceFile> => {
   const file = await handle.getFile();
-  const content = path.endsWith("package.json") ? await file.text() : "";
+  const needsContent =
+    path.endsWith("package.json") || path === "pnpm-workspace.yaml";
+  const content = needsContent ? await file.text() : "";
   return { path, content };
 };
 
@@ -131,6 +137,7 @@ const scanProject = async (setSession: SessionSetter): Promise<void> => {
       handle,
       project,
       managerVersion,
+      selectedDependencies: [],
       setup: undefined,
     });
   } catch (error) {
@@ -140,15 +147,30 @@ const scanProject = async (setSession: SessionSetter): Promise<void> => {
   }
 };
 
-const parseRepository = (value: string): OnboardingRepository => {
-  const withoutProtocol = value.trim().replace(/^https?:\/\/github\.com\//, "");
-  const normalized = withoutProtocol
-    .replace(/^git@github\.com:/, "")
-    .replace(/\.git$/, "");
-  const [owner, name, extra] = normalized.split("/");
-  if (!owner || !name || extra)
-    throw new Error("Enter a GitHub repository as owner/name");
-  return { owner, name };
+const scanGitHubProject = async (
+  value: string,
+  setSession: SessionSetter,
+): Promise<void> => {
+  updateSession(setSession, { busy: true, error: "", message: "" });
+  try {
+    const repository = parseOnboardingRepository(value);
+    const project = await Effect.runPromise(
+      scanOnboardingRepository(repository),
+    );
+    const repositoryName = `${repository.owner}/${repository.name}`;
+    updateSession(setSession, {
+      handle: undefined,
+      managerVersion: project.managerVersion || "",
+      project,
+      repository: repositoryName,
+      selectedDependencies: [],
+      setup: undefined,
+    });
+  } catch (error) {
+    updateSession(setSession, { error: errorMessage(error) });
+  } finally {
+    updateSession(setSession, { busy: false });
+  }
 };
 
 const githubEnabled = (enforcement: OnboardingEnforcement): boolean =>
@@ -158,7 +180,7 @@ const setupRepository = (
   session: OnboardingSession,
 ): OnboardingRepository | undefined => {
   if (!githubEnabled(session.enforcement)) return undefined;
-  return parseRepository(session.repository);
+  return parseOnboardingRepository(session.repository);
 };
 
 const setupProject = (session: OnboardingSession): OnboardingProject => {
@@ -290,19 +312,35 @@ function OnboardingHeader() {
 
 function ProjectPicker({ session, setSession }: OnboardingProps) {
   const handleScan = () => void scanProject(setSession);
+  const handleRepositoryScan = () =>
+    void scanGitHubProject(session.repository, setSession);
   const busy = session.busy;
   const buttonLabel = busy ? "Scanning..." : "Select project folder";
+  const repositoryButtonLabel = busy ? "Scanning..." : "Scan GitHub repository";
+  const repositoryMissing = session.repository.trim().length === 0;
   return (
-    <div className="mt-10 flex flex-col items-center gap-3">
+    <div className="mx-auto mt-10 grid max-w-xl gap-4">
+      <div className="flex justify-center">
+        <button
+          className="btn btn-primary rounded-lg"
+          disabled={busy}
+          onClick={handleScan}
+        >
+          {buttonLabel}
+        </button>
+      </div>
+      <div className="divider">OR</div>
+      <RepositoryInput session={session} setSession={setSession} />
       <button
         className="btn btn-primary rounded-lg"
-        disabled={busy}
-        onClick={handleScan}
+        disabled={busy || repositoryMissing}
+        onClick={handleRepositoryScan}
       >
-        {buttonLabel}
+        {repositoryButtonLabel}
       </button>
       <p className="text-sm text-base-content/70">
-        Files stay in your browser and are never uploaded.
+        Local files stay in your browser. Repository scans read public files
+        directly from GitHub.
       </p>
     </div>
   );
@@ -581,18 +619,25 @@ function SetupOutput({ session, setSession }: OnboardingProps) {
     return <ArtifactOutput key={path} artifact={artifact} />;
   });
   const handleWrite = () => void writeSetup(session, setSession);
+  const writeAction = session.handle ? (
+    <button
+      className="btn btn-primary justify-self-start"
+      disabled={busy}
+      onClick={handleWrite}
+    >
+      Write setup to project
+    </button>
+  ) : (
+    <p className="text-sm text-base-content/70">
+      Copy these files into the repository to apply the policy.
+    </p>
+  );
   return (
     <div className="grid gap-5 border-t border-base-300 pt-6">
       {artifacts}
       <SetupCommands setup={setup} />
       <TokenSetup setup={setup} />
-      <button
-        className="btn btn-primary justify-self-start"
-        disabled={busy}
-        onClick={handleWrite}
-      >
-        Write setup to project
-      </button>
+      {writeAction}
     </div>
   );
 }

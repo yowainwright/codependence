@@ -33,6 +33,7 @@ describe("scripts/ci/tool-versions", () => {
   test("parseMiseTool reads quoted tool versions", () => {
     expect(parseMiseTool(miseToml, "bun")).toBe("1.3.14");
     expect(parseMiseTool(miseToml, "node")).toBe("26.7.0");
+    expect(parseMiseTool(miseToml, "nub")).toBe("0.7.5");
   });
 
   test("parsePackageManagerBunVersion reads packageManager", () => {
@@ -101,6 +102,7 @@ describe("scripts/ci/tool-versions", () => {
       nodeAlpineImage: "node:22-alpine@sha256:test",
       nodeSlimImage: "node:22-slim@sha256:test",
       nodeVersion: "22",
+      nubVersion: "0.7.5",
     });
   });
 
@@ -111,6 +113,7 @@ describe("scripts/ci/tool-versions", () => {
 [tools]
 bun = "1.3.14"
 node = "26.3.0"
+nub = "0.7.5"
 `,
       }),
     ).toMatchObject({
@@ -141,6 +144,7 @@ node = "26.3.0"
         nodeAlpineImage,
         nodeSlimImage,
         nodeVersion: "24",
+        nubVersion: "0.7.5",
       }),
     ).toBe(
       [
@@ -150,8 +154,21 @@ node = "26.3.0"
         `node_alpine_image=${nodeAlpineImage}`,
         `node_slim_image=${nodeSlimImage}`,
         "node_version=24",
+        "nub_version=0.7.5",
       ].join("\n"),
     );
+  });
+
+  test("setup action passes the resolved Nub version to both branches", () => {
+    const action = readFileSync(
+      new URL("../../../../.github/actions/setup-toolchain/action.yml", import.meta.url),
+      "utf8",
+    );
+    const nubPins = action.match(
+      /nub-version: \$\{\{ steps\.tool-versions\.outputs\.nub_version \}\}/g,
+    );
+
+    expect(nubPins).toHaveLength(2);
   });
 
   test("resolveToolVersionValue rejects unknown keys", () => {
@@ -163,6 +180,7 @@ node = "26.3.0"
         nodeAlpineImage,
         nodeSlimImage,
         nodeVersion: "24",
+        nubVersion: "0.7.5",
       }),
     ).toThrow("Unknown tool version key");
   });

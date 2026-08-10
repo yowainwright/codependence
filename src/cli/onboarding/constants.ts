@@ -8,6 +8,7 @@ import {
 } from "../constants";
 
 export const ONBOARDING_PACKAGE_FILE = "package.json";
+export const ONBOARDING_PNPM_WORKSPACE_FILE = "pnpm-workspace.yaml";
 
 export const ONBOARDING_DEPENDENCY_SECTIONS: OnboardingDependencySection[] = [
   "dependencies",
@@ -41,12 +42,19 @@ export const ONBOARDING_VERSION_PATTERN = EXACT_TOOL_VERSION_PATTERN;
 export const ONBOARDING_CONFIG_PATH = ".codependencerc";
 export const ONBOARDING_WORKFLOW_PATH = ".github/workflows/codependence-node.yml";
 export const ONBOARDING_PAT_URL = "https://github.com/settings/personal-access-tokens/new";
+export const ONBOARDING_GITHUB_API_URL = "https://api.github.com";
+export const ONBOARDING_GITHUB_RAW_URL = "https://raw.githubusercontent.com";
 
 export const ONBOARDING_INSTALLS: Record<OnboardingManager, string[]> = {
   bun: ["add", "--dev", "codependence"],
   npm: ["install", "--save-dev", "codependence"],
   pnpm: ["add", "--save-dev", "codependence"],
   yarn: ["add", "--dev", "codependence"],
+};
+
+export const ONBOARDING_WORKSPACE_INSTALLS: Partial<Record<OnboardingManager, string[]>> = {
+  pnpm: ["add", "--save-dev", "-w", "codependence"],
+  yarn: ["add", "--dev", "-W", "codependence"],
 };
 
 export const ONBOARDING_VERIFY_COMMANDS: Record<OnboardingManager, string> = {

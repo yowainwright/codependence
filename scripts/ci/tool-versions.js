@@ -67,6 +67,7 @@ export function resolveToolVersions({
     env.INPUT_BUN_VERSION ||
     parsePackageManagerBunVersion(packageJson) ||
     parseMiseTool(miseToml, "bun");
+  const nubVersion = parseMiseTool(miseToml, "nub");
   const rawNodeAlpineImage = env.NODE_ALPINE_IMAGE || nodeAlpineImage;
   const rawNodeSlimImage = env.NODE_SLIM_IMAGE || nodeSlimImage;
 
@@ -87,6 +88,7 @@ export function resolveToolVersions({
       nodeVersion: dockerNodeVersion,
     }),
     nodeVersion,
+    nubVersion,
   };
 
   for (const [key, value] of Object.entries(versions)) {
@@ -130,6 +132,7 @@ export function resolveToolVersionValue(key, versions) {
   if (key === "bun-version") return versions.bunVersion;
   if (key === "node-slim-image") return versions.nodeSlimImage;
   if (key === "node-alpine-image") return versions.nodeAlpineImage;
+  if (key === "nub-version") return versions.nubVersion;
   throw new Error(`Unknown tool version key: ${key}`);
 }
 
