@@ -68,7 +68,7 @@ const stripYamlComment = (value: string): string => {
 const parseWorkspacePath = (value: string): string => {
   const singleQuoted = /^'((?:''|[^'])*)'(?:\s+#.*)?$/.exec(value.trim());
   if (singleQuoted) return singleQuoted[1].replaceAll("''", "'");
-  const doubleQuoted = /^("(?:\\.|[^"])*")(?:\s+#.*)?$/.exec(value.trim());
+  const doubleQuoted = /^("(?:\\.|[^"\\])*")(?:\s+#.*)?$/.exec(value.trim());
   if (doubleQuoted) return JSON.parse(doubleQuoted[1]) as string;
   const scalar = stripYamlComment(value);
   if (!scalar || scalar.includes(":")) throw new Error("Workspace paths must be strings");

@@ -5,16 +5,18 @@ import {
   formatPerformanceMetrics,
   initAction,
   initGitHubActions,
+  onboardAction,
   run,
 } from "../../src/program";
 import type { Options } from "../../src/types";
 import * as fs from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { dirname, join } from "path";
 import { logger } from "../../src/logger";
 import * as scripts from "../../src/scripts";
 import * as config from "../../src/config";
 import { Prompt } from "../../src/utils/prompts";
+import * as execUtils from "../../src/utils/exec";
 import { GENERATED_ACTION_HEADER } from "../../src/cli/constants";
 
 describe("Action Function Tests (Fast)", () => {
@@ -990,6 +992,212 @@ describe("run", () => {
     } finally {
       infoSpy.mockRestore();
       fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+});
+
+const createOnboardingProject = (
+  packageJson: Record<string, unknown>,
+  files: Record<string, string> = {},
+): string => {
+  const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-onboarding-unit-"));
+  fs.writeFileSync(join(rootDir, "package.json"), JSON.stringify(packageJson));
+  Object.entries(files).forEach(([path, content]) => {
+    const destination = join(rootDir, path);
+    fs.mkdirSync(dirname(destination), { recursive: true });
+    fs.writeFileSync(destination, content);
+  });
+  return rootDir;
+};
+
+describe("onboardAction", () => {
+  test("writes local and GitHub setup without installing when configured", async () => {
+    const packageJson = {
+      name: "workspace",
+      packageManager: "pnpm@9.15.0",
+      workspaces: ["packages/*"],
+      dependencies: { react: "^19.0.0" },
+    };
+    const files = {
+      "pnpm-lock.yaml": "",
+      "pnpm-workspace.yaml": "packages:\n  - packages/*\n",
+      "packages/ui/package.json": JSON.stringify({ dependencies: { react: "^19.0.0" } }),
+    };
+    const rootDir = createOnboardingProject(packageJson, files);
+    const printSpy = jest.spyOn(logger, "print").mockImplementation(() => {});
+    const closeSpy = jest.spyOn(Prompt.prototype, "close");
+
+    try {
+      await run([
+        "node",
+        "script.js",
+        "onboard",
+        "--rootDir",
+        rootDir,
+        "--mode",
+        "precise",
+        "--codependencies",
+        "react",
+        "--enforcement",
+        "both",
+        "--repository",
+        "acme/workspace",
+        "--non-interactive",
+        "--skip-install",
+      ]);
+
+      expect(fs.existsSync(join(rootDir, ".codependencerc"))).toBe(true);
+      expect(fs.existsSync(join(rootDir, ".github/workflows/codependence-node.yml"))).toBe(true);
+      expect(printSpy).toHaveBeenCalledWith("Onboarded 2 package manifest(s).");
+      expect(closeSpy).toHaveBeenCalled();
+
+      await expect(
+        onboardAction({
+          rootDir,
+          mode: "precise",
+          enforcement: "both",
+          repository: "acme/workspace",
+          nonInteractive: true,
+          skipInstall: true,
+        }),
+      ).rejects.toThrow("Refusing to overwrite onboarding files");
+
+      await onboardAction({
+        rootDir,
+        mode: "precise",
+        enforcement: "both",
+        repository: "acme/workspace",
+        nonInteractive: true,
+        skipInstall: true,
+        force: true,
+      });
+    } finally {
+      printSpy.mockRestore();
+      closeSpy.mockRestore();
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("collects interactive local answers and installs the CLI", async () => {
+    const packageJson = { dependencies: { react: "^19.0.0" } };
+    const rootDir = createOnboardingProject(packageJson, { "package-lock.json": "" });
+    const listSpy = jest
+      .spyOn(Prompt.prototype, "list")
+      .mockResolvedValueOnce("verbose")
+      .mockResolvedValueOnce("local");
+    const checkboxSpy = jest.spyOn(Prompt.prototype, "checkbox").mockResolvedValue(["react"]);
+    const closeSpy = jest.spyOn(Prompt.prototype, "close");
+    const printSpy = jest.spyOn(logger, "print").mockImplementation(() => {});
+    const execSpy = jest.spyOn(execUtils, "exec").mockResolvedValue({ stdout: "", stderr: "" });
+
+    try {
+      await onboardAction({ rootDir });
+
+      expect(execSpy).toHaveBeenCalledWith("npm", ["install", "--save-dev", "codependence"], {
+        cwd: rootDir,
+      });
+      expect(fs.existsSync(join(rootDir, ".codependencerc"))).toBe(true);
+      expect(fs.existsSync(join(rootDir, ".github"))).toBe(false);
+      expect(closeSpy).toHaveBeenCalled();
+    } finally {
+      execSpy.mockRestore();
+      printSpy.mockRestore();
+      closeSpy.mockRestore();
+      checkboxSpy.mockRestore();
+      listSpy.mockRestore();
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("collects interactive GitHub repository and version answers", async () => {
+    const packageJson = { dependencies: { react: "^19.0.0" } };
+    const rootDir = createOnboardingProject(packageJson, { "package-lock.json": "" });
+    const listSpy = jest
+      .spyOn(Prompt.prototype, "list")
+      .mockResolvedValueOnce("precise")
+      .mockResolvedValueOnce("github");
+    const checkboxSpy = jest.spyOn(Prompt.prototype, "checkbox").mockResolvedValue([]);
+    const inputSpy = jest
+      .spyOn(Prompt.prototype, "input")
+      .mockResolvedValueOnce("acme/web")
+      .mockResolvedValueOnce("10.9.2");
+    const closeSpy = jest.spyOn(Prompt.prototype, "close");
+    const printSpy = jest.spyOn(logger, "print").mockImplementation(() => {});
+
+    try {
+      await onboardAction({ rootDir });
+
+      const workflowPath = join(rootDir, ".github/workflows/codependence-node.yml");
+      expect(fs.readFileSync(workflowPath, "utf8")).toContain("version: 10.9.2");
+      expect(inputSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      printSpy.mockRestore();
+      closeSpy.mockRestore();
+      inputSpy.mockRestore();
+      checkboxSpy.mockRestore();
+      listSpy.mockRestore();
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("accepts an assigned manager version in non-interactive GitHub mode", async () => {
+    const rootDir = createOnboardingProject({}, { "package-lock.json": "" });
+    const closeSpy = jest.spyOn(Prompt.prototype, "close");
+    const printSpy = jest.spyOn(logger, "print").mockImplementation(() => {});
+
+    try {
+      await onboardAction({
+        rootDir,
+        mode: "precise",
+        enforcement: "github",
+        repository: "acme/web",
+        version: ["npm=10.9.2"],
+        nonInteractive: true,
+      });
+
+      const workflowPath = join(rootDir, ".github/workflows/codependence-node.yml");
+      expect(fs.readFileSync(workflowPath, "utf8")).toContain("version: 10.9.2");
+    } finally {
+      printSpy.mockRestore();
+      closeSpy.mockRestore();
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("reports missing non-interactive answers", async () => {
+    const versionedPackage = { packageManager: "npm@10.9.2" };
+    const rootDir = createOnboardingProject(versionedPackage, { "package-lock.json": "" });
+    const unversionedRoot = createOnboardingProject({}, { "package-lock.json": "" });
+    const closeSpy = jest.spyOn(Prompt.prototype, "close");
+
+    try {
+      await expect(onboardAction({ rootDir, nonInteractive: true })).rejects.toThrow(
+        "Onboarding requires --mode",
+      );
+      await expect(
+        onboardAction({ rootDir, mode: "precise", nonInteractive: true }),
+      ).rejects.toThrow("Onboarding requires --enforcement");
+      await expect(
+        onboardAction({
+          rootDir,
+          mode: "precise",
+          enforcement: "github",
+          nonInteractive: true,
+        }),
+      ).rejects.toThrow("GitHub onboarding requires --repository");
+      await expect(
+        onboardAction({
+          rootDir: unversionedRoot,
+          mode: "precise",
+          enforcement: "github",
+          repository: "acme/web",
+          nonInteractive: true,
+        }),
+      ).rejects.toThrow("GitHub onboarding requires --version");
+    } finally {
+      closeSpy.mockRestore();
+      fs.rmSync(rootDir, { recursive: true, force: true });
+      fs.rmSync(unversionedRoot, { recursive: true, force: true });
     }
   });
 });

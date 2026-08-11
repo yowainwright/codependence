@@ -58,6 +58,11 @@ const githubFixtureFetcher: OnboardingFetcher = (url) => {
   return Promise.resolve(githubFixtureResponse(body));
 };
 
+const staticFetcher =
+  (body: unknown): OnboardingFetcher =>
+  () =>
+    Promise.resolve(githubFixtureResponse(body));
+
 describe("onboarding", () => {
   test("scans only the root and declared workspace packages", () => {
     const project = analyzeOnboardingProject([
@@ -131,7 +136,7 @@ describe("onboarding", () => {
         content: [
           "packages:",
           "  - 'apps/*' # applications",
-          '  - "packages/*"',
+          '  - "packages\\\\*"',
           "  - '!packages/private'",
           "catalog:",
           "  react: ^19.0.0",
@@ -210,6 +215,21 @@ describe("onboarding", () => {
     expect(createSetup).toThrow("npm requires an exact package manager version");
   });
 
+  test("requires a dependency in update-only mode", () => {
+    const project = analyzeOnboardingProject([
+      packageFile("package.json", { dependencies: { react: "^19.0.0" } }),
+      { path: "package-lock.json", content: "" },
+    ]);
+    const createSetup = () =>
+      createOnboardingSetup(project, {
+        mode: "verbose",
+        selectedDependencies: [],
+        enforcement: "local",
+      });
+
+    expect(createSetup).toThrow("Update-only mode requires at least one dependency");
+  });
+
   test("omits GitHub workflow and token setup for local onboarding", () => {
     const project = analyzeOnboardingProject([
       packageFile("package.json", {
@@ -265,5 +285,84 @@ describe("onboarding", () => {
     expect(() => parseOnboardingRepository("acme/workspace/issues")).toThrow(
       "Enter a GitHub repository as owner/name",
     );
+  });
+
+  test("wraps invalid local manifests", () => {
+    expect(() => analyzeOnboardingProject([{ path: "package.json", content: "{" }])).toThrow(
+      "package.json is not valid JSON",
+    );
+  });
+
+  test("rejects failed GitHub metadata and file requests", async () => {
+    const repository = { owner: "acme", name: "missing" };
+    const failedFetcher = staticFetcher(undefined);
+    const fileFailureFetcher: OnboardingFetcher = (url) => {
+      const isMetadata = url.endsWith("/repos/acme/missing");
+      if (isMetadata) return Promise.resolve(githubFixtureResponse({ default_branch: "main" }));
+      const isTree = url.includes("/git/trees/");
+      if (isTree) {
+        return Promise.resolve(
+          githubFixtureResponse({
+            truncated: false,
+            tree: [{ path: "package.json", type: "blob" }],
+          }),
+        );
+      }
+      return Promise.resolve(githubFixtureResponse(undefined));
+    };
+
+    await expect(scanOnboardingRepository(repository, failedFetcher)).rejects.toThrow(
+      "GitHub request failed with status 404",
+    );
+    await expect(scanOnboardingRepository(repository, fileFailureFetcher)).rejects.toThrow(
+      "GitHub file request failed with status 404",
+    );
+  });
+
+  test("rejects malformed GitHub repository responses", async () => {
+    const repository = { owner: "acme", name: "workspace" };
+    const invalidMetadata = staticFetcher({ default_branch: 42 });
+    const invalidTreeEntry: OnboardingFetcher = (url) => {
+      const body = url.includes("/git/trees/")
+        ? { truncated: false, tree: [{ path: 42, type: "blob" }] }
+        : { default_branch: "main" };
+      return Promise.resolve(githubFixtureResponse(body));
+    };
+    const invalidTree =
+      (value: unknown): OnboardingFetcher =>
+      (url) => {
+        const body = url.includes("/git/trees/") ? value : { default_branch: "main" };
+        return Promise.resolve(githubFixtureResponse(body));
+      };
+
+    await expect(scanOnboardingRepository(repository, invalidMetadata)).rejects.toThrow(
+      "GitHub repository metadata is invalid",
+    );
+    await expect(scanOnboardingRepository(repository, invalidTreeEntry)).rejects.toThrow(
+      "GitHub repository tree is invalid",
+    );
+    await expect(
+      scanOnboardingRepository(repository, invalidTree({ truncated: "yes", tree: [] })),
+    ).rejects.toThrow("GitHub repository tree is invalid");
+  });
+
+  test("rejects truncated repository trees and malformed workspace lists", async () => {
+    const repository = { owner: "acme", name: "workspace" };
+    const truncatedFetcher: OnboardingFetcher = (url) => {
+      const body = url.includes("/git/trees/")
+        ? { truncated: true, tree: [] }
+        : { default_branch: "main" };
+      return Promise.resolve(githubFixtureResponse(body));
+    };
+
+    await expect(scanOnboardingRepository(repository, truncatedFetcher)).rejects.toThrow(
+      "GitHub repository tree is too large",
+    );
+    expect(() =>
+      analyzeOnboardingProject([
+        packageFile("package.json", {}),
+        { path: "pnpm-workspace.yaml", content: "packages: []" },
+      ]),
+    ).toThrow("pnpm-workspace.yaml packages must be a list of paths");
   });
 });
