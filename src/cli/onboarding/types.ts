@@ -1,9 +1,12 @@
-import { Data } from "effect";
-
-export class OnboardingError extends Data.TaggedError("OnboardingError")<{
-  readonly message: string;
+export class OnboardingError extends Error {
   readonly cause?: unknown;
-}> {}
+
+  constructor({ message, cause }: { message: string; cause?: unknown }) {
+    super(message);
+    this.name = "OnboardingError";
+    this.cause = cause;
+  }
+}
 
 export type OnboardingManager = "bun" | "npm" | "pnpm" | "yarn";
 

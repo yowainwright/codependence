@@ -75,6 +75,14 @@ const INITIAL_SESSION: OnboardingSession = {
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Onboarding failed";
 
+const runSiteEffect = async <Value,>(
+  effect: Effect.Effect<Value, string>,
+): Promise<Value> => {
+  const result = await Effect.runPromise(Effect.either(effect));
+  if (result._tag === "Left") throw new Error(result.left);
+  return result.right;
+};
+
 const updateSession = (
   setSession: SessionSetter,
   values: Partial<OnboardingSession>,
@@ -125,7 +133,12 @@ const selectProject = async (): Promise<{
     throw new Error("Directory selection is not supported by this browser");
   const handle = await pickerWindow.showDirectoryPicker();
   const files = await scanDirectory(handle);
-  const project = await Effect.runPromise(analyzeOnboardingProject(files));
+  const project = await runSiteEffect(
+    Effect.try({
+      try: () => analyzeOnboardingProject(files),
+      catch: errorMessage,
+    }),
+  );
   return { handle, project };
 };
 
@@ -158,7 +171,12 @@ const repositoryProjectScan = async (
   value: string,
 ): Promise<Partial<OnboardingSession>> => {
   const repository = parseOnboardingRepository(value);
-  const project = await Effect.runPromise(scanOnboardingRepository(repository));
+  const project = await runSiteEffect(
+    Effect.tryPromise({
+      try: () => scanOnboardingRepository(repository),
+      catch: errorMessage,
+    }),
+  );
   const repositoryName = `${repository.owner}/${repository.name}`;
   const managerVersion = project.managerVersion || "";
   return {
@@ -212,8 +230,11 @@ const generateSetup = async (
       repository,
       selectedDependencies,
     };
-    const setup = await Effect.runPromise(
-      createOnboardingSetup(project, answers),
+    const setup = await runSiteEffect(
+      Effect.try({
+        try: () => createOnboardingSetup(project, answers),
+        catch: errorMessage,
+      }),
     );
     updateSession(setSession, {
       setup,

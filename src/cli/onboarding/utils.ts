@@ -18,7 +18,6 @@ import {
   ONBOARDING_WORKSPACE_INSTALLS,
   ONBOARDING_WORKFLOW_PATH,
 } from "./constants";
-import { parse as parseYaml } from "yaml";
 import type {
   DependencyUsageEntry,
   OnboardingAnswers,
@@ -61,22 +60,45 @@ const packageWorkspacePatterns = (root: OnboardingPackageJson): string[] => {
   return root.workspaces?.packages || [];
 };
 
+const stripYamlComment = (value: string): string => {
+  const commentIndex = value.indexOf(" #");
+  return commentIndex === -1 ? value.trim() : value.slice(0, commentIndex).trim();
+};
+
+const parseWorkspacePath = (value: string): string => {
+  const singleQuoted = /^'((?:''|[^'])*)'(?:\s+#.*)?$/.exec(value.trim());
+  if (singleQuoted) return singleQuoted[1].replaceAll("''", "'");
+  const doubleQuoted = /^("(?:\\.|[^"])*")(?:\s+#.*)?$/.exec(value.trim());
+  if (doubleQuoted) return JSON.parse(doubleQuoted[1]) as string;
+  const scalar = stripYamlComment(value);
+  if (!scalar || scalar.includes(":")) throw new Error("Workspace paths must be strings");
+  return scalar;
+};
+
+const workspaceListLines = (content: string): string[] => {
+  const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const packagesIndex = lines.findIndex((line) => line.startsWith("packages:"));
+  if (packagesIndex === -1) return [];
+  if (!/^packages:\s*(?:#.*)?$/.test(lines[packagesIndex])) {
+    throw new Error(`${ONBOARDING_PNPM_WORKSPACE_FILE} packages must be a list of paths`);
+  }
+  const remaining = lines.slice(packagesIndex + 1);
+  const boundary = remaining.findIndex((line) => /^\S/.test(line) && !line.startsWith("#"));
+  return boundary === -1 ? remaining : remaining.slice(0, boundary);
+};
+
+const parseWorkspaceListLine = (line: string): string => {
+  const item = /^\s+-\s+(.+)$/.exec(line);
+  if (!item) throw new Error(`${ONBOARDING_PNPM_WORKSPACE_FILE} packages must be a list of paths`);
+  return parseWorkspacePath(item[1]);
+};
+
 const pnpmWorkspacePatterns = (files: OnboardingSourceFile[]): string[] => {
   const workspace = files.find(({ path }) => path === ONBOARDING_PNPM_WORKSPACE_FILE);
   if (!workspace) return [];
-  const parsed: unknown = parseYaml(workspace.content);
-  if (typeof parsed !== "object") return [];
-  if (parsed === null) return [];
-  if (!("packages" in parsed)) return [];
-  const packages = parsed.packages;
-  if (!Array.isArray(packages)) {
-    throw new Error(`${ONBOARDING_PNPM_WORKSPACE_FILE} packages must be a list of paths`);
-  }
-  const hasInvalidPackage = packages.some((value) => typeof value !== "string");
-  if (hasInvalidPackage) {
-    throw new Error(`${ONBOARDING_PNPM_WORKSPACE_FILE} packages must be a list of paths`);
-  }
-  return packages;
+  const lines = workspaceListLines(workspace.content);
+  const entries = lines.filter((line) => line.trim() && !line.trimStart().startsWith("#"));
+  return entries.map(parseWorkspaceListLine);
 };
 
 export const onboardingWorkspacePatterns = (

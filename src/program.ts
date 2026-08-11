@@ -1,6 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { dirname, join, relative, resolve } from "node:path";
-import { Effect } from "effect";
 import { createLogger, logger } from "./logger";
 import { assertTargetLockfiles, checkFiles } from "./scripts";
 import { versionCache } from "./utils/cache";
@@ -17,7 +16,6 @@ import {
   analyzeOnboardingProject,
   createOnboardingSetup,
   onboardingError,
-  OnboardingError,
   parseOnboardingRepository,
 } from "./cli/onboarding";
 import type {
@@ -290,68 +288,62 @@ interface ConfiguredOnboarding {
   setup: OnboardingSetup;
 }
 
-const onboardingTry = <Value>(attempt: () => Value): Effect.Effect<Value, OnboardingError> =>
-  Effect.try({ try: attempt, catch: onboardingError });
-
-const onboardingTryPromise = <Value>(
-  attempt: () => Promise<Value>,
-): Effect.Effect<Value, OnboardingError> =>
-  Effect.tryPromise({ try: attempt, catch: onboardingError });
-
-const configureOnboarding = (
+const configureOnboarding = async (
   prompt: Prompt,
   project: OnboardingProject,
   options: Record<string, unknown>,
-): Effect.Effect<ConfiguredOnboarding, OnboardingError> =>
-  Effect.gen(function* () {
-    const answers = yield* onboardingTryPromise(() =>
-      collectOnboardingAnswers(prompt, project, options),
-    );
-    const versionedProject = yield* onboardingTryPromise(() =>
-      ensureOnboardingVersion(prompt, project, answers.enforcement, options),
-    );
-    const setup = yield* createOnboardingSetup(versionedProject, answers);
-    return { answers, project: versionedProject, setup };
-  });
+): Promise<ConfiguredOnboarding> => {
+  const answers = await collectOnboardingAnswers(prompt, project, options);
+  const versionedProject = await ensureOnboardingVersion(
+    prompt,
+    project,
+    answers.enforcement,
+    options,
+  );
+  const setup = createOnboardingSetup(versionedProject, answers);
+  return { answers, project: versionedProject, setup };
+};
 
-const applyOnboarding = (
+const applyOnboarding = async (
   rootDir: string,
   configured: ConfiguredOnboarding,
   options: Record<string, unknown>,
-) =>
-  Effect.gen(function* () {
-    const { answers, project, setup } = configured;
-    yield* onboardingTry(() => assertOnboardingWrites(rootDir, setup, options.force === true));
-    yield* onboardingTryPromise(() =>
-      installOnboardingCli(rootDir, answers, setup, options.skipInstall === true),
-    );
-    yield* onboardingTry(() => writeOnboardingArtifacts(rootDir, setup));
-    yield* Effect.sync(() => printOnboardingResult(project, setup));
-  });
+): Promise<void> => {
+  const { answers, project, setup } = configured;
+  assertOnboardingWrites(rootDir, setup, options.force === true);
+  await installOnboardingCli(rootDir, answers, setup, options.skipInstall === true);
+  writeOnboardingArtifacts(rootDir, setup);
+  printOnboardingResult(project, setup);
+};
 
-const runOnboardingPrompt = (
+const runOnboardingPrompt = async (
   rootDir: string,
   project: OnboardingProject,
   options: Record<string, unknown>,
-) =>
-  Effect.acquireUseRelease(
-    Effect.sync(() => new Prompt()),
-    (prompt) =>
-      Effect.flatMap(configureOnboarding(prompt, project, options), (configured) =>
-        applyOnboarding(rootDir, configured, options),
-      ),
-    (prompt) => Effect.sync(() => prompt.close()),
-  );
-
-const onboardingWorkflow = (options: Record<string, unknown>) => {
-  const rootDir = resolve(stringOption(options.rootDir) || process.cwd());
-  const files = onboardingTry(() => collectOnboardingFiles(rootDir));
-  const project = Effect.flatMap(files, analyzeOnboardingProject);
-  return Effect.flatMap(project, (value) => runOnboardingPrompt(rootDir, value, options));
+): Promise<void> => {
+  const prompt = new Prompt();
+  try {
+    const configured = await configureOnboarding(prompt, project, options);
+    await applyOnboarding(rootDir, configured, options);
+  } finally {
+    prompt.close();
+  }
 };
 
-export const onboardAction = (options: Record<string, unknown>): Promise<void> =>
-  Effect.runPromise(onboardingWorkflow(options));
+const onboardingWorkflow = async (options: Record<string, unknown>): Promise<void> => {
+  const rootDir = resolve(stringOption(options.rootDir) || process.cwd());
+  const files = collectOnboardingFiles(rootDir);
+  const project = analyzeOnboardingProject(files);
+  await runOnboardingPrompt(rootDir, project, options);
+};
+
+export const onboardAction = async (options: Record<string, unknown>): Promise<void> => {
+  try {
+    await onboardingWorkflow(options);
+  } catch (cause) {
+    throw onboardingError(cause);
+  }
+};
 
 const areaForManager = (manager: DependencyManager): WorkflowArea => {
   if (NODE_MANAGERS.has(manager)) return "node";

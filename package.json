@@ -26,10 +26,6 @@
     "scriptc": "0.0.21",
     "typescript": "^5.9.3"
   },
-  "dependencies": {
-    "effect": "^3.22.1",
-    "yaml": "^2.9.0"
-  },
   "exports": {
     ".": {
       "import": "./dist/index.js",

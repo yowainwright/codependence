@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { Effect } from "effect";
 import {
   analyzeOnboardingProject,
   createOnboardingSetup,
@@ -32,14 +31,14 @@ const githubFixtureBody = (url: string): unknown => {
   const requestPath = `${request.pathname}${request.search}`;
   if (requestPath === "/repos/acme/workspace") return { default_branch: "main" };
   if (requestPath.endsWith("/git/trees/main?recursive=1")) return githubTree;
-  if (requestPath.endsWith("/tree-sha/package.json")) {
+  if (requestPath.endsWith("/main/package.json")) {
     return JSON.stringify({ packageManager: "pnpm@9.15.0" });
   }
-  if (requestPath.endsWith("/tree-sha/pnpm-workspace.yaml")) return "packages:\n  - apps/*\n";
-  if (requestPath.endsWith("/tree-sha/apps/web/package.json")) {
+  if (requestPath.endsWith("/main/pnpm-workspace.yaml")) return "packages:\n  - apps/*\n";
+  if (requestPath.endsWith("/main/apps/web/package.json")) {
     return JSON.stringify({ dependencies: { react: "^19.0.0" } });
   }
-  if (requestPath.endsWith("/tree-sha/examples/demo/package.json")) {
+  if (requestPath.endsWith("/main/examples/demo/package.json")) {
     return JSON.stringify({ dependencies: { lodash: "^4.17.21" } });
   }
   return undefined;
@@ -61,37 +60,35 @@ const githubFixtureFetcher: OnboardingFetcher = (url) => {
 
 describe("onboarding", () => {
   test("scans only the root and declared workspace packages", () => {
-    const project = Effect.runSync(
-      analyzeOnboardingProject([
-        packageFile("package.json", {
-          name: "workspace",
-          packageManager: "pnpm@9.15.0",
-          dependencies: { react: "^19.0.0" },
-        }),
-        packageFile("apps/web/package.json", {
-          name: "@workspace/web",
-          dependencies: { react: "^19.0.0", vite: "^8.1.0" },
-        }),
-        packageFile("packages/ui/package.json", {
-          name: "@workspace/ui",
-          peerDependencies: { react: "^18.3.1" },
-        }),
-        packageFile("examples/demo/package.json", {
-          name: "demo",
-          dependencies: { lodash: "^4.17.21" },
-        }),
-        { path: "fixtures/broken/package.json", content: "{" },
-        packageFile("node_modules/fixture/package.json", {
-          name: "fixture",
-          dependencies: { chalk: "^5.0.0" },
-        }),
-        { path: "pnpm-lock.yaml", content: "" },
-        {
-          path: "pnpm-workspace.yaml",
-          content: "packages:\n  - apps/*\n  - packages/*\n",
-        },
-      ]),
-    );
+    const project = analyzeOnboardingProject([
+      packageFile("package.json", {
+        name: "workspace",
+        packageManager: "pnpm@9.15.0",
+        dependencies: { react: "^19.0.0" },
+      }),
+      packageFile("apps/web/package.json", {
+        name: "@workspace/web",
+        dependencies: { react: "^19.0.0", vite: "^8.1.0" },
+      }),
+      packageFile("packages/ui/package.json", {
+        name: "@workspace/ui",
+        peerDependencies: { react: "^18.3.1" },
+      }),
+      packageFile("examples/demo/package.json", {
+        name: "demo",
+        dependencies: { lodash: "^4.17.21" },
+      }),
+      { path: "fixtures/broken/package.json", content: "{" },
+      packageFile("node_modules/fixture/package.json", {
+        name: "fixture",
+        dependencies: { chalk: "^5.0.0" },
+      }),
+      { path: "pnpm-lock.yaml", content: "" },
+      {
+        path: "pnpm-workspace.yaml",
+        content: "packages:\n  - apps/*\n  - packages/*\n",
+      },
+    ]);
 
     expect(project.manager).toBe("pnpm");
     expect(project.managerVersion).toBe("9.15.0");
@@ -111,44 +108,64 @@ describe("onboarding", () => {
   test("treats regex question marks as literal workspace path characters", () => {
     const workspacePath = `packages/ui${questionMark}kit`;
     const manifestPath = `${workspacePath}/package.json`;
-    const project = Effect.runSync(
-      analyzeOnboardingProject([
-        packageFile("package.json", { workspaces: [workspacePath] }),
-        packageFile(manifestPath, { dependencies: { react: "^19.0.0" } }),
-        packageFile("packages/uikit/package.json", {
-          dependencies: { lodash: "^4.17.21" },
-        }),
-      ]),
-    );
+    const project = analyzeOnboardingProject([
+      packageFile("package.json", { workspaces: [workspacePath] }),
+      packageFile(manifestPath, { dependencies: { react: "^19.0.0" } }),
+      packageFile("packages/uikit/package.json", {
+        dependencies: { lodash: "^4.17.21" },
+      }),
+    ]);
 
     expect(project.manifests.map(({ path }) => path)).toEqual(["package.json", manifestPath]);
     expect(project.dependencies.map(({ name }) => name)).toEqual(["react"]);
   });
 
+  test("parses quoted pnpm workspace paths and exclusions", () => {
+    const project = analyzeOnboardingProject([
+      packageFile("package.json", {}),
+      packageFile("apps/web/package.json", { dependencies: { react: "^19.0.0" } }),
+      packageFile("packages/ui/package.json", { dependencies: { vite: "^8.1.0" } }),
+      packageFile("packages/private/package.json", { dependencies: { lodash: "^4.17.21" } }),
+      {
+        path: "pnpm-workspace.yaml",
+        content: [
+          "packages:",
+          "  - 'apps/*' # applications",
+          '  - "packages/*"',
+          "  - '!packages/private'",
+          "catalog:",
+          "  react: ^19.0.0",
+        ].join("\n"),
+      },
+    ]);
+
+    expect(project.manifests.map(({ path }) => path)).toEqual([
+      "package.json",
+      "apps/web/package.json",
+      "packages/ui/package.json",
+    ]);
+  });
+
   test("generates one project policy and the selected enforcement artifacts", () => {
-    const project = Effect.runSync(
-      analyzeOnboardingProject([
-        packageFile("package.json", {
-          name: "workspace",
-          packageManager: "pnpm@9.15.0",
-          workspaces: ["apps/*"],
-          dependencies: { react: "^19.0.0" },
-        }),
-        packageFile("apps/web/package.json", {
-          name: "@workspace/web",
-          dependencies: { react: "^19.0.0", vite: "^8.1.0" },
-        }),
-        { path: "pnpm-lock.yaml", content: "" },
-      ]),
-    );
-    const setup = Effect.runSync(
-      createOnboardingSetup(project, {
-        mode: "precise",
-        selectedDependencies: ["react"],
-        enforcement: "both",
-        repository: { owner: "acme", name: "workspace" },
+    const project = analyzeOnboardingProject([
+      packageFile("package.json", {
+        name: "workspace",
+        packageManager: "pnpm@9.15.0",
+        workspaces: ["apps/*"],
+        dependencies: { react: "^19.0.0" },
       }),
-    );
+      packageFile("apps/web/package.json", {
+        name: "@workspace/web",
+        dependencies: { react: "^19.0.0", vite: "^8.1.0" },
+      }),
+      { path: "pnpm-lock.yaml", content: "" },
+    ]);
+    const setup = createOnboardingSetup(project, {
+      mode: "precise",
+      selectedDependencies: ["react"],
+      enforcement: "both",
+      repository: { owner: "acme", name: "workspace" },
+    });
 
     expect(setup.artifacts.map(({ path }) => path)).toEqual([
       ".codependencerc",
@@ -176,77 +193,63 @@ describe("onboarding", () => {
   });
 
   test("rejects inexact package manager versions for GitHub Actions", () => {
-    const project = Effect.runSync(
-      analyzeOnboardingProject([
-        packageFile("package.json", {
-          packageManager: "npm@latest",
-          dependencies: { react: "^19.0.0" },
-        }),
-      ]),
-    );
+    const project = analyzeOnboardingProject([
+      packageFile("package.json", {
+        packageManager: "npm@latest",
+        dependencies: { react: "^19.0.0" },
+      }),
+    ]);
     const createSetup = () =>
-      Effect.runSync(
-        createOnboardingSetup(project, {
-          mode: "precise",
-          selectedDependencies: [],
-          enforcement: "github",
-          repository: { owner: "acme", name: "web" },
-        }),
-      );
+      createOnboardingSetup(project, {
+        mode: "precise",
+        selectedDependencies: [],
+        enforcement: "github",
+        repository: { owner: "acme", name: "web" },
+      });
 
     expect(createSetup).toThrow("npm requires an exact package manager version");
   });
 
   test("omits GitHub workflow and token setup for local onboarding", () => {
-    const project = Effect.runSync(
-      analyzeOnboardingProject([
-        packageFile("package.json", {
-          dependencies: { react: "^19.0.0" },
-        }),
-        { path: "package-lock.json", content: "" },
-      ]),
-    );
-    const setup = Effect.runSync(
-      createOnboardingSetup(project, {
-        mode: "precise",
-        selectedDependencies: [],
-        enforcement: "local",
+    const project = analyzeOnboardingProject([
+      packageFile("package.json", {
+        dependencies: { react: "^19.0.0" },
       }),
-    );
+      { path: "package-lock.json", content: "" },
+    ]);
+    const setup = createOnboardingSetup(project, {
+      mode: "precise",
+      selectedDependencies: [],
+      enforcement: "local",
+    });
 
     expect(setup.artifacts.map(({ path }) => path)).toEqual([".codependencerc"]);
     expect(setup.tokenSetup).toBeUndefined();
   });
 
   test("uses an explicit Yarn workspace-root install", () => {
-    const project = Effect.runSync(
-      analyzeOnboardingProject([
-        packageFile("package.json", {
-          packageManager: "yarn@1.22.22",
-          workspaces: ["packages/*"],
-        }),
-        packageFile("packages/ui/package.json", {
-          dependencies: { react: "^19.0.0" },
-        }),
-        { path: "yarn.lock", content: "" },
-      ]),
-    );
-    const setup = Effect.runSync(
-      createOnboardingSetup(project, {
-        mode: "precise",
-        selectedDependencies: [],
-        enforcement: "local",
+    const project = analyzeOnboardingProject([
+      packageFile("package.json", {
+        packageManager: "yarn@1.22.22",
+        workspaces: ["packages/*"],
       }),
-    );
+      packageFile("packages/ui/package.json", {
+        dependencies: { react: "^19.0.0" },
+      }),
+      { path: "yarn.lock", content: "" },
+    ]);
+    const setup = createOnboardingSetup(project, {
+      mode: "precise",
+      selectedDependencies: [],
+      enforcement: "local",
+    });
 
     expect(setup.installCommand).toBe("yarn add --dev -W codependence");
   });
 
   test("scans a public GitHub repository", async () => {
     const repository = parseOnboardingRepository("https://github.com/acme/workspace");
-    const project = await Effect.runPromise(
-      scanOnboardingRepository(repository, githubFixtureFetcher),
-    );
+    const project = await scanOnboardingRepository(repository, githubFixtureFetcher);
 
     expect(project.manifests.map(({ path }) => path)).toEqual([
       "package.json",
