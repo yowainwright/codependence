@@ -247,7 +247,7 @@ describe("onboarding", () => {
     expect(setup.installCommand).toBe("yarn add --dev -W codependence");
   });
 
-  test("scans a public GitHub repository", async () => {
+  test("scans repository files through the injected fetcher", async () => {
     const repository = parseOnboardingRepository("https://github.com/acme/workspace");
     const project = await scanOnboardingRepository(repository, githubFixtureFetcher);
 

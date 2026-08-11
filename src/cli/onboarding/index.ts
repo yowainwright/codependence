@@ -158,7 +158,7 @@ const mapConcurrent = async <Input, Output>(
   limit: number,
   transform: (value: Input) => Promise<Output>,
 ): Promise<Output[]> => {
-  const results = new Array<Output>(values.length);
+  const results = Array.from<Output>({ length: values.length });
   let nextIndex = 0;
   const worker = async (): Promise<void> => {
     const index = nextIndex++;
