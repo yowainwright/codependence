@@ -47,7 +47,9 @@ const githubFixtureBody = (url: string): unknown => {
 const githubFixtureResponse = (body: unknown): OnboardingFetchResponse => {
   const ok = body !== undefined;
   const status = ok ? 200 : 404;
-  const content = typeof body === "string" ? body : JSON.stringify(body) || "";
+  const serializedBody = JSON.stringify(body);
+  const fallbackContent = serializedBody || "";
+  const content = typeof body === "string" ? body : fallbackContent;
   const json = () => Promise.resolve(body);
   const text = () => Promise.resolve(content);
   return { ok, status, json, text };

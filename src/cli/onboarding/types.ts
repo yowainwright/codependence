@@ -112,3 +112,33 @@ export interface OnboardingSetup {
   verifyCommand: string;
   tokenSetup?: OnboardingTokenSetup;
 }
+
+export interface OnboardingCommandSet {
+  installCommand: string;
+  install: OnboardingCommand;
+  verifyCommand: string;
+}
+
+export interface OnboardingManagerDetection {
+  manager: OnboardingManager;
+  managerVersion?: string;
+}
+
+export interface RepositoryMetadata {
+  defaultBranch: string;
+}
+
+export interface RepositoryTreeEntry {
+  path: string;
+  type: string;
+}
+
+export interface RepositoryTree {
+  tree: RepositoryTreeEntry[];
+  truncated: boolean;
+}
+
+export interface WorkspaceMatchState {
+  excluded: boolean;
+  included: boolean;
+}

@@ -68,3 +68,7 @@ export const ONBOARDING_TOKEN_PERMISSIONS = [
   "Contents: Read and write",
   "Pull requests: Read and write",
 ];
+
+export const ONBOARDING_MANAGER_ORDER: OnboardingManager[] = ["bun", "pnpm", "yarn", "npm"];
+export const ONBOARDING_REPOSITORY_CONCURRENCY = 6;
+export const ONBOARDING_USAGE_SEPARATOR = "\u0000";

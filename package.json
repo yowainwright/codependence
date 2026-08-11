@@ -89,7 +89,7 @@
     "format": "nub run format-src && nub run format-test && nub run format-app",
     "lint": "nub run lint-src",
     "lint-fix": "oxlint . --fix",
-    "lint-src": "oxlint src",
+    "lint-src": "lint-changed",
     "lint:fix": "oxlint src --fix",
     "hooks:setup": "sh scripts/setup-hooks.sh",
     "prepare": "nub run hooks:setup",

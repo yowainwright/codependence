@@ -1,37 +1,32 @@
 import {
   ONBOARDING_DEPENDENCY_SECTIONS,
-  ONBOARDING_ACTION_REF,
-  ONBOARDING_CHECKOUT_REF,
-  ONBOARDING_CONFIG_PATH,
+  ONBOARDING_GITHUB_API_URL,
+  ONBOARDING_GITHUB_RAW_URL,
   ONBOARDING_IGNORED_DIRECTORIES,
   ONBOARDING_INSTALLS,
+  ONBOARDING_MANAGER_ORDER,
   ONBOARDING_MANAGER_FILES,
-  ONBOARDING_MANAGERS,
   ONBOARDING_PACKAGE_FILE,
   ONBOARDING_PNPM_WORKSPACE_FILE,
-  ONBOARDING_PAT_URL,
-  ONBOARDING_SCHEDULE,
-  ONBOARDING_SECRET_NAME,
-  ONBOARDING_TOKEN_PERMISSIONS,
-  ONBOARDING_VERIFY_COMMANDS,
-  ONBOARDING_VERSION_PATTERN,
+  ONBOARDING_REPOSITORY_CONCURRENCY,
+  ONBOARDING_USAGE_SEPARATOR,
   ONBOARDING_WORKSPACE_INSTALLS,
-  ONBOARDING_WORKFLOW_PATH,
 } from "./constants";
 import type {
   DependencyUsageEntry,
-  OnboardingAnswers,
-  OnboardingArtifact,
-  OnboardingCommand,
   OnboardingDependency,
   OnboardingDependencyUsage,
+  OnboardingFetcher,
   OnboardingManager,
   OnboardingPackageJson,
   OnboardingProject,
   OnboardingRepository,
   OnboardingSourceFile,
-  OnboardingTokenSetup,
   ParsedOnboardingManifest,
+  RepositoryMetadata,
+  RepositoryTree,
+  RepositoryTreeEntry,
+  WorkspaceMatchState,
 } from "./types";
 
 export const normalizeOnboardingPath = (path: string): string =>
@@ -39,17 +34,25 @@ export const normalizeOnboardingPath = (path: string): string =>
 
 const pathSegments = (path: string): string[] => normalizeOnboardingPath(path).split("/");
 
-export const isIgnoredOnboardingPath = (path: string): boolean =>
+const isIgnoredOnboardingPath = (path: string): boolean =>
   pathSegments(path).some((segment) => ONBOARDING_IGNORED_DIRECTORIES.has(segment));
 
-export const isOnboardingPackageFile = (path: string): boolean =>
-  normalizeOnboardingPath(path).split("/").at(-1) === ONBOARDING_PACKAGE_FILE;
+const isOnboardingPackageFile = (path: string): boolean => {
+  const segments = pathSegments(path);
+  return segments.at(-1) === ONBOARDING_PACKAGE_FILE;
+};
+
+const onboardingManifestDirectory = (path: string): string => {
+  const segments = pathSegments(path);
+  return segments.slice(0, -1).join("/");
+};
 
 export const parseOnboardingManifest = (file: OnboardingSourceFile): ParsedOnboardingManifest => {
   try {
-    const packageJson = JSON.parse(file.content) as OnboardingPackageJson;
+    const packageJson = JSON.parse(file.content) as ParsedOnboardingManifest["packageJson"];
     const path = normalizeOnboardingPath(file.path);
-    return { path, name: packageJson.name || path, packageJson };
+    const name = packageJson.name || path;
+    return { path, name, packageJson };
   } catch {
     throw new Error(`${file.path} is not valid JSON`);
   }
@@ -62,34 +65,57 @@ const packageWorkspacePatterns = (root: OnboardingPackageJson): string[] => {
 
 const stripYamlComment = (value: string): string => {
   const commentIndex = value.indexOf(" #");
-  return commentIndex === -1 ? value.trim() : value.slice(0, commentIndex).trim();
+  if (commentIndex === -1) return value.trim();
+  return value.slice(0, commentIndex).trim();
+};
+
+const parseSingleQuotedPath = (value: string): string | undefined => {
+  const match = /^'((?:''|[^'])*)'(?:\s+#.*)?$/.exec(value);
+  const path = match?.[1];
+  if (path === undefined) return undefined;
+  return path.replaceAll("''", "'");
+};
+
+const parseDoubleQuotedPath = (value: string): string | undefined => {
+  const match = /^("(?:\\.|[^"\\])*")(?:\s+#.*)?$/.exec(value);
+  const path = match?.[1];
+  if (path === undefined) return undefined;
+  return JSON.parse(path) as string;
 };
 
 const parseWorkspacePath = (value: string): string => {
-  const singleQuoted = /^'((?:''|[^'])*)'(?:\s+#.*)?$/.exec(value.trim());
-  if (singleQuoted) return singleQuoted[1].replaceAll("''", "'");
-  const doubleQuoted = /^("(?:\\.|[^"\\])*")(?:\s+#.*)?$/.exec(value.trim());
-  if (doubleQuoted) return JSON.parse(doubleQuoted[1]) as string;
-  const scalar = stripYamlComment(value);
-  if (!scalar || scalar.includes(":")) throw new Error("Workspace paths must be strings");
+  const trimmed = value.trim();
+  const singleQuoted = parseSingleQuotedPath(trimmed);
+  if (singleQuoted !== undefined) return singleQuoted;
+  const doubleQuoted = parseDoubleQuotedPath(trimmed);
+  if (doubleQuoted !== undefined) return doubleQuoted;
+  const scalar = stripYamlComment(trimmed);
+  const isInvalidScalar = !scalar || scalar.includes(":");
+  if (isInvalidScalar) throw new Error("Workspace paths must be strings");
   return scalar;
 };
 
 const workspaceListLines = (content: string): string[] => {
-  const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const normalized = content.replace(/^\uFEFF/, "");
+  const lines = normalized.split(/\r?\n/);
   const packagesIndex = lines.findIndex((line) => line.startsWith("packages:"));
   if (packagesIndex === -1) return [];
-  if (!/^packages:\s*(?:#.*)?$/.test(lines[packagesIndex])) {
+  const packagesLine = lines[packagesIndex];
+  const hasListDeclaration = /^packages:\s*(?:#.*)?$/.test(packagesLine);
+  if (!hasListDeclaration) {
     throw new Error(`${ONBOARDING_PNPM_WORKSPACE_FILE} packages must be a list of paths`);
   }
   const remaining = lines.slice(packagesIndex + 1);
   const boundary = remaining.findIndex((line) => /^\S/.test(line) && !line.startsWith("#"));
-  return boundary === -1 ? remaining : remaining.slice(0, boundary);
+  if (boundary === -1) return remaining;
+  return remaining.slice(0, boundary);
 };
 
 const parseWorkspaceListLine = (line: string): string => {
   const item = /^\s+-\s+(.+)$/.exec(line);
-  if (!item) throw new Error(`${ONBOARDING_PNPM_WORKSPACE_FILE} packages must be a list of paths`);
+  if (!item) {
+    throw new Error(`${ONBOARDING_PNPM_WORKSPACE_FILE} packages must be a list of paths`);
+  }
   return parseWorkspacePath(item[1]);
 };
 
@@ -104,38 +130,57 @@ const pnpmWorkspacePatterns = (files: OnboardingSourceFile[]): string[] => {
 export const onboardingWorkspacePatterns = (
   root: OnboardingPackageJson,
   files: OnboardingSourceFile[] = [],
-): string[] => [...new Set([...packageWorkspacePatterns(root), ...pnpmWorkspacePatterns(files)])];
+): string[] => {
+  const packagePatterns = packageWorkspacePatterns(root);
+  const pnpmPatterns = pnpmWorkspacePatterns(files);
+  return Array.from(new Set(packagePatterns.concat(pnpmPatterns)));
+};
 
 export const isOnboardingWorkspace = (
   root: OnboardingPackageJson,
   files: OnboardingSourceFile[],
-): boolean =>
-  root.workspaces !== undefined ||
-  files.some(({ path }) => path === ONBOARDING_PNPM_WORKSPACE_FILE);
+): boolean => {
+  const hasPackageWorkspaces = root.workspaces !== undefined;
+  const hasPnpmWorkspace = files.some(({ path }) => path === ONBOARDING_PNPM_WORKSPACE_FILE);
+  return hasPackageWorkspaces || hasPnpmWorkspace;
+};
 
 const escapeRegex = (value: string): string => value.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
 
 const workspacePatternRegex = (pattern: string): RegExp => {
-  const escaped = escapeRegex(normalizeOnboardingPath(pattern));
+  const normalized = normalizeOnboardingPath(pattern);
+  const escaped = escapeRegex(normalized);
   const globstar = escaped.replaceAll("**", "\u0000");
-  const source = globstar.replaceAll("*", "[^/]*").replaceAll("\u0000", ".*");
+  const stars = globstar.replaceAll("*", "[^/]*");
+  const source = stars.replaceAll("\u0000", ".*");
   return new RegExp(`^${source}/?$`);
 };
 
-const manifestDirectory = (path: string): string => {
-  const segments = pathSegments(path);
-  return segments.slice(0, -1).join("/");
+const matchesWorkspacePattern = (path: string, pattern: string): boolean => {
+  const positivePattern = pattern.replace(/^!/, "");
+  const directory = onboardingManifestDirectory(path);
+  return workspacePatternRegex(positivePattern).test(directory);
 };
 
-const matchesWorkspacePattern = (path: string, pattern: string): boolean =>
-  workspacePatternRegex(pattern.replace(/^!/, "")).test(manifestDirectory(path));
+const updateMatchState = (
+  state: WorkspaceMatchState,
+  pattern: string,
+  path: string,
+): WorkspaceMatchState => {
+  if (!matchesWorkspacePattern(path, pattern)) return state;
+  const isExcluded = pattern.startsWith("!");
+  if (isExcluded) return { excluded: true, included: state.included };
+  return { excluded: state.excluded, included: true };
+};
 
 export const isDeclaredWorkspace = (path: string, patterns: string[]): boolean => {
-  const included = patterns.filter((pattern) => !pattern.startsWith("!"));
-  const excluded = patterns.filter((pattern) => pattern.startsWith("!"));
-  const matchesIncluded = included.some((pattern) => matchesWorkspacePattern(path, pattern));
-  const matchesExcluded = excluded.some((pattern) => matchesWorkspacePattern(path, pattern));
-  return matchesIncluded && !matchesExcluded;
+  const initial = { excluded: false, included: false };
+  const matches = patterns.reduce(
+    (state, pattern) => updateMatchState(state, pattern, path),
+    initial,
+  );
+  const isAcceptedWorkspace = matches.included && !matches.excluded;
+  return isAcceptedWorkspace;
 };
 
 const isRootManifest = (manifest: ParsedOnboardingManifest): boolean =>
@@ -157,10 +202,18 @@ export const selectOnboardingManifests = (
   const root = manifests.find(isRootManifest);
   if (!root) throw new Error("package.json not found in the project root");
   const patterns = onboardingWorkspacePatterns(root.packageJson, files);
-  const selected = manifests.filter(
-    (manifest) => isRootManifest(manifest) || isDeclaredWorkspace(manifest.path, patterns),
-  );
-  return selected.sort(compareManifestPaths);
+  const selected = manifests.filter((manifest) => {
+    if (isRootManifest(manifest)) return true;
+    return isDeclaredWorkspace(manifest.path, patterns);
+  });
+  return selected.toSorted(compareManifestPaths);
+};
+
+const isSelectedPackageFile = (path: string, patterns: string[]): boolean => {
+  if (path === ONBOARDING_PACKAGE_FILE) return true;
+  if (!isOnboardingPackageFile(path)) return false;
+  if (isIgnoredOnboardingPath(path)) return false;
+  return isDeclaredWorkspace(path, patterns);
 };
 
 export const selectOnboardingSourceFiles = (
@@ -170,206 +223,236 @@ export const selectOnboardingSourceFiles = (
   if (!rootFile) throw new Error("package.json not found in the project root");
   const root = parseOnboardingManifest(rootFile);
   const patterns = onboardingWorkspacePatterns(root.packageJson, files);
-  return files.filter(({ path }) => {
-    if (path === ONBOARDING_PACKAGE_FILE) return true;
-    const isPackageFile = isOnboardingPackageFile(path);
-    return isPackageFile && !isIgnoredOnboardingPath(path) && isDeclaredWorkspace(path, patterns);
+  return files.filter(({ path }) => isSelectedPackageFile(path, patterns));
+};
+
+const groupDependencyEntriesBy = (
+  entries: DependencyUsageEntry[],
+  keyOf: (entry: DependencyUsageEntry) => string,
+): Map<string, DependencyUsageEntry[]> => {
+  const groupedSets = entries.reduce((groups, entry) => {
+    const key = keyOf(entry);
+    const group = groups.get(key) || new Set<DependencyUsageEntry>();
+    group.add(entry);
+    groups.set(key, group);
+    return groups;
+  }, new Map<string, Set<DependencyUsageEntry>>());
+  const groups = Array.from(groupedSets, ([key, group]) => {
+    const entry: [string, DependencyUsageEntry[]] = [key, Array.from(group)];
+    return entry;
   });
+  return new Map(groups);
 };
 
 const sectionDependencyEntries = (
   manifest: ParsedOnboardingManifest,
   section: OnboardingDependencyUsage["sections"][number],
-): DependencyUsageEntry[] =>
-  Object.entries(manifest.packageJson[section] || {}).map(([name, range]) => ({
+): DependencyUsageEntry[] => {
+  const dependencies = manifest.packageJson[section] || {};
+  return Object.entries(dependencies).map(([name, range]) => ({
     name,
     path: manifest.path,
     range,
     sections: [section],
   }));
+};
 
-const manifestDependencyEntries = (manifest: ParsedOnboardingManifest): DependencyUsageEntry[] =>
+export const manifestDependencyEntries = (
+  manifest: ParsedOnboardingManifest,
+): DependencyUsageEntry[] =>
   ONBOARDING_DEPENDENCY_SECTIONS.flatMap((section) => sectionDependencyEntries(manifest, section));
 
-const usageKey = ({ path, range }: OnboardingDependencyUsage): string => `${path}\u0000${range}`;
+const usageKey = ({ path, range }: OnboardingDependencyUsage): string =>
+  `${path}${ONBOARDING_USAGE_SEPARATOR}${range}`;
+
+const mergeUsageGroup = (group: DependencyUsageEntry[]): OnboardingDependencyUsage => {
+  const first = group[0];
+  const sections = group.flatMap(({ sections: entrySections }) => entrySections);
+  const uniqueSections = Array.from(new Set(sections));
+  return { path: first.path, range: first.range, sections: uniqueSections };
+};
 
 const mergeDependencyUsages = (entries: DependencyUsageEntry[]): OnboardingDependencyUsage[] => {
-  const usages = new Map<string, OnboardingDependencyUsage>();
-  entries.forEach(({ name: _name, ...entry }) => {
-    const key = usageKey(entry);
-    const current = usages.get(key);
-    const sections = current ? [...current.sections, ...entry.sections] : entry.sections;
-    usages.set(key, { ...entry, sections: [...new Set(sections)] });
-  });
-  return [...usages.values()];
+  const usages = groupDependencyEntriesBy(entries, usageKey);
+  return Array.from(usages.values(), mergeUsageGroup);
 };
 
-const groupDependencyEntries = (
+export const createDependency = (
+  name: string,
   entries: DependencyUsageEntry[],
-): Map<string, DependencyUsageEntry[]> =>
-  entries.reduce((groups, entry) => {
-    const group = groups.get(entry.name);
-    if (group) {
-      group.push(entry);
-      return groups;
-    }
-    groups.set(entry.name, [entry]);
-    return groups;
-  }, new Map<string, DependencyUsageEntry[]>());
+): OnboardingDependency => ({ name, usages: mergeDependencyUsages(entries) });
 
-export const collectOnboardingDependencies = (
-  manifests: ParsedOnboardingManifest[],
-): OnboardingDependency[] => {
-  const entries = manifests.flatMap(manifestDependencyEntries);
-  const groups = groupDependencyEntries(entries);
-  const dependencies = [...groups.entries()].map(([name, group]) => ({
-    name,
-    usages: mergeDependencyUsages(group),
-  }));
-  return dependencies.sort((left, right) => left.name.localeCompare(right.name));
-};
+export const dependencyEntryGroups = (
+  entries: DependencyUsageEntry[],
+): Map<string, DependencyUsageEntry[]> => groupDependencyEntriesBy(entries, ({ name }) => name);
 
-const packageManagerValue = (root: OnboardingPackageJson): [string, string?] => {
-  const [manager, version] = root.packageManager?.split("@") || [];
+export const packageManagerValue = (root: OnboardingPackageJson): [string, string?] => {
+  const value = root.packageManager?.split("@");
+  if (!value) return [""];
+  const [manager, version] = value;
   return [manager || "", version];
 };
 
-const managerFromFiles = (files: OnboardingSourceFile[]): OnboardingManager => {
-  const paths = new Set(files.map(({ path }) => normalizeOnboardingPath(path)));
+export const managerFromFiles = (files: OnboardingSourceFile[]): OnboardingManager => {
+  const normalizedPaths = files.map(({ path }) => normalizeOnboardingPath(path));
+  const paths = new Set(normalizedPaths);
   const hasManagerFile = (candidate: OnboardingManager): boolean =>
     ONBOARDING_MANAGER_FILES[candidate].some((path) => paths.has(path));
-  const managers: OnboardingManager[] = ["bun", "pnpm", "yarn", "npm"];
-  const manager = managers.find(hasManagerFile);
-  return manager || "npm";
+  return ONBOARDING_MANAGER_ORDER.find(hasManagerFile) || "npm";
 };
 
-export const detectOnboardingManager = (
-  root: OnboardingPackageJson,
-  files: OnboardingSourceFile[],
-): { manager: OnboardingManager; managerVersion?: string } => {
-  const [candidate, managerVersion] = packageManagerValue(root);
-  const manager = ONBOARDING_MANAGERS.has(candidate as OnboardingManager)
-    ? (candidate as OnboardingManager)
-    : managerFromFiles(files);
-  return managerVersion ? { manager, managerVersion } : { manager };
+export const onboardingInstallArgs = (project: OnboardingProject): string[] => {
+  if (!project.workspace) return ONBOARDING_INSTALLS[project.manager];
+  const workspaceInstall = ONBOARDING_WORKSPACE_INSTALLS[project.manager];
+  return workspaceInstall || ONBOARDING_INSTALLS[project.manager];
 };
 
-const selectedCodependencies = (answers: OnboardingAnswers): { codependencies?: string[] } => {
-  const dependencies = [...new Set(answers.selectedDependencies)].sort();
-  return dependencies.length > 0 ? { codependencies: dependencies } : {};
+export const selectedCodependencies = (
+  selectedDependencies: string[],
+): { codependencies?: string[] } => {
+  const dependencies = Array.from(new Set(selectedDependencies)).toSorted();
+  if (dependencies.length === 0) return {};
+  return { codependencies: dependencies };
 };
 
-export const renderOnboardingConfig = (
-  project: OnboardingProject,
-  answers: OnboardingAnswers,
-): string => {
-  const files = project.manifests.map(({ path }) => path);
-  const codependencies = selectedCodependencies(answers);
-  const target = { manager: project.manager, files, mode: answers.mode, ...codependencies };
-  return `${JSON.stringify({ targets: [target] }, null, 2)}\n`;
-};
+export const workflowSecretExpression = (secretName: string): string =>
+  ["$", `{{ secrets.${secretName} }}`].join("");
 
-const workflowSecretExpression = (): string =>
-  ["$", `{{ secrets.${ONBOARDING_SECRET_NAME} }}`].join("");
-
-export const renderOnboardingWorkflow = (project: OnboardingProject): string => {
-  if (!project.managerVersion) {
-    throw new Error("packageManager must include an exact version for GitHub Actions");
-  }
-  if (!ONBOARDING_VERSION_PATTERN.test(project.managerVersion)) {
-    throw new Error(`${project.manager} requires an exact package manager version`);
-  }
-  const secret = workflowSecretExpression();
-  const installCommand = `${project.manager} install`;
-  return `# Generated by Codependence onboarding.
-name: Codependence Node updates
-
-on:
-  schedule:
-    - cron: "${ONBOARDING_SCHEDULE}"
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-jobs:
-  update:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: ${ONBOARDING_CHECKOUT_REF}
-        with:
-          persist-credentials: false
-
-      - uses: ${ONBOARDING_ACTION_REF}
-        with:
-          targets: ${project.manager}
-          version: ${project.managerVersion}
-          pull-request: true
-          token: ${secret}
-          post-update-command: '${installCommand}'
-`;
-};
-
-export const githubOnboardingEnabled = (answers: OnboardingAnswers): boolean =>
-  answers.enforcement === "github" || answers.enforcement === "both";
-
-export const parseOnboardingRepository = (value: string): OnboardingRepository => {
-  const withoutProtocol = value.trim().replace(/^https?:\/\/github\.com\//, "");
-  const normalized = withoutProtocol
-    .replace(/^git@github\.com:/, "")
-    .replace(/\.git\/?$/, "")
-    .replace(/\/$/, "");
-  const segments = normalized.split("/");
-  const [owner, name] = segments;
-  const validOwner = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(owner || "");
-  const validName = /^[A-Za-z0-9._-]+$/.test(name || "");
-  const hasInvalidName = !validOwner || !validName;
-  const hasInvalidSegments = segments.length !== 2;
-  if (hasInvalidName || hasInvalidSegments) {
-    throw new Error("Enter a GitHub repository as owner/name");
-  }
-  return { owner, name };
-};
-
-const repositorySecretUrl = (owner: string, name: string): string =>
+export const repositorySecretUrl = (owner: string, name: string): string =>
   `https://github.com/${owner}/${name}/settings/secrets/actions/new`;
 
-export const createOnboardingTokenSetup = (answers: OnboardingAnswers): OnboardingTokenSetup => {
-  if (!answers.repository) throw new Error("GitHub enforcement requires a repository");
-  const { owner, name } = answers.repository;
-  return {
-    secretName: ONBOARDING_SECRET_NAME,
-    personalAccessTokenUrl: ONBOARDING_PAT_URL,
-    repositorySecretUrl: repositorySecretUrl(owner, name),
-    permissions: ONBOARDING_TOKEN_PERMISSIONS,
-  };
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const requestJson = async (fetcher: OnboardingFetcher, url: string): Promise<unknown> => {
+  const response = await fetcher(url);
+  if (!response.ok) throw new Error(`GitHub request failed with status ${response.status}`);
+  return response.json();
 };
 
-export const createOnboardingArtifacts = (
-  project: OnboardingProject,
-  answers: OnboardingAnswers,
-): OnboardingArtifact[] => {
-  const config = {
-    path: ONBOARDING_CONFIG_PATH,
-    content: renderOnboardingConfig(project, answers),
-  };
-  if (!githubOnboardingEnabled(answers)) return [config];
-  const workflow = { path: ONBOARDING_WORKFLOW_PATH, content: renderOnboardingWorkflow(project) };
-  return [config, workflow];
+const requestText = async (fetcher: OnboardingFetcher, url: string): Promise<string> => {
+  const response = await fetcher(url);
+  if (!response.ok) {
+    throw new Error(`GitHub file request failed with status ${response.status}`);
+  }
+  return response.text();
 };
 
-const onboardingInstallArgs = (project: OnboardingProject): string[] => {
-  if (!project.workspace) return ONBOARDING_INSTALLS[project.manager];
-  return ONBOARDING_WORKSPACE_INSTALLS[project.manager] || ONBOARDING_INSTALLS[project.manager];
+const decodeRepository = (value: unknown): RepositoryMetadata => {
+  const defaultBranch = isRecord(value) ? value.default_branch : undefined;
+  if (typeof defaultBranch !== "string") {
+    throw new Error("GitHub repository metadata is invalid");
+  }
+  return { defaultBranch };
 };
 
-export const onboardingCommands = (
-  project: OnboardingProject,
-): { installCommand: string; install: OnboardingCommand; verifyCommand: string } => {
-  const manager = project.manager;
-  const args = onboardingInstallArgs(project);
-  const install = { command: manager, args };
-  const installCommand = [manager, ...args].join(" ");
-  const verifyCommand = ONBOARDING_VERIFY_COMMANDS[manager];
-  return { installCommand, install, verifyCommand };
+const decodeTreeEntry = (value: unknown): RepositoryTreeEntry => {
+  const path = isRecord(value) ? value.path : undefined;
+  const type = isRecord(value) ? value.type : undefined;
+  const hasInvalidEntry = typeof path !== "string" || typeof type !== "string";
+  if (hasInvalidEntry) throw new Error("GitHub repository tree is invalid");
+  return { path, type };
+};
+
+const decodeTree = (value: unknown): RepositoryTree => {
+  const entries = isRecord(value) ? value.tree : undefined;
+  const truncated = isRecord(value) ? value.truncated : undefined;
+  const hasInvalidEntries = !Array.isArray(entries);
+  const hasInvalidTruncated = truncated !== undefined && typeof truncated !== "boolean";
+  const hasInvalidTree = hasInvalidEntries || hasInvalidTruncated;
+  if (hasInvalidTree) throw new Error("GitHub repository tree is invalid");
+  return { tree: entries.map(decodeTreeEntry), truncated: Boolean(truncated) };
+};
+
+const repositoryApiPath = ({ owner, name }: OnboardingRepository): string => {
+  const encodedOwner = encodeURIComponent(owner);
+  const encodedName = encodeURIComponent(name);
+  return `${ONBOARDING_GITHUB_API_URL}/repos/${encodedOwner}/${encodedName}`;
+};
+
+const encodePath = (path: string): string => path.split("/").map(encodeURIComponent).join("/");
+
+const repositoryRawPath = (
+  repository: OnboardingRepository,
+  revision: string,
+  path: string,
+): string => {
+  const owner = encodeURIComponent(repository.owner);
+  const name = encodeURIComponent(repository.name);
+  return `${ONBOARDING_GITHUB_RAW_URL}/${owner}/${name}/${encodePath(revision)}/${encodePath(path)}`;
+};
+
+const managerFiles = new Set(Object.values(ONBOARDING_MANAGER_FILES).flat());
+
+const isRepositorySourcePath = (path: string): boolean => {
+  if (isIgnoredOnboardingPath(path)) return false;
+  if (isOnboardingPackageFile(path)) return true;
+  const isRootFile = !path.includes("/");
+  return isRootFile && managerFiles.has(path);
+};
+
+const sourceFileNeedsContent = (path: string): boolean => {
+  const isPackageFile = isOnboardingPackageFile(path);
+  const isWorkspaceFile = path === ONBOARDING_PNPM_WORKSPACE_FILE;
+  return isPackageFile || isWorkspaceFile;
+};
+
+const mapConcurrentBatch = async <Input, Output>(
+  values: Input[],
+  limit: number,
+  transform: (value: Input) => Promise<Output>,
+  offset: number,
+  previous: Output[],
+): Promise<Output[]> => {
+  if (offset >= values.length) return previous;
+  const batch = values.slice(offset, offset + limit);
+  const current = await Promise.all(batch.map(transform));
+  const results = previous.concat(current);
+  return mapConcurrentBatch(values, limit, transform, offset + limit, results);
+};
+
+const mapConcurrent = <Input, Output>(
+  values: Input[],
+  limit: number,
+  transform: (value: Input) => Promise<Output>,
+): Promise<Output[]> => mapConcurrentBatch(values, limit, transform, 0, []);
+
+const repositorySourceFile = async (
+  fetcher: OnboardingFetcher,
+  repository: OnboardingRepository,
+  revision: string,
+  path: string,
+): Promise<OnboardingSourceFile> => {
+  if (!sourceFileNeedsContent(path)) return { path, content: "" };
+  const url = repositoryRawPath(repository, revision, path);
+  const content = await requestText(fetcher, url);
+  return { path, content };
+};
+
+const repositoryTree = async (
+  repository: OnboardingRepository,
+  fetcher: OnboardingFetcher,
+): Promise<{ tree: RepositoryTree; branch: string }> => {
+  const apiPath = repositoryApiPath(repository);
+  const metadata = decodeRepository(await requestJson(fetcher, apiPath));
+  const branch = encodeURIComponent(metadata.defaultBranch);
+  const treeUrl = `${apiPath}/git/trees/${branch}?recursive=1`;
+  const tree = decodeTree(await requestJson(fetcher, treeUrl));
+  return { tree, branch: metadata.defaultBranch };
+};
+
+export const repositorySourceFiles = async (
+  repository: OnboardingRepository,
+  fetcher: OnboardingFetcher,
+): Promise<OnboardingSourceFile[]> => {
+  const { tree, branch } = await repositoryTree(repository, fetcher);
+  if (tree.truncated) {
+    throw new Error("GitHub repository tree is too large to scan completely");
+  }
+  const paths = tree.tree
+    .filter(({ path, type }) => type === "blob" && isRepositorySourcePath(path))
+    .map(({ path }) => path);
+  return mapConcurrent(paths, ONBOARDING_REPOSITORY_CONCURRENCY, (path) =>
+    repositorySourceFile(fetcher, repository, branch, path),
+  );
 };
