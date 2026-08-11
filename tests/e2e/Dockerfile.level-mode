@@ -1,4 +1,4 @@
-ARG NODE_SLIM_IMAGE=node:24-slim@sha256:2c87ef9bd3c6a3bd4b472b4bec2ce9d16354b0c574f736c476489d09f560a203
+ARG NODE_SLIM_IMAGE=node:26-slim@sha256:4ebb5ace66f15a24c14c492e01a8beeed4fddf970a856109f5126e703e5fe503
 FROM ${NODE_SLIM_IMAGE} AS builder
 
 ARG BUN_VERSION
@@ -11,7 +11,8 @@ RUN apt-get update && apt-get install -y curl unzip && rm -rf /var/lib/apt/lists
 WORKDIR /app
 
 COPY package.json ./
-COPY bun.lock ./
+COPY pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml ./
 COPY bunfig.toml ./
 COPY page/ ./page/
 
@@ -35,16 +36,18 @@ RUN set -eu; \
     ln -sf /usr/local/bin/bun /usr/local/bin/bunx; \
     rm -rf /tmp/bun.zip "/tmp/bun-linux-${bun_arch}"
 
-RUN bun install --frozen-lockfile --ignore-scripts
+RUN npm install --global @nubjs/nub@0.7.5
+RUN nub install --frozen-lockfile --ignore-scripts
 
 COPY . .
 
-RUN bun run build-dist
+RUN nub run build-dist
 
 FROM ${NODE_SLIM_IMAGE} AS test
 
 COPY --from=builder /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=builder /usr/local/bin/bunx /usr/local/bin/bunx
+RUN npm install --global @nubjs/nub@0.7.5
 
 RUN groupadd -g 1001 testuser && \
     useradd -r -u 1001 -g testuser -m testuser
@@ -53,14 +56,15 @@ WORKDIR /test
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/bun.lock ./bun.lock
+COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --from=builder /app/bunfig.toml ./bunfig.toml
 COPY --from=builder /app/page ./page
 
 RUN if node -e "const pkg = require('./package.json'); process.exit(Object.keys(pkg.dependencies || {}).length === 0 ? 0 : 1)"; then \
         echo "No production dependencies to install"; \
     else \
-        bun install --production --frozen-lockfile --ignore-scripts; \
+        nub install --prod --frozen-lockfile --ignore-scripts; \
     fi
 
 COPY tests/e2e/fixtures/ ./

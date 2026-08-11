@@ -10,7 +10,7 @@ fail() {
   exit 1
 }
 
-bun run build:bin
+nub run build:bin
 
 help_output=$("$BIN" --help)
 printf '%s\n' "$help_output" | grep -Fq "Codependence" || fail "binary help"

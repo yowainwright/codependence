@@ -33,22 +33,24 @@ jobs:
           license-check: false
 
   build:
-    name: bun
+    name: nub
     runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Setup toolchain
         uses: ./.github/actions/setup-toolchain
 
-      - run: bun run deps:security
-      - run: bun run build
-      - run: bun run lint
-      - run: bun run typecheck
-      - run: bun run coverage
+      - run: nub run deps:security
+      - run: nub run deps:audit
+      - run: nub run build
+      - run: nub run lint
+      - run: nub run typecheck
+      - run: nub run coverage
         env:
           CI: true
       - name: Upload coverage to Codecov
@@ -60,7 +62,7 @@ jobs:
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: true
-      - run: bun run test:e2e:binary
+      - run: nub run test:e2e:binary
 
   node-compat:
     runs-on: ubuntu-latest
@@ -82,7 +84,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - run: bun run build
+      - run: nub run build
 
       - name: Test with Node.js
         run: node dist/cli.js --help

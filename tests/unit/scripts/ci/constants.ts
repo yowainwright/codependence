@@ -1,14 +1,14 @@
 const NODE_ALPINE_DIGEST = [
-  "fb71d01345f11b70",
-  "8a3553c66e7c7407",
-  "4f2d506400ea8197",
-  "3343d915cb64eef0",
+  "aadf416b2cdce311",
+  "a8811ba3f0608a61",
+  "b77dbf997500e2ea",
+  "fe781b51f6a0b019",
 ].join("");
 const NODE_SLIM_DIGEST = [
-  "2c87ef9bd3c6a3bd",
-  "4b472b4bec2ce9d1",
-  "6354b0c574f736c4",
-  "76489d09f560a203",
+  "4ebb5ace66f15a24",
+  "c14c492e01a8beee",
+  "d4fddf970a856109",
+  "f5126e703e5fe503",
 ].join("");
 
 export const BUN_LINUX_AARCH64_SHA256 = [
@@ -27,10 +27,11 @@ export const BUN_LINUX_X64_SHA256 = [
 export const MISE_TOML = `
 [tools]
 bun = "1.3.14"
-node = "24"
+node = "26.7.0"
+nub = "0.7.5"
 `;
-export const NODE_ALPINE_IMAGE = `node:24-alpine@sha256:${NODE_ALPINE_DIGEST}`;
-export const NODE_SLIM_IMAGE = `node:24-slim@sha256:${NODE_SLIM_DIGEST}`;
+export const NODE_ALPINE_IMAGE = `node:26-alpine@sha256:${NODE_ALPINE_DIGEST}`;
+export const NODE_SLIM_IMAGE = `node:26-slim@sha256:${NODE_SLIM_DIGEST}`;
 
 export const DOCKER_PINS = {
   bunArchives: {

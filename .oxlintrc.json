@@ -7,19 +7,45 @@
   ],
   "rules": {
     "no-console": "error",
+    "legibility/hoist-if-operators": "error",
     "legibility/max-array-chain-depth": [
-      "warn",
+      "error",
       {
         "max": 2
       }
     ],
+    "legibility/max-control-flow-depth": "error",
     "legibility/max-expression-operators": [
-      "warn",
+      "error",
       {
         "max": 4
       }
     ],
-    "legibility/no-quadratic-patterns": "warn"
+    "legibility/no-automated-comment-attribution": "error",
+    "legibility/no-complex-ternaries": "error",
+    "legibility/no-computed-values": "error",
+    "legibility/no-direct-node-bin-smoke": "error",
+    "legibility/no-hidden-side-effects": "error",
+    "legibility/no-identity-array-callback": "error",
+    "legibility/no-mixed-filename-casing": "error",
+    "legibility/no-quadratic-patterns": "error",
+    "legibility/no-redundant-boolean-logic": "error",
+    "legibility/no-redundant-nullish-fallback": "error",
+    "legibility/no-repeated-collection-search": "error",
+    "legibility/no-single-use-renaming-alias": "error",
+    "legibility/no-standalone-array-mutations": "error",
+    "legibility/no-trivial-wrapper-functions": "error",
+    "legibility/no-unmatched-comments": "error",
+    "legibility/no-unnecessary-block-callback": "error",
+    "legibility/prefer-concat-object-assign": "error",
+    "legibility/prefer-early-return": "error",
+    "legibility/prefer-flat-map": "error",
+    "legibility/prefer-guard-clauses": "error",
+    "legibility/prefer-object-lookup": "error",
+    "legibility/prefer-positive-condition-names": "error",
+    "legibility/require-executable-shebang": "error",
+    "legibility/require-filename-matches-dirname": "error",
+    "legibility/require-jsdoc-multiline-comments": "error"
   },
   "overrides": [
     {

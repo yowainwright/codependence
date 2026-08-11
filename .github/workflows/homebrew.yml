@@ -70,7 +70,7 @@ jobs:
 
       - name: Validate stable version
         run: |
-          bun scripts/brew.ts validate-version
+          nub scripts/brew.ts validate-version
 
       - name: Wait for npm package availability
         run: |
@@ -80,7 +80,7 @@ jobs:
       - name: Build and test binary
         id: binary
         run: |
-          bun run test:e2e:binary
+          nub run test:e2e:binary
 
           case "$(uname -m)" in
             arm64) ARCH=arm64 ;;
@@ -109,7 +109,7 @@ jobs:
           echo "sigstore_bundle=$SIGSTORE_BUNDLE" >> "$GITHUB_OUTPUT"
 
       - name: Generate formula from published tarball
-        run: bun scripts/brew.ts generate
+        run: nub scripts/brew.ts generate
 
       - name: Create formula test tap
         run: |

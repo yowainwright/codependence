@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for testing codependence init functionality
-ARG NODE_SLIM_IMAGE=node:24-slim@sha256:2c87ef9bd3c6a3bd4b472b4bec2ce9d16354b0c574f736c476489d09f560a203
+ARG NODE_SLIM_IMAGE=node:26-slim@sha256:4ebb5ace66f15a24c14c492e01a8beeed4fddf970a856109f5126e703e5fe503
 FROM ${NODE_SLIM_IMAGE} AS builder
 
 ARG BUN_VERSION
@@ -15,10 +15,11 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json ./
-COPY bun.lock ./
+COPY pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml ./
 COPY bunfig.toml ./
 
-# Copy workspace directories (needed for bun install with workspaces)
+# Copy workspace directories for dependency installation
 COPY page/ ./page/
 
 # Install bun from a pinned release asset
@@ -43,19 +44,21 @@ RUN set -eu; \
     rm -rf /tmp/bun.zip "/tmp/bun-linux-${bun_arch}"
 
 # Install dependencies (skip git hooks setup in Docker)
-RUN bun install --frozen-lockfile --ignore-scripts
+RUN npm install --global @nubjs/nub@0.7.5
+RUN nub install --frozen-lockfile --ignore-scripts
 
 # Copy source code
 COPY . .
 
 # Build the project normally
-RUN bun run build-dist
+RUN nub run build-dist
 
 # Test stage - clean environment for testing
 FROM ${NODE_SLIM_IMAGE} AS test
 
 COPY --from=builder /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=builder /usr/local/bin/bunx /usr/local/bin/bunx
+RUN npm install --global @nubjs/nub@0.7.5
 
 # Create a non-root user for testing
 RUN groupadd -g 1001 testuser && \
@@ -67,7 +70,8 @@ WORKDIR /test
 # Copy built distribution and necessary files from builder stage
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/bun.lock ./bun.lock
+COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --from=builder /app/bunfig.toml ./bunfig.toml
 COPY --from=builder /app/page ./page
 
@@ -75,7 +79,7 @@ COPY --from=builder /app/page ./page
 RUN if node -e "const pkg = require('./package.json'); process.exit(Object.keys(pkg.dependencies || {}).length === 0 ? 0 : 1)"; then \
         echo "No production dependencies to install"; \
     else \
-        bun install --production --frozen-lockfile --ignore-scripts; \
+        nub install --prod --frozen-lockfile --ignore-scripts; \
     fi
 
 # Copy test fixtures

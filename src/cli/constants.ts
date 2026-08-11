@@ -66,6 +66,10 @@ export const OPTION_DEFINITIONS: OptionDefinition[] = [
   { flags: ["--post-update-command"], hasValue: true, isArray: true },
   { flags: ["--schedule"], hasValue: true, isArray: true },
   { flags: ["--token-secret"], hasValue: true },
+  { flags: ["--enforcement"], hasValue: true },
+  { flags: ["--repository"], hasValue: true },
+  { flags: ["--non-interactive"], hasValue: false },
+  { flags: ["--skip-install"], hasValue: false },
   { flags: ["--force"], hasValue: false },
   { flags: ["--lockfile"], hasValue: true },
   { flags: ["-u", "--update"], hasValue: false },
@@ -102,6 +106,7 @@ Codependence - Enforce dependency version policy across your project
 Usage: codependence [command] [options]
 
 Commands:
+  onboard                           Set up project dependency policy
   init [type] [items...]            Initialize Codependence
                                     Types: rc, package, default, actions
 
@@ -114,6 +119,10 @@ Options:
   --post-update-command [name=cmd...] Override generated lockfile commands
   --schedule [area=cron...]        Override generated workflow schedules
   --token-secret <name>            GitHub PAT secret name for generated workflows
+  --enforcement <type>             Onboarding target: local, github, or both
+  --repository <owner/name>        GitHub repository used for token setup links
+  --non-interactive                Require onboarding choices as flags
+  --skip-install                   Do not install the local CLI during onboarding
   --force                           Replace generated workflow files
   --lockfile [policy]              Require lockfiles, or pass false to allow manifest-only updates
   -u, --update                      Update dependencies based on check
@@ -140,6 +149,7 @@ Options:
 
 Examples:
   # Get started
+  codependence onboard                       Set up a workspace-aware project policy
   codependence init                           Interactive setup wizard
   codependence init rc                        Create .codependencerc with all deps pinned
   codependence init rc react lodash           Create .codependencerc with listed deps pinned

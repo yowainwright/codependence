@@ -36,14 +36,14 @@ jobs:
           RELEASE_REF: ${{ github.ref_name }}
         run: |
           VERSION="${RELEASE_REF#v}"
-          PACKAGE_VERSION="$(bun -p 'require("./package.json").version')"
+          PACKAGE_VERSION="$(node -p 'require("./package.json").version')"
           test "$VERSION" = "$PACKAGE_VERSION"
 
-      - run: bun run validate
+      - run: nub run validate
         env:
           CI: true
 
-      - run: bun run build-dist
+      - run: nub run build-dist
 
       - run: node dist/cli.js --help
 
@@ -70,7 +70,7 @@ jobs:
           TARBALL_PATH: ${{ steps.pack.outputs.tarball }}
         run: |
           case "$GITHUB_REF_NAME" in *-*) exit 0 ;; esac
-          VERSION="${GITHUB_REF_NAME#v}" bun scripts/brew.ts generate-local
+          VERSION="${GITHUB_REF_NAME#v}" nub scripts/brew.ts generate-local
 
       - name: Audit formula before publishing
         run: |

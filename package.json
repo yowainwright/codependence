@@ -14,24 +14,17 @@
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "devDependencies": {
+    "@nubjs/nub": "0.7.5",
     "bun-types": "1.3.14",
     "eslint-plugin-legibility": "^0.2.0",
     "fast-check": "^4.9.0",
     "oxfmt": "^0.57.0",
     "oxlint": "^1.72.0",
-    "pastoralist": "^1.12.8",
+    "pastoralist": "1.13.0",
     "prettier": "^3.9.4",
     "release-it": "20.2.1",
     "scriptc": "0.0.21",
-    "turbo": "^2.10.3",
     "typescript": "^5.9.3"
-  },
-  "overrides": {
-    "ip-address": "10.3.1",
-    "nanoid": "3.3.17",
-    "postcss": "8.5.23",
-    "undici": "7.29.0",
-    "vite": "8.1.3"
   },
   "exports": {
     ".": {
@@ -65,16 +58,16 @@
     "semver"
   ],
   "license": "MIT",
-  "packageManager": "bun@1.3.14",
+  "packageManager": "pnpm@11.21.0+sha512.521705bce689924eac72f5a3587122f362689ef6571e55ba80076fd637c11132ecffada26fad4ea79c485bfddbfd3d5a2a5b05805a77e893de71ec8a6cca3bb1",
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "bun run build-dist",
-    "build:bin": "bun scripts/build-bin.ts",
+    "build": "nub run build-dist",
+    "build:bin": "nub scripts/build-bin.ts",
     "build-dist": "bun build src/index.ts --format esm --outfile dist/index.js --target node && bun build src/index.ts --format cjs --outfile dist/index.cjs --target node && bun build src/cli.ts --format esm --outfile dist/cli.js --target node && chmod +x dist/cli.js && bunx tsc --emitDeclarationOnly --declaration --outDir dist --rootDir src",
     "clean-dist": "rm -rf dist",
-    "clean": "bun run clean-dist && cd page/app && rm -rf dist",
+    "clean": "nub run clean-dist && cd page/app && rm -rf dist",
     "cmd:node:test-fail-run": "node dist/cli.js --config './tests/unit/fixtures/test-fail-package.json' --files 'test-fail-package.json' --rootDir './tests/unit/fixtures/' --debug",
     "cmd:node:test-pass-run": "node dist/cli.js --config './tests/unit/fixtures/test-pass-package.json' --files 'test-pass-package.json'  --rootDir './tests/unit/fixtures/' --debug",
     "cmd:bun:test-search": "bun src/cli.ts --rootDir './tests/unit/fixtures/' --debug --searchPath './tests/unit/fixtures/.codependencerc' --isTestingCLI",
@@ -83,49 +76,50 @@
     "cmd:bun:test-update-run": "bun src/cli.ts --config './tests/unit/fixtures/test-fail-package.json' --files 'test-fail-package.json' --rootDir './tests/unit/fixtures/' --debug --isTesting",
     "cmd:bun:test-codependencies-cli": "bun src/cli.ts -c './tests/unit/fixtures/test-fail-package.json' --files 'test-fail-package.json' -cds 'lodash' '{ \"fs-extra\": \"10.0.1\" }' --rootDir './tests/unit/fixtures/' --debug --isTesting",
     "coverage": "bun test --coverage",
-    "dev": "turbo run dev",
-    "docs:dev": "turbo run dev --filter=@codependence/docs",
-    "docs:build": "turbo run build --filter=@codependence/docs",
-    "docs:preview": "turbo run preview --filter=@codependence/docs",
+    "dev": "nub run docs:dev",
+    "docs:dev": "cd page/app && nub run dev",
+    "docs:build": "cd page/app && nub run build",
+    "docs:preview": "cd page/app && nub run preview",
+    "deps:audit": "nub audit",
     "deps:overrides": "pastoralist --remove-unused --summary",
-    "deps:security": "pastoralist --checkSecurity --securityProvider osv --hasWorkspaceSecurityChecks --summary --strict && bun audit",
+    "deps:security": "pastoralist --checkSecurity --summary --strict",
     "format-src": "oxfmt --write src",
     "format-test": "oxfmt --write tests",
     "format-app": "prettier --write page/app",
-    "format": "bun run format-src && bun run format-test && bun run format-app",
-    "lint": "bun run lint-src",
+    "format": "nub run format-src && nub run format-test && nub run format-app",
+    "lint": "nub run lint-src",
     "lint-fix": "oxlint . --fix",
-    "lint-src": "oxlint src",
+    "lint-src": "lint-changed",
     "lint:fix": "oxlint src --fix",
     "hooks:setup": "sh scripts/setup-hooks.sh",
-    "prepare": "bun run hooks:setup",
-    "prepublishOnly": "bun run clean-dist && bun run build-dist",
-    "preview": "turbo run preview",
-    "release": "bun scripts/release.ts",
-    "release:patch": "bun scripts/release.ts --increment=patch",
-    "release:patch:dry": "bun scripts/release.ts --increment=patch --dry-run",
-    "release:minor": "bun scripts/release.ts --increment=minor",
-    "release:minor:dry": "bun scripts/release.ts --increment=minor --dry-run",
-    "release:major": "bun scripts/release.ts --increment=major",
-    "release:major:dry": "bun scripts/release.ts --increment=major --dry-run",
-    "release:alpha": "bun scripts/release.ts --preRelease=alpha",
-    "release:alpha:dry": "bun scripts/release.ts --preRelease=alpha --dry-run",
-    "release:beta": "bun scripts/release.ts --preRelease=beta",
-    "release:beta:dry": "bun scripts/release.ts --preRelease=beta --dry-run",
-    "release:rc": "bun scripts/release.ts --preRelease=rc",
-    "release:rc:dry": "bun scripts/release.ts --preRelease=rc --dry-run",
-    "release:tag": "bun scripts/tag-release.ts",
-    "release:tag:dry": "bun scripts/tag-release.ts --dry-run",
-    "release:dry": "bun scripts/release.ts --dry-run",
-    "setup": "bun install && bun run hooks:setup && bun run build",
-    "test": "bun run test-src",
+    "prepare": "nub run hooks:setup",
+    "prepublishOnly": "nub run clean-dist && nub run build-dist",
+    "preview": "nub run docs:preview",
+    "release": "nub scripts/release.ts",
+    "release:patch": "nub scripts/release.ts --increment=patch",
+    "release:patch:dry": "nub scripts/release.ts --increment=patch --dry-run",
+    "release:minor": "nub scripts/release.ts --increment=minor",
+    "release:minor:dry": "nub scripts/release.ts --increment=minor --dry-run",
+    "release:major": "nub scripts/release.ts --increment=major",
+    "release:major:dry": "nub scripts/release.ts --increment=major --dry-run",
+    "release:alpha": "nub scripts/release.ts --preRelease=alpha",
+    "release:alpha:dry": "nub scripts/release.ts --preRelease=alpha --dry-run",
+    "release:beta": "nub scripts/release.ts --preRelease=beta",
+    "release:beta:dry": "nub scripts/release.ts --preRelease=beta --dry-run",
+    "release:rc": "nub scripts/release.ts --preRelease=rc",
+    "release:rc:dry": "nub scripts/release.ts --preRelease=rc --dry-run",
+    "release:tag": "nub scripts/tag-release.ts",
+    "release:tag:dry": "nub scripts/tag-release.ts --dry-run",
+    "release:dry": "nub scripts/release.ts --dry-run",
+    "setup": "nub install && nub run hooks:setup && nub run build",
+    "test": "nub run test-src",
     "test:e2e:binary": "./tests/e2e/test-binary.sh",
     "test-src": "bun test",
-    "typecheck": "bun run typecheck-src",
+    "typecheck": "nub run typecheck-src",
     "typecheck-src": "tsc --noEmit",
-    "update": "bun update",
-    "validate": "bun run typecheck && bun run lint && bun run test",
-    "validate:full": "bun run validate && ./tests/e2e/test-multilang.sh all",
+    "update": "nub update",
+    "validate": "nub run typecheck && nub run lint && nub run test",
+    "validate:full": "nub run validate && ./tests/e2e/test-multilang.sh all",
     "skills:install": "node scripts/install-legibility-skill.js agents",
     "skills:install:claude": "node scripts/install-legibility-skill.js claude",
     "skills:install:claude:local": "node scripts/install-legibility-skill.js claude --local",
@@ -135,9 +129,18 @@
   },
   "type": "module",
   "types": "dist/index.d.ts",
-  "workspaces": [
-    "page/app"
-  ],
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.21.0",
+      "onFail": "warn"
+    },
+    "runtime": {
+      "name": "node",
+      "version": "26.7.0",
+      "onFail": "warn"
+    }
+  },
   "pastoralist": {
     "appendix": {
       "undici@7.28.0": {
@@ -150,7 +153,7 @@
       },
       "vite@8.1.3": {
         "dependents": {
-          "codependence": "vite (unused override)",
+          "codependence": "vite (required by @tailwindcss/vite, @vitejs/plugin-react)",
           "@codependence/docs": "vite@^8.1.0"
         },
         "ledger": {
@@ -209,6 +212,7 @@
     },
     "depPaths": "workspace",
     "security": {
+      "enabled": true,
       "provider": "osv",
       "severityThreshold": "medium",
       "hasWorkspaceSecurityChecks": true
@@ -225,8 +229,5 @@
     "npm": {
       "publish": false
     }
-  },
-  "dependencies": {},
-  "peerDependencies": {},
-  "optionalDependencies": {}
+  }
 }

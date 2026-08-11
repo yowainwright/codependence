@@ -150,4 +150,82 @@ else
   exit 1
 fi
 
+# Test 11: Workspace-aware onboarding
+echo "\n11. Testing workspace-aware onboarding..."
+rm -rf onboarding-test
+mkdir -p onboarding-test/apps/web onboarding-test/examples/demo
+printf '%s\n' '{"name":"workspace","packageManager":"pnpm@9.15.0","dependencies":{"react":"^19.0.0"}}' > onboarding-test/package.json
+printf '%s\n' 'packages:' '  - apps/*' > onboarding-test/pnpm-workspace.yaml
+printf '%s\n' '{"name":"@workspace/web","dependencies":{"react":"^19.0.0","vite":"^8.1.0"}}' > onboarding-test/apps/web/package.json
+printf '%s\n' '{"name":"demo","dependencies":{"lodash":"^4.17.21"}}' > onboarding-test/examples/demo/package.json
+touch onboarding-test/pnpm-lock.yaml
+node dist/cli.js onboard \
+  --rootDir onboarding-test \
+  --mode precise \
+  --codependencies react \
+  --enforcement github \
+  --repository acme/workspace \
+  --non-interactive \
+  --skip-install
+
+if [ ! -f onboarding-test/.codependencerc ]; then
+  echo "FAIL: Onboarding did not create .codependencerc"
+  exit 1
+fi
+if [ ! -f onboarding-test/.github/workflows/codependence-node.yml ]; then
+  echo "FAIL: Onboarding did not create the GitHub workflow"
+  exit 1
+fi
+if ! grep -q 'apps/web/package.json' onboarding-test/.codependencerc; then
+  echo "FAIL: Onboarding did not include the declared workspace"
+  exit 1
+fi
+if grep -q 'examples/demo/package.json' onboarding-test/.codependencerc; then
+  echo "FAIL: Onboarding included a non-workspace package"
+  exit 1
+fi
+if ! grep -q 'secrets.CODEPENDENCE_TOKEN' onboarding-test/.github/workflows/codependence-node.yml; then
+  echo "FAIL: Onboarding workflow did not reference the repository secret"
+  exit 1
+fi
+rm -rf onboarding-test
+echo "PASS: Workspace-aware onboarding test"
+
+# Test 12: Workspace-root installation and failure cleanup
+echo "\n12. Testing workspace-root installation..."
+rm -rf onboarding-install-test onboarding-fail-test fake-bin
+mkdir -p onboarding-install-test/apps/web onboarding-fail-test/apps/web fake-bin
+printf '%s\n' '{"name":"workspace","packageManager":"pnpm@9.15.0"}' > onboarding-install-test/package.json
+printf '%s\n' '{"name":"@workspace/web","dependencies":{"react":"^19.0.0"}}' > onboarding-install-test/apps/web/package.json
+printf '%s\n' 'packages:' '  - apps/*' > onboarding-install-test/pnpm-workspace.yaml
+cp -R onboarding-install-test/. onboarding-fail-test/
+printf '%s\n' '#!/bin/sh' 'printf "%s\n" "$*" > install-args' > fake-bin/pnpm
+chmod +x fake-bin/pnpm
+PATH="$PWD/fake-bin:$PATH" node dist/cli.js onboard \
+  --rootDir onboarding-install-test \
+  --mode precise \
+  --enforcement local \
+  --non-interactive
+
+if ! grep -q '^add --save-dev -w codependence$' onboarding-install-test/install-args; then
+  echo "FAIL: Onboarding did not install pnpm dependency at the workspace root"
+  exit 1
+fi
+printf '%s\n' '#!/bin/sh' 'exit 1' > fake-bin/pnpm
+chmod +x fake-bin/pnpm
+if PATH="$PWD/fake-bin:$PATH" node dist/cli.js onboard \
+  --rootDir onboarding-fail-test \
+  --mode precise \
+  --enforcement local \
+  --non-interactive; then
+  echo "FAIL: Onboarding should fail when package installation fails"
+  exit 1
+fi
+if [ -f onboarding-fail-test/.codependencerc ]; then
+  echo "FAIL: Onboarding wrote config before package installation succeeded"
+  exit 1
+fi
+rm -rf onboarding-install-test onboarding-fail-test fake-bin
+echo "PASS: Workspace-root installation test"
+
 echo "\n=== All tests passed! ==="

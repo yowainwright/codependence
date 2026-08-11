@@ -63,7 +63,7 @@ require_built_cli() {
     return
   fi
 
-  fail "dist/cli.js not found - run bun run build-dist first"
+  fail "dist/cli.js not found - run nub run build-dist first"
 }
 
 run_cli() {
