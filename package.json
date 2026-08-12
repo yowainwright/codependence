@@ -23,7 +23,7 @@
     "pastoralist": "1.13.0",
     "prettier": "^3.9.4",
     "release-it": "20.2.1",
-    "scriptc": "0.0.21",
+    "scriptc": "0.0.23",
     "typescript": "^5.9.3"
   },
   "exports": {
