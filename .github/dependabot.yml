@@ -6,7 +6,7 @@ updates:
       interval: "weekly"
     exclude-paths:
       - "tests/**"
-      - "page/app/tests/**"
+      - "page/app/**"
 
   - package-ecosystem: "docker"
     directory: "/tests/e2e"
