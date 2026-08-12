@@ -22,7 +22,7 @@
     "oxlint": "^1.72.0",
     "pastoralist": "1.13.0",
     "prettier": "^3.9.4",
-    "release-it": "20.2.1",
+    "release-it": "21.0.2",
     "scriptc": "0.0.21",
     "typescript": "^5.9.3"
   },
