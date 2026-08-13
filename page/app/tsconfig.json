@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable", "DOM.AsyncIterable"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable", "DOM.AsyncIterable"],
     "types": ["vite/client"],
     "module": "ESNext",
     "moduleResolution": "bundler",
@@ -11,7 +11,6 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@codependence/onboarding": ["../../src/cli/onboarding/index.ts"]
