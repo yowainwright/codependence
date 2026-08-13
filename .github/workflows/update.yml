@@ -22,6 +22,17 @@ jobs:
 
       - run: nub run update
       - run: nub install
+
+      - name: Update Pastoralist policy
+        run: |
+          nub run deps:overrides
+          ./node_modules/.bin/pastoralist \
+            --checkSecurity \
+            --forceSecurityRefactor \
+            --summary \
+            --strict
+          nub install
+
       - run: nub run deps:security
       - run: nub run deps:audit
 

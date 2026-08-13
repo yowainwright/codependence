@@ -82,7 +82,7 @@
     "docs:preview": "cd page/app && nub run preview",
     "deps:audit": "nub audit",
     "deps:overrides": "pastoralist --remove-unused --summary",
-    "deps:security": "pastoralist --checkSecurity --summary --strict",
+    "deps:security": "pastoralist --dry-run --checkSecurity --summary --strict",
     "format-src": "oxfmt --write src",
     "format-test": "oxfmt --write tests",
     "format-app": "prettier --write page/app",
@@ -146,10 +146,10 @@
           "addedDate": "2026-06-28T00:00:00.000Z"
         }
       },
-      "vite@8.1.3": {
+      "vite@8.2.1": {
         "dependents": {
           "codependence": "vite (required by @tailwindcss/vite, @vitejs/plugin-react)",
-          "@codependence/docs": "vite@^8.1.0"
+          "@codependence/docs": "vite@^8.2.1"
         },
         "ledger": {
           "addedDate": "2026-07-02T00:00:00.000Z"
@@ -196,12 +196,19 @@
           "addedDate": "2022-06-13T19:05:47-07:00"
         }
       },
-      "nanoid@3.3.17": {
+      "nanoid@3.3.18": {
         "dependents": {
           "codependence": "nanoid (required by postcss)"
         },
         "ledger": {
-          "addedDate": "2022-06-13T19:05:47-07:00"
+          "addedDate": "2022-06-13T19:05:47-07:00",
+          "reason": "Security fix for GHSA-2v37-7h3g-55p8 (high)",
+          "securityChecked": true,
+          "securityCheckDate": "2026-08-13T00:00:00.000Z",
+          "securityProvider": "npm",
+          "securityCheckResult": "clean",
+          "vulnerableRange": "<3.3.18",
+          "patchedVersion": "3.3.18"
         }
       }
     },
