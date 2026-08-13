@@ -81,8 +81,8 @@
     "docs:build": "cd page/app && nub run build",
     "docs:preview": "cd page/app && nub run preview",
     "deps:audit": "nub audit",
-    "deps:overrides": "pastoralist --remove-unused --summary",
-    "deps:security": "pastoralist --checkSecurity --summary --strict",
+    "deps:overrides": "pastoralist --remove-unused --summary --depPaths page/app/package.json",
+    "deps:security": "pastoralist --checkSecurity --summary --strict --hasWorkspaceSecurityChecks --depPaths page/app/package.json",
     "format-src": "oxfmt --write src",
     "format-test": "oxfmt --write tests",
     "format-app": "prettier --write page/app",
@@ -148,7 +148,7 @@
       },
       "vite@8.1.3": {
         "dependents": {
-          "codependence": "vite (required by @tailwindcss/vite, @vitejs/plugin-react)",
+          "codependence": "vite (unused override)",
           "@codependence/docs": "vite@^8.1.0"
         },
         "ledger": {
@@ -181,7 +181,7 @@
       },
       "postcss@8.5.23": {
         "dependents": {
-          "codependence": "postcss (required by vite)",
+          "codependence": "postcss (unused override)",
           "@codependence/docs": "postcss (required by vite)"
         },
         "ledger": {
@@ -191,14 +191,6 @@
       "undici@7.29.0": {
         "dependents": {
           "codependence": "undici (required by release-it)"
-        },
-        "ledger": {
-          "addedDate": "2022-06-13T19:05:47-07:00"
-        }
-      },
-      "nanoid@3.3.17": {
-        "dependents": {
-          "codependence": "nanoid (required by postcss)"
         },
         "ledger": {
           "addedDate": "2022-06-13T19:05:47-07:00"
