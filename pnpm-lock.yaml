@@ -15,6 +15,12 @@ importers:
 
   .:
     devDependencies:
+      '@inquirer/checkbox':
+        specifier: ^5.2.1
+        version: 5.2.1(@types/node@26.2.0)
+      '@inquirer/select':
+        specifier: ^5.2.1
+        version: 5.2.1(@types/node@26.2.0)
       '@nubjs/nub':
         specifier: 0.7.5
         version: 0.7.5

@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, jest } from "bun:test";
+import inquirerCheckbox from "@inquirer/checkbox";
+import inquirerSelect from "@inquirer/select";
 import {
   createOutput,
   defaultOutput,
@@ -11,6 +13,8 @@ import {
   item,
   divider,
   box,
+  radio,
+  select,
 } from "../../src/dx";
 
 describe("DX Utilities", () => {
@@ -61,6 +65,16 @@ describe("DX Utilities", () => {
     it("should use default output", () => {
       expect(defaultOutput).toBeDefined();
       expect(defaultOutput.write).toBeDefined();
+    });
+  });
+
+  describe("Prompt styles", () => {
+    it("should use a single-choice prompt for radio", () => {
+      expect(radio).toBe(inquirerSelect);
+    });
+
+    it("should use a multi-choice prompt for select", () => {
+      expect(select).toBe(inquirerCheckbox);
     });
   });
 
@@ -134,7 +148,7 @@ describe("DX Utilities", () => {
       const lines = ["Hello", "World"];
       const boxed = box(lines);
 
-      expect(boxed).toHaveLength(4); // top + 2 content + bottom
+      expect(boxed).toHaveLength(4);
       expect(boxed[0]).toMatch(/^┌.*┐$/);
       expect(boxed[1]).toMatch(/^│.*│$/);
       expect(boxed[2]).toMatch(/^│.*│$/);
@@ -164,7 +178,7 @@ describe("DX Utilities", () => {
 
     it("should handle empty box content", () => {
       const boxed = box([]);
-      expect(boxed).toHaveLength(2); // just top and bottom
+      expect(boxed).toHaveLength(2);
     });
   });
 });

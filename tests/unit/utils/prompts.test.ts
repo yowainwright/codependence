@@ -1,5 +1,5 @@
 import { describe, test, expect, mock } from "bun:test";
-import { Prompt, createPrompt } from "../../../src/utils/prompts";
+import { Prompt, createPrompt } from "../../../src/dx";
 
 describe("Prompt", () => {
   test("should create readline interface on construction", () => {
@@ -145,7 +145,7 @@ describe("Prompt", () => {
     prompt.close();
   });
 
-  test("list should resolve with selected choice value", async () => {
+  test("radio should resolve with selected choice value", async () => {
     const prompt = new Prompt();
     const mockQuestion = mock((q: string, cb: (answer: string) => void) => {
       cb("1");
@@ -157,13 +157,39 @@ describe("Prompt", () => {
       { name: "Option 2", value: "opt2" },
     ];
 
-    const result = await prompt.list("Choose one", choices);
+    const result = await prompt.radio("Choose one", choices);
 
     expect(result).toBe("opt1");
     prompt.close();
   });
 
-  test("list should handle second choice", async () => {
+  test("radio should use an interactive selector", async () => {
+    const radioPrompt = mock(() => Promise.resolve("opt2"));
+    const prompt = new Prompt({ radioPrompt, interactive: true });
+    const choices = [
+      { name: "Option 1", value: "opt1" },
+      { name: "Option 2", value: "opt2" },
+    ];
+
+    const result = await prompt.radio("Choose one", choices);
+
+    expect(result).toBe("opt2");
+    expect(radioPrompt).toHaveBeenCalledWith({ message: "Choose one", choices });
+    prompt.close();
+  });
+
+  test("radio should remain closed when the interactive selector rejects", async () => {
+    const rejection = new Error("cancelled");
+    const radioPrompt = mock(() => Promise.reject(rejection));
+    const prompt = new Prompt({ radioPrompt, interactive: true });
+    const choices = [{ name: "Option 1", value: "opt1" }];
+
+    await expect(prompt.radio("Choose one", choices)).rejects.toBe(rejection);
+
+    expect(prompt["rl"]).toBeUndefined();
+  });
+
+  test("radio should handle second choice", async () => {
     const prompt = new Prompt();
     const mockQuestion = mock((q: string, cb: (answer: string) => void) => {
       cb("2");
@@ -175,13 +201,13 @@ describe("Prompt", () => {
       { name: "Option 2", value: "opt2" },
     ];
 
-    const result = await prompt.list("Choose one", choices);
+    const result = await prompt.radio("Choose one", choices);
 
     expect(result).toBe("opt2");
     prompt.close();
   });
 
-  test("list should re-prompt on invalid number", async () => {
+  test("radio should re-prompt on invalid number", async () => {
     const prompt = new Prompt();
     let callCount = 0;
     const mockQuestion = mock((q: string, cb: (answer: string) => void) => {
@@ -196,14 +222,14 @@ describe("Prompt", () => {
 
     const choices = [{ name: "Option 1", value: "opt1" }];
 
-    const result = await prompt.list("Choose one", choices);
+    const result = await prompt.radio("Choose one", choices);
 
     expect(result).toBe("opt1");
     expect(mockQuestion).toHaveBeenCalledTimes(2);
     prompt.close();
   });
 
-  test("list should re-prompt on non-numeric input", async () => {
+  test("radio should re-prompt on non-numeric input", async () => {
     const prompt = new Prompt();
     let callCount = 0;
     const mockQuestion = mock((q: string, cb: (answer: string) => void) => {
@@ -218,14 +244,14 @@ describe("Prompt", () => {
 
     const choices = [{ name: "Option 1", value: "opt1" }];
 
-    const result = await prompt.list("Choose one", choices);
+    const result = await prompt.radio("Choose one", choices);
 
     expect(result).toBe("opt1");
     expect(mockQuestion).toHaveBeenCalledTimes(2);
     prompt.close();
   });
 
-  test("checkbox should resolve with selected choice values", async () => {
+  test("select should resolve with selected choice values", async () => {
     const prompt = new Prompt();
     const mockQuestion = mock((q: string, cb: (answer: string) => void) => {
       cb("1,3");
@@ -238,13 +264,29 @@ describe("Prompt", () => {
       { name: "Option 3", value: "opt3" },
     ];
 
-    const result = await prompt.checkbox("Choose multiple", choices);
+    const result = await prompt.select("Choose multiple", choices);
 
     expect(result).toEqual(["opt1", "opt3"]);
     prompt.close();
   });
 
-  test("checkbox should handle single selection", async () => {
+  test("select should use an interactive selector", async () => {
+    const selectPrompt = mock(() => Promise.resolve(["opt1", "opt3"]));
+    const prompt = new Prompt({ selectPrompt, interactive: true });
+    const choices = [
+      { name: "Option 1", value: "opt1" },
+      { name: "Option 2", value: "opt2" },
+      { name: "Option 3", value: "opt3" },
+    ];
+
+    const result = await prompt.select("Choose multiple", choices);
+
+    expect(result).toEqual(["opt1", "opt3"]);
+    expect(selectPrompt).toHaveBeenCalledWith({ message: "Choose multiple", choices });
+    prompt.close();
+  });
+
+  test("select should handle single selection", async () => {
     const prompt = new Prompt();
     const mockQuestion = mock((q: string, cb: (answer: string) => void) => {
       cb("2");
@@ -256,13 +298,13 @@ describe("Prompt", () => {
       { name: "Option 2", value: "opt2" },
     ];
 
-    const result = await prompt.checkbox("Choose multiple", choices);
+    const result = await prompt.select("Choose multiple", choices);
 
     expect(result).toEqual(["opt2"]);
     prompt.close();
   });
 
-  test("checkbox should resolve empty array for empty input", async () => {
+  test("select should resolve empty array for empty input", async () => {
     const prompt = new Prompt();
     const mockQuestion = mock((q: string, cb: (answer: string) => void) => {
       cb("");
@@ -271,13 +313,13 @@ describe("Prompt", () => {
 
     const choices = [{ name: "Option 1", value: "opt1" }];
 
-    const result = await prompt.checkbox("Choose multiple", choices);
+    const result = await prompt.select("Choose multiple", choices);
 
     expect(result).toEqual([]);
     prompt.close();
   });
 
-  test("checkbox should handle whitespace in input", async () => {
+  test("select should handle whitespace in input", async () => {
     const prompt = new Prompt();
     const mockQuestion = mock((q: string, cb: (answer: string) => void) => {
       cb(" 1 , 2 ");
@@ -289,13 +331,13 @@ describe("Prompt", () => {
       { name: "Option 2", value: "opt2" },
     ];
 
-    const result = await prompt.checkbox("Choose multiple", choices);
+    const result = await prompt.select("Choose multiple", choices);
 
     expect(result).toEqual(["opt1", "opt2"]);
     prompt.close();
   });
 
-  test("checkbox should re-prompt on invalid numbers", async () => {
+  test("select should re-prompt on invalid numbers", async () => {
     const prompt = new Prompt();
     let callCount = 0;
     const mockQuestion = mock((q: string, cb: (answer: string) => void) => {
@@ -310,14 +352,14 @@ describe("Prompt", () => {
 
     const choices = [{ name: "Option 1", value: "opt1" }];
 
-    const result = await prompt.checkbox("Choose multiple", choices);
+    const result = await prompt.select("Choose multiple", choices);
 
     expect(result).toEqual(["opt1"]);
     expect(mockQuestion).toHaveBeenCalledTimes(2);
     prompt.close();
   });
 
-  test("checkbox should re-prompt on non-numeric input", async () => {
+  test("select should re-prompt on non-numeric input", async () => {
     const prompt = new Prompt();
     let callCount = 0;
     const mockQuestion = mock((q: string, cb: (answer: string) => void) => {
@@ -332,14 +374,14 @@ describe("Prompt", () => {
 
     const choices = [{ name: "Option 1", value: "opt1" }];
 
-    const result = await prompt.checkbox("Choose multiple", choices);
+    const result = await prompt.select("Choose multiple", choices);
 
     expect(result).toEqual(["opt1"]);
     expect(mockQuestion).toHaveBeenCalledTimes(2);
     prompt.close();
   });
 
-  test("checkbox should handle all selections", async () => {
+  test("select should handle all selections", async () => {
     const prompt = new Prompt();
     const mockQuestion = mock((q: string, cb: (answer: string) => void) => {
       cb("1,2,3");
@@ -352,7 +394,7 @@ describe("Prompt", () => {
       { name: "Option 3", value: "opt3" },
     ];
 
-    const result = await prompt.checkbox("Choose multiple", choices);
+    const result = await prompt.select("Choose multiple", choices);
 
     expect(result).toEqual(["opt1", "opt2", "opt3"]);
     prompt.close();
@@ -361,9 +403,7 @@ describe("Prompt", () => {
 
 describe("createPrompt", () => {
   test("should create prompt and execute callback", async () => {
-    const result = await createPrompt(async () => {
-      return "test result";
-    });
+    const result = await createPrompt(async () => "test result");
 
     expect(result).toBe("test result");
   });

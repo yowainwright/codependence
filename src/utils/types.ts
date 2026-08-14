@@ -71,11 +71,6 @@ export type DirectMatchItem =
       path: string;
     };
 
-export interface PromptChoice {
-  name: string;
-  value: string;
-}
-
 export interface SpinnerState {
   text: string;
   isSpinning: boolean;

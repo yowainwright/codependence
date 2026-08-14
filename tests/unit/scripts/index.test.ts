@@ -8,7 +8,7 @@ import { GitHubActionsProvider } from "../../../src/providers/github-actions";
 import { NodeJSProvider } from "../../../src/providers/nodejs";
 import { versionCache, requestDeduplicator } from "../../../src/utils/cache";
 import * as scripts from "../../../src/scripts";
-import { Prompt } from "../../../src/utils/prompts";
+import { Prompt } from "../../../src/dx";
 
 beforeEach(() => {
   versionCache.clear();
@@ -320,10 +320,7 @@ test("constructDepsToUpdateList => preserves caret prefix", () => {
 });
 
 test("constructDepsToUpdateList => preserves equality prefix once", () => {
-  const result = constructDepsToUpdateList(
-    { requests: "==2.28.0" },
-    { requests: "==2.31.0" },
-  );
+  const result = constructDepsToUpdateList({ requests: "==2.28.0" }, { requests: "==2.31.0" });
   expect(result).toEqual([
     {
       name: "requests",
@@ -335,10 +332,7 @@ test("constructDepsToUpdateList => preserves equality prefix once", () => {
 });
 
 test("constructDepsToUpdateList => enforces explicit object target prefix", () => {
-  const result = constructDepsToUpdateList(
-    { foo: "1.0.0" },
-    { foo: "^1.0.0" },
-  );
+  const result = constructDepsToUpdateList({ foo: "1.0.0" }, { foo: "^1.0.0" });
   expect(result).toEqual([
     {
       name: "foo",
@@ -350,10 +344,7 @@ test("constructDepsToUpdateList => enforces explicit object target prefix", () =
 });
 
 test("constructDepsToUpdateList => updates mismatched prefixes to explicit object target", () => {
-  const result = constructDepsToUpdateList(
-    { foo: "~1.0.0" },
-    { foo: "^1.0.0" },
-  );
+  const result = constructDepsToUpdateList({ foo: "~1.0.0" }, { foo: "^1.0.0" });
   expect(result).toEqual([
     {
       name: "foo",
@@ -365,18 +356,12 @@ test("constructDepsToUpdateList => updates mismatched prefixes to explicit objec
 });
 
 test("constructDepsToUpdateList => skips matching explicit object target", () => {
-  const result = constructDepsToUpdateList(
-    { foo: "^1.0.0" },
-    { foo: "^1.0.0" },
-  );
+  const result = constructDepsToUpdateList({ foo: "^1.0.0" }, { foo: "^1.0.0" });
   expect(result).toEqual([]);
 });
 
 test("constructDepsToUpdateList => does not preserve strict less-than prefix", () => {
-  const result = constructDepsToUpdateList(
-    { foo: "<2.0.0" },
-    { foo: "3.0.0" },
-  );
+  const result = constructDepsToUpdateList({ foo: "<2.0.0" }, { foo: "3.0.0" });
   expect(result).toEqual([
     {
       name: "foo",
@@ -388,10 +373,7 @@ test("constructDepsToUpdateList => does not preserve strict less-than prefix", (
 });
 
 test("constructDepsToUpdateList => does not preserve strict greater-than prefix", () => {
-  const result = constructDepsToUpdateList(
-    { foo: ">2.0.0" },
-    { foo: "3.0.0" },
-  );
+  const result = constructDepsToUpdateList({ foo: ">2.0.0" }, { foo: "3.0.0" });
   expect(result).toEqual([
     {
       name: "foo",
@@ -403,10 +385,7 @@ test("constructDepsToUpdateList => does not preserve strict greater-than prefix"
 });
 
 test("constructDepsToUpdateList => handles multiple caret prefixes correctly", () => {
-  const result = constructDepsToUpdateList(
-    { foo: "^^1.0.0" },
-    { foo: "2.0.0" },
-  );
+  const result = constructDepsToUpdateList({ foo: "^^1.0.0" }, { foo: "2.0.0" });
   expect(result).toEqual([
     {
       name: "foo",
@@ -418,10 +397,7 @@ test("constructDepsToUpdateList => handles multiple caret prefixes correctly", (
 });
 
 test("constructDepsToUpdateList => handles multiple tilde prefixes correctly", () => {
-  const result = constructDepsToUpdateList(
-    { foo: "~~~1.0.0" },
-    { foo: "2.0.0" },
-  );
+  const result = constructDepsToUpdateList({ foo: "~~~1.0.0" }, { foo: "2.0.0" });
   expect(result).toEqual([
     {
       name: "foo",
@@ -433,10 +409,7 @@ test("constructDepsToUpdateList => handles multiple tilde prefixes correctly", (
 });
 
 test("constructDepsToUpdateList => handles mixed special characters correctly", () => {
-  const result = constructDepsToUpdateList(
-    { foo: "^~^1.0.0" },
-    { foo: "2.0.0" },
-  );
+  const result = constructDepsToUpdateList({ foo: "^~^1.0.0" }, { foo: "2.0.0" });
   expect(result).toEqual([
     {
       name: "foo",
@@ -451,11 +424,7 @@ test("constructPermissiveDepsToUpdateList => updates all deps except codependenc
   const deps = { lodash: "^4.0.0", express: "~4.18.0", react: "18.0.0" };
   const codependencies = ["react"];
   const versionMap = { lodash: "4.17.21", express: "4.19.0", react: "18.3.0" };
-  const result = scripts.constructPermissiveDepsToUpdateList(
-    deps,
-    codependencies,
-    versionMap,
-  );
+  const result = scripts.constructPermissiveDepsToUpdateList(deps, codependencies, versionMap);
 
   expect(result).toEqual([
     {
@@ -581,9 +550,7 @@ test("constructDeps => with update", () => {
     path: "./test",
   };
   const depName = "bar";
-  const depList = [
-    { name: "bar", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
-  ];
+  const depList = [{ name: "bar", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" }];
   const result = constructDeps(json, depName, depList);
   expect(result).toEqual({ bar: "2.0.0" });
 });
@@ -858,10 +825,7 @@ test("checkDependenciesForVersion => writes updates and logs debug info", () => 
     "checkDependenciesForVersion debug info",
     expect.any(Object),
   );
-  expect(debugSpy).toHaveBeenCalledWith(
-    "constructJson debug info",
-    expect.any(Object),
-  );
+  expect(debugSpy).toHaveBeenCalledWith("constructJson debug info", expect.any(Object));
   expect(writeSpy).toHaveBeenCalledWith(
     "./debug-test.json",
     expect.stringContaining(`"foo": "2.0.0"`),
@@ -934,7 +898,11 @@ test("detectStaleCodependencies => handles object-style codependencies", () => {
 });
 
 test("detectStaleCodependencies => empty codependencies returns empty", () => {
-  const result = detectStaleCodependencies([], ["test-pass-package.json"], "./tests/unit/fixtures/");
+  const result = detectStaleCodependencies(
+    [],
+    ["test-pass-package.json"],
+    "./tests/unit/fixtures/",
+  );
   expect(result).toEqual([]);
 });
 
@@ -970,7 +938,9 @@ test("checkMatches => with error", () => {
   const rootDir = "./tests/unit/fixtures/";
   const isTesting = true;
   const files = ["test-fail-package.json"];
-  expect(() => checkMatches({ versionMap, files, isTesting, rootDir })).toThrow("Dependencies are not correct.");
+  expect(() => checkMatches({ versionMap, files, isTesting, rootDir })).toThrow(
+    "Dependencies are not correct.",
+  );
   expect(logCheckMatchesWithError).toHaveBeenCalled();
   logCheckMatchesWithError.mockRestore();
 });
@@ -1107,10 +1077,7 @@ test("checkFiles => with permissive mode only", async () => {
 });
 
 test("checkFiles => with permissive mode and codependencies", async () => {
-  const logCheckFilesPermissiveWithCodependencies = jest.spyOn(
-    console,
-    "error",
-  );
+  const logCheckFilesPermissiveWithCodependencies = jest.spyOn(console, "error");
   const codependencies = [{ lodash: "4.17.21" }];
   const getLatestVersionSpy = jest
     .spyOn(NodeJSProvider.prototype, "getLatestVersion")
@@ -1131,10 +1098,7 @@ test("checkFiles => with permissive mode and codependencies", async () => {
 
 test("checkFiles => warns on stale codependencies", async () => {
   const warnSpy = jest.spyOn(console, "warn");
-  const codependencies = [
-    { lodash: "4.17.21" },
-    { "stale-nonexistent-package": "1.0.0" },
-  ];
+  const codependencies = [{ lodash: "4.17.21" }, { "stale-nonexistent-package": "1.0.0" }];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-pass-package.json"];
   try {
@@ -1267,11 +1231,7 @@ test("constructPermissiveDepsToUpdateList => respects level=minor constraint", (
 test("constructPermissiveDepsToUpdateList => skips deps not in versionMap", () => {
   const deps = { lodash: "^4.0.0", unknown: "^1.0.0" };
   const versionMap = { lodash: "4.17.21" };
-  const result = scripts.constructPermissiveDepsToUpdateList(
-    deps,
-    [],
-    versionMap,
-  );
+  const result = scripts.constructPermissiveDepsToUpdateList(deps, [], versionMap);
   expect(result).toEqual([
     {
       name: "lodash",
@@ -1296,11 +1256,7 @@ test("constructPermissiveDepsToUpdateList => with mixed dependency types", () =>
     lodash: "4.17.22",
     react: "18.3.0",
   };
-  const result = scripts.constructPermissiveDepsToUpdateList(
-    deps,
-    codependencies,
-    versionMap,
-  );
+  const result = scripts.constructPermissiveDepsToUpdateList(deps, codependencies, versionMap);
 
   expect(result).toEqual([
     {
@@ -1325,11 +1281,10 @@ test("filterSelectedDeps => no packages selected", () => {
 });
 
 test("filterSelectedDeps => packages selected", () => {
-  const result = filterSelectedDeps(
-    ["lodash"],
-    ["lodash", "react"],
-    { lodash: "4.18.0", react: "18.0.0" },
-  );
+  const result = filterSelectedDeps(["lodash"], ["lodash", "react"], {
+    lodash: "4.18.0",
+    react: "18.0.0",
+  });
   expect(result.shouldUpdate).toBe(true);
   expect(result.depNames).toEqual(["lodash"]);
   expect(result.versionMap).toEqual({ lodash: "4.18.0" });
@@ -1337,12 +1292,17 @@ test("filterSelectedDeps => packages selected", () => {
 
 test("checkFiles => throws when no codependencies and not precise mode", async () => {
   await expect(
-    checkFiles({ codependencies: undefined, permissive: false, rootDir: "./tests/unit/fixtures/", files: ["test-pass-package.json"] } as never),
+    checkFiles({
+      codependencies: undefined,
+      permissive: false,
+      rootDir: "./tests/unit/fixtures/",
+      files: ["test-pass-package.json"],
+    } as never),
   ).rejects.toMatch(/codependencies/);
 });
 
 test("checkFiles => interactive mode invokes prompt selection", async () => {
-  const checkboxSpy = jest.spyOn(Prompt.prototype, "checkbox").mockResolvedValue([]);
+  const selectSpy = jest.spyOn(Prompt.prototype, "select").mockResolvedValue([]);
   const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
   const codependencies = [{ lodash: "4.18.0" }, { "fs-extra": "5.0.0" }];
   const rootDir = "./tests/unit/fixtures/";
@@ -1360,8 +1320,8 @@ test("checkFiles => interactive mode invokes prompt selection", async () => {
   } catch {
     // throws because deps are out of date in non-CLI mode
   }
-  expect(checkboxSpy).toHaveBeenCalled();
-  checkboxSpy.mockRestore();
+  expect(selectSpy).toHaveBeenCalled();
+  selectSpy.mockRestore();
   closeSpy.mockRestore();
 });
 
@@ -1384,9 +1344,7 @@ test("checkFiles => skips interactive prompt when nothing needs updating", async
     ),
   );
 
-  const checkboxSpy = jest
-    .spyOn(Prompt.prototype, "checkbox")
-    .mockResolvedValue(["lodash"]);
+  const selectSpy = jest.spyOn(Prompt.prototype, "select").mockResolvedValue(["lodash"]);
   const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
 
   try {
@@ -1410,9 +1368,9 @@ test("checkFiles => skips interactive prompt when nothing needs updating", async
         willUpdate: false,
       },
     ]);
-    expect(checkboxSpy).not.toHaveBeenCalled();
+    expect(selectSpy).not.toHaveBeenCalled();
   } finally {
-    checkboxSpy.mockRestore();
+    selectSpy.mockRestore();
     closeSpy.mockRestore();
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -1520,9 +1478,7 @@ test("checkFiles => applies provider-backed manifest updates", async () => {
       isTesting: false,
     });
 
-    const updatedPackageJson = JSON.parse(
-      fs.readFileSync(packageJsonPath, "utf8"),
-    ) as {
+    const updatedPackageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as {
       dependencies: Record<string, string>;
     };
 
@@ -1572,9 +1528,7 @@ test("checkFiles => logs manifest writes in testing update mode", async () => {
       isTesting: true,
     });
 
-    expect(infoSpy).toHaveBeenCalledWith(
-      `test-writeFileSync: ${packageJsonPath}`,
-    );
+    expect(infoSpy).toHaveBeenCalledWith(`test-writeFileSync: ${packageJsonPath}`);
     expect(JSON.parse(fs.readFileSync(packageJsonPath, "utf8"))).toEqual({
       name: "provider-update-testing",
       version: "1.0.0",
@@ -1592,10 +1546,7 @@ test("checkFiles => auto-detects python manifests", async () => {
   const tempDir = join(process.cwd(), "tests/unit/.tmp-python-detect");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
-  writeFileSync(
-    join(tempDir, "requirements.txt"),
-    "requests==2.28.0\nflask==2.0.0\n",
-  );
+  writeFileSync(join(tempDir, "requirements.txt"), "requests==2.28.0\nflask==2.0.0\n");
 
   const logSpy = jest.spyOn(console, "log");
   try {
@@ -1991,9 +1942,7 @@ test("checkFiles => supports GitHub Actions precise mode", async () => {
         silent: true,
       }),
     ).resolves.toEqual([]);
-    expect(readFileSync(workflowPath, "utf8")).toContain(
-      `uses: actions/checkout@${latestSha}`,
-    );
+    expect(readFileSync(workflowPath, "utf8")).toContain(`uses: actions/checkout@${latestSha}`);
   } finally {
     latestVersionSpy.mockRestore();
     rmSync(tempDir, { recursive: true, force: true });
@@ -2199,11 +2148,7 @@ test("checkFiles => allows mixed-provider explicit pins", async () => {
   try {
     await expect(
       checkFiles({
-        codependencies: [
-          { lodash: "4.17.21" },
-          { alpine: "3.20" },
-          { "actions/checkout": "v4" },
-        ],
+        codependencies: [{ lodash: "4.17.21" }, { alpine: "3.20" }, { "actions/checkout": "v4" }],
         rootDir: tempDir,
         files: ["package.json", "Dockerfile", ".github/workflows/ci.yml"],
         mode: "verbose",
@@ -2234,9 +2179,7 @@ test("checkFiles => logs thrown errors in debug mode", async () => {
         isTesting: true,
       }),
     ).rejects.toThrow();
-    expect(debugSpy).toHaveBeenCalledWith(
-      expect.stringContaining("SyntaxError"),
-    );
+    expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining("SyntaxError"));
   } finally {
     debugSpy.mockRestore();
     rmSync(tempDir, { recursive: true, force: true });
