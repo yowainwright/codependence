@@ -178,6 +178,17 @@ describe("Prompt", () => {
     prompt.close();
   });
 
+  test("radio should remain closed when the interactive selector rejects", async () => {
+    const rejection = new Error("cancelled");
+    const radioPrompt = mock(() => Promise.reject(rejection));
+    const prompt = new Prompt({ radioPrompt, interactive: true });
+    const choices = [{ name: "Option 1", value: "opt1" }];
+
+    await expect(prompt.radio("Choose one", choices)).rejects.toBe(rejection);
+
+    expect(prompt["rl"]).toBeUndefined();
+  });
+
   test("radio should handle second choice", async () => {
     const prompt = new Prompt();
     const mockQuestion = mock((q: string, cb: (answer: string) => void) => {

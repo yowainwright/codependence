@@ -135,11 +135,9 @@ export class Prompt {
 
   private async runInteractive<T>(prompt: () => Promise<T>) {
     this.close();
-    try {
-      return await prompt();
-    } finally {
-      this.openReadline();
-    }
+    const answer = await prompt();
+    this.openReadline();
+    return answer;
   }
 
   private interactiveRadio(options: ChoicePromptOptions) {
