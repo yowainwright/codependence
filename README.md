@@ -1,3 +1,5 @@
+
+
 # [Codependence](https://jeffry.in/codependence/)
 
 [![npm version](https://img.shields.io/npm/v/codependence.svg)](https://www.npmjs.com/package/codependence)
@@ -24,7 +26,7 @@ The difference from `{npm,pnpm} update` or `yarn upgrade` is that Codependence g
 
 The difference from hosted update bots is scope. Dependabot and Renovate are strong choices for scheduled dependency pull requests. Codependence is useful when dependency policy needs to run locally, in a script, in any CI provider, or across multiple manifests without depending on a hosted bot workflow.
 
-#### \*yes, dependencies can be pinned to `~` or `^` versions in `package.json` files!
+#### *yes, dependencies can be pinned to `~` or `^` versions in `package.json` files!
 
 Read more about [Codependence](#synopsis) and why you might want to use it [below](#why-use-codependence).
 
@@ -349,7 +351,7 @@ be disabled for one target with `"lockfile": false`. Use `--target bun` or
 
 ---
 
-### `codependencies`: `Array<string | Record<string, string>`
+### `codependencies`: `Array<string | Record<string, string>>`
 
 `codependencies` is a target-scoped policy array. String entries track the latest version; object entries pin an exact version or range.
 
@@ -415,7 +417,7 @@ Codependencies will install the right dependency version for each package in you
 An optional array of manifest or workflow glob patterns for a target.
 
 - The default value is `['package.json']`
-- This array accepts glob patterns as well, example `["package.json", "**/package.json"`
+- This array accepts glob patterns as well, example `["package.json", "**/package.json"]`
 
 ---
 
@@ -429,7 +431,7 @@ An optional root boolean that applies approved dependency updates across every t
 
 ### `rootDir`: `string`
 
-An **optional** string which can used to specify the root directory to run checks from;
+An **optional** string which can be used to specify the root directory to run checks from;
 
 - The default value is `"./"`
 
@@ -477,7 +479,7 @@ An **optional** string containing a search path for location config files.
 
 ### `yarnConfig`: `boolean`
 
-An **optional** boolean value used to enable \***yarn config** checking
+An **optional** boolean value used to enable **yarn config** checking
 
 - The default value is `false`
 
