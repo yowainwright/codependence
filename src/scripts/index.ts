@@ -26,11 +26,10 @@ import { validatePackageName } from "../utils/validate-package";
 import { exec } from "../utils/exec";
 import { glob } from "../utils/glob";
 import { logger } from "../logger";
-import { defaultOutput, item } from "../dx";
+import { defaultOutput, item, Prompt } from "../dx";
 import { versionCache, requestDeduplicator } from "../utils/cache";
 import { formatEnhancedError } from "../utils/suggestions";
 import { collectDiffsFromManifests, displayVersionDiffs } from "../utils/diff";
-import { Prompt } from "../utils/prompts";
 import { isWithinLevel, stripRepeatingVersionPrefixes } from "../utils/semver";
 import {
   DEFAULT_IGNORE_PATTERNS,
@@ -1417,7 +1416,7 @@ const promptForSelection = async (allDiffs: VersionDiff[]): Promise<string[]> =>
     name: `${diff.package} (${diff.current} -> ${diff.latest})`,
     value: diff.package,
   }));
-  const selected = await prompt.checkbox("Select packages to update:", choices);
+  const selected = await prompt.select("Select packages to update:", choices);
   prompt.close();
 
   return selected;

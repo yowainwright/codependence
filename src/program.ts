@@ -6,7 +6,7 @@ import { versionCache } from "./utils/cache";
 import { createSpinner } from "./utils/spinner";
 import { cyan, bold, green, gray, red } from "./utils/colors";
 import { SYMBOLS } from "./utils/constants";
-import { Prompt } from "./utils/prompts";
+import { Prompt } from "./dx";
 import { exec } from "./utils/exec";
 import { glob } from "./utils/glob";
 import { DEFAULT_IGNORE_PATTERNS } from "./scripts/constants";
@@ -153,7 +153,7 @@ const selectOnboardingMode = async (
   const configured = stringOption(options.mode);
   if (isOnboardingMode(configured)) return configured;
   if (options.nonInteractive === true) throw new Error("Onboarding requires --mode");
-  const selected = await prompt.list("How should Codependence manage dependencies?", [
+  const selected = await prompt.radio("How should Codependence manage dependencies?", [
     { name: "Update everything except selected pinned dependencies", value: "precise" },
     { name: "Update only selected dependencies", value: "verbose" },
   ]);
@@ -175,7 +175,7 @@ const selectOnboardingDependencies = (
   }
   if (options.nonInteractive === true) return Promise.resolve([]);
   const choices = project.dependencies.map(dependencyChoice);
-  return prompt.checkbox("Select dependencies for this policy", choices);
+  return prompt.select("Select dependencies for this policy", choices);
 };
 
 const selectOnboardingEnforcement = async (
@@ -185,7 +185,7 @@ const selectOnboardingEnforcement = async (
   const configured = stringOption(options.enforcement);
   if (isOnboardingEnforcement(configured)) return configured;
   if (options.nonInteractive === true) throw new Error("Onboarding requires --enforcement");
-  const selected = await prompt.list("Where should Codependence run?", [
+  const selected = await prompt.radio("Where should Codependence run?", [
     { name: "Locally and in GitHub Actions", value: "both" },
     { name: "GitHub Actions", value: "github" },
     { name: "Local CLI", value: "local" },
@@ -1207,7 +1207,7 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
       usePermissive = false;
     } else {
       const prompt = new Prompt();
-      const managementMode = await prompt.list("How would you like to manage your dependencies?", [
+      const managementMode = await prompt.radio("How would you like to manage your dependencies?", [
         {
           name: `${SYMBOLS.arrow} Permissive mode (recommended) - Update all dependencies to latest, except those you want to pin`,
           value: "permissive",
@@ -1233,7 +1233,7 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
           };
         });
 
-        const userPinnedDeps = await prompt.checkbox(
+        const userPinnedDeps = await prompt.select(
           "Select dependencies to PIN at their current versions (others will update to latest):",
           depChoices,
         );
@@ -1255,7 +1255,7 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
 
       const shouldPromptForOutput = pinnedDeps.length > 0 || managementMode === "permissive";
       if (shouldPromptForOutput) {
-        const outputLocation = await prompt.list(
+        const outputLocation = await prompt.radio(
           "Where would you like to save the configuration?",
           [
             { name: ".codependencerc (recommended)", value: "rc" },

@@ -1,5 +1,8 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "bun:test";
 import {
   formatGitHubOutput,
@@ -17,6 +20,94 @@ import {
   NODE_ALPINE_IMAGE as nodeAlpineImage,
   NODE_SLIM_IMAGE as nodeSlimImage,
 } from "./constants";
+
+type E2eRunner = {
+  cleanupCommand: string;
+  command: string;
+  name: string;
+  scriptPath: string;
+};
+
+type E2eRunResult = {
+  commands: string[];
+  status: number | null;
+};
+
+type DockerFixture = {
+  fixturePath: string;
+  logPath: string;
+};
+
+const DOCKER_CLEANUP_COMMAND =
+  "image rm --force codependence-test:latest codependence-builder:latest codependence-level-mode-test:latest";
+const MULTILANG_CLEANUP_COMMAND =
+  "image rm --force codependence-test:latest codependence-multilang-test:latest";
+const DOCKER_RUN_FAILURE = { DOCKER_RUN_EXIT: "7" };
+const DOCKER_RUN_INTERRUPTION = { DOCKER_RUN_SIGNAL: "TERM" };
+const REMOVE_FIXTURE_OPTIONS = { force: true, recursive: true };
+const E2E_RUNNERS: E2eRunner[] = [
+  {
+    cleanupCommand: DOCKER_CLEANUP_COMMAND,
+    command: "test",
+    name: "Docker",
+    scriptPath: "tests/e2e/test.sh",
+  },
+  {
+    cleanupCommand: MULTILANG_CLEANUP_COMMAND,
+    command: "init",
+    name: "multi-language",
+    scriptPath: "tests/e2e/test-multilang.sh",
+  },
+];
+const FAKE_DOCKER = `#!/bin/sh
+printf '%s\\n' "$*" >> "$DOCKER_LOG"
+if [ "$1" = "compose" ] && [ "$2" = "version" ]; then exit 0; fi
+if [ "$1" = "build" ]; then exit "\${DOCKER_BUILD_EXIT:-0}"; fi
+if [ "$1" = "run" ] && [ -n "\${DOCKER_RUN_SIGNAL:-}" ]; then
+  kill "-$DOCKER_RUN_SIGNAL" "$PPID"
+fi
+if [ "$1" = "run" ]; then exit "\${DOCKER_RUN_EXIT:-0}"; fi
+exit 0
+`;
+const REPOSITORY_ROOT_URL = new URL("../../../../", import.meta.url);
+const REPOSITORY_ROOT = fileURLToPath(REPOSITORY_ROOT_URL);
+
+function createDockerFixture(): DockerFixture {
+  const fixturePrefix = join(tmpdir(), "codependence-docker-cleanup-");
+  const fixturePath = mkdtempSync(fixturePrefix);
+  const dockerPath = join(fixturePath, "docker");
+  const logPath = join(fixturePath, "docker.log");
+  writeFileSync(dockerPath, FAKE_DOCKER);
+  chmodSync(dockerPath, 0o755);
+  return { fixturePath, logPath };
+}
+
+function runE2eWithFakeDocker(
+  runner: E2eRunner,
+  overrides: NodeJS.ProcessEnv = {},
+): E2eRunResult {
+  const { fixturePath, logPath } = createDockerFixture();
+  const path = `${fixturePath}:${process.env.PATH ?? ""}`;
+  const env = { ...process.env, ...overrides, DOCKER_LOG: logPath, PATH: path };
+  const spawnOptions = { cwd: REPOSITORY_ROOT, encoding: "utf8" as const, env };
+  const args = [runner.scriptPath, runner.command];
+  try {
+    const result = spawnSync("bash", args, spawnOptions);
+    const log = readFileSync(logPath, "utf8").trim();
+    const commands = log.split("\n");
+    const status = result.status;
+    return { commands, status };
+  } finally {
+    rmSync(fixturePath, REMOVE_FIXTURE_OPTIONS);
+  }
+}
+
+function expectScopedCleanup(result: E2eRunResult, runner: E2eRunner): void {
+  const cleanupCommand = result.commands.at(-1);
+  const systemPrune = result.commands.find((command) => command.startsWith("system prune"));
+  expect(cleanupCommand).toBe(runner.cleanupCommand);
+  expect(systemPrune).toBeUndefined();
+}
 
 function resolveVersions(overrides = {}) {
   return resolveToolVersions({
@@ -65,6 +156,26 @@ describe("scripts/ci/tool-versions", () => {
         ),
       ),
     ).toEqual([nodeSlimImage, nodeSlimImage, nodeSlimImage]);
+  });
+
+  E2E_RUNNERS.forEach((runner) => {
+    test(`${runner.name} e2e cleans Docker images after success`, () => {
+      const result = runE2eWithFakeDocker(runner);
+      expect(result.status).toBe(0);
+      expectScopedCleanup(result, runner);
+    });
+
+    test(`${runner.name} e2e cleans Docker images after failure`, () => {
+      const result = runE2eWithFakeDocker(runner, DOCKER_RUN_FAILURE);
+      expect(result.status).not.toBe(0);
+      expectScopedCleanup(result, runner);
+    });
+
+    test(`${runner.name} e2e cleans Docker images after interruption`, () => {
+      const result = runE2eWithFakeDocker(runner, DOCKER_RUN_INTERRUPTION);
+      expect(result.status).toBe(143);
+      expectScopedCleanup(result, runner);
+    });
   });
 
   test("release Dockerfiles share the same pinned Node alpine image", () => {

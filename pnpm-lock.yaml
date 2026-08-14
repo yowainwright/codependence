@@ -14,6 +14,12 @@ importers:
 
   .:
     devDependencies:
+      '@inquirer/checkbox':
+        specifier: ^5.2.1
+        version: 5.2.1(@types/node@26.1.0)
+      '@inquirer/select':
+        specifier: ^5.2.1
+        version: 5.2.1(@types/node@26.1.0)
       '@nubjs/nub':
         specifier: 0.7.5
         version: 0.7.5
@@ -61,7 +67,7 @@ importers:
         version: 4.3.2(vite@8.1.3(@types/node@26.1.0)(jiti@2.7.0)(yaml@2.9.0))
       '@tanstack/react-router':
         specifier: ^1.170.16
-        version: 1.170.17(react@19.2.7)(react-dom@19.2.7(react@19.2.7))
+        version: 1.170.17(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@vitejs/plugin-react':
         specifier: ^6.0.3
         version: 6.0.3(vite@8.1.3(@types/node@26.1.0)(jiti@2.7.0)(yaml@2.9.0))
@@ -115,7 +121,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
       vite:
-        specifier: ^8.1.0
+        specifier: 8.1.3
         version: 8.1.3(@types/node@26.1.0)(jiti@2.7.0)(yaml@2.9.0)
 
 packages:
@@ -847,6 +853,13 @@ packages:
     resolution: {integrity: sha512-4ec2Z/LOmRsAgU23CS4xeJfcJlmRg94A/XrbGRCF1gyU/zdDfRLYDVsS+ynSZCmGNxQ1jQriQOKMQeQxBA3Isw==}
     engines: {node: '>=14.0.0'}
     cpu: [wasm32]
+    bundledDependencies:
+      - '@napi-rs/wasm-runtime'
+      - '@emnapi/core'
+      - '@emnapi/runtime'
+      - '@tybys/wasm-util'
+      - '@emnapi/wasi-threads'
+      - tslib
 
   '@tailwindcss/oxide-win32-arm64-msvc@4.3.2':
     resolution: {integrity: sha512-Zyr/M0+XcYZu3bZrUytc7TXvrk0ftWfl8gN2MwekNDzhqhKRUucMPSeOzM0o0wH5AWOU49BsKRrfKxI2atCPMQ==}
@@ -2855,16 +2868,16 @@ snapshots:
 
   '@tanstack/history@1.162.0': {}
 
-  '@tanstack/react-router@1.170.17(react@19.2.7)(react-dom@19.2.7(react@19.2.7))':
+  '@tanstack/react-router@1.170.17(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@tanstack/history': 1.162.0
-      '@tanstack/react-store': 0.9.3(react@19.2.7)(react-dom@19.2.7(react@19.2.7))
+      '@tanstack/react-store': 0.9.3(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@tanstack/router-core': 1.171.14
       isbot: 5.1.44
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
 
-  '@tanstack/react-store@0.9.3(react@19.2.7)(react-dom@19.2.7(react@19.2.7))':
+  '@tanstack/react-store@0.9.3(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@tanstack/store': 0.9.3
       react: 19.2.7
@@ -4216,6 +4229,7 @@ snapshots:
       url-join: 5.0.0
       wildcard-match: 5.1.4
     transitivePeerDependencies:
+      - '@types/node'
       - kerberos
       - magicast
       - supports-color

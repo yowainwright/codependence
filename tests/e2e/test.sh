@@ -13,6 +13,10 @@ BUN_VERSION="$(node scripts/ci/tool-versions.js bun-version)"
 BUN_LINUX_X64_SHA256="$(node scripts/ci/tool-versions.js bun-linux-x64-sha256)"
 BUN_LINUX_AARCH64_SHA256="$(node scripts/ci/tool-versions.js bun-linux-aarch64-sha256)"
 NODE_SLIM_IMAGE="$(node scripts/ci/tool-versions.js node-slim-image)"
+TEST_IMAGE="codependence-test:latest"
+BUILDER_IMAGE="codependence-builder:latest"
+LEVEL_MODE_IMAGE="codependence-level-mode-test:latest"
+COMMAND="${1:-test}"
 
 echo "Codependence Docker Test Runner"
 echo "==================================="
@@ -59,15 +63,32 @@ if ! docker compose version &> /dev/null; then
     COMPOSE_CMD="docker-compose -f tests/e2e/docker-compose.yml"
 fi
 
+cleanup_docker_resources() {
+    docker image rm --force "$TEST_IMAGE" "$BUILDER_IMAGE" "$LEVEL_MODE_IMAGE" >/dev/null 2>&1 || true
+}
+
+enable_cleanup() {
+    trap cleanup_docker_resources EXIT
+    trap 'exit 129' HUP
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+}
+
 export BUN_VERSION
 export BUN_LINUX_X64_SHA256
 export BUN_LINUX_AARCH64_SHA256
 export NODE_SLIM_IMAGE
 
-case "${1:-test}" in
+case "$COMMAND" in
+    "test"|"level-mode"|"all")
+        enable_cleanup
+        ;;
+esac
+
+case "$COMMAND" in
 	    "test")
 	        print_status "Running automated tests..."
-	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t codependence-test -f tests/e2e/Dockerfile . && docker run --rm codependence-test:latest
+	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t "$TEST_IMAGE" -f tests/e2e/Dockerfile . && docker run --rm "$TEST_IMAGE"
 	        print_success "Automated tests completed!"
 	        ;;
     
@@ -79,29 +100,28 @@ case "${1:-test}" in
     
 	    "build")
 	        print_status "Building project in Docker..."
-	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target builder -t codependence-builder -f tests/e2e/Dockerfile .
+	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target builder -t "$BUILDER_IMAGE" -f tests/e2e/Dockerfile .
 	        print_success "Build completed!"
 	        ;;
     
 	    "level-mode")
 	        print_status "Running level and mode feature tests..."
-	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t codependence-level-mode-test -f tests/e2e/Dockerfile.level-mode . && docker run --rm codependence-level-mode-test:latest
+	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t "$LEVEL_MODE_IMAGE" -f tests/e2e/Dockerfile.level-mode . && docker run --rm "$LEVEL_MODE_IMAGE"
 	        print_success "Level and mode tests completed!"
 	        ;;
 
 	    "all")
 	        print_status "Running all e2e test suites..."
-	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t codependence-test -f tests/e2e/Dockerfile . && docker run --rm codependence-test:latest
+	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t "$TEST_IMAGE" -f tests/e2e/Dockerfile . && docker run --rm "$TEST_IMAGE"
 	        print_success "Init tests completed!"
-	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t codependence-level-mode-test -f tests/e2e/Dockerfile.level-mode . && docker run --rm codependence-level-mode-test:latest
+	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t "$LEVEL_MODE_IMAGE" -f tests/e2e/Dockerfile.level-mode . && docker run --rm "$LEVEL_MODE_IMAGE"
 	        print_success "Level and mode tests completed!"
         print_success "All e2e test suites completed!"
         ;;
 
     "clean")
         print_status "Cleaning up Docker resources..."
-        docker rmi codependence-test codependence-builder codependence-level-mode-test 2>/dev/null || true
-        docker system prune -f
+        cleanup_docker_resources
         print_success "Cleanup completed!"
         ;;
 
