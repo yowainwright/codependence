@@ -15,7 +15,7 @@ import { dirname, join } from "path";
 import { logger } from "../../src/logger";
 import * as scripts from "../../src/scripts";
 import * as config from "../../src/config";
-import { Prompt } from "../../src/utils/prompts";
+import { Prompt } from "../../src/dx";
 import * as execUtils from "../../src/utils/exec";
 import { GENERATED_ACTION_HEADER } from "../../src/cli/constants";
 
@@ -780,11 +780,11 @@ describe("initAction", () => {
 
   test("should handle interactive mode - permissive with selected deps", async () => {
     const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
-    const listSpy = jest
-      .spyOn(Prompt.prototype, "list")
+    const radioSpy = jest
+      .spyOn(Prompt.prototype, "radio")
       .mockResolvedValueOnce("permissive")
       .mockResolvedValueOnce("rc");
-    const checkboxSpy = jest.spyOn(Prompt.prototype, "checkbox").mockResolvedValue(["lodash"]);
+    const selectSpy = jest.spyOn(Prompt.prototype, "select").mockResolvedValue(["lodash"]);
     const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
 
     await initAction();
@@ -794,18 +794,18 @@ describe("initAction", () => {
     readFileSyncSpy.mockRestore();
     writeFileSyncSpy.mockRestore();
     consoleSpy.mockRestore();
-    listSpy.mockRestore();
-    checkboxSpy.mockRestore();
+    radioSpy.mockRestore();
+    selectSpy.mockRestore();
     closeSpy.mockRestore();
   });
 
   test("should handle interactive mode - permissive with no deps selected", async () => {
     const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
-    const listSpy = jest
-      .spyOn(Prompt.prototype, "list")
+    const radioSpy = jest
+      .spyOn(Prompt.prototype, "radio")
       .mockResolvedValueOnce("permissive")
       .mockResolvedValueOnce("rc");
-    const checkboxSpy = jest.spyOn(Prompt.prototype, "checkbox").mockResolvedValue([]);
+    const selectSpy = jest.spyOn(Prompt.prototype, "select").mockResolvedValue([]);
     const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
 
     await initAction();
@@ -815,15 +815,15 @@ describe("initAction", () => {
     readFileSyncSpy.mockRestore();
     writeFileSyncSpy.mockRestore();
     consoleSpy.mockRestore();
-    listSpy.mockRestore();
-    checkboxSpy.mockRestore();
+    radioSpy.mockRestore();
+    selectSpy.mockRestore();
     closeSpy.mockRestore();
   });
 
   test("should handle interactive mode - pin all deps", async () => {
     const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
-    const listSpy = jest
-      .spyOn(Prompt.prototype, "list")
+    const radioSpy = jest
+      .spyOn(Prompt.prototype, "radio")
       .mockResolvedValueOnce("all")
       .mockResolvedValueOnce("rc");
     const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
@@ -835,7 +835,7 @@ describe("initAction", () => {
     readFileSyncSpy.mockRestore();
     writeFileSyncSpy.mockRestore();
     consoleSpy.mockRestore();
-    listSpy.mockRestore();
+    radioSpy.mockRestore();
     closeSpy.mockRestore();
   });
 });
@@ -1081,11 +1081,11 @@ describe("onboardAction", () => {
   test("collects interactive local answers and installs the CLI", async () => {
     const packageJson = { dependencies: { react: "^19.0.0" } };
     const rootDir = createOnboardingProject(packageJson, { "package-lock.json": "" });
-    const listSpy = jest
-      .spyOn(Prompt.prototype, "list")
+    const radioSpy = jest
+      .spyOn(Prompt.prototype, "radio")
       .mockResolvedValueOnce("verbose")
       .mockResolvedValueOnce("local");
-    const checkboxSpy = jest.spyOn(Prompt.prototype, "checkbox").mockResolvedValue(["react"]);
+    const selectSpy = jest.spyOn(Prompt.prototype, "select").mockResolvedValue(["react"]);
     const closeSpy = jest.spyOn(Prompt.prototype, "close");
     const printSpy = jest.spyOn(logger, "print").mockImplementation(() => {});
     const execSpy = jest.spyOn(execUtils, "exec").mockResolvedValue({ stdout: "", stderr: "" });
@@ -1103,8 +1103,8 @@ describe("onboardAction", () => {
       execSpy.mockRestore();
       printSpy.mockRestore();
       closeSpy.mockRestore();
-      checkboxSpy.mockRestore();
-      listSpy.mockRestore();
+      selectSpy.mockRestore();
+      radioSpy.mockRestore();
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
   });
@@ -1112,11 +1112,11 @@ describe("onboardAction", () => {
   test("collects interactive GitHub repository and version answers", async () => {
     const packageJson = { dependencies: { react: "^19.0.0" } };
     const rootDir = createOnboardingProject(packageJson, { "package-lock.json": "" });
-    const listSpy = jest
-      .spyOn(Prompt.prototype, "list")
+    const radioSpy = jest
+      .spyOn(Prompt.prototype, "radio")
       .mockResolvedValueOnce("precise")
       .mockResolvedValueOnce("github");
-    const checkboxSpy = jest.spyOn(Prompt.prototype, "checkbox").mockResolvedValue([]);
+    const selectSpy = jest.spyOn(Prompt.prototype, "select").mockResolvedValue([]);
     const inputSpy = jest
       .spyOn(Prompt.prototype, "input")
       .mockResolvedValueOnce("acme/web")
@@ -1134,8 +1134,8 @@ describe("onboardAction", () => {
       printSpy.mockRestore();
       closeSpy.mockRestore();
       inputSpy.mockRestore();
-      checkboxSpy.mockRestore();
-      listSpy.mockRestore();
+      selectSpy.mockRestore();
+      radioSpy.mockRestore();
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
   });

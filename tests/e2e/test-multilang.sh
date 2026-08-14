@@ -12,6 +12,9 @@ BUN_VERSION="$(node scripts/ci/tool-versions.js bun-version)"
 BUN_LINUX_X64_SHA256="$(node scripts/ci/tool-versions.js bun-linux-x64-sha256)"
 BUN_LINUX_AARCH64_SHA256="$(node scripts/ci/tool-versions.js bun-linux-aarch64-sha256)"
 NODE_SLIM_IMAGE="$(node scripts/ci/tool-versions.js node-slim-image)"
+INIT_IMAGE="codependence-test:latest"
+MULTILANG_IMAGE="codependence-multilang-test:latest"
+COMMAND="${1:-all}"
 
 echo "Codependence Multi-Language E2E Test Runner"
 echo "=============================================="
@@ -54,12 +57,12 @@ build_init_image() {
         --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" \
         --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" \
         --target test \
-        -t codependence-test \
+        -t "$INIT_IMAGE" \
         -f tests/e2e/Dockerfile .
 }
 
 run_init_tests() {
-    run_step "Node.js init tests passed!" docker run --rm codependence-test:latest
+    run_step "Node.js init tests passed!" docker run --rm "$INIT_IMAGE"
 }
 
 build_multilang_image() {
@@ -69,48 +72,48 @@ build_multilang_image() {
         --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" \
         --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" \
         --target multilang-test \
-        -t codependence-multilang-test \
+        -t "$MULTILANG_IMAGE" \
         -f tests/e2e/Dockerfile.multilang .
 }
 
 run_multilang_tests() {
-    run_step "Multi-language tests passed!" docker run --rm codependence-multilang-test:latest
+    run_step "Multi-language tests passed!" docker run --rm "$MULTILANG_IMAGE"
 }
 
 run_go_update_tests() {
-    run_step "Go update tests passed!" docker run --rm codependence-multilang-test:latest ./test-go-update.sh
+    run_step "Go update tests passed!" docker run --rm "$MULTILANG_IMAGE" ./test-go-update.sh
 }
 
 run_provider_update_tests() {
-    run_step "Provider update tests passed!" docker run --rm codependence-multilang-test:latest ./provider/all.sh
+    run_step "Provider update tests passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/all.sh
 }
 
 run_provider_rust_tests() {
-    run_step "Rust provider e2e passed!" docker run --rm codependence-multilang-test:latest ./provider/rust.sh
+    run_step "Rust provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/rust.sh
 }
 
 run_provider_docker_tests() {
-    run_step "Docker provider e2e passed!" docker run --rm codependence-multilang-test:latest ./provider/docker.sh
+    run_step "Docker provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/docker.sh
 }
 
 run_provider_github_actions_tests() {
-    run_step "GitHub Actions provider e2e passed!" docker run --rm codependence-multilang-test:latest ./provider/github-actions.sh
+    run_step "GitHub Actions provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/github-actions.sh
 }
 
 run_provider_uv_tests() {
-    run_step "uv pyproject provider e2e passed!" docker run --rm codependence-multilang-test:latest ./provider/uv.sh
+    run_step "uv pyproject provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/uv.sh
 }
 
 run_agent_skill_tests() {
-    run_step "Agent skill install tests passed!" docker run --rm codependence-multilang-test:latest ./test-agent-skill-install.sh
+    run_step "Agent skill install tests passed!" docker run --rm "$MULTILANG_IMAGE" ./test-agent-skill-install.sh
 }
 
 run_packed_install_tests() {
-    run_step "Packed install smoke tests passed!" docker run --rm codependence-multilang-test:latest ./test-packed-install.sh
+    run_step "Packed install smoke tests passed!" docker run --rm "$MULTILANG_IMAGE" ./test-packed-install.sh
 }
 
 verify_init_environment() {
-    docker run --rm --entrypoint=/bin/sh codependence-test:latest -c '
+    docker run --rm --entrypoint=/bin/sh "$INIT_IMAGE" -c '
         set -e
         test -x dist/cli.js
         test -f package.json
@@ -118,7 +121,7 @@ verify_init_environment() {
 }
 
 verify_multilang_environment() {
-    docker run --rm --entrypoint=/bin/sh codependence-multilang-test:latest -c '
+    docker run --rm --entrypoint=/bin/sh "$MULTILANG_IMAGE" -c '
         set -e
         echo "Checking Node.js..."
         node --version
@@ -130,9 +133,15 @@ verify_multilang_environment() {
     '
 }
 
-clean_images() {
-    docker rmi codependence-test:latest codependence-multilang-test:latest 2>/dev/null || true
-    docker system prune -f
+cleanup_docker_resources() {
+    docker image rm --force "$INIT_IMAGE" "$MULTILANG_IMAGE" >/dev/null 2>&1 || true
+}
+
+enable_cleanup() {
+    trap cleanup_docker_resources EXIT
+    trap 'exit 129' HUP
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
 }
 
 # Check Docker
@@ -141,7 +150,13 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-case "${1:-all}" in
+case "$COMMAND" in
+    "init"|"multilang"|"python"|"go"|"go-update"|"provider-updates"|"rust"|"docker"|"github-actions"|"uv"|"agent-skills"|"packed-install"|"verify-init-env"|"verify-multilang-env"|"all")
+        enable_cleanup
+        ;;
+esac
+
+case "$COMMAND" in
     "init")
         print_status "Running Node.js init tests..."
         build_init_image
@@ -204,11 +219,13 @@ case "${1:-all}" in
 
     "verify-init-env")
         print_status "Verifying Node.js init Docker environment..."
+        build_init_image
         verify_init_environment
         ;;
 
     "verify-multilang-env")
         print_status "Verifying multi-language Docker environment..."
+        build_multilang_image
         verify_multilang_environment
         ;;
 
@@ -240,7 +257,7 @@ case "${1:-all}" in
 
     "clean")
         print_status "Cleaning up Docker resources..."
-        clean_images
+        cleanup_docker_resources
         print_success "Cleanup complete!"
         ;;
 
