@@ -28,6 +28,10 @@ describe("package entry", () => {
 
     expect(exports["./schema.json"]).toBe("./src/schema.json");
     expect(files).toContain("src/schema.json");
+    expect(entry.schema["x-revision"]).toBe(1);
+    expect(entry.schema["x-created"]).toBe("2025-11-23");
+    expect(entry.schema["x-updated"]).toBe("2026-08-16");
+    expect(entry.schema["x-history"]).toContain("/commits/main/src/schema.json");
     expect(entry.schema.definitions.target.required).toEqual(["manager"]);
     expect(entry.schema.definitions.manifest.required).toEqual(["path", "manager"]);
     expect(entry.schema.definitions.manifest.properties.ignore).toEqual({

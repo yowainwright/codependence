@@ -1,6 +1,10 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://unpkg.com/codependence/src/schema.json",
+  "x-revision": 1,
+  "x-created": "2025-11-23",
+  "x-updated": "2026-08-16",
+  "x-history": "https://github.com/yowainwright/codependence/commits/main/src/schema.json",
   "title": "Codependence Configuration",
   "description": "Configuration for managing dependency versions across your project",
   "type": "object",
