@@ -4,6 +4,21 @@ import type { ValidationError } from "../../../src/config/types";
 
 describe("validateConfig", () => {
   describe("valid configurations", () => {
+    it("validates named manifest config", () => {
+      const config = {
+        config: {
+          web: {
+            name: "@project/web",
+            path: "packages/web/package.json",
+            manager: "pnpm",
+            mode: "precise",
+          },
+        },
+      };
+
+      expect(validateConfig(config)).toEqual({ valid: true, errors: [] });
+    });
+
     it("should validate minimal config with codependencies array", () => {
       const config = {
         codependencies: ["react", "lodash"],
@@ -112,6 +127,29 @@ describe("validateConfig", () => {
   });
 
   describe("root object validation", () => {
+    it("accepts manager-only targets that use default policy", () => {
+      expect(
+        validateConfig({
+          $schema: "https://unpkg.com/codependence/src/schema.json",
+          targets: [{ manager: "bun" }],
+        }).valid,
+      ).toBe(true);
+      expect(
+        validateConfig({
+          config: { web: { manager: "pnpm", path: "packages/web/package.json" } },
+        }).valid,
+      ).toBe(true);
+    });
+
+    it("rejects config entries without a manifest path", () => {
+      const result = validateConfig({
+        config: { web: { manager: "pnpm", mode: "precise" } },
+      });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].field).toBe("config.web.path");
+    });
+
     it("should reject non-object config", () => {
       const result = validateConfig("invalid");
 

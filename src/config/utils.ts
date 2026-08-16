@@ -354,13 +354,16 @@ export const parseYAML = (content: string): Record<string, unknown> | null => {
   return Object.keys(config).length > 0 ? config : null;
 };
 
-export const loadPackageJson = (filepath: string): Record<string, unknown> | null => {
+export const loadPackageJson = (filepath: string): Record<string, unknown> | string | null => {
   const json = parseJSON(readFileSync(filepath, "utf8"));
   if (!json) {
     throw new ConfigLoadError(filepath, "package.json is not valid JSON");
   }
 
   const codependenceConfig = json.codependence;
+  if (typeof codependenceConfig === "string" && codependenceConfig.length > 0) {
+    return codependenceConfig;
+  }
   return isRecord(codependenceConfig) ? codependenceConfig : null;
 };
 

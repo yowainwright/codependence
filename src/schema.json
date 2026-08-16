@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://unpkg.com/codependence/src/schema.json",
   "title": "Codependence Configuration",
   "description": "Configuration for managing dependency versions across your project",
   "type": "object",
@@ -45,6 +46,7 @@
     },
     "target": {
       "type": "object",
+      "description": "Manager configuration; mode is inferred",
       "additionalProperties": false,
       "required": ["manager"],
       "properties": {
@@ -75,31 +77,71 @@
         "rootDir": {
           "$ref": "#/properties/rootDir"
         }
-      },
-      "anyOf": [
-        {
-          "required": ["codependencies"]
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "description": "Manifest configuration; mode is inferred",
+      "additionalProperties": false,
+      "required": ["path", "manager"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
         },
-        {
-          "required": ["permissive"]
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Manifest path relative to this configuration file"
         },
-        {
-          "required": ["mode"]
+        "manager": {
+          "$ref": "#/definitions/manager"
+        },
+        "codependencies": {
+          "$ref": "#/properties/codependencies"
+        },
+        "permissive": {
+          "$ref": "#/properties/permissive"
+        },
+        "ignore": {
+          "$ref": "#/properties/ignore"
+        },
+        "level": {
+          "$ref": "#/properties/level"
+        },
+        "mode": {
+          "$ref": "#/properties/mode"
+        },
+        "lockfile": {
+          "$ref": "#/definitions/lockfile"
         }
-      ]
+      }
     }
   },
   "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Configuration schema URL"
+    },
+    "config": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/definitions/manifest"
+      },
+      "description": "Named configuration entries, one per manifest"
+    },
     "targets": {
       "type": "array",
       "minItems": 1,
       "items": {
         "$ref": "#/definitions/target"
       },
-      "description": "Independent dependency policies grouped by manager"
+      "description": "Independent manager configuration entries"
     },
     "codependencies": {
-      "description": "List of dependencies to pin at specific versions",
+      "description": "Checked in verbose mode; held back in precise mode",
       "oneOf": [
         {
           "type": "array",
@@ -126,8 +168,7 @@
     },
     "permissive": {
       "type": "boolean",
-      "description": "When true, updates all dependencies to latest except those in codependencies",
-      "default": true
+      "description": "true means precise; false means verbose"
     },
     "language": {
       "type": "string",
@@ -157,7 +198,7 @@
     "mode": {
       "type": "string",
       "enum": ["verbose", "precise"],
-      "description": "verbose: only check listed packages; precise: update all except listed (default behavior)"
+      "description": "verbose checks listed dependencies; precise checks all others"
     },
     "lockfile": {
       "$ref": "#/definitions/lockfile"
@@ -228,6 +269,22 @@
     }
   },
   "dependencies": {
+    "config": {
+      "not": {
+        "anyOf": [
+          { "required": ["targets"] },
+          { "required": ["codependencies"] },
+          { "required": ["permissive"] },
+          { "required": ["language"] },
+          { "required": ["files"] },
+          { "required": ["ignore"] },
+          { "required": ["level"] },
+          { "required": ["mode"] },
+          { "required": ["rootDir"] },
+          { "required": ["yarnConfig"] }
+        ]
+      }
+    },
     "targets": {
       "not": {
         "anyOf": [
@@ -245,6 +302,9 @@
     }
   },
   "anyOf": [
+    {
+      "required": ["config"]
+    },
     {
       "required": ["targets"]
     },

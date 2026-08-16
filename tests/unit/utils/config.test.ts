@@ -46,6 +46,20 @@ describe("Config Loading", () => {
       expect(result?.filepath).toBe(pkgPath);
     });
 
+    test("should load a config referenced by package.json", () => {
+      const pkgPath = join(tmpDir, "package.json");
+      const configPath = join(tmpDir, "codependence.json");
+      const config = { config: { web: { path: "package.json", manager: "pnpm" } } };
+
+      writeFileSync(pkgPath, JSON.stringify({ codependence: "./codependence.json" }));
+      writeFileSync(configPath, JSON.stringify(config));
+
+      const result = loadConfig(pkgPath);
+
+      expect(result?.config).toEqual(config);
+      expect(result?.filepath).toBe(configPath);
+    });
+
     test("should return null if file not found", () => {
       const result = loadConfig(join(tmpDir, "nonexistent.json"));
 
@@ -398,14 +412,14 @@ describe("Config Loading", () => {
       expect(result?.filepath).toBe(join(tmpDir, ".codependencerc"));
     });
 
-    test("should prioritize .codependencerc over package.json", () => {
-      writeFileSync(join(tmpDir, ".codependencerc"), JSON.stringify({}));
+    test("should prioritize package.json over .codependencerc", () => {
+      writeFileSync(join(tmpDir, ".codependencerc"), "{ invalid json");
       const pkg = { name: "test", codependence: {} };
       writeFileSync(join(tmpDir, "package.json"), JSON.stringify(pkg));
 
       const result = loadConfig(undefined, tmpDir);
 
-      expect(result?.filepath).toBe(join(tmpDir, ".codependencerc"));
+      expect(result?.filepath).toBe(join(tmpDir, "package.json"));
     });
 
     test("should search parent directories", () => {
@@ -431,9 +445,7 @@ describe("Config Loading", () => {
       writeFileSync(join(tmpDir, ".codependencerc"), "{ invalid json");
       writeFileSync(
         join(tmpDir, "package.json"),
-        JSON.stringify({
-          codependence: { codependencies: ["lodash"] },
-        }),
+        JSON.stringify({ name: "test" }),
       );
 
       expect(() => loadConfig(undefined, tmpDir)).toThrow(

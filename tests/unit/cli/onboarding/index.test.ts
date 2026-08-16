@@ -179,14 +179,22 @@ describe("onboarding", () => {
       ".github/workflows/codependence-node.yml",
     ]);
     expect(JSON.parse(setup.artifacts[0].content)).toEqual({
-      targets: [
-        {
+      config: {
+        root: {
+          name: "workspace",
+          path: "package.json",
           manager: "pnpm",
-          files: ["package.json", "apps/web/package.json"],
           mode: "precise",
           codependencies: ["react"],
         },
-      ],
+        "apps/web": {
+          name: "@workspace/web",
+          path: "apps/web/package.json",
+          manager: "pnpm",
+          mode: "precise",
+          codependencies: ["react"],
+        },
+      },
     });
     expect(setup.artifacts[1].content).toContain("targets: pnpm");
     expect(setup.artifacts[1].content).toContain("version: 9.15.0");

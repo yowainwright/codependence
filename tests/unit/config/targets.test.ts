@@ -1,5 +1,29 @@
 import { describe, expect, test } from "bun:test";
-import { expandTargets } from "../../../src/config";
+import { expandTargets, normalizeConfigShape } from "../../../src/config";
+
+test("normalizes named manifest config for the existing target runner", () => {
+  const config = {
+    config: {
+      web: {
+        name: "@project/web",
+        path: "packages/web/package.json",
+        manager: "pnpm",
+        mode: "precise",
+      },
+    },
+  };
+
+  expect(normalizeConfigShape(config, "/repo")).toEqual({
+    targets: [
+      {
+        files: ["packages/web/package.json"],
+        manager: "pnpm",
+        mode: "precise",
+        rootDir: "/repo",
+      },
+    ],
+  });
+});
 
 describe("expandTargets", () => {
   test("keeps legacy flat options as one target", () => {

@@ -254,6 +254,7 @@ const validateBooleanField =
 
 const validateRootDir = validateStringField("rootDir");
 const validateOutputFile = validateStringField("outputFile");
+const validateSchema = validateStringField("$schema");
 const validateBooleanOptions = BOOLEAN_OPTION_FIELDS.map(validateBooleanField);
 
 const isSafeLockfilePath = (path: string): boolean => {
@@ -311,7 +312,6 @@ const prefixTargetError = (validationError: ValidationError, index: number): Val
 
 const targetFieldErrors = (target: Record<string, unknown>): ValidationError[] =>
   concat(
-    validateRequiredFields(target),
     validateManager(target),
     validateCodependencies(target),
     validatePermissive(target),
@@ -393,6 +393,7 @@ const mixedTargetFieldErrors = (config: Record<string, unknown>): ValidationErro
 
 const validateTargetRoot = (config: Record<string, unknown>): ValidationError[] => {
   return concat(
+    validateSchema(config),
     mixedTargetFieldErrors(config),
     validateTargets(config),
     validateFormat(config),
@@ -401,6 +402,46 @@ const validateTargetRoot = (config: Record<string, unknown>): ValidationError[] 
     validateUnknownFields(config),
   );
 };
+
+const configTarget = (entry: unknown): unknown => {
+  if (!isObject(entry)) return entry;
+
+  const { name, path, ...policy } = entry;
+  const safePath = isString(path) && isSafeLockfilePath(path) ? path : undefined;
+  const validName = name === undefined || (isString(name) && name.length > 0);
+  const invalidName = validName ? {} : { name };
+  return Object.assign({}, policy, invalidName, { files: [safePath] });
+};
+
+const configError = (validationError: ValidationError, ids: string[]): ValidationError => {
+  if (validationError.field === "targets") {
+    return Object.assign({}, validationError, { field: "config" });
+  }
+
+  const match = /^targets\[(\d+)](.*)$/.exec(validationError.field);
+  if (!match) return validationError;
+  const suffix = match[2].replace(".files", ".path");
+  const field = `config.${ids[Number(match[1])]}${suffix}`;
+  return Object.assign({}, validationError, { field });
+};
+
+const validateConfigRoot = (config: Record<string, unknown>): ValidationError[] => {
+  const { config: entries, ...root } = config;
+  if (!isObject(entries)) return invalidTargetsError(entries).map((item) => configError(item, []));
+
+  const ids = Object.keys(entries);
+  const targets = Object.values(entries).map(configTarget);
+  const targetConfig = Object.assign({}, root, { targets });
+  return validateTargetRoot(targetConfig).map((item) => configError(item, ids));
+};
+
+const conflictingShapeErrors = (): ValidationError[] => [
+  {
+    field: "root",
+    message: 'Configuration cannot define both "config" and "targets"',
+    suggestion: 'Keep "config" and remove "targets"',
+  },
+];
 
 export const validateConfig = (
   config: unknown,
@@ -414,7 +455,17 @@ export const validateConfig = (
   }
 
   const typedConfig = config as Record<string, unknown>;
+  const hasConfig = "config" in typedConfig;
   const hasTargets = "targets" in typedConfig;
+  const hasConflictingShapes = hasConfig && hasTargets;
+  if (hasConflictingShapes) {
+    const errors = conflictingShapeErrors();
+    return { valid: false, errors };
+  }
+  if (hasConfig) {
+    const errors = validateConfigRoot(typedConfig);
+    return { valid: errors.length === 0, errors };
+  }
   if (hasTargets) {
     const errors = validateTargetRoot(typedConfig);
     return { valid: errors.length === 0, errors };
@@ -422,6 +473,7 @@ export const validateConfig = (
 
   const errors = concat(
     ...(requirePolicy ? [validateRequiredFields(typedConfig)] : []),
+    validateSchema(typedConfig),
     validateCodependencies(typedConfig),
     validatePermissive(typedConfig),
     validateLanguage(typedConfig),

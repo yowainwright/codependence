@@ -10,7 +10,14 @@ import { Prompt } from "./dx";
 import { exec } from "./utils/exec";
 import { glob } from "./utils/glob";
 import { DEFAULT_IGNORE_PATTERNS } from "./scripts/constants";
-import { expandTargets, formatValidationErrors, loadConfig, validateConfig } from "./config";
+import {
+  expandTargets,
+  CONFIG_FILES,
+  formatValidationErrors,
+  loadConfig,
+  normalizeConfigShape,
+  validateConfig,
+} from "./config";
 import { parseArgs, showHelp } from "./cli/parser";
 import {
   analyzeOnboardingProject,
@@ -53,7 +60,7 @@ import {
   WORKFLOW_AREAS,
   WORKFLOW_LABELS,
 } from "./cli/constants";
-import { ONBOARDING_PNPM_WORKSPACE_FILE } from "./cli/onboarding/constants";
+import { ONBOARDING_CONFIG_PATH, ONBOARDING_PNPM_WORKSPACE_FILE } from "./cli/onboarding/constants";
 import type {
   InitGitHubActionsOptions,
   RenderWorkflowOptions,
@@ -242,9 +249,65 @@ const collectOnboardingAnswers = async (
   return { mode, selectedDependencies, enforcement, repository };
 };
 
+const packageConfigArtifact = (
+  rootDir: string,
+  codependence: Record<string, unknown> | string,
+): OnboardingSetup["artifacts"][number] => {
+  const path = MANIFEST_FILES.PACKAGE_JSON;
+  const packageJson = JSON.parse(readFileSync(join(rootDir, path), "utf8"));
+  const updatedPackage = Object.assign({}, packageJson, { codependence });
+  const content = `${JSON.stringify(updatedPackage, null, 2)}\n`;
+  return { path, content };
+};
+
+const existingConfigArtifacts = (
+  rootDir: string,
+  content: string,
+): OnboardingSetup["artifacts"] | undefined => {
+  const result = CONFIG_FILES.reduce<ReturnType<typeof loadConfig>>(
+    (found, filename) => found || loadConfig(join(rootDir, filename)),
+    null,
+  );
+  if (!result) return undefined;
+
+  const path = relative(rootDir, result.filepath);
+  if (path.startsWith("..")) throw new Error("Init only updates configuration in its directory");
+  if (path !== MANIFEST_FILES.PACKAGE_JSON) return [{ path, content }];
+  return [packageConfigArtifact(rootDir, JSON.parse(content))];
+};
+
+const newConfigArtifacts = (
+  rootDir: string,
+  project: OnboardingProject,
+  content: string,
+): OnboardingSetup["artifacts"] => {
+  if (project.manifests.length === 1) {
+    return [packageConfigArtifact(rootDir, JSON.parse(content))];
+  }
+
+  const pointer = `./${ONBOARDING_CONFIG_PATH}`;
+  const packageJson = packageConfigArtifact(rootDir, pointer);
+  return [packageJson, { path: ONBOARDING_CONFIG_PATH, content }];
+};
+
+const prepareOnboardingSetup = (
+  rootDir: string,
+  project: OnboardingProject,
+  setup: OnboardingSetup,
+): OnboardingSetup => {
+  const config = setup.artifacts.find(({ path }) => path === ONBOARDING_CONFIG_PATH);
+  if (!config) return setup;
+
+  const workflows = setup.artifacts.filter(({ path }) => path !== ONBOARDING_CONFIG_PATH);
+  const existing = existingConfigArtifacts(rootDir, config.content);
+  const configArtifacts = existing || newConfigArtifacts(rootDir, project, config.content);
+  return Object.assign({}, setup, { artifacts: configArtifacts.concat(workflows) });
+};
+
 const assertOnboardingWrites = (rootDir: string, setup: OnboardingSetup, force: boolean): void => {
   if (force) return;
-  const existing = setup.artifacts.filter(({ path }) => existsSync(join(rootDir, path)));
+  const workflows = setup.artifacts.filter(({ path }) => path.startsWith(".github/workflows/"));
+  const existing = workflows.filter(({ path }) => existsSync(join(rootDir, path)));
   if (existing.length === 0) return;
   throw new Error(
     `Refusing to overwrite onboarding files: ${existing.map(({ path }) => path).join(", ")}`,
@@ -266,13 +329,21 @@ const installOnboardingCli = async (
   skipInstall: boolean,
 ): Promise<void> => {
   const needsLocalCli = answers.enforcement === "local" || answers.enforcement === "both";
-  if (!needsLocalCli || skipInstall) return;
+  const shouldSkipInstall = !needsLocalCli || skipInstall;
+  if (shouldSkipInstall) return;
   await exec(setup.install.command, setup.install.args, { cwd: rootDir });
 };
 
-const printOnboardingResult = (project: OnboardingProject, setup: OnboardingSetup): void => {
-  logger.print(`Onboarded ${project.manifests.length} package manifest(s).`);
-  setup.artifacts.forEach(({ path }) => logger.print(`Created ${path}`));
+const printOnboardingResult = (
+  project: OnboardingProject,
+  setup: OnboardingSetup,
+  existingPaths: Set<string>,
+): void => {
+  logger.print(`Configured ${project.manifests.length} package manifest(s).`);
+  setup.artifacts.forEach(({ path }) => {
+    const action = existingPaths.has(path) ? "Updated" : "Created";
+    logger.print(`${action} ${path}`);
+  });
   logger.print(`Verify with: ${setup.verifyCommand}`);
   if (!setup.tokenSetup) return;
   logger.print(`Create a fine-grained PAT: ${setup.tokenSetup.personalAccessTokenUrl}`);
@@ -309,11 +380,15 @@ const applyOnboarding = async (
   configured: ConfiguredOnboarding,
   options: Record<string, unknown>,
 ): Promise<void> => {
-  const { answers, project, setup } = configured;
-  assertOnboardingWrites(rootDir, setup, options.force === true);
-  await installOnboardingCli(rootDir, answers, setup, options.skipInstall === true);
+  const { answers, project } = configured;
+  const setup = prepareOnboardingSetup(rootDir, project, configured.setup);
+  const existingPaths = new Set(
+    setup.artifacts.filter(({ path }) => existsSync(join(rootDir, path))).map(({ path }) => path),
+  );
+  assertOnboardingWrites(rootDir, setup, Boolean(options.force));
+  await installOnboardingCli(rootDir, answers, setup, Boolean(options.skipInstall));
   writeOnboardingArtifacts(rootDir, setup);
-  printOnboardingResult(project, setup);
+  printOnboardingResult(project, setup, existingPaths);
 };
 
 const runOnboardingPrompt = async (
@@ -362,8 +437,11 @@ const configuredTargets = (rootDir: string): CodependenceTarget[] => {
     );
   }
 
-  const targets = result.config.targets;
-  if (!Array.isArray(targets) || targets.length === 0) {
+  const configRootDir = dirname(result.filepath);
+  const normalizedConfig = normalizeConfigShape(result.config, configRootDir);
+  const targets = normalizedConfig.targets;
+  const hasTargets = Array.isArray(targets) && targets.length > 0;
+  if (!hasTargets) {
     throw new Error(
       "Codependence configuration must define manager targets before GitHub Actions can be generated.",
     );
@@ -955,17 +1033,30 @@ const runTargets = (
   );
 };
 
+const assertLoadedConfig = (config: Record<string, unknown>): void => {
+  if (!("config" in config)) return;
+  const result = validateConfig(config, { requirePolicy: false });
+  if (result.valid) return;
+  throw new Error(`Invalid config\n${formatValidationErrors(result.errors)}`);
+};
+
 const loadActionConfigs = (options: Options): ActionConfigs => {
   if (options.config) {
     const configFileResult = loadConfig(options.config);
     if (!configFileResult) throw new Error(`Config file not found: ${options.config}`);
-    return { baseConfig: {}, pathConfig: configFileResult.config };
+    assertLoadedConfig(configFileResult.config);
+    const configRootDir = dirname(configFileResult.filepath);
+    const normalizedConfig = normalizeConfigShape(configFileResult.config, configRootDir);
+    return { baseConfig: {}, pathConfig: normalizedConfig };
   }
 
   const result = loadConfig(undefined, options.searchPath);
   if (!result) return { baseConfig: {}, pathConfig: {} };
 
-  return { baseConfig: result.config, pathConfig: {} };
+  assertLoadedConfig(result.config);
+  const configRootDir = dirname(result.filepath);
+  const normalizedConfig = normalizeConfigShape(result.config, configRootDir);
+  return { baseConfig: normalizedConfig, pathConfig: {} };
 };
 
 export async function action(options: Options = {}): Promise<void | Options> {
@@ -1311,35 +1402,43 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
   }
 }
 
+const guidedInitOptions = (
+  initType: InitType | undefined,
+  initDeps: string[],
+  options: Record<string, unknown>,
+): Record<string, unknown> => {
+  const rootDir = initDeps[0] || stringOption(options.rootDir);
+  const rootOption = rootDir ? { rootDir } : {};
+  const configOptions = initType === "config" ? { enforcement: "local", skipInstall: true } : {};
+  return Object.assign({}, options, rootOption, configOptions);
+};
+
+const runInitCommand = async (args: string[], options: Record<string, unknown>): Promise<void> => {
+  const initType = args.find(isInitType);
+  const initIndex = args.indexOf("init");
+  const initArgs = args.slice(initIndex + 1);
+  const initDeps = collectInitDeps(initArgs);
+  if (initType === "actions") return initActions(options, initDeps);
+
+  const usesGuidedConfig = initType === "config" || initType === undefined;
+  if (usesGuidedConfig) return onboardAction(guidedInitOptions(initType, initDeps, options));
+
+  const codependencies = resolveInitDeps(options.codependencies, initDeps);
+  return initAction(initType, codependencies);
+};
+
 export async function run(args: string[] = process.argv): Promise<void> {
   const parsed = parseArgs(args);
-
-  const isHelpRequested = parsed.options.help === true;
+  const isHelpRequested = Boolean(parsed.options.help);
   if (isHelpRequested) {
     showHelp();
     return;
   }
 
-  if (parsed.command === "onboard") {
-    await onboardAction(parsed.options);
-    return;
-  }
+  if (parsed.command === "onboard") throw new Error("Unknown command: onboard");
 
   const isInitCommand = args.includes("init");
-  if (isInitCommand) {
-    const initType = args.find(isInitType);
-    const initIndex = args.indexOf("init");
-    const initArgs = args.slice(initIndex + 1);
-    const initDeps = collectInitDeps(initArgs);
-    if (initType === "actions") {
-      initActions(parsed.options, initDeps);
-      return;
-    }
-
-    const codependencies = resolveInitDeps(parsed.options.codependencies, initDeps);
-    await initAction(initType, codependencies);
-    return;
-  }
+  if (isInitCommand) return runInitCommand(args, parsed.options);
 
   await action(parsed.options as Options);
 }

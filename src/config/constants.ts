@@ -9,11 +9,11 @@ import type { DependencyManager } from "../types";
 import type { SplitState } from "./types";
 
 export const CONFIG_FILES = [
+  MANIFEST_FILES.PACKAGE_JSON,
   ".codependencerc",
   ".codependencerc.json",
   ".codependencerc.yaml",
   ".codependencerc.yml",
-  MANIFEST_FILES.PACKAGE_JSON,
 ] as const;
 
 export const CONFIG_FILE_NAMES = CONFIG_FILES as readonly string[];
@@ -60,6 +60,7 @@ export const BOOLEAN_OPTION_FIELDS = [
   "noCache",
 ] as const;
 export const KNOWN_FIELDS = [
+  "$schema",
   "codependencies",
   "permissive",
   "language",
@@ -72,6 +73,7 @@ export const KNOWN_FIELDS = [
   ...BOOLEAN_OPTION_FIELDS,
   "format",
   "outputFile",
+  "config",
   "targets",
 ] as const;
 

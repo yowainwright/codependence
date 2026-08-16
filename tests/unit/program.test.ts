@@ -181,22 +181,22 @@ describe("Action Function Tests (Fast)", () => {
     }
   });
 
-  test("runs each configured manager target independently", async () => {
+  test("runs each named manifest config independently", async () => {
     const workDir = fs.mkdtempSync(join(tmpdir(), "codependence-targets-"));
     const configPath = join(workDir, ".codependencerc");
-    const targets = [
-      {
+    const manifestConfig = {
+      package: {
+        path: "package.json",
         manager: "bun",
-        files: ["package.json"],
         codependencies: ["typescript"],
       },
-      {
+      workflows: {
+        path: ".github/workflows/update.yml",
         manager: "github-actions",
-        files: [".github/workflows/*.yml"],
         mode: "precise",
       },
-    ];
-    fs.writeFileSync(configPath, JSON.stringify({ targets }));
+    };
+    fs.writeFileSync(configPath, JSON.stringify({ config: manifestConfig }));
 
     try {
       await action({ config: configPath, update: true, silent: true });
@@ -217,7 +217,7 @@ describe("Action Function Tests (Fast)", () => {
         expect.objectContaining({
           language: "github-actions",
           packageManager: "github-actions",
-          files: [".github/workflows/*.yml"],
+          files: [".github/workflows/update.yml"],
           mode: "precise",
           update: true,
         }),
@@ -877,6 +877,10 @@ describe("run", () => {
     expect(scriptSpy).toHaveBeenCalled();
   });
 
+  test("rejects the removed onboard command", async () => {
+    await expect(run(["node", "script.js", "onboard"])).rejects.toThrow("Unknown command: onboard");
+  });
+
   test("should handle init command with package type", async () => {
     const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
       if (path === ".codependencerc") return false;
@@ -1011,6 +1015,32 @@ const createOnboardingProject = (
 };
 
 describe("onboardAction", () => {
+  test("routes init config to configuration-only setup", async () => {
+    const rootDir = createOnboardingProject(
+      { name: "web", packageManager: "pnpm@9.15.0" },
+      { "pnpm-lock.yaml": "" },
+    );
+
+    try {
+      await run([
+        "node",
+        "script.js",
+        "init",
+        "config",
+        rootDir,
+        "--mode",
+        "precise",
+        "--non-interactive",
+      ]);
+
+      const packageJson = JSON.parse(fs.readFileSync(join(rootDir, "package.json"), "utf8"));
+      expect(packageJson.codependence.config.root.path).toBe("package.json");
+      expect(fs.existsSync(join(rootDir, ".github"))).toBe(false);
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
   test("writes local and GitHub setup without installing when configured", async () => {
     const packageJson = {
       name: "workspace",
@@ -1031,7 +1061,7 @@ describe("onboardAction", () => {
       await run([
         "node",
         "script.js",
-        "onboard",
+        "init",
         "--rootDir",
         rootDir,
         "--mode",
@@ -1048,7 +1078,7 @@ describe("onboardAction", () => {
 
       expect(fs.existsSync(join(rootDir, ".codependencerc"))).toBe(true);
       expect(fs.existsSync(join(rootDir, ".github/workflows/codependence-node.yml"))).toBe(true);
-      expect(printSpy).toHaveBeenCalledWith("Onboarded 2 package manifest(s).");
+      expect(printSpy).toHaveBeenCalledWith("Configured 2 package manifest(s).");
       expect(closeSpy).toHaveBeenCalled();
 
       await expect(
@@ -1096,7 +1126,8 @@ describe("onboardAction", () => {
       expect(execSpy).toHaveBeenCalledWith("npm", ["install", "--save-dev", "codependence"], {
         cwd: rootDir,
       });
-      expect(fs.existsSync(join(rootDir, ".codependencerc"))).toBe(true);
+      const configuredPackage = JSON.parse(fs.readFileSync(join(rootDir, "package.json"), "utf8"));
+      expect(configuredPackage.codependence).toBeDefined();
       expect(fs.existsSync(join(rootDir, ".github"))).toBe(false);
       expect(closeSpy).toHaveBeenCalled();
     } finally {

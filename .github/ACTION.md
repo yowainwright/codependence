@@ -22,7 +22,7 @@ jobs:
 
 <!-- generated workflow behavior from src/program.ts -->
 
-After defining manager targets in `.codependencerc`, generate scheduled pull
+After defining manifest entries in `.codependencerc`, generate scheduled pull
 request workflows:
 
 ```sh
@@ -157,49 +157,35 @@ Add each manager to the root `.codependencerc`. Use `targets` to run only the
 requested manager policies. One invocation with multiple managers creates one
 atomic update and, in PR mode, one pull request.
 
-Root `rootDir` and `ignore` inputs apply to every target unless that target
-overrides them. Generated `.git`, `.next`, `.venv`, and `node_modules` content
+Root `rootDir` and `ignore` inputs apply to every selected manager. Generated
+`.git`, `.next`, `.venv`, and `node_modules` content
 is ignored automatically. An explicit `ignore` input replaces those defaults.
 
 ### Multiple managers in one config
 
-<!-- manager target config shape from src/types.ts and src/config/index.ts -->
+<!-- manifest config shape from src/types.ts and src/config/index.ts -->
 
 `.codependencerc`:
 
 ```json
 {
-  "lockfile": true,
-  "targets": [
-    {
-      "manager": "bun",
-      "files": ["**/package.json"],
+  "config": {
+    "web": {
+      "path": "packages/web/package.json",
+      "manager": "pnpm",
       "mode": "precise"
     },
-    {
+    "api": {
+      "path": "services/api/go.mod",
       "manager": "go",
-      "files": ["**/go.mod"],
       "mode": "precise"
     },
-    {
-      "manager": "rust",
-      "files": ["**/Cargo.toml"],
-      "mode": "precise"
-    },
-    {
-      "manager": "uv",
-      "files": ["**/pyproject.toml"],
-      "mode": "precise"
-    },
-    {
-      "manager": "docker",
-      "mode": "precise"
-    },
-    {
+    "actions": {
+      "path": ".github/workflows/release.yml",
       "manager": "github-actions",
       "mode": "precise"
     }
-  ]
+  }
 }
 ```
 

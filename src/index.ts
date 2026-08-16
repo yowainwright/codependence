@@ -2,7 +2,10 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "url";
 import { logger } from "./logger";
 import { run } from "./program";
+import configurationSchema from "./schema.json";
 import { checkFiles, codependence, script } from "./scripts";
+
+const schema = configurationSchema;
 
 const isDirectExecution =
   process.argv[1] !== undefined &&
@@ -16,5 +19,5 @@ if (isDirectExecution) {
   });
 }
 
-export { checkFiles, codependence, script };
+export { checkFiles, codependence, schema, script };
 export default codependence;
