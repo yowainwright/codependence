@@ -249,7 +249,9 @@ nub = "0.7.5"
     );
 
     assert.ok((contributing).includes("npm install --global @nubjs/nub@0.7.5"));
-    assert.ok((contributing).includes("https://nubjs.com/docs/install"));
+    const installLink = /^\[nub-install\]: (.+)$/m.exec(contributing);
+    assert.ok(installLink);
+    assert.strictEqual(installLink[1], "https://nubjs.com/docs/install");
   });
 
   test("resolveToolVersionValue rejects unknown keys", () => {

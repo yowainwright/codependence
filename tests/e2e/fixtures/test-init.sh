@@ -159,8 +159,7 @@ printf '%s\n' 'packages:' '  - apps/*' > onboarding-test/pnpm-workspace.yaml
 printf '%s\n' '{"name":"@workspace/web","dependencies":{"react":"^19.0.0","vite":"^8.1.0"}}' > onboarding-test/apps/web/package.json
 printf '%s\n' '{"name":"demo","dependencies":{"lodash":"^4.17.21"}}' > onboarding-test/examples/demo/package.json
 touch onboarding-test/pnpm-lock.yaml
-node dist/cli.js onboard \
-  --rootDir onboarding-test \
+node dist/cli.js init onboarding-test \
   --mode precise \
   --codependencies react \
   --enforcement github \
@@ -201,8 +200,7 @@ printf '%s\n' 'packages:' '  - apps/*' > onboarding-install-test/pnpm-workspace.
 cp -R onboarding-install-test/. onboarding-fail-test/
 printf '%s\n' '#!/bin/sh' 'printf "%s\n" "$*" > install-args' > fake-bin/pnpm
 chmod +x fake-bin/pnpm
-PATH="$PWD/fake-bin:$PATH" node dist/cli.js onboard \
-  --rootDir onboarding-install-test \
+PATH="$PWD/fake-bin:$PATH" node dist/cli.js init onboarding-install-test \
   --mode precise \
   --enforcement local \
   --non-interactive
@@ -213,8 +211,7 @@ if ! grep -q '^add --save-dev -w codependence$' onboarding-install-test/install-
 fi
 printf '%s\n' '#!/bin/sh' 'exit 1' > fake-bin/pnpm
 chmod +x fake-bin/pnpm
-if PATH="$PWD/fake-bin:$PATH" node dist/cli.js onboard \
-  --rootDir onboarding-fail-test \
+if PATH="$PWD/fake-bin:$PATH" node dist/cli.js init onboarding-fail-test \
   --mode precise \
   --enforcement local \
   --non-interactive; then

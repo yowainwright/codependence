@@ -147,4 +147,5 @@ cat > "$WORK_DIR/package.json" <<'JSON'
 JSON
 
 python3 "$SCRIPT_DIR/test-binary-interactive.py" "$BINARY_CLI" "$WORK_DIR"
-assert_file_contains "$WORK_DIR/.codependencerc" '"lodash"' "binary streaming TTY prompts"
+assert_file_contains "$WORK_DIR/package.json" '"codependencies"' "binary streaming TTY prompts"
+assert_file_contains "$WORK_DIR/package.json" '"lodash"' "binary streaming TTY output"

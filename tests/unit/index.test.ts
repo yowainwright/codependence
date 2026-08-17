@@ -49,6 +49,6 @@ describe("package entry", () => {
     const siteDependencies = sitePackage.dependencies as Record<string, string>;
 
     assert.strictEqual((rootPackage.dependencies), undefined);
-    assert.strictEqual((siteDependencies.effect), "^3.22.1");
+    assert.strictEqual((siteDependencies.react), "^19.2.8");
   });
 });

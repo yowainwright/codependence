@@ -28,7 +28,7 @@ export function Footer() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <FaGithub className="h-5 w-5" />
+            <FaGithub size={20} />
           </a>
         </div>
       </nav>

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import type { ChangeEvent, Dispatch, SetStateAction } from "react";
-import { Effect } from "effect";
 import { CopyButton } from "@/components/common/CopyButton";
 import {
   analyzeOnboardingProject,
@@ -75,14 +74,6 @@ const INITIAL_SESSION: OnboardingSession = {
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Onboarding failed";
 
-const runSiteEffect = async <Value,>(
-  effect: Effect.Effect<Value, string>,
-): Promise<Value> => {
-  const result = await Effect.runPromise(Effect.either(effect));
-  if (result._tag === "Left") throw new Error(result.left);
-  return result.right;
-};
-
 const updateSession = (
   setSession: SessionSetter,
   values: Partial<OnboardingSession>,
@@ -133,12 +124,7 @@ const selectProject = async (): Promise<{
     throw new Error("Directory selection is not supported by this browser");
   const handle = await pickerWindow.showDirectoryPicker();
   const files = await scanDirectory(handle);
-  const project = await runSiteEffect(
-    Effect.try({
-      try: () => analyzeOnboardingProject(files),
-      catch: errorMessage,
-    }),
-  );
+  const project = analyzeOnboardingProject(files);
   return { handle, project };
 };
 
@@ -171,12 +157,7 @@ const repositoryProjectScan = async (
   value: string,
 ): Promise<Partial<OnboardingSession>> => {
   const repository = parseOnboardingRepository(value);
-  const project = await runSiteEffect(
-    Effect.tryPromise({
-      try: () => scanOnboardingRepository(repository),
-      catch: errorMessage,
-    }),
-  );
+  const project = await scanOnboardingRepository(repository);
   const repositoryName = `${repository.owner}/${repository.name}`;
   const managerVersion = project.managerVersion || "";
   return {
@@ -230,12 +211,7 @@ const generateSetup = async (
       repository,
       selectedDependencies,
     };
-    const setup = await runSiteEffect(
-      Effect.try({
-        try: () => createOnboardingSetup(project, answers),
-        catch: errorMessage,
-      }),
-    );
+    const setup = createOnboardingSetup(project, answers);
     updateSession(setSession, {
       setup,
       error: "",
