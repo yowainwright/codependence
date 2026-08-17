@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, test } from "node:test";
+import assert from "node:assert/strict";
+import { assertRejects } from "../../helpers/assertions";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import {
@@ -22,7 +24,7 @@ const providers = (): DependencyProvider[] => [
 ];
 
 describe("provider contracts", () => {
-  const tmpDir = join(__dirname, ".tmp-provider-contracts");
+  const tmpDir = join(import.meta.dirname, ".tmp-provider-contracts");
 
   beforeEach(() => {
     rmSync(tmpDir, { recursive: true, force: true });
@@ -31,9 +33,9 @@ describe("provider contracts", () => {
 
   test("all providers declare resolution capabilities", () => {
     providers().forEach((provider) => {
-      expect(typeof provider.capabilities.supportsLatestResolution).toBe("boolean");
-      expect(typeof provider.capabilities.supportsPreciseMode).toBe("boolean");
-      expect(["semver", "exact"]).toContain(provider.capabilities.versionStrategy);
+      assert.strictEqual((typeof provider.capabilities.supportsLatestResolution), "boolean");
+      assert.strictEqual((typeof provider.capabilities.supportsPreciseMode), "boolean");
+      assert.ok((["semver", "exact"]).includes(provider.capabilities.versionStrategy));
     });
   });
 
@@ -43,12 +45,8 @@ describe("provider contracts", () => {
     );
 
     for (const provider of unsupportedProviders) {
-      await expect(provider.getLatestVersion("example")).rejects.toThrow(
-        "requires explicit version pins",
-      );
-      await expect(provider.getAllVersions("example")).rejects.toThrow(
-        "requires explicit version pins",
-      );
+      await assertRejects(provider.getLatestVersion("example"), "requires explicit version pins");
+      await assertRejects(provider.getAllVersions("example"), "requires explicit version pins");
     }
   });
 
@@ -58,13 +56,8 @@ describe("provider contracts", () => {
     );
 
     exactProviders.forEach((provider) => {
-      const isAllowed = isWithinLevel(
-        "v1",
-        "v9",
-        "patch",
-        provider.capabilities.versionStrategy,
-      );
-      expect(isAllowed).toBe(true);
+      const isAllowed = isWithinLevel("v1", "v9", "patch", provider.capabilities.versionStrategy);
+      assert.strictEqual((isAllowed), true);
     });
   });
 
@@ -83,8 +76,7 @@ describe("provider contracts", () => {
       {
         provider: new RustProvider({ isTesting: true }),
         file: "Cargo.toml",
-        content:
-          '[dependencies]\nserde = "1.0.210"\nlocal = { path = "../local" }\n',
+        content: '[dependencies]\nserde = "1.0.210"\nlocal = { path = "../local" }\n',
       },
     ];
 
@@ -95,7 +87,7 @@ describe("provider contracts", () => {
       const manifest = provider.readManifest(filePath);
       provider.writeManifest(filePath, manifest);
 
-      expect(readFileSync(filePath, "utf8")).toBe(content);
+      assert.strictEqual((readFileSync(filePath, "utf8")), content);
     });
   });
 });

@@ -1,9 +1,7 @@
-import { ANSI } from './constants';
-import type { Output } from './types';
+import { ANSI } from "./constants";
+import type { Output } from "./types";
 
-export const createOutput = (
-  stream: NodeJS.WriteStream = process.stdout,
-): Output => ({
+export const createOutput = (stream: NodeJS.WriteStream = process.stdout): Output => ({
   write: (text: string) => stream.write(text),
   writeLine: (text: string) => stream.write(`${text}\n`),
   clearLine: () => stream.write(ANSI.CLEAR_LINE),

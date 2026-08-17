@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
 import {
   errorMessage,
   isDirectCliExecution,
@@ -7,11 +8,11 @@ import {
 
 describe("scripts/ci/cli-entrypoint", () => {
   test("errorMessage formats Error instances", () => {
-    expect(errorMessage(new Error("missing env"))).toBe("missing env");
+    assert.strictEqual((errorMessage(new Error("missing env"))), "missing env");
   });
 
   test("errorMessage formats non-error throws", () => {
-    expect(errorMessage("failed")).toBe("failed");
+    assert.strictEqual((errorMessage("failed")), "failed");
   });
 
   test("runCliEntrypoint stores the returned exit code", () => {
@@ -19,7 +20,7 @@ describe("scripts/ci/cli-entrypoint", () => {
 
     runCliEntrypoint(() => 2, { processRef });
 
-    expect(processRef.exitCode).toBe(2);
+    assert.strictEqual((processRef.exitCode), 2);
   });
 
   test("runCliEntrypoint writes a clean error and sets exit code 1", () => {
@@ -36,15 +37,15 @@ describe("scripts/ci/cli-entrypoint", () => {
       },
     );
 
-    expect(errors).toEqual(["VERSION is required"]);
-    expect(processRef.exitCode).toBe(1);
+    assert.deepStrictEqual((errors), ["VERSION is required"]);
+    assert.strictEqual((processRef.exitCode), 1);
   });
 
   test("isDirectCliExecution detects Node ESM script invocation", () => {
     const metaUrl = new URL("../../../../scripts/ci/tool-versions.js", import.meta.url).href;
 
-    expect(isDirectCliExecution(metaUrl, ["node", "scripts/ci/tool-versions.js"])).toBe(true);
-    expect(isDirectCliExecution(metaUrl, ["node", "scripts/ci/published-release.js"])).toBe(false);
-    expect(isDirectCliExecution(metaUrl, ["node"])).toBe(false);
+    assert.strictEqual((isDirectCliExecution(metaUrl, ["node", "scripts/ci/tool-versions.js"])), true);
+    assert.strictEqual((isDirectCliExecution(metaUrl, ["node", "scripts/ci/published-release.js"])), false);
+    assert.strictEqual((isDirectCliExecution(metaUrl, ["node"])), false);
   });
 });

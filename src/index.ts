@@ -8,8 +8,7 @@ import { checkFiles, codependence, script } from "./scripts";
 const schema = configurationSchema;
 
 const isDirectExecution =
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
 
 /* c8 ignore next 5 */
 if (isDirectExecution) {

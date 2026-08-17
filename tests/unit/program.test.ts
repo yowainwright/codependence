@@ -1,4 +1,15 @@
-import { expect, test, jest, beforeEach, afterEach, describe } from "bun:test";
+import { test, beforeEach, afterEach, describe, mock } from "node:test";
+import assert from "node:assert/strict";
+import { assertCalledWith, assertNthCalledWith, assertProperty, assertRejects, assertThrows, match } from "../helpers/assertions";
+import type { Options } from "../../src/types";
+import fs from "node:fs";
+import { tmpdir } from "os";
+import { dirname, join } from "path";
+import { logger } from "../../src/logger";
+import * as config from "../../src/config";
+import { Prompt } from "../../src/dx";
+import { GENERATED_ACTION_HEADER } from "../../src/cli/constants";
+
 import {
   action,
   mergeConfigs,
@@ -6,29 +17,28 @@ import {
   initAction,
   initGitHubActions,
   onboardAction,
+  programDependencies,
   run,
 } from "../../src/program";
-import type { Options } from "../../src/types";
-import * as fs from "fs";
-import { tmpdir } from "os";
-import { dirname, join } from "path";
-import { logger } from "../../src/logger";
-import * as scripts from "../../src/scripts";
-import * as config from "../../src/config";
-import { Prompt } from "../../src/dx";
-import * as execUtils from "../../src/utils/exec";
-import { GENERATED_ACTION_HEADER } from "../../src/cli/constants";
+
+const checkFilesMock = mock.fn(programDependencies.checkFiles);
+const loadConfigMock = mock.fn(programDependencies.loadConfig);
+const execMock = mock.fn(programDependencies.exec);
+programDependencies.checkFiles = checkFilesMock;
+programDependencies.loadConfig = loadConfigMock;
+programDependencies.exec = execMock;
 
 describe("Action Function Tests (Fast)", () => {
-  let scriptSpy: ReturnType<typeof jest.spyOn>;
+  let scriptSpy = checkFilesMock;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue(undefined);
+    checkFilesMock.mock.resetCalls();
+    checkFilesMock.mock.mockImplementation(async () => undefined);
+    scriptSpy = checkFilesMock;
   });
 
   afterEach(() => {
-    scriptSpy.mockRestore();
+    scriptSpy.mock.restore();
   });
 
   test("returns options with isTestingAction flag", async () => {
@@ -39,28 +49,28 @@ describe("Action Function Tests (Fast)", () => {
 
     const result = await action(options);
 
-    expect(result).toEqual({
+    assert.deepStrictEqual((result), {
       isCLI: true,
       codependencies: ["lodash"],
     });
   });
 
   test("handles isTestingCLI flag", async () => {
-    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const consoleLogSpy = mock.method(console, "log", () => {});
 
     await action({
       isTestingCLI: true,
       codependencies: ["lodash", "fs-extra"],
     });
 
-    expect(consoleLogSpy).toHaveBeenCalledWith({
+    assertCalledWith((consoleLogSpy), {
       updatedOptions: {
         isCLI: true,
         codependencies: ["lodash", "fs-extra"],
       },
     });
 
-    consoleLogSpy.mockRestore();
+    consoleLogSpy.mock.restore();
   });
 
   test("merges CLI options with config", async () => {
@@ -72,7 +82,7 @@ describe("Action Function Tests (Fast)", () => {
       isTestingAction: true,
     });
 
-    expect(result).toEqual({
+    assert.deepStrictEqual((result), {
       isCLI: true,
       codependencies: ["lodash"],
       update: true,
@@ -87,15 +97,15 @@ describe("Action Function Tests (Fast)", () => {
       isTestingAction: true,
     });
 
-    expect(result).toBeDefined();
+    assert.notStrictEqual((result), undefined);
     if (result && typeof result === "object") {
-      expect(result.permissive).toBe(true);
-      expect(result.isCLI).toBe(true);
+      assert.strictEqual((result.permissive), true);
+      assert.strictEqual((result.isCLI), true);
     }
   });
 
   test("processes multiple CLI flags", async () => {
-    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const consoleLogSpy = mock.method(console, "log", () => {});
 
     await action({
       isTestingCLI: true,
@@ -109,7 +119,7 @@ describe("Action Function Tests (Fast)", () => {
       rootDir: "./test",
     });
 
-    expect(consoleLogSpy).toHaveBeenCalledWith({
+    assertCalledWith((consoleLogSpy), {
       updatedOptions: {
         isCLI: true,
         codependencies: ["lodash"],
@@ -123,7 +133,7 @@ describe("Action Function Tests (Fast)", () => {
       },
     });
 
-    consoleLogSpy.mockRestore();
+    consoleLogSpy.mock.restore();
   });
 
   test("processes config with searchPath", async () => {
@@ -133,10 +143,10 @@ describe("Action Function Tests (Fast)", () => {
       isTestingAction: true,
     });
 
-    expect(result).toBeDefined();
+    assert.notStrictEqual((result), undefined);
     if (result && typeof result === "object") {
-      expect(result.isCLI).toBe(true);
-      expect(result.codependencies).toEqual(["test"]);
+      assert.strictEqual((result.isCLI), true);
+      assert.deepStrictEqual((result.codependencies), ["test"]);
     }
   });
 
@@ -147,7 +157,7 @@ describe("Action Function Tests (Fast)", () => {
       isTestingAction: true,
     });
 
-    expect(result).toEqual({
+    assert.deepStrictEqual((result), {
       isCLI: true,
       codependencies: ["lodash"],
       verbose: true,
@@ -161,7 +171,7 @@ describe("Action Function Tests (Fast)", () => {
       isTestingAction: true,
     });
 
-    expect(result).toEqual({
+    assert.deepStrictEqual((result), {
       isCLI: true,
       codependencies: ["lodash"],
       quiet: true,
@@ -174,10 +184,10 @@ describe("Action Function Tests (Fast)", () => {
       isTestingAction: true,
     });
 
-    expect(result).toBeDefined();
+    assert.notStrictEqual((result), undefined);
     if (result && typeof result === "object") {
-      expect(result.isCLI).toBe(true);
-      expect(result.codependencies).toBeDefined();
+      assert.strictEqual((result.isCLI), true);
+      assert.notStrictEqual((result.codependencies), undefined);
     }
   });
 
@@ -201,40 +211,33 @@ describe("Action Function Tests (Fast)", () => {
     try {
       await action({ config: configPath, update: true, silent: true });
 
-      expect(scriptSpy).toHaveBeenCalledTimes(2);
-      expect(scriptSpy).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({
+      assert.strictEqual((scriptSpy).mock.callCount(), 2);
+      assertNthCalledWith((scriptSpy), 1, match.objectContaining({
           language: "nodejs",
           packageManager: "bun",
           files: ["package.json"],
           codependencies: ["typescript"],
           update: true,
-        }),
-      );
-      expect(scriptSpy).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
+        }));
+      assertNthCalledWith((scriptSpy), 2, match.objectContaining({
           language: "github-actions",
           packageManager: "github-actions",
           files: [".github/workflows/update.yml"],
           mode: "precise",
           update: true,
-        }),
-      );
+        }));
     } finally {
       fs.rmSync(workDir, { recursive: true, force: true });
     }
   });
 
   test("reports deferred target failures without a success message", async () => {
-    const stdoutSpy = jest.spyOn(process.stdout, "write").mockImplementation(() => true);
-    scriptSpy
-      .mockImplementationOnce(async (options) => {
-        options.onDeferredFailure?.();
-        return [];
-      })
-      .mockResolvedValueOnce([]);
+    const stdoutSpy = mock.method(process.stdout, "write", () => true);
+    scriptSpy.mock.mockImplementationOnce(async (options) => {
+      options.onDeferredFailure?.();
+      return [];
+    });
+    scriptSpy.mock.mockImplementationOnce(async () => [], 1);
 
     try {
       await action({
@@ -244,11 +247,11 @@ describe("Action Function Tests (Fast)", () => {
         ],
       });
 
-      const output = stdoutSpy.mock.calls.flat().join("");
-      expect(output).toContain("found dependency issues");
-      expect(output).not.toContain("pinned!");
+      const output = stdoutSpy.mock.calls.flatMap((call) => call.arguments).join("");
+      assert.ok((output).includes("found dependency issues"));
+      assert.ok(!(output).includes("pinned!"));
     } finally {
-      stdoutSpy.mockRestore();
+      stdoutSpy.mock.restore();
     }
   });
 
@@ -269,13 +272,11 @@ describe("Action Function Tests (Fast)", () => {
         codependencies: ["react"],
       });
 
-      expect(scriptSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
+      assertCalledWith((scriptSpy), match.objectContaining({
           codependencies: ["react"],
           files: ["package.json"],
           rootDir: workDir,
-        }),
-      );
+        }));
     } finally {
       fs.rmSync(workDir, { recursive: true, force: true });
     }
@@ -285,25 +286,25 @@ describe("Action Function Tests (Fast)", () => {
     const workDir = fs.mkdtempSync(join(tmpdir(), "codependence-yaml-config-"));
     const configPath = join(workDir, ".codependencerc.yml");
     fs.writeFileSync(configPath, "codependencies: [{ lodash: 4.17.21, react: 18.2.0 }]");
-    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = jest.spyOn(process, "exit").mockImplementation((() => {}) as () => never);
+    const errorSpy = mock.method(console, "error", () => {});
+    const exitSpy = mock.method(process, "exit", (() => {}) as () => never);
 
     try {
       await action({ config: configPath });
 
-      const errorCalls = errorSpy.mock.calls.flat().join(" ");
-      expect(errorCalls).toContain("exactly one key");
-      expect(exitSpy).toHaveBeenCalledWith(2);
-      expect(scriptSpy).not.toHaveBeenCalled();
+      const errorCalls = errorSpy.mock.calls.flatMap((call) => call.arguments).join(" ");
+      assert.ok((errorCalls).includes("exactly one key"));
+      assertCalledWith((exitSpy), 2);
+      assert.strictEqual((scriptSpy).mock.callCount(), 0);
     } finally {
-      errorSpy.mockRestore();
-      exitSpy.mockRestore();
+      errorSpy.mock.restore();
+      exitSpy.mock.restore();
       fs.rmSync(workDir, { recursive: true, force: true });
     }
   });
 
   test("handles array of files", async () => {
-    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const consoleLogSpy = mock.method(console, "log", () => {});
 
     await action({
       isTestingCLI: true,
@@ -311,7 +312,7 @@ describe("Action Function Tests (Fast)", () => {
       files: ["package.json", "packages/*/package.json", "apps/*/package.json"],
     });
 
-    expect(consoleLogSpy).toHaveBeenCalledWith({
+    assertCalledWith((consoleLogSpy), {
       updatedOptions: {
         isCLI: true,
         codependencies: ["lodash"],
@@ -319,11 +320,11 @@ describe("Action Function Tests (Fast)", () => {
       },
     });
 
-    consoleLogSpy.mockRestore();
+    consoleLogSpy.mock.restore();
   });
 
   test("handles ignore patterns", async () => {
-    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const consoleLogSpy = mock.method(console, "log", () => {});
 
     await action({
       isTestingCLI: true,
@@ -331,7 +332,7 @@ describe("Action Function Tests (Fast)", () => {
       ignore: ["**/node_modules/**", "**/dist/**", "**/.next/**"],
     });
 
-    expect(consoleLogSpy).toHaveBeenCalledWith({
+    assertCalledWith((consoleLogSpy), {
       updatedOptions: {
         isCLI: true,
         codependencies: ["react"],
@@ -339,25 +340,25 @@ describe("Action Function Tests (Fast)", () => {
       },
     });
 
-    consoleLogSpy.mockRestore();
+    consoleLogSpy.mock.restore();
   });
 
   test("handles complex codependencies", async () => {
-    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const consoleLogSpy = mock.method(console, "log", () => {});
 
     await action({
       isTestingCLI: true,
       codependencies: ["lodash", { "fs-extra": "10.0.1" }, "react@^18.0.0"],
     });
 
-    expect(consoleLogSpy).toHaveBeenCalledWith({
+    assertCalledWith((consoleLogSpy), {
       updatedOptions: {
         isCLI: true,
         codependencies: ["lodash", { "fs-extra": "10.0.1" }, "react@^18.0.0"],
       },
     });
 
-    consoleLogSpy.mockRestore();
+    consoleLogSpy.mock.restore();
   });
 
   test("combines all options", async () => {
@@ -376,7 +377,7 @@ describe("Action Function Tests (Fast)", () => {
       isTestingAction: true,
     });
 
-    expect(result).toEqual({
+    assert.deepStrictEqual((result), {
       isCLI: true,
       codependencies: ["lodash", "react"],
       files: ["**/package.json"],
@@ -393,34 +394,37 @@ describe("Action Function Tests (Fast)", () => {
   });
 
   test("should handle error when codependencies are missing", async () => {
-    scriptSpy.mockRestore();
-    const configSpy = jest.spyOn(config, "loadConfig").mockReturnValue(null);
-    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = jest.spyOn(process, "exit").mockImplementation((() => {}) as () => never);
+    scriptSpy.mock.restore();
+    loadConfigMock.mock.mockImplementation(() => null);
+    const configSpy = loadConfigMock;
+    const errorSpy = mock.method(console, "error", () => {});
+    const exitSpy = mock.method(process, "exit", (() => {}) as () => never);
 
     try {
       await action({
         permissive: false,
       });
 
-      const errorCalls = errorSpy.mock.calls.flat().join(" ");
-      expect(errorCalls).toContain("codependencies");
-      expect(exitSpy).toHaveBeenCalledWith(2);
+      const errorCalls = errorSpy.mock.calls.flatMap((call) => call.arguments).join(" ");
+      assert.ok((errorCalls).includes("codependencies"));
+      assertCalledWith((exitSpy), 2);
     } finally {
-      errorSpy.mockRestore();
-      exitSpy.mockRestore();
-      configSpy.mockRestore();
-      scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue(undefined);
+      errorSpy.mock.restore();
+      exitSpy.mock.restore();
+      configSpy.mock.restore();
+      checkFilesMock.mock.mockImplementation(async () => undefined);
+      scriptSpy = checkFilesMock;
     }
   });
 
   test("should run in permissive mode when no options provided", async () => {
-    const configSpy = jest.spyOn(config, "loadConfig").mockReturnValue(null);
+    loadConfigMock.mock.mockImplementation(() => null);
+    const configSpy = loadConfigMock;
 
     await action({});
 
-    expect(scriptSpy).toHaveBeenCalled();
-    configSpy.mockRestore();
+    assert.ok((scriptSpy).mock.callCount() > 0);
+    configSpy.mock.restore();
   });
 
   test("should default listed codependencies to 0.x compatible verbose mode", async () => {
@@ -428,8 +432,8 @@ describe("Action Function Tests (Fast)", () => {
       codependencies: ["lodash"],
     });
 
-    const callArgs = scriptSpy.mock.calls[0][0];
-    expect(callArgs.mode).toBe("verbose");
+    const callArgs = scriptSpy.mock.calls[0].arguments[0];
+    assert.strictEqual((callArgs.mode), "verbose");
   });
 
   test("should use precise mode when permissive is explicit", async () => {
@@ -438,34 +442,34 @@ describe("Action Function Tests (Fast)", () => {
       permissive: true,
     });
 
-    const callArgs = scriptSpy.mock.calls[0][0];
-    expect(callArgs.mode).toBe("precise");
+    const callArgs = scriptSpy.mock.calls[0].arguments[0];
+    assert.strictEqual((callArgs.mode), "precise");
   });
 
   test("should execute script with dry-run mode", async () => {
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const consoleSpy = mock.method(console, "log", () => {});
 
     await action({
       codependencies: ["lodash"],
       dryRun: true,
     });
 
-    expect(scriptSpy).toHaveBeenCalled();
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Dry run"));
-    consoleSpy.mockRestore();
+    assert.ok((scriptSpy).mock.callCount() > 0);
+    assertCalledWith((consoleSpy), match.stringContaining("Dry run"));
+    consoleSpy.mock.restore();
   });
 
   test("should execute script with verbose mode", async () => {
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const consoleSpy = mock.method(console, "log", () => {});
 
     await action({
       codependencies: ["lodash"],
       verbose: true,
     });
 
-    expect(scriptSpy).toHaveBeenCalled();
-    expect(consoleSpy).toHaveBeenCalled();
-    consoleSpy.mockRestore();
+    assert.ok((scriptSpy).mock.callCount() > 0);
+    assert.ok((consoleSpy).mock.callCount() > 0);
+    consoleSpy.mock.restore();
   });
 
   test("should execute script in normal mode", async () => {
@@ -473,49 +477,46 @@ describe("Action Function Tests (Fast)", () => {
       codependencies: ["lodash"],
     });
 
-    expect(scriptSpy).toHaveBeenCalled();
+    assert.ok((scriptSpy).mock.callCount() > 0);
   });
 
   test("should pass and invoke onProgress callback", async () => {
     await action({ codependencies: ["lodash"] });
 
-    const callArgs = scriptSpy.mock.calls[0][0];
-    expect(callArgs.onProgress).toBeDefined();
+    const callArgs = scriptSpy.mock.calls[0].arguments[0];
+    assert.notStrictEqual((callArgs.onProgress), undefined);
     callArgs.onProgress(1, 5, "lodash");
   });
 
   test("should run in watch mode", async () => {
-    const setIntervalSpy = jest
-      .spyOn(globalThis, "setInterval")
-      .mockImplementation((() => 0) as typeof setInterval);
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const setIntervalSpy = mock.method(globalThis, "setInterval", (() => 0) as typeof setInterval);
+    const consoleSpy = mock.method(console, "log", () => {});
 
     await action({ codependencies: ["lodash"], watch: true });
 
-    expect(scriptSpy).toHaveBeenCalled();
-    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 30000);
-    setIntervalSpy.mockRestore();
-    consoleSpy.mockRestore();
+    assert.ok((scriptSpy).mock.callCount() > 0);
+    assertCalledWith((setIntervalSpy), match.any(Function), 30000);
+    setIntervalSpy.mock.restore();
+    consoleSpy.mock.restore();
   });
 
   test("should skip overlapping watch mode intervals", async () => {
     let intervalCallback: (() => Promise<void>) | undefined;
-    const setIntervalSpy = jest.spyOn(globalThis, "setInterval").mockImplementation(((
+    const setIntervalSpy = mock.method(globalThis, "setInterval", ((
       callback: TimerHandler,
     ) => {
       intervalCallback = callback as () => Promise<void>;
       return 0;
     }) as unknown as typeof setInterval);
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const consoleSpy = mock.method(console, "log", () => {});
 
     let resolveSecondRun: (() => void) | undefined;
     const secondRun = new Promise<void>((resolve) => {
       resolveSecondRun = resolve;
     });
 
-    scriptSpy
-      .mockResolvedValueOnce(undefined)
-      .mockImplementationOnce(() => secondRun as Promise<void>);
+    scriptSpy.mock.mockImplementationOnce(async () => undefined);
+    scriptSpy.mock.mockImplementationOnce(() => secondRun, 1);
 
     await action({ codependencies: ["lodash"], watch: true });
 
@@ -523,204 +524,187 @@ describe("Action Function Tests (Fast)", () => {
     await Promise.resolve();
     await intervalCallback?.();
 
-    expect(scriptSpy).toHaveBeenCalledTimes(2);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Previous check still running"),
-    );
+    assert.strictEqual((scriptSpy).mock.callCount(), 2);
+    assertCalledWith((consoleSpy), match.stringContaining("Previous check still running"));
 
     resolveSecondRun?.();
     await inFlightCheck;
 
-    setIntervalSpy.mockRestore();
-    consoleSpy.mockRestore();
+    setIntervalSpy.mock.restore();
+    consoleSpy.mock.restore();
   });
 
   test("should log watch mode failures", async () => {
     let intervalCallback: (() => Promise<void>) | undefined;
-    const setIntervalSpy = jest.spyOn(globalThis, "setInterval").mockImplementation(((
+    const setIntervalSpy = mock.method(globalThis, "setInterval", ((
       callback: TimerHandler,
     ) => {
       intervalCallback = callback as () => Promise<void>;
       return 0;
     }) as unknown as typeof setInterval);
-    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
-    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const consoleLogSpy = mock.method(console, "log", () => {});
+    const consoleErrorSpy = mock.method(console, "error", () => {});
 
-    scriptSpy
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error("watch mode failure"));
+    scriptSpy.mock.mockImplementationOnce(async () => undefined);
+    scriptSpy.mock.mockImplementationOnce(async () => {
+      throw new Error("watch mode failure");
+    }, 1);
 
     await action({ codependencies: ["lodash"], watch: true });
     await intervalCallback?.();
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Check failed: watch mode failure"),
-    );
+    assertCalledWith((consoleErrorSpy), match.stringContaining("Check failed: watch mode failure"));
 
-    setIntervalSpy.mockRestore();
-    consoleLogSpy.mockRestore();
-    consoleErrorSpy.mockRestore();
+    setIntervalSpy.mock.restore();
+    consoleLogSpy.mock.restore();
+    consoleErrorSpy.mock.restore();
   });
 
   test("should log deferred dependency issues in watch mode", async () => {
-    const setIntervalSpy = jest
-      .spyOn(globalThis, "setInterval")
-      .mockImplementation((() => 0) as typeof setInterval);
-    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
-    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
-    scriptSpy.mockImplementationOnce(async (options) => {
+    const setIntervalSpy = mock.method(globalThis, "setInterval", (() => 0) as typeof setInterval);
+    const consoleLogSpy = mock.method(console, "log", () => {});
+    const consoleErrorSpy = mock.method(console, "error", () => {});
+    scriptSpy.mock.mockImplementationOnce(async (options) => {
       options.onDeferredFailure?.();
       return [];
     });
 
     await action({ codependencies: ["lodash"], watch: true });
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Dependency issues found"),
-    );
+    assertCalledWith((consoleErrorSpy), match.stringContaining("Dependency issues found"));
 
-    setIntervalSpy.mockRestore();
-    consoleLogSpy.mockRestore();
-    consoleErrorSpy.mockRestore();
+    setIntervalSpy.mock.restore();
+    consoleLogSpy.mock.restore();
+    consoleErrorSpy.mock.restore();
   });
 });
 
 describe("initAction", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   test("should handle existing .codependencerc", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(true);
-    const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
+    const existsSyncSpy = mock.method(fs, "existsSync", () => (true));
+    const warnSpy = mock.method(logger, "warn", () => {});
 
     await initAction("rc");
 
-    expect(warnSpy).toHaveBeenCalled();
-    existsSyncSpy.mockRestore();
-    warnSpy.mockRestore();
+    assert.ok((warnSpy).mock.callCount() > 0);
+    existsSyncSpy.mock.restore();
+    warnSpy.mock.restore();
   });
 
   test("should handle missing package.json", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockReturnValue(false);
-    const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
+    const existsSyncSpy = mock.method(fs, "existsSync", () => (false));
+    const errorSpy = mock.method(logger, "error", () => {});
 
     await initAction("rc");
 
-    expect(errorSpy).toHaveBeenCalled();
-    existsSyncSpy.mockRestore();
-    errorSpy.mockRestore();
+    assert.ok((errorSpy).mock.callCount() > 0);
+    existsSyncSpy.mock.restore();
+    errorSpy.mock.restore();
   });
 
   test("should handle invalid JSON in package.json", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+    const existsSyncSpy = mock.method(fs, "existsSync", (path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
       return false;
     });
-    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue("invalid json{");
-    const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
+    const readFileSyncSpy = mock.method(fs, "readFileSync", () => ("invalid json{"));
+    const errorSpy = mock.method(logger, "error", () => {});
 
     await initAction("rc");
 
-    expect(errorSpy).toHaveBeenCalled();
-    existsSyncSpy.mockRestore();
-    readFileSyncSpy.mockRestore();
-    errorSpy.mockRestore();
+    assert.ok((errorSpy).mock.callCount() > 0);
+    existsSyncSpy.mock.restore();
+    readFileSyncSpy.mock.restore();
+    errorSpy.mock.restore();
   });
 
   test("should handle no dependencies in package.json", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+    const existsSyncSpy = mock.method(fs, "existsSync", (path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
       return false;
     });
-    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify({}));
-    const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
+    const readFileSyncSpy = mock.method(fs, "readFileSync", () => (JSON.stringify({})));
+    const errorSpy = mock.method(logger, "error", () => {});
 
     await initAction("rc");
 
-    expect(errorSpy).toHaveBeenCalled();
-    existsSyncSpy.mockRestore();
-    readFileSyncSpy.mockRestore();
-    errorSpy.mockRestore();
+    assert.ok((errorSpy).mock.callCount() > 0);
+    existsSyncSpy.mock.restore();
+    readFileSyncSpy.mock.restore();
+    errorSpy.mock.restore();
   });
 
   test("should create .codependencerc with non-interactive mode", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+    const existsSyncSpy = mock.method(fs, "existsSync", (path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
       return false;
     });
-    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(
-      JSON.stringify({
+    const readFileSyncSpy = mock.method(fs, "readFileSync", () => JSON.stringify({
         dependencies: { lodash: "4.17.21" },
-      }),
-    );
-    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+      }));
+    const writeFileSyncSpy = mock.method(fs, "writeFileSync", () => {});
 
     await initAction("rc");
 
-    expect(writeFileSyncSpy).toHaveBeenCalled();
-    const callArgs = writeFileSyncSpy.mock.calls[0];
-    expect(callArgs[0]).toBe(".codependencerc");
+    assert.ok((writeFileSyncSpy).mock.callCount() > 0);
+    const callArgs = writeFileSyncSpy.mock.calls[0].arguments;
+    assert.strictEqual((callArgs[0]), ".codependencerc");
 
-    existsSyncSpy.mockRestore();
-    readFileSyncSpy.mockRestore();
-    writeFileSyncSpy.mockRestore();
+    existsSyncSpy.mock.restore();
+    readFileSyncSpy.mock.restore();
+    writeFileSyncSpy.mock.restore();
   });
 
   test("should create .codependencerc with explicit dependency array", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+    const existsSyncSpy = mock.method(fs, "existsSync", (path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
       return false;
     });
-    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(
-      JSON.stringify({
+    const readFileSyncSpy = mock.method(fs, "readFileSync", () => JSON.stringify({
         dependencies: { lodash: "4.17.21", react: "18.0.0" },
-      }),
-    );
-    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+      }));
+    const writeFileSyncSpy = mock.method(fs, "writeFileSync", () => {});
 
     await initAction(["lodash"]);
 
-    const callArgs = writeFileSyncSpy.mock.calls[0];
-    expect(callArgs[0]).toBe(".codependencerc");
-    expect(JSON.parse(callArgs[1] as string)).toEqual({
+    const callArgs = writeFileSyncSpy.mock.calls[0].arguments;
+    assert.strictEqual((callArgs[0]), ".codependencerc");
+    assert.deepStrictEqual((JSON.parse(callArgs[1] as string)), {
       codependencies: ["lodash"],
     });
 
-    existsSyncSpy.mockRestore();
-    readFileSyncSpy.mockRestore();
-    writeFileSyncSpy.mockRestore();
+    existsSyncSpy.mock.restore();
+    readFileSyncSpy.mock.restore();
+    writeFileSyncSpy.mock.restore();
   });
 
   test("should reject explicit dependency array without matching package dependencies", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+    const existsSyncSpy = mock.method(fs, "existsSync", (path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
       return false;
     });
-    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify({}));
-    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
-    const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
+    const readFileSyncSpy = mock.method(fs, "readFileSync", () => (JSON.stringify({})));
+    const writeFileSyncSpy = mock.method(fs, "writeFileSync", () => {});
+    const errorSpy = mock.method(logger, "error", () => {});
 
     await initAction(["lodash"]);
 
-    expect(writeFileSyncSpy).not.toHaveBeenCalled();
-    expect(errorSpy).toHaveBeenCalledWith(
-      "Requested dependencies not found in package.json: lodash",
-    );
+    assert.strictEqual((writeFileSyncSpy).mock.callCount(), 0);
+    assertCalledWith((errorSpy), "Requested dependencies not found in package.json: lodash");
 
-    existsSyncSpy.mockRestore();
-    readFileSyncSpy.mockRestore();
-    writeFileSyncSpy.mockRestore();
-    errorSpy.mockRestore();
+    existsSyncSpy.mock.restore();
+    readFileSyncSpy.mock.restore();
+    writeFileSyncSpy.mock.restore();
+    errorSpy.mock.restore();
   });
 
   test("should create package.json config with package type", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+    const existsSyncSpy = mock.method(fs, "existsSync", (path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
       return false;
@@ -729,251 +713,238 @@ describe("initAction", () => {
       name: "test",
       dependencies: { lodash: "4.17.21" },
     });
-    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(packageJsonContent);
-    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+    const readFileSyncSpy = mock.method(fs, "readFileSync", () => (packageJsonContent));
+    const writeFileSyncSpy = mock.method(fs, "writeFileSync", () => {});
 
     await initAction("package");
 
-    expect(writeFileSyncSpy).toHaveBeenCalled();
-    const callArgs = writeFileSyncSpy.mock.calls[0];
-    expect(callArgs[0]).toBe("package.json");
+    assert.ok((writeFileSyncSpy).mock.callCount() > 0);
+    const callArgs = writeFileSyncSpy.mock.calls[0].arguments;
+    assert.strictEqual((callArgs[0]), "package.json");
 
-    existsSyncSpy.mockRestore();
-    readFileSyncSpy.mockRestore();
-    writeFileSyncSpy.mockRestore();
+    existsSyncSpy.mock.restore();
+    readFileSyncSpy.mock.restore();
+    writeFileSyncSpy.mock.restore();
   });
 
   test("should handle default type", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+    const existsSyncSpy = mock.method(fs, "existsSync", (path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
       return false;
     });
-    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(
-      JSON.stringify({
+    const readFileSyncSpy = mock.method(fs, "readFileSync", () => JSON.stringify({
         dependencies: { lodash: "4.17.21" },
-      }),
-    );
-    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+      }));
+    const writeFileSyncSpy = mock.method(fs, "writeFileSync", () => {});
 
     await initAction("default");
 
-    expect(writeFileSyncSpy).toHaveBeenCalled();
-    existsSyncSpy.mockRestore();
-    readFileSyncSpy.mockRestore();
-    writeFileSyncSpy.mockRestore();
+    assert.ok((writeFileSyncSpy).mock.callCount() > 0);
+    existsSyncSpy.mock.restore();
+    readFileSyncSpy.mock.restore();
+    writeFileSyncSpy.mock.restore();
   });
 
   const mockFsForInteractive = () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+    const existsSyncSpy = mock.method(fs, "existsSync", (path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
       return false;
     });
-    const readFileSyncSpy = jest
-      .spyOn(fs, "readFileSync")
-      .mockReturnValue(JSON.stringify({ dependencies: { lodash: "4.17.21", react: "18.0.0" } }));
-    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const readFileSyncSpy = mock.method(fs, "readFileSync", () => (JSON.stringify({ dependencies: { lodash: "4.17.21", react: "18.0.0" } })));
+    const writeFileSyncSpy = mock.method(fs, "writeFileSync", () => {});
+    const consoleSpy = mock.method(console, "log", () => {});
     return { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy };
   };
 
   test("should handle interactive mode - permissive with selected deps", async () => {
     const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
-    const radioSpy = jest
-      .spyOn(Prompt.prototype, "radio")
-      .mockResolvedValueOnce("permissive")
-      .mockResolvedValueOnce("rc");
-    const selectSpy = jest.spyOn(Prompt.prototype, "select").mockResolvedValue(["lodash"]);
-    const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
+    const radioSpy = mock.method(Prompt.prototype, "radio");
+    radioSpy.mock.mockImplementationOnce(async () => "permissive");
+    radioSpy.mock.mockImplementationOnce(async () => "rc", 1);
+    const selectSpy = mock.method(Prompt.prototype, "select", async () => (["lodash"]));
+    const closeSpy = mock.method(Prompt.prototype, "close");
 
     await initAction();
 
-    expect(writeFileSyncSpy).toHaveBeenCalled();
-    existsSyncSpy.mockRestore();
-    readFileSyncSpy.mockRestore();
-    writeFileSyncSpy.mockRestore();
-    consoleSpy.mockRestore();
-    radioSpy.mockRestore();
-    selectSpy.mockRestore();
-    closeSpy.mockRestore();
+    assert.ok((writeFileSyncSpy).mock.callCount() > 0);
+    existsSyncSpy.mock.restore();
+    readFileSyncSpy.mock.restore();
+    writeFileSyncSpy.mock.restore();
+    consoleSpy.mock.restore();
+    radioSpy.mock.restore();
+    selectSpy.mock.restore();
+    closeSpy.mock.restore();
   });
 
   test("should handle interactive mode - permissive with no deps selected", async () => {
     const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
-    const radioSpy = jest
-      .spyOn(Prompt.prototype, "radio")
-      .mockResolvedValueOnce("permissive")
-      .mockResolvedValueOnce("rc");
-    const selectSpy = jest.spyOn(Prompt.prototype, "select").mockResolvedValue([]);
-    const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
+    const radioSpy = mock.method(Prompt.prototype, "radio");
+    radioSpy.mock.mockImplementationOnce(async () => "permissive");
+    radioSpy.mock.mockImplementationOnce(async () => "rc", 1);
+    const selectSpy = mock.method(Prompt.prototype, "select", async () => ([]));
+    const closeSpy = mock.method(Prompt.prototype, "close");
 
     await initAction();
 
-    expect(writeFileSyncSpy).toHaveBeenCalled();
-    existsSyncSpy.mockRestore();
-    readFileSyncSpy.mockRestore();
-    writeFileSyncSpy.mockRestore();
-    consoleSpy.mockRestore();
-    radioSpy.mockRestore();
-    selectSpy.mockRestore();
-    closeSpy.mockRestore();
+    assert.ok((writeFileSyncSpy).mock.callCount() > 0);
+    existsSyncSpy.mock.restore();
+    readFileSyncSpy.mock.restore();
+    writeFileSyncSpy.mock.restore();
+    consoleSpy.mock.restore();
+    radioSpy.mock.restore();
+    selectSpy.mock.restore();
+    closeSpy.mock.restore();
   });
 
   test("should handle interactive mode - pin all deps", async () => {
     const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
-    const radioSpy = jest
-      .spyOn(Prompt.prototype, "radio")
-      .mockResolvedValueOnce("all")
-      .mockResolvedValueOnce("rc");
-    const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
+    const radioSpy = mock.method(Prompt.prototype, "radio");
+    radioSpy.mock.mockImplementationOnce(async () => "all");
+    radioSpy.mock.mockImplementationOnce(async () => "rc", 1);
+    const closeSpy = mock.method(Prompt.prototype, "close");
 
     await initAction();
 
-    expect(writeFileSyncSpy).toHaveBeenCalled();
-    existsSyncSpy.mockRestore();
-    readFileSyncSpy.mockRestore();
-    writeFileSyncSpy.mockRestore();
-    consoleSpy.mockRestore();
-    radioSpy.mockRestore();
-    closeSpy.mockRestore();
+    assert.ok((writeFileSyncSpy).mock.callCount() > 0);
+    existsSyncSpy.mock.restore();
+    readFileSyncSpy.mock.restore();
+    writeFileSyncSpy.mock.restore();
+    consoleSpy.mock.restore();
+    radioSpy.mock.restore();
+    closeSpy.mock.restore();
   });
 });
 
 describe("run", () => {
-  let scriptSpy: ReturnType<typeof jest.spyOn>;
+  let scriptSpy = checkFilesMock;
 
   beforeEach(() => {
-    scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue(undefined);
+    checkFilesMock.mock.resetCalls();
+    checkFilesMock.mock.mockImplementation(async () => undefined);
+    scriptSpy = checkFilesMock;
   });
 
   afterEach(() => {
-    scriptSpy.mockRestore();
+    scriptSpy.mock.restore();
   });
 
   test("should show help when --help flag is provided", async () => {
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const consoleSpy = mock.method(console, "log", () => {});
 
     await run(["node", "script.js", "--help"]);
 
-    expect(consoleSpy).toHaveBeenCalled();
-    consoleSpy.mockRestore();
+    assert.ok((consoleSpy).mock.callCount() > 0);
+    consoleSpy.mock.restore();
   });
 
   test("should call initAction for init command", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation(() => true);
-    const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
+    const existsSyncSpy = mock.method(fs, "existsSync", () => true);
+    const warnSpy = mock.method(logger, "warn", () => {});
 
     await run(["node", "script.js", "init", "rc"]);
 
-    expect(warnSpy).toHaveBeenCalled();
-    existsSyncSpy.mockRestore();
-    warnSpy.mockRestore();
+    assert.ok((warnSpy).mock.callCount() > 0);
+    existsSyncSpy.mock.restore();
+    warnSpy.mock.restore();
   });
 
   test("should call action for regular command", async () => {
     await run(["node", "script.js", "--codependencies", "lodash"]);
 
-    expect(scriptSpy).toHaveBeenCalled();
+    assert.ok((scriptSpy).mock.callCount() > 0);
   });
 
   test("rejects the removed onboard command", async () => {
-    await expect(run(["node", "script.js", "onboard"])).rejects.toThrow("Unknown command: onboard");
+    await assertRejects(run(["node", "script.js", "onboard"]), "Unknown command: onboard");
   });
 
   test("should handle init command with package type", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+    const existsSyncSpy = mock.method(fs, "existsSync", (path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
       return false;
     });
-    const readFileSyncSpy = jest
-      .spyOn(fs, "readFileSync")
-      .mockReturnValue(JSON.stringify({ dependencies: { lodash: "4.17.21" } }));
-    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+    const readFileSyncSpy = mock.method(fs, "readFileSync", () => (JSON.stringify({ dependencies: { lodash: "4.17.21" } })));
+    const writeFileSyncSpy = mock.method(fs, "writeFileSync", () => {});
 
     await run(["node", "script.js", "init", "package"]);
 
-    expect(writeFileSyncSpy).toHaveBeenCalled();
-    existsSyncSpy.mockRestore();
-    readFileSyncSpy.mockRestore();
-    writeFileSyncSpy.mockRestore();
+    assert.ok((writeFileSyncSpy).mock.callCount() > 0);
+    existsSyncSpy.mock.restore();
+    readFileSyncSpy.mock.restore();
+    writeFileSyncSpy.mock.restore();
   });
 
   test("should handle init command with default type", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+    const existsSyncSpy = mock.method(fs, "existsSync", (path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
       return false;
     });
-    const readFileSyncSpy = jest
-      .spyOn(fs, "readFileSync")
-      .mockReturnValue(JSON.stringify({ dependencies: { lodash: "4.17.21" } }));
-    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+    const readFileSyncSpy = mock.method(fs, "readFileSync", () => (JSON.stringify({ dependencies: { lodash: "4.17.21" } })));
+    const writeFileSyncSpy = mock.method(fs, "writeFileSync", () => {});
 
     await run(["node", "script.js", "init", "default"]);
 
-    expect(writeFileSyncSpy).toHaveBeenCalled();
-    existsSyncSpy.mockRestore();
-    readFileSyncSpy.mockRestore();
-    writeFileSyncSpy.mockRestore();
+    assert.ok((writeFileSyncSpy).mock.callCount() > 0);
+    existsSyncSpy.mock.restore();
+    readFileSyncSpy.mock.restore();
+    writeFileSyncSpy.mock.restore();
   });
 
   test("should handle init command with explicit dependency names", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+    const existsSyncSpy = mock.method(fs, "existsSync", (path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
       return false;
     });
-    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(
-      JSON.stringify({
+    const readFileSyncSpy = mock.method(fs, "readFileSync", () => JSON.stringify({
         dependencies: { lodash: "4.17.21", react: "18.0.0" },
-      }),
-    );
-    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+      }));
+    const writeFileSyncSpy = mock.method(fs, "writeFileSync", () => {});
 
     await run(["node", "script.js", "init", "rc", "lodash"]);
 
-    const callArgs = writeFileSyncSpy.mock.calls[0];
-    expect(callArgs[0]).toBe(".codependencerc");
-    expect(JSON.parse(callArgs[1] as string)).toEqual({
+    const callArgs = writeFileSyncSpy.mock.calls[0].arguments;
+    assert.strictEqual((callArgs[0]), ".codependencerc");
+    assert.deepStrictEqual((JSON.parse(callArgs[1] as string)), {
       codependencies: ["lodash"],
     });
 
-    existsSyncSpy.mockRestore();
-    readFileSyncSpy.mockRestore();
-    writeFileSyncSpy.mockRestore();
+    existsSyncSpy.mock.restore();
+    readFileSyncSpy.mock.restore();
+    writeFileSyncSpy.mock.restore();
   });
 
   test("should handle init command with codependencies option", async () => {
-    const existsSyncSpy = jest.spyOn(fs, "existsSync").mockImplementation((path) => {
+    const existsSyncSpy = mock.method(fs, "existsSync", (path) => {
       if (path === ".codependencerc") return false;
       if (path === "package.json") return true;
       return false;
     });
-    const readFileSyncSpy = jest.spyOn(fs, "readFileSync").mockReturnValue(
-      JSON.stringify({
+    const readFileSyncSpy = mock.method(fs, "readFileSync", () => JSON.stringify({
         dependencies: { lodash: "4.17.21", react: "18.0.0" },
-      }),
-    );
-    const writeFileSyncSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+      }));
+    const writeFileSyncSpy = mock.method(fs, "writeFileSync", () => {});
 
     await run(["node", "script.js", "init", "rc", "--codependencies", "lodash", "react"]);
 
-    const callArgs = writeFileSyncSpy.mock.calls[0];
-    expect(callArgs[0]).toBe(".codependencerc");
-    expect(JSON.parse(callArgs[1] as string)).toEqual({
+    const callArgs = writeFileSyncSpy.mock.calls[0].arguments;
+    assert.strictEqual((callArgs[0]), ".codependencerc");
+    assert.deepStrictEqual((JSON.parse(callArgs[1] as string)), {
       codependencies: ["lodash", "react"],
     });
 
-    existsSyncSpy.mockRestore();
-    readFileSyncSpy.mockRestore();
-    writeFileSyncSpy.mockRestore();
+    existsSyncSpy.mock.restore();
+    readFileSyncSpy.mock.restore();
+    writeFileSyncSpy.mock.restore();
   });
 
   test("routes positional action targets through the CLI", async () => {
     const rootDir = createActionsProject();
-    const infoSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
+    const infoSpy = mock.method(logger, "info", () => {});
 
     try {
       await run([
@@ -990,11 +961,11 @@ describe("run", () => {
 
       const goWorkflow = join(rootDir, ".github/workflows/codependence-go.yml");
       const nodeWorkflow = join(rootDir, ".github/workflows/codependence-node.yml");
-      expect(fs.existsSync(goWorkflow)).toBe(true);
-      expect(fs.existsSync(nodeWorkflow)).toBe(false);
-      expect(infoSpy).toHaveBeenCalledWith(`Created ${goWorkflow}`);
+      assert.strictEqual((fs.existsSync(goWorkflow)), true);
+      assert.strictEqual((fs.existsSync(nodeWorkflow)), false);
+      assertCalledWith((infoSpy), `Created ${goWorkflow}`);
     } finally {
-      infoSpy.mockRestore();
+      infoSpy.mock.restore();
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
   });
@@ -1034,8 +1005,8 @@ describe("onboardAction", () => {
       ]);
 
       const packageJson = JSON.parse(fs.readFileSync(join(rootDir, "package.json"), "utf8"));
-      expect(packageJson.codependence.config.root.path).toBe("package.json");
-      expect(fs.existsSync(join(rootDir, ".github"))).toBe(false);
+      assert.strictEqual((packageJson.codependence.config.root.path), "package.json");
+      assert.strictEqual((fs.existsSync(join(rootDir, ".github"))), false);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -1058,7 +1029,7 @@ describe("onboardAction", () => {
       ]);
 
       const result = config.loadConfig(join(rootDir, ".codependencerc"));
-      expect(result?.config).toEqual({
+      assert.deepStrictEqual((result?.config), {
         config: { "go.mod": { path: "go.mod", manager: "go", mode: "precise" } },
       });
     } finally {
@@ -1086,7 +1057,7 @@ describe("onboardAction", () => {
       ]);
 
       const workflowPath = join(rootDir, ".github/workflows/codependence-go.yml");
-      expect(fs.readFileSync(workflowPath, "utf8")).toContain("targets: go");
+      assert.ok((fs.readFileSync(workflowPath, "utf8")).includes("targets: go"));
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -1125,7 +1096,7 @@ describe("onboardAction", () => {
       ]);
 
       const result = config.loadConfig(join(rootDir, ".codependencerc.yml"));
-      expect(result?.config).toEqual({
+      assert.deepStrictEqual((result?.config), {
         $schema: existing.$schema,
         update: true,
         config: {
@@ -1151,8 +1122,8 @@ describe("onboardAction", () => {
       "packages/ui/package.json": JSON.stringify({ dependencies: { react: "^19.0.0" } }),
     };
     const rootDir = createOnboardingProject(packageJson, files);
-    const printSpy = jest.spyOn(logger, "print").mockImplementation(() => {});
-    const closeSpy = jest.spyOn(Prompt.prototype, "close");
+    const printSpy = mock.method(logger, "print", () => {});
+    const closeSpy = mock.method(Prompt.prototype, "close");
 
     try {
       await run([
@@ -1173,21 +1144,19 @@ describe("onboardAction", () => {
         "--skip-install",
       ]);
 
-      expect(fs.existsSync(join(rootDir, ".codependencerc"))).toBe(true);
-      expect(fs.existsSync(join(rootDir, ".github/workflows/codependence-node.yml"))).toBe(true);
-      expect(printSpy).toHaveBeenCalledWith("Configured 2 manifest(s).");
-      expect(closeSpy).toHaveBeenCalled();
+      assert.strictEqual((fs.existsSync(join(rootDir, ".codependencerc"))), true);
+      assert.strictEqual((fs.existsSync(join(rootDir, ".github/workflows/codependence-node.yml"))), true);
+      assertCalledWith((printSpy), "Configured 2 manifest(s).");
+      assert.ok((closeSpy).mock.callCount() > 0);
 
-      await expect(
-        onboardAction({
+      await assertRejects(onboardAction({
           rootDir,
           mode: "precise",
           enforcement: "both",
           repository: "acme/workspace",
           nonInteractive: true,
           skipInstall: true,
-        }),
-      ).rejects.toThrow("Refusing to overwrite onboarding files");
+        }), "Refusing to overwrite onboarding files");
 
       await onboardAction({
         rootDir,
@@ -1199,8 +1168,8 @@ describe("onboardAction", () => {
         force: true,
       });
     } finally {
-      printSpy.mockRestore();
-      closeSpy.mockRestore();
+      printSpy.mock.restore();
+      closeSpy.mock.restore();
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
   });
@@ -1208,31 +1177,31 @@ describe("onboardAction", () => {
   test("collects interactive local answers and installs the CLI", async () => {
     const packageJson = { dependencies: { react: "^19.0.0" } };
     const rootDir = createOnboardingProject(packageJson, { "package-lock.json": "" });
-    const radioSpy = jest
-      .spyOn(Prompt.prototype, "radio")
-      .mockResolvedValueOnce("verbose")
-      .mockResolvedValueOnce("local");
-    const selectSpy = jest.spyOn(Prompt.prototype, "select").mockResolvedValue(["react"]);
-    const closeSpy = jest.spyOn(Prompt.prototype, "close");
-    const printSpy = jest.spyOn(logger, "print").mockImplementation(() => {});
-    const execSpy = jest.spyOn(execUtils, "exec").mockResolvedValue({ stdout: "", stderr: "" });
+    const radioSpy = mock.method(Prompt.prototype, "radio");
+    radioSpy.mock.mockImplementationOnce(async () => "verbose");
+    radioSpy.mock.mockImplementationOnce(async () => "local", 1);
+    const selectSpy = mock.method(Prompt.prototype, "select", async () => (["react"]));
+    const closeSpy = mock.method(Prompt.prototype, "close");
+    const printSpy = mock.method(logger, "print", () => {});
+    execMock.mock.mockImplementation(async () => ({ stdout: "", stderr: "" }));
+    const execSpy = execMock;
 
     try {
       await onboardAction({ rootDir });
 
-      expect(execSpy).toHaveBeenCalledWith("npm", ["install", "--save-dev", "codependence"], {
+      assertCalledWith((execSpy), "npm", ["install", "--save-dev", "codependence"], {
         cwd: rootDir,
       });
       const configuredPackage = JSON.parse(fs.readFileSync(join(rootDir, "package.json"), "utf8"));
-      expect(configuredPackage.codependence).toBeDefined();
-      expect(fs.existsSync(join(rootDir, ".github"))).toBe(false);
-      expect(closeSpy).toHaveBeenCalled();
+      assert.notStrictEqual((configuredPackage.codependence), undefined);
+      assert.strictEqual((fs.existsSync(join(rootDir, ".github"))), false);
+      assert.ok((closeSpy).mock.callCount() > 0);
     } finally {
-      execSpy.mockRestore();
-      printSpy.mockRestore();
-      closeSpy.mockRestore();
-      selectSpy.mockRestore();
-      radioSpy.mockRestore();
+      execSpy.mock.restore();
+      printSpy.mock.restore();
+      closeSpy.mock.restore();
+      selectSpy.mock.restore();
+      radioSpy.mock.restore();
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
   });
@@ -1240,38 +1209,36 @@ describe("onboardAction", () => {
   test("collects interactive GitHub repository and version answers", async () => {
     const packageJson = { dependencies: { react: "^19.0.0" } };
     const rootDir = createOnboardingProject(packageJson, { "package-lock.json": "" });
-    const radioSpy = jest
-      .spyOn(Prompt.prototype, "radio")
-      .mockResolvedValueOnce("precise")
-      .mockResolvedValueOnce("github");
-    const selectSpy = jest.spyOn(Prompt.prototype, "select").mockResolvedValue([]);
-    const inputSpy = jest
-      .spyOn(Prompt.prototype, "input")
-      .mockResolvedValueOnce("acme/web")
-      .mockResolvedValueOnce("10.9.2");
-    const closeSpy = jest.spyOn(Prompt.prototype, "close");
-    const printSpy = jest.spyOn(logger, "print").mockImplementation(() => {});
+    const radioSpy = mock.method(Prompt.prototype, "radio");
+    radioSpy.mock.mockImplementationOnce(async () => "precise");
+    radioSpy.mock.mockImplementationOnce(async () => "github", 1);
+    const selectSpy = mock.method(Prompt.prototype, "select", async () => ([]));
+    const inputSpy = mock.method(Prompt.prototype, "input");
+    inputSpy.mock.mockImplementationOnce(async () => "acme/web");
+    inputSpy.mock.mockImplementationOnce(async () => "10.9.2", 1);
+    const closeSpy = mock.method(Prompt.prototype, "close");
+    const printSpy = mock.method(logger, "print", () => {});
 
     try {
       await onboardAction({ rootDir });
 
       const workflowPath = join(rootDir, ".github/workflows/codependence-node.yml");
-      expect(fs.readFileSync(workflowPath, "utf8")).toContain("version: 10.9.2");
-      expect(inputSpy).toHaveBeenCalledTimes(2);
+      assert.ok((fs.readFileSync(workflowPath, "utf8")).includes("version: 10.9.2"));
+      assert.strictEqual((inputSpy).mock.callCount(), 2);
     } finally {
-      printSpy.mockRestore();
-      closeSpy.mockRestore();
-      inputSpy.mockRestore();
-      selectSpy.mockRestore();
-      radioSpy.mockRestore();
+      printSpy.mock.restore();
+      closeSpy.mock.restore();
+      inputSpy.mock.restore();
+      selectSpy.mock.restore();
+      radioSpy.mock.restore();
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
   });
 
   test("accepts an assigned manager version in non-interactive GitHub mode", async () => {
     const rootDir = createOnboardingProject({}, { "package-lock.json": "" });
-    const closeSpy = jest.spyOn(Prompt.prototype, "close");
-    const printSpy = jest.spyOn(logger, "print").mockImplementation(() => {});
+    const closeSpy = mock.method(Prompt.prototype, "close");
+    const printSpy = mock.method(logger, "print", () => {});
 
     try {
       await onboardAction({
@@ -1284,10 +1251,10 @@ describe("onboardAction", () => {
       });
 
       const workflowPath = join(rootDir, ".github/workflows/codependence-node.yml");
-      expect(fs.readFileSync(workflowPath, "utf8")).toContain("version: 10.9.2");
+      assert.ok((fs.readFileSync(workflowPath, "utf8")).includes("version: 10.9.2"));
     } finally {
-      printSpy.mockRestore();
-      closeSpy.mockRestore();
+      printSpy.mock.restore();
+      closeSpy.mock.restore();
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
   });
@@ -1296,34 +1263,26 @@ describe("onboardAction", () => {
     const versionedPackage = { packageManager: "npm@10.9.2" };
     const rootDir = createOnboardingProject(versionedPackage, { "package-lock.json": "" });
     const unversionedRoot = createOnboardingProject({}, { "package-lock.json": "" });
-    const closeSpy = jest.spyOn(Prompt.prototype, "close");
+    const closeSpy = mock.method(Prompt.prototype, "close");
 
     try {
-      await expect(onboardAction({ rootDir, nonInteractive: true })).rejects.toThrow(
-        "Onboarding requires --mode",
-      );
-      await expect(
-        onboardAction({ rootDir, mode: "precise", nonInteractive: true }),
-      ).rejects.toThrow("Onboarding requires --enforcement");
-      await expect(
-        onboardAction({
+      await assertRejects(onboardAction({ rootDir, nonInteractive: true }), "Onboarding requires --mode");
+      await assertRejects(onboardAction({ rootDir, mode: "precise", nonInteractive: true }), "Onboarding requires --enforcement");
+      await assertRejects(onboardAction({
           rootDir,
           mode: "precise",
           enforcement: "github",
           nonInteractive: true,
-        }),
-      ).rejects.toThrow("GitHub onboarding requires --repository");
-      await expect(
-        onboardAction({
+        }), "GitHub onboarding requires --repository");
+      await assertRejects(onboardAction({
           rootDir: unversionedRoot,
           mode: "precise",
           enforcement: "github",
           repository: "acme/web",
           nonInteractive: true,
-        }),
-      ).rejects.toThrow("GitHub onboarding requires --version");
+        }), "GitHub onboarding requires --version");
     } finally {
-      closeSpy.mockRestore();
+      closeSpy.mock.restore();
       fs.rmSync(rootDir, { recursive: true, force: true });
       fs.rmSync(unversionedRoot, { recursive: true, force: true });
     }
@@ -1344,11 +1303,11 @@ describe("mergeConfigs", () => {
 
     const result = mergeConfigs(options, baseConfig, pathConfig);
 
-    expect(result.update).toBe(true);
-    expect(result.verbose).toBe(true);
-    expect(result.codependencies).toEqual(["lodash"]);
-    expect(result.permissive).toBe(false);
-    expect(result.isCLI).toBe(true);
+    assert.strictEqual((result.update), true);
+    assert.strictEqual((result.verbose), true);
+    assert.deepStrictEqual((result.codependencies), ["lodash"]);
+    assert.strictEqual((result.permissive), false);
+    assert.strictEqual((result.isCLI), true);
   });
 
   test("should prioritize path config over base config", () => {
@@ -1362,7 +1321,7 @@ describe("mergeConfigs", () => {
 
     const result = mergeConfigs(options, baseConfig, pathConfig);
 
-    expect(result.codependencies).toEqual(["express"]);
+    assert.deepStrictEqual((result.codependencies), ["express"]);
   });
 
   test("should prioritize options over all configs", () => {
@@ -1378,7 +1337,7 @@ describe("mergeConfigs", () => {
 
     const result = mergeConfigs(options, baseConfig, pathConfig);
 
-    expect(result.codependencies).toEqual(["react"]);
+    assert.deepStrictEqual((result.codependencies), ["react"]);
   });
 
   test("should ignore base config when path config exists", () => {
@@ -1393,9 +1352,9 @@ describe("mergeConfigs", () => {
 
     const result = mergeConfigs(options, baseConfig, pathConfig);
 
-    expect(result.codependencies).toBeUndefined();
-    expect(result.permissive).toBeUndefined();
-    expect(result.update).toBe(true);
+    assert.strictEqual((result.codependencies), undefined);
+    assert.strictEqual((result.permissive), undefined);
+    assert.strictEqual((result.update), true);
   });
 
   test("should extract codependence key from path config", () => {
@@ -1411,9 +1370,9 @@ describe("mergeConfigs", () => {
 
     const result = mergeConfigs(options, baseConfig, pathConfig);
 
-    expect(result.codependencies).toEqual(["lodash"]);
-    expect(result.permissive).toBe(true);
-    expect((result as Record<string, unknown>).otherKey).toBeUndefined();
+    assert.deepStrictEqual((result.codependencies), ["lodash"]);
+    assert.strictEqual((result.permissive), true);
+    assert.strictEqual(((result as Record<string, unknown>).otherKey), undefined);
   });
 
   test("should handle empty configs", () => {
@@ -1423,7 +1382,7 @@ describe("mergeConfigs", () => {
 
     const result = mergeConfigs(options, baseConfig, pathConfig);
 
-    expect(result.isCLI).toBe(true);
+    assert.strictEqual((result.isCLI), true);
   });
 
   test("should remove config and searchPath from result", () => {
@@ -1436,8 +1395,8 @@ describe("mergeConfigs", () => {
 
     const result = mergeConfigs(options, baseConfig, pathConfig);
 
-    expect(result.config).toBeUndefined();
-    expect(result.searchPath).toBeUndefined();
+    assert.strictEqual((result.config), undefined);
+    assert.strictEqual((result.searchPath), undefined);
   });
 
   test("should remove isTestingCLI and isTestingAction", () => {
@@ -1450,8 +1409,8 @@ describe("mergeConfigs", () => {
 
     const result = mergeConfigs(options, baseConfig, pathConfig);
 
-    expect(result.isTestingCLI).toBeUndefined();
-    expect(result.isTestingAction).toBeUndefined();
+    assert.strictEqual((result.isTestingCLI), undefined);
+    assert.strictEqual((result.isTestingAction), undefined);
   });
 
   test("should handle null codependence key", () => {
@@ -1464,7 +1423,7 @@ describe("mergeConfigs", () => {
 
     const result = mergeConfigs(options, baseConfig, pathConfig);
 
-    expect((result as Record<string, unknown>).otherKey).toBe("value");
+    assert.strictEqual(((result as Record<string, unknown>).otherKey), "value");
   });
 
   test("should handle non-object codependence key", () => {
@@ -1477,7 +1436,7 @@ describe("mergeConfigs", () => {
 
     const result = mergeConfigs(options, baseConfig, pathConfig);
 
-    expect((result as Record<string, unknown>).otherKey).toBe("value");
+    assert.strictEqual(((result as Record<string, unknown>).otherKey), "value");
   });
 
   test("should merge complex config scenario", () => {
@@ -1500,12 +1459,12 @@ describe("mergeConfigs", () => {
 
     const result = mergeConfigs(options, baseConfig, pathConfig);
 
-    expect(result.update).toBe(true);
-    expect(result.verbose).toBe(true);
-    expect(result.files).toEqual(["packages/*/package.json"]);
-    expect(result.codependencies).toEqual(["react"]);
-    expect(result.permissive).toBe(true);
-    expect(result.rootDir).toBeUndefined();
+    assert.strictEqual((result.update), true);
+    assert.strictEqual((result.verbose), true);
+    assert.deepStrictEqual((result.files), ["packages/*/package.json"]);
+    assert.deepStrictEqual((result.codependencies), ["react"]);
+    assert.strictEqual((result.permissive), true);
+    assert.strictEqual((result.rootDir), undefined);
   });
 });
 
@@ -1518,10 +1477,10 @@ describe("formatPerformanceMetrics", () => {
     const result = formatPerformanceMetrics(duration, stats, hitRate);
     const joined = result.join("\n");
 
-    expect(joined).toContain("Performance:");
-    expect(joined).toContain("Completed in 1500ms");
-    expect(joined).toContain("Cache: 10 hits, 2 misses (83.3% hit rate)");
-    expect(joined).toContain("12 packages cached");
+    assert.ok((joined).includes("Performance:"));
+    assert.ok((joined).includes("Completed in 1500ms"));
+    assert.ok((joined).includes("Cache: 10 hits, 2 misses (83.3% hit rate)"));
+    assert.ok((joined).includes("12 packages cached"));
   });
 
   test("should format metrics with no cache", () => {
@@ -1532,10 +1491,10 @@ describe("formatPerformanceMetrics", () => {
     const result = formatPerformanceMetrics(duration, stats, hitRate);
     const joined = result.join("\n");
 
-    expect(joined).toContain("Performance:");
-    expect(joined).toContain("Completed in 3000ms");
-    expect(joined).toContain("No cache hits (first run)");
-    expect(joined).not.toContain("% hit rate");
+    assert.ok((joined).includes("Performance:"));
+    assert.ok((joined).includes("Completed in 3000ms"));
+    assert.ok((joined).includes("No cache hits (first run)"));
+    assert.ok(!(joined).includes("% hit rate"));
   });
 
   test("should format hit rate with one decimal place", () => {
@@ -1546,7 +1505,7 @@ describe("formatPerformanceMetrics", () => {
     const result = formatPerformanceMetrics(duration, stats, hitRate);
 
     const joinedResult = result.join("\n");
-    expect(joinedResult).toContain("70.0% hit rate");
+    assert.ok((joinedResult).includes("70.0% hit rate"));
   });
 
   test("should handle 100% hit rate", () => {
@@ -1557,8 +1516,8 @@ describe("formatPerformanceMetrics", () => {
     const result = formatPerformanceMetrics(duration, stats, hitRate);
 
     const joinedResult = result.join("\n");
-    expect(joinedResult).toContain("100.0% hit rate");
-    expect(joinedResult).toContain("15 packages cached");
+    assert.ok((joinedResult).includes("100.0% hit rate"));
+    assert.ok((joinedResult).includes("15 packages cached"));
   });
 
   test("should return array of strings", () => {
@@ -1568,27 +1527,26 @@ describe("formatPerformanceMetrics", () => {
 
     const result = formatPerformanceMetrics(duration, stats, hitRate);
 
-    expect(Array.isArray(result)).toBe(true);
-    expect(result.length).toBeGreaterThan(0);
+    assert.strictEqual((Array.isArray(result)), true);
+    assert.ok((result.length) > 0);
     result.forEach((line) => {
-      expect(typeof line).toBe("string");
+      assert.strictEqual((typeof line), "string");
     });
   });
 });
 
 describe("Format and Output File Tests", () => {
-  let writeFileSpy: ReturnType<typeof jest.spyOn>;
-  let consoleLogSpy: ReturnType<typeof jest.spyOn>;
+  let writeFileSpy: ReturnType<typeof mock.method>;
+  let consoleLogSpy: ReturnType<typeof mock.method>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    writeFileSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
-    consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    writeFileSpy = mock.method(fs, "writeFileSync", () => {});
+    consoleLogSpy = mock.method(console, "log", () => {});
   });
 
   afterEach(() => {
-    writeFileSpy.mockRestore();
-    consoleLogSpy.mockRestore();
+    writeFileSpy.mock.restore();
+    consoleLogSpy.mock.restore();
   });
 
   test("should accept format option in action", async () => {
@@ -1598,9 +1556,9 @@ describe("Format and Output File Tests", () => {
       isTestingAction: true,
     });
 
-    expect(result).toBeDefined();
+    assert.notStrictEqual((result), undefined);
     if (result && typeof result === "object") {
-      expect(result.format).toBe("json");
+      assert.strictEqual((result.format), "json");
     }
   });
 
@@ -1611,9 +1569,9 @@ describe("Format and Output File Tests", () => {
       isTestingAction: true,
     });
 
-    expect(result).toBeDefined();
+    assert.notStrictEqual((result), undefined);
     if (result && typeof result === "object") {
-      expect(result.outputFile).toBe("/tmp/output.json");
+      assert.strictEqual((result.outputFile), "/tmp/output.json");
     }
   });
 
@@ -1625,10 +1583,10 @@ describe("Format and Output File Tests", () => {
       isTestingAction: true,
     });
 
-    expect(result).toBeDefined();
+    assert.notStrictEqual((result), undefined);
     if (result && typeof result === "object") {
-      expect(result.format).toBe("markdown");
-      expect(result.outputFile).toBe("/tmp/output.md");
+      assert.strictEqual((result.format), "markdown");
+      assert.strictEqual((result.outputFile), "/tmp/output.md");
     }
   });
 
@@ -1639,9 +1597,9 @@ describe("Format and Output File Tests", () => {
       isTestingAction: true,
     });
 
-    expect(result).toBeDefined();
+    assert.notStrictEqual((result), undefined);
     if (result && typeof result === "object") {
-      expect(result.format).toBe("table");
+      assert.strictEqual((result.format), "table");
     }
   });
 
@@ -1654,24 +1612,24 @@ describe("Format and Output File Tests", () => {
       isTestingAction: true,
     });
 
-    expect(result).toBeDefined();
+    assert.notStrictEqual((result), undefined);
     if (result && typeof result === "object") {
-      expect(result.format).toBe("json");
-      expect(result.debug).toBe(true);
-      expect(result.verbose).toBe(true);
+      assert.strictEqual((result.format), "json");
+      assert.strictEqual((result.debug), true);
+      assert.strictEqual((result.verbose), true);
     }
   });
 });
 
 describe("Format Integration Tests", () => {
-  let scriptSpy: ReturnType<typeof jest.spyOn>;
-  let writeFileSpy: ReturnType<typeof jest.spyOn>;
-  let consoleLogSpy: ReturnType<typeof jest.spyOn>;
+  let scriptSpy = checkFilesMock;
+  let writeFileSpy: ReturnType<typeof mock.method>;
+  let consoleLogSpy: ReturnType<typeof mock.method>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-
-    scriptSpy = jest.spyOn(scripts, "checkFiles").mockResolvedValue([
+    checkFilesMock.mock.restore();
+    checkFilesMock.mock.resetCalls();
+    checkFilesMock.mock.mockImplementation(async () => [
       {
         package: "react",
         current: "17.0.0",
@@ -1687,15 +1645,16 @@ describe("Format Integration Tests", () => {
         willUpdate: false,
       },
     ]);
+    scriptSpy = checkFilesMock;
 
-    writeFileSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
-    consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    writeFileSpy = mock.method(fs, "writeFileSync", () => {});
+    consoleLogSpy = mock.method(console, "log", () => {});
   });
 
   afterEach(() => {
-    scriptSpy.mockRestore();
-    writeFileSpy.mockRestore();
-    consoleLogSpy.mockRestore();
+    scriptSpy.mock.restore();
+    writeFileSpy.mock.restore();
+    consoleLogSpy.mock.restore();
   });
 
   test("should call script with onProgress callback when format is set", async () => {
@@ -1704,10 +1663,10 @@ describe("Format Integration Tests", () => {
       format: "json",
     });
 
-    expect(scriptSpy).toHaveBeenCalled();
-    const callArgs = scriptSpy.mock.calls[0][0];
-    expect(callArgs).toHaveProperty("onProgress");
-    expect(typeof callArgs.onProgress).toBe("function");
+    assert.ok((scriptSpy).mock.callCount() > 0);
+    const callArgs = scriptSpy.mock.calls[0].arguments[0];
+    assertProperty((callArgs), "onProgress");
+    assert.strictEqual((typeof callArgs.onProgress), "function");
   });
 
   test("should write JSON output to file when outputFile is specified", async () => {
@@ -1717,10 +1676,7 @@ describe("Format Integration Tests", () => {
       outputFile: "/tmp/test-output.json",
     });
 
-    expect(writeFileSpy).toHaveBeenCalledWith(
-      "/tmp/test-output.json",
-      expect.stringContaining('"status"'),
-    );
+    assertCalledWith((writeFileSpy), "/tmp/test-output.json", match.stringContaining('"status"'));
   });
 
   test("should write markdown output to console when no outputFile", async () => {
@@ -1730,9 +1686,9 @@ describe("Format Integration Tests", () => {
     });
 
     const jsonCalls = consoleLogSpy.mock.calls.filter((call) =>
-      call[0]?.includes("# Dependency Status"),
+      call.arguments[0]?.includes("# Dependency Status"),
     );
-    expect(jsonCalls.length).toBeGreaterThan(0);
+    assert.ok((jsonCalls.length) > 0);
   });
 
   test("should write table output to console when format is table", async () => {
@@ -1741,8 +1697,10 @@ describe("Format Integration Tests", () => {
       format: "table",
     });
 
-    const tableCalls = consoleLogSpy.mock.calls.filter((call) => call[0]?.includes("Outdated"));
-    expect(tableCalls.length).toBeGreaterThan(0);
+    const tableCalls = consoleLogSpy.mock.calls.filter((call) =>
+      call.arguments[0]?.includes("Outdated"),
+    );
+    assert.ok((tableCalls.length) > 0);
   });
 
   test("should transform diffs to DependencyInfo format", async () => {
@@ -1751,15 +1709,17 @@ describe("Format Integration Tests", () => {
       format: "json",
     });
 
-    const jsonOutput = consoleLogSpy.mock.calls.find((call) => call[0]?.includes('"package"'));
-    expect(jsonOutput).toBeDefined();
+    const jsonOutput = consoleLogSpy.mock.calls.find((call) =>
+      call.arguments[0]?.includes('"package"'),
+    );
+    assert.notStrictEqual((jsonOutput), undefined);
 
-    if (jsonOutput && jsonOutput[0]) {
-      const parsed = JSON.parse(jsonOutput[0]);
-      expect(parsed.dependencies[0]).toHaveProperty("package", "react");
-      expect(parsed.dependencies[0]).toHaveProperty("current", "17.0.0");
-      expect(parsed.dependencies[0]).toHaveProperty("latest", "18.0.0");
-      expect(parsed.dependencies[0]).toHaveProperty("isPinned", false);
+    if (jsonOutput && jsonOutput.arguments[0]) {
+      const parsed = JSON.parse(jsonOutput.arguments[0]);
+      assertProperty((parsed.dependencies[0]), "package", "react");
+      assertProperty((parsed.dependencies[0]), "current", "17.0.0");
+      assertProperty((parsed.dependencies[0]), "latest", "18.0.0");
+      assertProperty((parsed.dependencies[0]), "isPinned", false);
     }
   });
 
@@ -1769,20 +1729,24 @@ describe("Format Integration Tests", () => {
       format: "json",
     });
 
-    const spinnerCalls = consoleLogSpy.mock.calls.filter((call) => call[0]?.includes("wrestling"));
-    expect(spinnerCalls.length).toBe(0);
+    const spinnerCalls = consoleLogSpy.mock.calls.filter((call) =>
+      call.arguments[0]?.includes("wrestling"),
+    );
+    assert.strictEqual((spinnerCalls.length), 0);
   });
 
   test("should handle empty diffs with formatters", async () => {
-    scriptSpy.mockResolvedValue([]);
+    scriptSpy.mock.mockImplementation(async () => ([]));
 
     await action({
       codependencies: [],
       format: "json",
     });
 
-    const output = consoleLogSpy.mock.calls.find((call) => call[0]?.includes("up-to-date"));
-    expect(output).toBeDefined();
+    const output = consoleLogSpy.mock.calls.find((call) =>
+      call.arguments[0]?.includes("up-to-date"),
+    );
+    assert.notStrictEqual((output), undefined);
   });
 });
 
@@ -1837,29 +1801,29 @@ const readGeneratedWorkflows = (rootDir: string): string[] =>
   workflowAreas.map((area) => readWorkflow(rootDir, area));
 
 const expectWorkflowTargets = (workflows: string[]): void => {
-  expect(workflows[0]).toContain("targets: bun\n          version: 1.3.14");
-  expect(workflows[1]).toContain("targets: uv\n          version: 0.8.0");
-  expect(workflows[2]).toContain("targets: go\n          version: 1.26.4");
-  expect(workflows[3]).toContain("targets: rust\n          version: 1.88.0");
-  expect(workflows[4]).toContain("targets: docker");
-  expect(workflows[5]).toContain("targets: github-actions");
+  assert.ok((workflows[0]).includes("targets: bun\n          version: 1.3.14"));
+  assert.ok((workflows[1]).includes("targets: uv\n          version: 0.8.0"));
+  assert.ok((workflows[2]).includes("targets: go\n          version: 1.26.4"));
+  assert.ok((workflows[3]).includes("targets: rust\n          version: 1.88.0"));
+  assert.ok((workflows[4]).includes("targets: docker"));
+  assert.ok((workflows[5]).includes("targets: github-actions"));
 };
 
 const expectWorkflowCommands = (workflows: string[]): void => {
-  expect(workflows[0]).toContain("post-update-command: 'bun install'");
-  expect(workflows[1]).toContain("post-update-command: 'uv lock'");
-  expect(workflows[2]).toContain("post-update-command: 'go mod tidy'");
-  expect(workflows[3]).toContain("post-update-command: 'cargo generate-lockfile'");
-  expect(workflows[4]).toContain("post-update-command: 'git diff --check'");
-  expect(workflows[5]).toContain("post-update-command: 'git diff --check'");
+  assert.ok((workflows[0]).includes("post-update-command: 'bun install'"));
+  assert.ok((workflows[1]).includes("post-update-command: 'uv lock'"));
+  assert.ok((workflows[2]).includes("post-update-command: 'go mod tidy'"));
+  assert.ok((workflows[3]).includes("post-update-command: 'cargo generate-lockfile'"));
+  assert.ok((workflows[4]).includes("post-update-command: 'git diff --check'"));
+  assert.ok((workflows[5]).includes("post-update-command: 'git diff --check'"));
 };
 
 const expectWorkflowDefaults = (workflows: string[]): void => {
   const hasDefaultSchedule = workflows.every((workflow) => workflow.includes('cron: "0 9 * * 1"'));
-  expect(hasDefaultSchedule).toBe(true);
-  expect(workflows[0]).toContain("uses: yowainwright/codependence@v1");
-  expect(workflows[0]).toContain("secrets.CODEPENDENCE_TOKEN");
-  expect(workflows[4]).toContain("pull-request: true");
+  assert.strictEqual((hasDefaultSchedule), true);
+  assert.ok((workflows[0]).includes("uses: yowainwright/codependence@v1"));
+  assert.ok((workflows[0]).includes("secrets.CODEPENDENCE_TOKEN"));
+  assert.ok((workflows[4]).includes("pull-request: true"));
 };
 
 describe("GitHub Actions initializer", () => {
@@ -1872,13 +1836,13 @@ describe("GitHub Actions initializer", () => {
     fs.writeFileSync(legacyPath, legacyWorkflow);
 
     try {
-      expect(() => initGitHubActions({ rootDir })).toThrow("Refusing to overwrite");
+      assertThrows((() => initGitHubActions({ rootDir })), "Refusing to overwrite");
       initGitHubActions({ force: true, rootDir });
       const infrastructureWorkflow = fs.readFileSync(legacyPath, "utf8");
-      expect(infrastructureWorkflow).toContain("targets: |\n  github-actions");
-      expect(infrastructureWorkflow).not.toContain("\n  docker\n");
-      expect(infrastructureWorkflow).toContain(`cron: "${schedule}"`);
-      expect(readWorkflow(rootDir, "docker")).toContain("targets: docker");
+      assert.ok((infrastructureWorkflow).includes("targets: |\n  github-actions"));
+      assert.ok(!(infrastructureWorkflow).includes("\n  docker\n"));
+      assert.ok((infrastructureWorkflow).includes(`cron: "${schedule}"`));
+      assert.ok((readWorkflow(rootDir, "docker")).includes("targets: docker"));
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -1892,7 +1856,7 @@ describe("GitHub Actions initializer", () => {
 
     try {
       initGitHubActions({ force: true, rootDir });
-      expect(fs.existsSync(legacyPath)).toBe(false);
+      assert.strictEqual((fs.existsSync(legacyPath)), false);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -1907,8 +1871,8 @@ describe("GitHub Actions initializer", () => {
 
     try {
       initGitHubActions({ force: true, rootDir });
-      expect(fs.readFileSync(legacyPath, "utf8")).toBe(workflow);
-      expect(readWorkflow(rootDir, "docker")).toContain("targets: docker");
+      assert.strictEqual((fs.readFileSync(legacyPath, "utf8")), workflow);
+      assert.ok((readWorkflow(rootDir, "docker")).includes("targets: docker"));
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -1923,7 +1887,7 @@ describe("GitHub Actions initializer", () => {
 
     try {
       initGitHubActions({ force: true, rootDir });
-      expect(fs.readFileSync(legacyPath, "utf8")).toBe(workflow);
+      assert.strictEqual((fs.readFileSync(legacyPath, "utf8")), workflow);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -1936,7 +1900,7 @@ describe("GitHub Actions initializer", () => {
       const paths = initGitHubActions({ rootDir });
       const workflows = readGeneratedWorkflows(rootDir);
 
-      expect(paths.map((path) => path.split("/").at(-1))).toEqual(expectedWorkflowFiles);
+      assert.deepStrictEqual((paths.map((path) => path.split("/").at(-1))), expectedWorkflowFiles);
       expectWorkflowDefaults(workflows);
       expectWorkflowTargets(workflows);
       expectWorkflowCommands(workflows);
@@ -1960,11 +1924,11 @@ describe("GitHub Actions initializer", () => {
       });
 
       const workflow = readWorkflow(rootDir, "go");
-      expect(workflow).toContain('cron: "30 7 * * 5"');
-      expect(workflow).toContain("version: 1.25.3");
-      expect(workflow).toContain("post-update-command: 'task go:tidy'");
-      expect(workflow).toContain(`secrets.${credentialName}`);
-      expect(fs.existsSync(join(rootDir, ".github/workflows/codependence-node.yml"))).toBe(false);
+      assert.ok((workflow).includes('cron: "30 7 * * 5"'));
+      assert.ok((workflow).includes("version: 1.25.3"));
+      assert.ok((workflow).includes("post-update-command: 'task go:tidy'"));
+      assert.ok((workflow).includes(`secrets.${credentialName}`));
+      assert.strictEqual((fs.existsSync(join(rootDir, ".github/workflows/codependence-node.yml"))), false);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -1998,10 +1962,10 @@ describe("GitHub Actions initializer", () => {
     try {
       initGitHubActions({ rootDir });
 
-      expect(readWorkflow(rootDir, "node")).toContain("version: 10.12.1");
-      expect(readWorkflow(rootDir, "python")).toContain("version: 0.8.2");
-      expect(readWorkflow(rootDir, "go")).toContain("version: 1.25.4");
-      expect(readWorkflow(rootDir, "rust")).toContain("version: 1.88.0");
+      assert.ok((readWorkflow(rootDir, "node")).includes("version: 10.12.1"));
+      assert.ok((readWorkflow(rootDir, "python")).includes("version: 0.8.2"));
+      assert.ok((readWorkflow(rootDir, "go")).includes("version: 1.25.4"));
+      assert.ok((readWorkflow(rootDir, "rust")).includes("version: 1.88.0"));
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2018,7 +1982,7 @@ describe("GitHub Actions initializer", () => {
     try {
       initGitHubActions({ rootDir });
 
-      expect(readWorkflow(rootDir, "rust")).toContain("version: 1.87.0");
+      assert.ok((readWorkflow(rootDir, "rust")).includes("version: 1.87.0"));
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2033,18 +1997,14 @@ describe("GitHub Actions initializer", () => {
     fs.writeFileSync(join(rootDir, "rust-toolchain.toml"), '[toolchain]\nchannel = "stable"\n');
 
     try {
-      expect(() => initGitHubActions({ rootDir })).toThrow(
-        "rust requires an exact tool version, received: stable",
-      );
-      expect(fs.existsSync(join(rootDir, ".github"))).toBe(false);
+      assertThrows((() => initGitHubActions({ rootDir })), "rust requires an exact tool version, received: stable");
+      assert.strictEqual((fs.existsSync(join(rootDir, ".github"))), false);
 
       fs.writeFileSync(
         join(rootDir, "rust-toolchain.toml"),
         '[toolchain]\nchannel = "1.88.0-rc.1"\n',
       );
-      expect(() => initGitHubActions({ rootDir })).toThrow(
-        "rust requires an exact tool version, received: 1.88.0-rc.1",
-      );
+      assertThrows((() => initGitHubActions({ rootDir })), "rust requires an exact tool version, received: 1.88.0-rc.1");
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2062,17 +2022,15 @@ describe("GitHub Actions initializer", () => {
       initGitHubActions({ rootDir });
 
       const workflow = readWorkflow(rootDir, "go");
-      expect(workflow).toContain("version: 1.24.0");
-      expect(workflow).toContain("post-update-command: '(cd -- ''services/api'' && go mod tidy)'");
+      assert.ok((workflow).includes("version: 1.24.0"));
+      assert.ok((workflow).includes("post-update-command: '(cd -- ''services/api'' && go mod tidy)'"));
 
       initGitHubActions({
         force: true,
         postUpdateCommands: ["go=task go:tidy"],
         rootDir,
       });
-      expect(readWorkflow(rootDir, "go")).toContain(
-        "post-update-command: '(cd -- ''services/api'' && task go:tidy)'",
-      );
+      assert.ok((readWorkflow(rootDir, "go")).includes("post-update-command: '(cd -- ''services/api'' && task go:tidy)'"));
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2090,9 +2048,9 @@ describe("GitHub Actions initializer", () => {
       });
 
       const workflow = readWorkflow(rootDir, "node");
-      expect(workflow).toContain("targets: |\n            bun\n            npm");
-      expect(workflow).toContain("version: |\n            bun=1.3.14\n            npm=11.4.2");
-      expect(workflow).toContain("post-update-command: 'bun install && npm install'");
+      assert.ok((workflow).includes("targets: |\n            bun\n            npm"));
+      assert.ok((workflow).includes("version: |\n            bun=1.3.14\n            npm=11.4.2"));
+      assert.ok((workflow).includes("post-update-command: 'bun install && npm install'"));
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2111,8 +2069,8 @@ describe("GitHub Actions initializer", () => {
       });
 
       const workflow = readWorkflow(rootDir, "go");
-      expect(workflow).toContain("version: v1.25.3-rc.1");
-      expect(workflow).toContain("post-update-command: 'echo it''s ready'");
+      assert.ok((workflow).includes("version: v1.25.3-rc.1"));
+      assert.ok((workflow).includes("post-update-command: 'echo it''s ready'"));
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2122,9 +2080,9 @@ describe("GitHub Actions initializer", () => {
     const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
 
     try {
-      expect(() => initGitHubActions({ rootDir })).toThrow("configuration not found");
+      assertThrows((() => initGitHubActions({ rootDir })), "configuration not found");
       fs.writeFileSync(join(rootDir, ".codependencerc"), JSON.stringify({}));
-      expect(() => initGitHubActions({ rootDir })).toThrow("must define manager targets");
+      assertThrows((() => initGitHubActions({ rootDir })), "must define manager targets");
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2136,13 +2094,9 @@ describe("GitHub Actions initializer", () => {
     fs.writeFileSync(configPath, JSON.stringify({ targets: [{ manager: "bun" }] }));
 
     try {
-      expect(() => initGitHubActions({ rootDir, targets: ["go"] })).toThrow(
-        "Unknown configured target manager(s): go",
-      );
+      assertThrows((() => initGitHubActions({ rootDir, targets: ["go"] })), "Unknown configured target manager(s): go");
       fs.writeFileSync(configPath, JSON.stringify({ targets: [{ manager: "pip" }] }));
-      expect(() => initGitHubActions({ rootDir })).toThrow(
-        "does not support target manager(s): pip",
-      );
+      assertThrows((() => initGitHubActions({ rootDir })), "does not support target manager(s): pip");
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2152,18 +2106,16 @@ describe("GitHub Actions initializer", () => {
     const rootDir = createActionsProject();
 
     try {
-      expect(() => initGitHubActions({ rootDir, targets: ["go"], versions: ["go"] })).toThrow(
-        "Versions must use name=value entries",
+      assertThrows((() => initGitHubActions({ rootDir, targets: ["go"], versions: ["go"] })), "Versions must use name=value entries");
+      assertThrows((() => initGitHubActions({ rootDir, targets: ["go"], versions: ["uv=0.8.0"] })), "Unknown version manager(s): uv");
+      assertThrows(
+        () => initGitHubActions({ rootDir, targets: ["go"], postUpdateCommands: ["python=uv lock"] }),
+        "Unknown post-update command target(s): python",
       );
-      expect(() => initGitHubActions({ rootDir, targets: ["go"], versions: ["uv=0.8.0"] })).toThrow(
-        "Unknown version manager(s): uv",
+      assertThrows(
+        () => initGitHubActions({ rootDir, targets: ["go"], schedules: ["node=0 9 * * 1"] }),
+        "Unknown schedule area(s): node",
       );
-      expect(() =>
-        initGitHubActions({ rootDir, targets: ["go"], postUpdateCommands: ["python=uv lock"] }),
-      ).toThrow("Unknown post-update command target(s): python");
-      expect(() =>
-        initGitHubActions({ rootDir, targets: ["go"], schedules: ["node=0 9 * * 1"] }),
-      ).toThrow("Unknown schedule area(s): node");
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2174,17 +2126,17 @@ describe("GitHub Actions initializer", () => {
     const invalidCredentialName = ["dependency", "updates"].join("-");
 
     try {
-      expect(() =>
-        initGitHubActions({ rootDir, targets: ["go"], schedules: ["go=weekly"] }),
-      ).toThrow("Invalid cron schedule for: go");
-      expect(() =>
+      assertThrows(
+        () => initGitHubActions({ rootDir, targets: ["go"], schedules: ["go=weekly"] }),
+        "Invalid cron schedule for: go",
+      );
+      assertThrows(() =>
         initGitHubActions({
           rootDir,
           targets: ["go"],
           tokenSecret: invalidCredentialName,
-        }),
-      ).toThrow("Invalid GitHub secret name");
-      expect(fs.existsSync(join(rootDir, ".github"))).toBe(false);
+        }), "Invalid GitHub secret name");
+      assert.strictEqual((fs.existsSync(join(rootDir, ".github"))), false);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2198,22 +2150,18 @@ describe("GitHub Actions initializer", () => {
     );
 
     try {
-      expect(() => initGitHubActions({ rootDir })).toThrow("Pass --version uv=<version>");
-      expect(() => initGitHubActions({ rootDir, versions: ["uv=0.8"] })).toThrow(
-        "requires an exact tool version",
-      );
+      assertThrows((() => initGitHubActions({ rootDir })), "Pass --version uv=<version>");
+      assertThrows((() => initGitHubActions({ rootDir, versions: ["uv=0.8"] })), "requires an exact tool version");
 
       initGitHubActions({ rootDir, versions: ["uv=0.8.0"] });
       const workflowPath = join(rootDir, ".github/workflows/codependence-python.yml");
       fs.writeFileSync(workflowPath, "existing\n");
 
-      expect(() => initGitHubActions({ rootDir, versions: ["uv=0.8.1"] })).toThrow(
-        "Refusing to overwrite",
-      );
-      expect(fs.readFileSync(workflowPath, "utf8")).toBe("existing\n");
+      assertThrows((() => initGitHubActions({ rootDir, versions: ["uv=0.8.1"] })), "Refusing to overwrite");
+      assert.strictEqual((fs.readFileSync(workflowPath, "utf8")), "existing\n");
 
       initGitHubActions({ rootDir, versions: ["uv=0.8.1"], force: true });
-      expect(fs.readFileSync(workflowPath, "utf8")).toContain("version: 0.8.1");
+      assert.ok((fs.readFileSync(workflowPath, "utf8")).includes("version: 0.8.1"));
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2228,8 +2176,8 @@ describe("GitHub Actions initializer", () => {
     fs.writeFileSync(join(rootDir, "package.json"), "{");
 
     try {
-      expect(() => initGitHubActions({ rootDir })).toThrow("Missing exact tool version for: bun");
-      expect(fs.existsSync(join(rootDir, ".github"))).toBe(false);
+      assertThrows((() => initGitHubActions({ rootDir })), "Missing exact tool version for: bun");
+      assert.strictEqual((fs.existsSync(join(rootDir, ".github"))), false);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }

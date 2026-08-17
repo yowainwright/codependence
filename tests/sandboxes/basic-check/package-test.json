@@ -20,10 +20,6 @@
     "eslint": "^8.0.0"
   },
   "codependence": {
-    "codependencies": [
-      "lodash",
-      "express",
-      "typescript"
-    ]
+    "codependencies": ["lodash", "express", "typescript"]
   }
 }

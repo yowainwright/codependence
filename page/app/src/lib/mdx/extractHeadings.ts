@@ -2,7 +2,11 @@ import type { Heading } from "./types";
 import { HEADING_REGEX, SLUG_STRIP_REGEX, SLUG_SPACE_REGEX } from "./constants";
 
 function slugify(text: string): string {
-  return text.toLowerCase().replace(SLUG_STRIP_REGEX, "").trim().replace(SLUG_SPACE_REGEX, "-");
+  return text
+    .toLowerCase()
+    .replace(SLUG_STRIP_REGEX, "")
+    .trim()
+    .replace(SLUG_SPACE_REGEX, "-");
 }
 
 function buildTree(flat: Heading[]): Heading[] {
@@ -41,7 +45,11 @@ export function extractHeadings(source: string): Heading[] {
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(source)) !== null) {
-    flat.push({ depth: match[1].length, slug: slugify(match[2]), text: match[2] });
+    flat.push({
+      depth: match[1].length,
+      slug: slugify(match[2]),
+      text: match[2],
+    });
   }
 
   return buildTree(flat);

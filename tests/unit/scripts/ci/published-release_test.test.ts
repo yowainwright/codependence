@@ -1,4 +1,6 @@
-import { describe, expect, jest, test } from "bun:test";
+import { describe, test, mock } from "node:test";
+import assert from "node:assert/strict";
+import { assertThrows } from "../../../helpers/assertions";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -18,18 +20,16 @@ import { NODE_ALPINE_IMAGE as nodeAlpineImage } from "./constants";
 
 describe("scripts/ci/published-release_test", () => {
   test("packageSpec formats npm package specs", () => {
-    expect(packageSpec("codependence", "1.0.0")).toBe("codependence@1.0.0");
+    assert.strictEqual((packageSpec("codependence", "1.0.0")), "codependence@1.0.0");
   });
 
   test("buildDockerBuildArgs includes image and build args", () => {
-    expect(
-      buildDockerBuildArgs({
+    assert.deepStrictEqual(buildDockerBuildArgs({
         dockerfile: "tests/release/Dockerfile.published",
         image: "codependence-release-test",
         nodeAlpineImage,
         version: "1.0.0",
-      }),
-    ).toEqual([
+      }), [
       "build",
       "--build-arg",
       "CODEPENDENCE_VERSION=1.0.0",
@@ -44,7 +44,7 @@ describe("scripts/ci/published-release_test", () => {
   });
 
   test("buildDockerRunShellArgs builds bash runner args", () => {
-    expect(buildDockerRunShellArgs("codependence-release-test", "codependence --help")).toEqual([
+    assert.deepStrictEqual((buildDockerRunShellArgs("codependence-release-test", "codependence --help")), [
       "run",
       "--rm",
       "codependence-release-test",
@@ -55,114 +55,111 @@ describe("scripts/ci/published-release_test", () => {
   });
 
   test("releaseE2eScript runs Python and Go checks", () => {
-    expect(releaseE2eScript()).toContain("./test-python-go.sh");
-    expect(releaseE2eScript()).toContain("./tests/e2e/test-go-update.sh");
+    assert.ok((releaseE2eScript()).includes("./test-python-go.sh"));
+    assert.ok((releaseE2eScript()).includes("./tests/e2e/test-go-update.sh"));
   });
 
   test("compatibilityScript checks debug and JSON output", () => {
-    expect(compatibilityScript()).toContain("--debug");
-    expect(compatibilityScript()).toContain("--format json");
+    assert.ok((compatibilityScript()).includes("--debug"));
+    assert.ok((compatibilityScript()).includes("--format json"));
   });
 
   test("legacyCompatibilityScript checks the 0.3.1 contract", () => {
     const script = legacyCompatibilityScript();
 
-    expect(script).toContain("tests/fixtures/0.3.1/package.json");
-    expect(script).toContain("codependence -s");
-    expect(script).toContain("cdp --help");
-    expect(script).toContain("require('codependence')");
+    assert.ok((script).includes("tests/fixtures/0.3.1/package.json"));
+    assert.ok((script).includes("codependence -s"));
+    assert.ok((script).includes("cdp --help"));
+    assert.ok((script).includes("require('codependence')"));
   });
 
   test("formatSummary includes the version", () => {
-    expect(formatSummary("1.0.0")).toContain("Tested codependence version: 1.0.0");
+    assert.ok((formatSummary("1.0.0")).includes("Tested codependence version: 1.0.0"));
   });
 
   test("formatReport includes release test coverage", () => {
     const report = formatReport({ date: "2026-05-25 00:00:00 UTC", version: "1.0.0" });
 
-    expect(report).toContain("- Go update preservation tests");
-    expect(report).toContain("- 0.3.1 compatibility contract");
+    assert.ok((report).includes("- Go update preservation tests"));
+    assert.ok((report).includes("- 0.3.1 compatibility contract"));
   });
 
   test("formatReport only claims tests run by this repository", () => {
     const report = formatReport({ date: "2026-05-25 00:00:00 UTC", version: "1.0.0" });
-    expect(report).not.toContain("External");
+    assert.ok(!(report).includes("External"));
   });
 
   test("requireVersion rejects missing versions", () => {
-    expect(() => requireVersion("", "build-release-image")).toThrow("CODEPENDENCE_VERSION");
+    assertThrows((() => requireVersion("", "build-release-image")), "CODEPENDENCE_VERSION");
   });
 
   test("resolve-version normalizes a release tag input", () => {
     const directory = mkdtempSync(join(tmpdir(), "codependence-release-version-"));
     const outputPath = join(directory, "github-output");
-    const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = mock.method(console, "log", () => {});
 
     try {
       const code = runTestPublishedReleaseCli({
         argv: ["resolve-version"],
         env: { GITHUB_OUTPUT: outputPath, INPUT_VERSION: "v1.2.4" },
       });
-      expect(code).toBe(0);
-      expect(readFileSync(outputPath, "utf8")).toBe("version=1.2.4\n");
+      assert.strictEqual((code), 0);
+      assert.strictEqual((readFileSync(outputPath, "utf8")), "version=1.2.4\n");
     } finally {
-      logSpy.mockRestore();
+      logSpy.mock.restore();
       rmSync(directory, { recursive: true, force: true });
     }
   });
 
   test("resolve-version rejects an invalid release input", () => {
-    const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = mock.method(console, "log", () => {});
 
     try {
-      expect(() =>
+      assertThrows(() =>
         runTestPublishedReleaseCli({
           argv: ["resolve-version"],
           env: { INPUT_VERSION: "../../latest" },
-        }),
-      ).toThrow("Invalid release version");
+        }), "Invalid release version");
     } finally {
-      logSpy.mockRestore();
+      logSpy.mock.restore();
     }
   });
 
   test("resolve-version rejects an explicit version that normalizes to empty", () => {
-    const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = mock.method(console, "log", () => {});
     const runner = () => ({ status: 0, stdout: "9.9.9\n", stderr: "" });
 
     try {
-      expect(() =>
+      assertThrows(() =>
         runTestPublishedReleaseCli({
           argv: ["resolve-version"],
           env: { INPUT_VERSION: "v" },
           runner,
-        }),
-      ).toThrow("Invalid release version");
+        }), "Invalid release version");
     } finally {
-      logSpy.mockRestore();
+      logSpy.mock.restore();
     }
   });
 
   test("wait-for-npm skips sleeping after the last failed attempt", () => {
     const calls: string[] = [];
-    const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = mock.method(console, "log", () => {});
     const runner = (command: string, args: string[]) => {
       calls.push([command, ...args].join(" "));
       return { status: command === "sleep" ? 0 : 1, stdout: "", stderr: "" };
     };
 
     try {
-      expect(() =>
+      assertThrows(() =>
         runTestPublishedReleaseCli({
           argv: ["wait-for-npm"],
           env: { CODEPENDENCE_VERSION: "1.0.0" },
           runner,
-        }),
-      ).toThrow("was not available after 30 attempts");
+        }), "was not available after 30 attempts");
     } finally {
-      logSpy.mockRestore();
+      logSpy.mock.restore();
     }
 
-    expect(calls.filter((call) => call === "sleep 30")).toHaveLength(29);
+    assert.strictEqual((calls.filter((call) => call === "sleep 30")).length, 29);
   });
 });

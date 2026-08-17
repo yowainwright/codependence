@@ -1,4 +1,5 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import {
   formatAsJSON,
   formatAsMarkdown,
@@ -20,12 +21,12 @@ describe("formatAsJSON", () => {
     const result = formatAsJSON(dependencies);
     const parsed = JSON.parse(result);
 
-    expect(parsed.status).toBe("outdated");
-    expect(parsed.exitCode).toBe(1);
-    expect(parsed.dependencies).toHaveLength(2);
-    expect(parsed.summary.totalPackages).toBe(2);
-    expect(parsed.summary.outdated).toBe(1);
-    expect(parsed.summary.upToDate).toBe(1);
+    assert.strictEqual((parsed.status), "outdated");
+    assert.strictEqual((parsed.exitCode), 1);
+    assert.strictEqual((parsed.dependencies).length, 2);
+    assert.strictEqual((parsed.summary.totalPackages), 2);
+    assert.strictEqual((parsed.summary.outdated), 1);
+    assert.strictEqual((parsed.summary.upToDate), 1);
   });
 
   it("should format dependencies as JSON with up-to-date status", () => {
@@ -37,10 +38,10 @@ describe("formatAsJSON", () => {
     const result = formatAsJSON(dependencies);
     const parsed = JSON.parse(result);
 
-    expect(parsed.status).toBe("up-to-date");
-    expect(parsed.exitCode).toBe(0);
-    expect(parsed.summary.outdated).toBe(0);
-    expect(parsed.summary.upToDate).toBe(2);
+    assert.strictEqual((parsed.status), "up-to-date");
+    assert.strictEqual((parsed.exitCode), 0);
+    assert.strictEqual((parsed.summary.outdated), 0);
+    assert.strictEqual((parsed.summary.upToDate), 2);
   });
 
   it("should include duration when provided", () => {
@@ -51,7 +52,7 @@ describe("formatAsJSON", () => {
     const result = formatAsJSON(dependencies, 1500);
     const parsed = JSON.parse(result);
 
-    expect(parsed.summary.duration).toBe(1500);
+    assert.strictEqual((parsed.summary.duration), 1500);
   });
 
   it("should not include duration when not provided", () => {
@@ -62,7 +63,7 @@ describe("formatAsJSON", () => {
     const result = formatAsJSON(dependencies);
     const parsed = JSON.parse(result);
 
-    expect(parsed.summary.duration).toBeUndefined();
+    assert.strictEqual((parsed.summary.duration), undefined);
   });
 
   it("should mark dependencies with isPinned", () => {
@@ -73,18 +74,16 @@ describe("formatAsJSON", () => {
     const result = formatAsJSON(dependencies);
     const parsed = JSON.parse(result);
 
-    expect(parsed.dependencies[0].isPinned).toBe(true);
+    assert.strictEqual((parsed.dependencies[0].isPinned), true);
   });
 
   it("should default isPinned to false when not provided", () => {
-    const dependencies: DependencyInfo[] = [
-      { name: "react", current: "17.0.0", latest: "18.0.0" },
-    ];
+    const dependencies: DependencyInfo[] = [{ name: "react", current: "17.0.0", latest: "18.0.0" }];
 
     const result = formatAsJSON(dependencies);
     const parsed = JSON.parse(result);
 
-    expect(parsed.dependencies[0].isPinned).toBe(false);
+    assert.strictEqual((parsed.dependencies[0].isPinned), false);
   });
 
   it("should determine major version severity", () => {
@@ -95,7 +94,7 @@ describe("formatAsJSON", () => {
     const result = formatAsJSON(dependencies);
     const parsed = JSON.parse(result);
 
-    expect(parsed.dependencies[0].severity).toBe("major");
+    assert.strictEqual((parsed.dependencies[0].severity), "major");
   });
 
   it("should determine minor version severity", () => {
@@ -106,7 +105,7 @@ describe("formatAsJSON", () => {
     const result = formatAsJSON(dependencies);
     const parsed = JSON.parse(result);
 
-    expect(parsed.dependencies[0].severity).toBe("minor");
+    assert.strictEqual((parsed.dependencies[0].severity), "minor");
   });
 
   it("should determine patch version severity", () => {
@@ -117,7 +116,7 @@ describe("formatAsJSON", () => {
     const result = formatAsJSON(dependencies);
     const parsed = JSON.parse(result);
 
-    expect(parsed.dependencies[0].severity).toBe("patch");
+    assert.strictEqual((parsed.dependencies[0].severity), "patch");
   });
 
   it("should determine unknown severity for same versions", () => {
@@ -128,7 +127,7 @@ describe("formatAsJSON", () => {
     const result = formatAsJSON(dependencies);
     const parsed = JSON.parse(result);
 
-    expect(parsed.dependencies[0].severity).toBe("unknown");
+    assert.strictEqual((parsed.dependencies[0].severity), "unknown");
   });
 
   it("should handle version prefixes", () => {
@@ -139,7 +138,7 @@ describe("formatAsJSON", () => {
     const result = formatAsJSON(dependencies);
     const parsed = JSON.parse(result);
 
-    expect(parsed.dependencies[0].severity).toBe("major");
+    assert.strictEqual((parsed.dependencies[0].severity), "major");
   });
 
   it("should mark canAutoUpdate true for outdated deps", () => {
@@ -150,7 +149,7 @@ describe("formatAsJSON", () => {
     const result = formatAsJSON(dependencies);
     const parsed = JSON.parse(result);
 
-    expect(parsed.dependencies[0].canAutoUpdate).toBe(true);
+    assert.strictEqual((parsed.dependencies[0].canAutoUpdate), true);
   });
 
   it("should mark canAutoUpdate false for up-to-date deps", () => {
@@ -161,7 +160,7 @@ describe("formatAsJSON", () => {
     const result = formatAsJSON(dependencies);
     const parsed = JSON.parse(result);
 
-    expect(parsed.dependencies[0].canAutoUpdate).toBe(false);
+    assert.strictEqual((parsed.dependencies[0].canAutoUpdate), false);
   });
 
   it("should handle empty dependencies array", () => {
@@ -170,12 +169,12 @@ describe("formatAsJSON", () => {
     const result = formatAsJSON(dependencies);
     const parsed = JSON.parse(result);
 
-    expect(parsed.status).toBe("up-to-date");
-    expect(parsed.exitCode).toBe(0);
-    expect(parsed.dependencies).toEqual([]);
-    expect(parsed.summary.totalPackages).toBe(0);
-    expect(parsed.summary.outdated).toBe(0);
-    expect(parsed.summary.upToDate).toBe(0);
+    assert.strictEqual((parsed.status), "up-to-date");
+    assert.strictEqual((parsed.exitCode), 0);
+    assert.deepStrictEqual((parsed.dependencies), []);
+    assert.strictEqual((parsed.summary.totalPackages), 0);
+    assert.strictEqual((parsed.summary.outdated), 0);
+    assert.strictEqual((parsed.summary.upToDate), 0);
   });
 });
 
@@ -188,12 +187,12 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    expect(result).toContain("# Dependency Status");
-    expect(result).toContain("## ▲ Outdated Dependencies (1)");
-    expect(result).toContain("| Package | Current | Latest | Severity |");
-    expect(result).toContain("| react | 17.0.0 | 18.0.0 | ● major |");
-    expect(result).toContain("## ✓ Up-to-date Dependencies (1)");
-    expect(result).toContain("- lodash @ 4.17.21");
+    assert.ok((result).includes("# Dependency Status"));
+    assert.ok((result).includes("## ▲ Outdated Dependencies (1)"));
+    assert.ok((result).includes("| Package | Current | Latest | Severity |"));
+    assert.ok((result).includes("| react | 17.0.0 | 18.0.0 | ● major |"));
+    assert.ok((result).includes("## ✓ Up-to-date Dependencies (1)"));
+    assert.ok((result).includes("- lodash @ 4.17.21"));
   });
 
   it("should format only up-to-date dependencies", () => {
@@ -203,9 +202,9 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    expect(result).toContain("# Dependency Status");
-    expect(result).toContain("## ✓ Up-to-date Dependencies (1)");
-    expect(result).not.toContain("▲ Outdated Dependencies");
+    assert.ok((result).includes("# Dependency Status"));
+    assert.ok((result).includes("## ✓ Up-to-date Dependencies (1)"));
+    assert.ok(!(result).includes("▲ Outdated Dependencies"));
   });
 
   it("should include summary section", () => {
@@ -216,10 +215,10 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    expect(result).toContain("## Summary");
-    expect(result).toContain("- Total packages: 2");
-    expect(result).toContain("- Outdated: 1");
-    expect(result).toContain("- Up-to-date: 1");
+    assert.ok((result).includes("## Summary"));
+    assert.ok((result).includes("- Total packages: 2"));
+    assert.ok((result).includes("- Outdated: 1"));
+    assert.ok((result).includes("- Up-to-date: 1"));
   });
 
   it("should include duration when provided", () => {
@@ -229,7 +228,7 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies, 2500);
 
-    expect(result).toContain("- Duration: 2500ms");
+    assert.ok((result).includes("- Duration: 2500ms"));
   });
 
   it("should not include duration when not provided", () => {
@@ -239,7 +238,7 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    expect(result).not.toContain("Duration:");
+    assert.ok(!(result).includes("Duration:"));
   });
 
   it("should use correct severity emojis for major", () => {
@@ -249,7 +248,7 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    expect(result).toContain("● major");
+    assert.ok((result).includes("● major"));
   });
 
   it("should use correct severity emojis for minor", () => {
@@ -259,7 +258,7 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    expect(result).toContain("● minor");
+    assert.ok((result).includes("● minor"));
   });
 
   it("should use correct severity emojis for patch", () => {
@@ -269,7 +268,7 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    expect(result).toContain("● patch");
+    assert.ok((result).includes("● patch"));
   });
 
   it("should handle empty dependencies array", () => {
@@ -277,9 +276,9 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    expect(result).toContain("# Dependency Status");
-    expect(result).toContain("## Summary");
-    expect(result).toContain("- Total packages: 0");
+    assert.ok((result).includes("# Dependency Status"));
+    assert.ok((result).includes("## Summary"));
+    assert.ok((result).includes("- Total packages: 0"));
   });
 
   it("should format multiple outdated dependencies", () => {
@@ -291,10 +290,10 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    expect(result).toContain("## ▲ Outdated Dependencies (3)");
-    expect(result).toContain("| react | 17.0.0 | 18.0.0 | ● major |");
-    expect(result).toContain("| vue | 2.6.0 | 3.0.0 | ● major |");
-    expect(result).toContain("| angular | 12.0.0 | 13.0.0 | ● major |");
+    assert.ok((result).includes("## ▲ Outdated Dependencies (3)"));
+    assert.ok((result).includes("| react | 17.0.0 | 18.0.0 | ● major |"));
+    assert.ok((result).includes("| vue | 2.6.0 | 3.0.0 | ● major |"));
+    assert.ok((result).includes("| angular | 12.0.0 | 13.0.0 | ● major |"));
   });
 });
 
@@ -307,16 +306,16 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    expect(result).toContain("▲  Outdated Dependencies:");
-    expect(result).toContain("Package");
-    expect(result).toContain("Current");
-    expect(result).toContain("Latest");
-    expect(result).toContain("Severity");
-    expect(result).toContain("react");
-    expect(result).toContain("17.0.0");
-    expect(result).toContain("18.0.0");
-    expect(result).toContain("● major");
-    expect(result).toContain("1 outdated of 2 total");
+    assert.ok((result).includes("▲  Outdated Dependencies:"));
+    assert.ok((result).includes("Package"));
+    assert.ok((result).includes("Current"));
+    assert.ok((result).includes("Latest"));
+    assert.ok((result).includes("Severity"));
+    assert.ok((result).includes("react"));
+    assert.ok((result).includes("17.0.0"));
+    assert.ok((result).includes("18.0.0"));
+    assert.ok((result).includes("● major"));
+    assert.ok((result).includes("1 outdated of 2 total"));
   });
 
   it("should show success message when all up-to-date", () => {
@@ -327,7 +326,7 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    expect(result).toContain("All dependencies are up-to-date!");
+    assert.ok((result).includes("All dependencies are up-to-date!"));
   });
 
   it("should handle empty dependencies array", () => {
@@ -335,7 +334,7 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    expect(result).toContain("All dependencies are up-to-date!");
+    assert.ok((result).includes("All dependencies are up-to-date!"));
   });
 
   it("should use correct severity indicators for major", () => {
@@ -345,7 +344,7 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    expect(result).toContain("● major");
+    assert.ok((result).includes("● major"));
   });
 
   it("should use correct severity indicators for minor", () => {
@@ -355,7 +354,7 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    expect(result).toContain("● minor");
+    assert.ok((result).includes("● minor"));
   });
 
   it("should use correct severity indicators for patch", () => {
@@ -365,7 +364,7 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    expect(result).toContain("● patch");
+    assert.ok((result).includes("● patch"));
   });
 
   it("should align columns correctly with varying lengths", () => {
@@ -376,9 +375,9 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    expect(result).toContain("very-long-package-name");
-    expect(result).toContain("react");
-    expect(result).toContain("2 outdated of 2 total");
+    assert.ok((result).includes("very-long-package-name"));
+    assert.ok((result).includes("react"));
+    assert.ok((result).includes("2 outdated of 2 total"));
   });
 
   it("should show count summary", () => {
@@ -390,7 +389,7 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    expect(result).toContain("2 outdated of 3 total");
+    assert.ok((result).includes("2 outdated of 3 total"));
   });
 });
 
@@ -403,49 +402,49 @@ describe("format", () => {
     const result = format(dependencies, "json");
     const parsed = JSON.parse(result);
 
-    expect(parsed.status).toBe("outdated");
-    expect(parsed.dependencies).toBeDefined();
+    assert.strictEqual((parsed.status), "outdated");
+    assert.notStrictEqual((parsed.dependencies), undefined);
   });
 
   it("should format as markdown when type is markdown", () => {
     const result = format(dependencies, "markdown");
 
-    expect(result).toContain("# Dependency Status");
-    expect(result).toContain("| Package | Current | Latest | Severity |");
+    assert.ok((result).includes("# Dependency Status"));
+    assert.ok((result).includes("| Package | Current | Latest | Severity |"));
   });
 
   it("should format as table when type is table", () => {
     const result = stripAnsi(format(dependencies, "table"));
 
-    expect(result).toContain("▲  Outdated Dependencies:");
-    expect(result).toContain("Package");
+    assert.ok((result).includes("▲  Outdated Dependencies:"));
+    assert.ok((result).includes("Package"));
   });
 
   it("should default to table format", () => {
     const result = stripAnsi(format(dependencies));
 
-    expect(result).toContain("▲  Outdated Dependencies:");
-    expect(result).toContain("Package");
+    assert.ok((result).includes("▲  Outdated Dependencies:"));
+    assert.ok((result).includes("Package"));
   });
 
   it("should pass duration to JSON formatter", () => {
     const result = format(dependencies, "json", 3000);
     const parsed = JSON.parse(result);
 
-    expect(parsed.summary.duration).toBe(3000);
+    assert.strictEqual((parsed.summary.duration), 3000);
   });
 
   it("should pass duration to markdown formatter", () => {
     const result = format(dependencies, "markdown", 3000);
 
-    expect(result).toContain("- Duration: 3000ms");
+    assert.ok((result).includes("- Duration: 3000ms"));
   });
 
   it("should not pass duration to table formatter", () => {
     const result = format(dependencies, "table", 3000);
 
-    expect(result).not.toContain("Duration");
-    expect(result).not.toContain("3000");
+    assert.ok(!(result).includes("Duration"));
+    assert.ok(!(result).includes("3000"));
   });
 
   it("should handle all formats with empty dependencies", () => {
@@ -455,8 +454,8 @@ describe("format", () => {
     const markdownResult = format(emptyDeps, "markdown");
     const tableResult = format(emptyDeps, "table");
 
-    expect(JSON.parse(jsonResult).status).toBe("up-to-date");
-    expect(markdownResult).toContain("# Dependency Status");
-    expect(stripAnsi(tableResult)).toContain("✓ All dependencies are up-to-date!");
+    assert.strictEqual((JSON.parse(jsonResult).status), "up-to-date");
+    assert.ok((markdownResult).includes("# Dependency Status"));
+    assert.ok((stripAnsi(tableResult)).includes("✓ All dependencies are up-to-date!"));
   });
 });

@@ -9,7 +9,6 @@
   npm install --global @nubjs/nub@0.7.5
   ```
 
-- Install Bun 1.3.14.
 - Run `nub install`.
 
 ## Local Checks

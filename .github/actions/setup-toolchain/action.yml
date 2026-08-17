@@ -1,13 +1,9 @@
 name: Setup Codependence toolchain
-description: Install pinned Node.js, Nub, and Bun, then optionally install dependencies.
+description: Install pinned Node.js and Nub, then optionally install dependencies.
 
 inputs:
   node-version:
     description: Node.js version to install.
-    required: false
-    default: ""
-  bun-version:
-    description: Bun version to install.
     required: false
     default: ""
   cache:
@@ -36,7 +32,6 @@ runs:
       run: node scripts/ci/tool-versions.js github-output
       env:
         INPUT_NODE_VERSION: ${{ inputs.node-version }}
-        INPUT_BUN_VERSION: ${{ inputs.bun-version }}
 
     - name: Setup Node.js and Nub
       if: inputs.registry-url == ''
@@ -54,11 +49,6 @@ runs:
         nub-version: ${{ steps.tool-versions.outputs.nub_version }}
         cache: ${{ inputs.cache }}
         registry-url: ${{ inputs.registry-url }}
-
-    - name: Setup Bun
-      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-      with:
-        bun-version: ${{ steps.tool-versions.outputs.bun_version }}
 
     - name: Install dependencies
       if: inputs.install == 'true' && inputs.frozen-lockfile == 'true'

@@ -301,10 +301,7 @@ export const managerFromFiles = (files: OnboardingSourceFile[]): OnboardingManag
   return ONBOARDING_MANAGER_ORDER.find(hasManagerFile) || "npm";
 };
 
-export const onboardingInstallArgs = (
-  manager: OnboardingManager,
-  workspace: boolean,
-): string[] => {
+export const onboardingInstallArgs = (manager: OnboardingManager, workspace: boolean): string[] => {
   if (!workspace) return ONBOARDING_INSTALLS[manager];
   const workspaceInstall = ONBOARDING_WORKSPACE_INSTALLS[manager];
   return workspaceInstall || ONBOARDING_INSTALLS[manager];

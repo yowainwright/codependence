@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
 import { spawnSync } from "child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
@@ -40,20 +41,9 @@ const createOutdatedProject = (): string => {
 };
 
 const runCli = (workDir: string, args: string[]) =>
-  spawnSync(
-    process.execPath,
-    [
-      cliPath,
-      "--rootDir",
-      workDir,
-      "--searchPath",
-      workDir,
-      ...args,
-    ],
-    {
-      encoding: "utf8",
-    },
-  );
+  spawnSync("nub", [cliPath, "--rootDir", workDir, "--searchPath", workDir, ...args], {
+    encoding: "utf8",
+  });
 
 const readPackageJson = (workDir: string) =>
   JSON.parse(readFileSync(join(workDir, "package.json"), "utf8"));
@@ -67,10 +57,10 @@ describe("CLI JSON output contract", () => {
       const output = JSON.parse(result.stdout.trim());
       const packageJson = readPackageJson(workDir);
 
-      expect(result.status).toBe(1);
-      expect(output.status).toBe("outdated");
-      expect(output.summary.outdated).toBe(1);
-      expect(output.dependencies).toEqual([
+      assert.strictEqual((result.status), 1);
+      assert.strictEqual((output.status), "outdated");
+      assert.strictEqual((output.summary.outdated), 1);
+      assert.deepStrictEqual((output.dependencies), [
         {
           package: "lodash",
           current: "4.17.21",
@@ -80,7 +70,7 @@ describe("CLI JSON output contract", () => {
           canAutoUpdate: true,
         },
       ]);
-      expect(packageJson.dependencies.lodash).toBe("4.17.21");
+      assert.strictEqual((packageJson.dependencies.lodash), "4.17.21");
     } finally {
       rmSync(workDir, { recursive: true, force: true });
     }
@@ -94,10 +84,10 @@ describe("CLI JSON output contract", () => {
       const output = JSON.parse(result.stdout.trim());
       const packageJson = readPackageJson(workDir);
 
-      expect(result.status).toBe(0);
-      expect(output.status).toBe("outdated");
-      expect(output.summary.outdated).toBe(1);
-      expect(packageJson.dependencies.lodash).toBe("4.18.0");
+      assert.strictEqual((result.status), 0);
+      assert.strictEqual((output.status), "outdated");
+      assert.strictEqual((output.summary.outdated), 1);
+      assert.strictEqual((packageJson.dependencies.lodash), "4.18.0");
     } finally {
       rmSync(workDir, { recursive: true, force: true });
     }
@@ -115,9 +105,9 @@ describe("CLI JSON output contract", () => {
       ]);
       const packageJson = readPackageJson(workDir);
 
-      expect(result.status).toBe(2);
-      expect(result.stderr).toContain("Config file not found");
-      expect(packageJson.dependencies.lodash).toBe("4.17.21");
+      assert.strictEqual((result.status), 2);
+      assert.ok((result.stderr).includes("Config file not found"));
+      assert.strictEqual((packageJson.dependencies.lodash), "4.17.21");
     } finally {
       rmSync(workDir, { recursive: true, force: true });
     }
@@ -131,7 +121,7 @@ describe("CLI JSON output contract", () => {
       encoding: "utf8",
     });
 
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain("Usage");
+    assert.strictEqual((result.status), 0);
+    assert.ok((result.stdout).includes("Usage"));
   });
 });

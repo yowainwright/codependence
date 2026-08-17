@@ -2,11 +2,7 @@ import { readFileSync, writeFileSync } from "fs";
 import { validatePackageName } from "../../utils/validate-package";
 import { exec } from "../../utils/exec";
 import { LANGUAGES, NODE_PACKAGE_MANAGERS } from "../constants";
-import type {
-  DependencyProvider,
-  DependencyManifest,
-  ProviderOptions,
-} from "../types";
+import type { DependencyProvider, DependencyManifest, ProviderOptions } from "../types";
 
 export class NodeJSProvider implements DependencyProvider {
   readonly language = LANGUAGES.NODEJS;
@@ -24,8 +20,7 @@ export class NodeJSProvider implements DependencyProvider {
   async getLatestVersion(packageName: string): Promise<string> {
     const packageManager = this.options.packageManager;
     const shouldUseYarn =
-      packageManager === NODE_PACKAGE_MANAGERS.YARN ||
-      this.options.yarnConfig === true;
+      packageManager === NODE_PACKAGE_MANAGERS.YARN || this.options.yarnConfig === true;
 
     if (shouldUseYarn) {
       return this.getYarnVersion(packageName);
@@ -82,10 +77,7 @@ export class NodeJSProvider implements DependencyProvider {
     };
   }
 
-  writeManifest(
-    filePath: string,
-    manifest: DependencyManifest,
-  ): void {
+  writeManifest(filePath: string, manifest: DependencyManifest): void {
     const content = readFileSync(filePath, "utf8");
     const json = JSON.parse(content);
 
@@ -98,8 +90,7 @@ export class NodeJSProvider implements DependencyProvider {
   }
 
   validatePackageName(packageName: string): boolean {
-    const { validForNewPackages, validForOldPackages } =
-      validatePackageName(packageName);
+    const { validForNewPackages, validForOldPackages } = validatePackageName(packageName);
     return validForNewPackages || validForOldPackages;
   }
 }

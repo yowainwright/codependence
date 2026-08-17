@@ -38,6 +38,7 @@ npm run permissive:update-all-except
 ## Current Setup
 
 This sandbox has mixed outdated dependencies:
+
 - `react@17.0.2` - Stable but v18 available (breaking changes)
 - `lodash@4.17.19` - Has vulnerabilities (needs 4.17.21)
 - `axios@0.21.1` - Critical vulnerabilities (needs 1.6.x)
@@ -46,6 +47,7 @@ This sandbox has mixed outdated dependencies:
 ## Interactive Flow
 
 When running `npm run permissive:interactive`:
+
 1. You'll see ALL dependencies listed
 2. Select which ones to PIN (keep at current version)
 3. Everything NOT selected updates to latest

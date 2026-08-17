@@ -1,14 +1,23 @@
-import { afterEach, beforeEach, describe, expect, jest, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, test, mock } from "node:test";
+import assert from "node:assert/strict";
+import { assertCalledWith } from "../../helpers/assertions";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
-import { RustProvider } from "../../../src/providers/rust";
+import * as execModule from "../../../src/utils/exec";
+
+const execMock = mock.fn<typeof execModule.exec>();
+mock.module(new URL("../../../src/utils/exec.ts", import.meta.url).href, {
+  exports: { exec: execMock },
+});
+const { RustProvider } = await import("../../../src/providers/rust");
 
 describe("RustProvider", () => {
-  const tmpDir = join(__dirname, ".tmp-rust-test");
+  const tmpDir = join(import.meta.dirname, ".tmp-rust-test");
   const cargoPath = join(tmpDir, "Cargo.toml");
 
   afterEach(() => {
-    mock.restore();
+    execMock.mock.restore();
+    execMock.mock.resetCalls();
   });
 
   beforeEach(() => {
@@ -19,69 +28,55 @@ describe("RustProvider", () => {
   test("should expose provider metadata", async () => {
     const provider = new RustProvider({ isTesting: true });
 
-    expect(provider.language).toBe("rust");
-    expect(provider.capabilities).toEqual({
+    assert.strictEqual((provider.language), "rust");
+    assert.deepStrictEqual((provider.capabilities), {
       supportsLatestResolution: true,
       supportsPreciseMode: true,
       versionStrategy: "semver",
     });
-    expect(await provider.getAllVersions("serde")).toEqual([]);
-    expect(provider.validatePackageName("serde_json")).toBe(true);
-    expect(provider.validatePackageName("serde json")).toBe(false);
+    assert.deepStrictEqual((await provider.getAllVersions("serde")), []);
+    assert.strictEqual((provider.validatePackageName("serde_json")), true);
+    assert.strictEqual((provider.validatePackageName("serde json")), false);
   });
 
   test("should read latest version from cargo search output", async () => {
-    const execMock = jest.fn(() => ({
+    execMock.mock.mockImplementation(() => ({
       stdout: 'other = "2.0.0"\nserde = "1.0.210"',
       stderr: "",
-    })) as any;
+    }));
 
     const provider = new RustProvider({ isTesting: true });
-    mock.module("../../../src/utils/exec", () => ({
-      exec: execMock,
-    }));
 
     const version = await provider.getLatestVersion("serde");
 
-    expect(version).toBe("1.0.210");
-    expect(execMock).toHaveBeenCalledWith("cargo", [
-      "search",
-      "serde",
-      "--limit",
-      "1",
-    ]);
+    assert.strictEqual((version), "1.0.210");
+    assertCalledWith((execMock), "cargo", ["search", "serde", "--limit", "1"]);
   });
 
   test("should read latest version for normalized cargo package names", async () => {
-    const execMock = jest.fn(() => ({
+    execMock.mock.mockImplementation(() => ({
       stdout: 'serde_json = "1.0.145"',
       stderr: "",
-    })) as any;
+    }));
 
     const provider = new RustProvider({ isTesting: true });
-    mock.module("../../../src/utils/exec", () => ({
-      exec: execMock,
-    }));
 
     const version = await provider.getLatestVersion("serde-json");
 
-    expect(version).toBe("1.0.145");
+    assert.strictEqual((version), "1.0.145");
   });
 
   test("should return empty latest version for unmatched cargo output", async () => {
-    const execMock = jest.fn(() => ({
+    execMock.mock.mockImplementation(() => ({
       stdout: 'not a result\nother = "2.0.0"',
       stderr: "",
-    })) as any;
+    }));
 
     const provider = new RustProvider({ isTesting: true });
-    mock.module("../../../src/utils/exec", () => ({
-      exec: execMock,
-    }));
 
     const version = await provider.getLatestVersion("serde");
 
-    expect(version).toBe("");
+    assert.strictEqual((version), "");
   });
 
   test("should read Cargo.toml dependency sections", () => {
@@ -105,13 +100,13 @@ nix = "0.27.1"
     const provider = new RustProvider();
     const manifest = provider.readManifest(cargoPath);
 
-    expect(manifest.dependencies).toEqual({
+    assert.deepStrictEqual((manifest.dependencies), {
       serde: "1.0.190",
       tokio: "1.32.0",
       serde_json: "1.0.100",
       nix: "0.27.1",
     });
-    expect(manifest.devDependencies).toEqual({
+    assert.deepStrictEqual((manifest.devDependencies), {
       pretty_assertions: "1.4.0",
     });
   });
@@ -144,12 +139,10 @@ pretty_assertions = "1.4.0"
 
     const updated = readFileSync(cargoPath, "utf8");
 
-    expect(updated).toContain('serde = "1.0.200"');
-    expect(updated).toContain('version = "1.35.0"');
-    expect(updated).toContain(
-      'serde_json_renamed = { package = "serde_json", version = "1.0.145" }',
-    );
-    expect(updated).toContain('local = { path = "../local" }');
-    expect(updated).toContain('pretty_assertions = "1.4.1"');
+    assert.ok((updated).includes('serde = "1.0.200"'));
+    assert.ok((updated).includes('version = "1.35.0"'));
+    assert.ok((updated).includes('serde_json_renamed = { package = "serde_json", version = "1.0.145" }'));
+    assert.ok((updated).includes('local = { path = "../local" }'));
+    assert.ok((updated).includes('pretty_assertions = "1.4.1"'));
   });
 });

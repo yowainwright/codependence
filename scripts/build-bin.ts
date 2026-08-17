@@ -50,7 +50,7 @@ const prepareBinaryRuntime = (): void => {
 
 mkdirSync(BIN_OUTPUT_DIR, { recursive: true });
 prepareBinaryRuntime();
-runBuildStep("bun", BIN_BUNDLE_ARGS);
+runBuildStep("rolldown", BIN_BUNDLE_ARGS);
 runBuildStep("scriptc", BIN_BUILD_ARGS);
 rmSync(BIN_ENTRY_FILE, { force: true });
 rmSync(BIN_RUNTIME_DIR, { force: true, recursive: true });

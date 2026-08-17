@@ -1,4 +1,6 @@
-import { expect, test, describe, beforeEach } from "bun:test";
+import { test, describe, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+import { assertThrows } from "../../helpers/assertions";
 import { loadConfig, validateConfig } from "../../../src/config";
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
@@ -27,9 +29,9 @@ describe("Config Loading", () => {
 
       const result = loadConfig(rcPath);
 
-      expect(result).not.toBeNull();
-      expect(result?.config).toEqual(config);
-      expect(result?.filepath).toBe(rcPath);
+      assert.notStrictEqual((result), null);
+      assert.deepStrictEqual((result?.config), config);
+      assert.strictEqual((result?.filepath), rcPath);
     });
 
     test("should load config from package.json codependence field", () => {
@@ -45,9 +47,9 @@ describe("Config Loading", () => {
 
       const result = loadConfig(pkgPath);
 
-      expect(result).not.toBeNull();
-      expect(result?.config).toEqual(pkg.codependence);
-      expect(result?.filepath).toBe(pkgPath);
+      assert.notStrictEqual((result), null);
+      assert.deepStrictEqual((result?.config), pkg.codependence);
+      assert.strictEqual((result?.filepath), pkgPath);
     });
 
     test("should load a config referenced by package.json", () => {
@@ -60,8 +62,8 @@ describe("Config Loading", () => {
 
       const result = loadConfig(pkgPath);
 
-      expect(result?.config).toEqual(config);
-      expect(result?.filepath).toBe(configPath);
+      assert.deepStrictEqual((result?.config), config);
+      assert.strictEqual((result?.filepath), configPath);
     });
 
     test("should not ignore a broken package.json config reference", () => {
@@ -71,22 +73,20 @@ describe("Config Loading", () => {
       writeFileSync(pkgPath, JSON.stringify({ codependence: "./missing.json" }));
       writeFileSync(rcPath, JSON.stringify({ permissive: true }));
 
-      expect(() => loadConfig(undefined, tmpDir)).toThrow(
-        "referenced config does not exist: ./missing.json",
-      );
+      assertThrows((() => loadConfig(undefined, tmpDir)), "referenced config does not exist: ./missing.json");
     });
 
     test("should return null if file not found", () => {
       const result = loadConfig(join(tmpDir, "nonexistent.json"));
 
-      expect(result).toBeNull();
+      assert.strictEqual((result), null);
     });
 
     test("should throw on JSON parse error for explicit config", () => {
       const badPath = join(tmpDir, "bad.json");
       writeFileSync(badPath, "{ invalid json");
 
-      expect(() => loadConfig(badPath)).toThrow("Failed to load config");
+      assertThrows((() => loadConfig(badPath)), "Failed to load config");
     });
 
     test("should search for config if no path provided", () => {
@@ -94,8 +94,8 @@ describe("Config Loading", () => {
 
       const result = loadConfig(undefined, tmpDir);
 
-      expect(result).not.toBeNull();
-      expect(result?.filepath).toBe(join(tmpDir, ".codependencerc"));
+      assert.notStrictEqual((result), null);
+      assert.strictEqual((result?.filepath), join(tmpDir, ".codependencerc"));
     });
 
     test("should return null for package.json without codependence field", () => {
@@ -109,7 +109,7 @@ describe("Config Loading", () => {
 
       const result = loadConfig(pkgPath);
 
-      expect(result).toBeNull();
+      assert.strictEqual((result), null);
     });
 
     test("should load empty codependence object", () => {
@@ -123,9 +123,9 @@ describe("Config Loading", () => {
 
       const result = loadConfig(pkgPath);
 
-      expect(result).not.toBeNull();
-      expect(result?.config).toEqual({});
-      expect(result?.filepath).toBe(pkgPath);
+      assert.notStrictEqual((result), null);
+      assert.deepStrictEqual((result?.config), {});
+      assert.strictEqual((result?.filepath), pkgPath);
     });
 
     test("should load from .codependencerc.json", () => {
@@ -136,8 +136,8 @@ describe("Config Loading", () => {
 
       const result = loadConfig(rcPath);
 
-      expect(result).not.toBeNull();
-      expect(result?.config).toEqual(config);
+      assert.notStrictEqual((result), null);
+      assert.deepStrictEqual((result?.config), config);
     });
 
     test("should load from .codependencerc.yaml", () => {
@@ -155,8 +155,8 @@ describe("Config Loading", () => {
 
       const result = loadConfig(rcPath);
 
-      expect(result).not.toBeNull();
-      expect(result?.config).toEqual({
+      assert.notStrictEqual((result), null);
+      assert.deepStrictEqual((result?.config), {
         codependencies: ["lodash", { react: "18.2.0" }],
         permissive: false,
         mode: "verbose",
@@ -169,24 +169,19 @@ describe("Config Loading", () => {
 
       writeFileSync(rcPath, JSON.stringify(config));
 
-      expect(loadConfig(rcPath)?.config).toEqual(config);
+      assert.deepStrictEqual((loadConfig(rcPath)?.config), config);
     });
 
     test("should load unindented YAML block arrays", () => {
       const rcPath = join(tmpDir, ".codependencerc.yaml");
       writeFileSync(
         rcPath,
-        [
-          "codependencies:",
-          "- lodash",
-          "- react: 18.2.0",
-          "permissive: false",
-        ].join("\n"),
+        ["codependencies:", "- lodash", "- react: 18.2.0", "permissive: false"].join("\n"),
       );
 
       const result = loadConfig(rcPath);
 
-      expect(result?.config).toEqual({
+      assert.deepStrictEqual((result?.config), {
         codependencies: ["lodash", { react: "18.2.0" }],
         permissive: false,
       });
@@ -213,7 +208,7 @@ describe("Config Loading", () => {
 
       const result = loadConfig(rcPath);
 
-      expect(result?.config).toEqual({
+      assert.deepStrictEqual((result?.config), {
         targets: [
           {
             manager: "bun",
@@ -228,7 +223,7 @@ describe("Config Loading", () => {
         ],
         update: true,
       });
-      expect(validateConfig(result?.config)).toEqual({
+      assert.deepStrictEqual((validateConfig(result?.config)), {
         valid: true,
         errors: [],
       });
@@ -250,7 +245,7 @@ describe("Config Loading", () => {
 
       const result = loadConfig(rcPath);
 
-      expect(result?.config).toEqual({
+      assert.deepStrictEqual((result?.config), {
         targets: [{ manager: "bun", files: ["package.json"] }],
         update: true,
       });
@@ -258,24 +253,18 @@ describe("Config Loading", () => {
 
     test("should reject malformed YAML array object fields", () => {
       const rcPath = join(tmpDir, ".codependencerc.yml");
-      writeFileSync(
-        rcPath,
-        ["targets:", "  - manager: bun", "    invalid"].join("\n"),
-      );
+      writeFileSync(rcPath, ["targets:", "  - manager: bun", "    invalid"].join("\n"));
 
-      expect(() => loadConfig(rcPath)).toThrow("Failed to load config");
+      assertThrows((() => loadConfig(rcPath)), "Failed to load config");
     });
 
     test("should load bare YAML keys as null", () => {
       const rcPath = join(tmpDir, ".codependencerc.yaml");
-      writeFileSync(
-        rcPath,
-        ["codependencies:", "permissive: true"].join("\n"),
-      );
+      writeFileSync(rcPath, ["codependencies:", "permissive: true"].join("\n"));
 
       const result = loadConfig(rcPath);
 
-      expect(result?.config).toEqual({
+      assert.deepStrictEqual((result?.config), {
         codependencies: null,
         permissive: true,
       });
@@ -295,7 +284,7 @@ describe("Config Loading", () => {
 
       const result = loadConfig(rcPath);
 
-      expect(result?.config).toEqual({
+      assert.deepStrictEqual((result?.config), {
         codependencies: ["lodash", { react: "18.2.0" }],
         files: ["package.json", "packages/*/package.json"],
         ignore: ["**/node_modules/**"],
@@ -309,21 +298,18 @@ describe("Config Loading", () => {
 
       const result = loadConfig(rcPath);
 
-      expect(result?.config).toEqual({
+      assert.deepStrictEqual((result?.config), {
         codependencies: [{ react: "18.2.0" }],
       });
     });
 
     test("should preserve multi-key inline YAML objects for validation", () => {
       const rcPath = join(tmpDir, ".codependencerc.yml");
-      writeFileSync(
-        rcPath,
-        "codependencies: [{ lodash: 4.17.21, react: 18.2.0 }]",
-      );
+      writeFileSync(rcPath, "codependencies: [{ lodash: 4.17.21, react: 18.2.0 }]");
 
       const result = loadConfig(rcPath);
 
-      expect(result?.config).toEqual({
+      assert.deepStrictEqual((result?.config), {
         codependencies: [{ lodash: "4.17.21", react: "18.2.0" }],
       });
     });
@@ -343,7 +329,7 @@ describe("Config Loading", () => {
 
       const result = loadConfig(rcPath);
 
-      expect(result?.config).toEqual({
+      assert.deepStrictEqual((result?.config), {
         codependencies: ["lodash", "left#right"],
         permissive: false,
       });
@@ -351,14 +337,11 @@ describe("Config Loading", () => {
 
     test("should preserve invalid JSON escapes in double quoted YAML scalars", () => {
       const rcPath = join(tmpDir, ".codependencerc.yml");
-      writeFileSync(
-        rcPath,
-        ['rootDir: "bad \\q path"', "permissive: true"].join("\n"),
-      );
+      writeFileSync(rcPath, ['rootDir: "bad \\q path"', "permissive: true"].join("\n"));
 
       const result = loadConfig(rcPath);
 
-      expect(result?.config).toEqual({
+      assert.deepStrictEqual((result?.config), {
         rootDir: "bad \\q path",
         permissive: true,
       });
@@ -371,31 +354,25 @@ describe("Config Loading", () => {
 
       const result = loadConfig(undefined, tmpDir);
 
-      expect(result).not.toBeNull();
-      expect(result?.filepath).toBe(join(tmpDir, ".codependencerc"));
+      assert.notStrictEqual((result), null);
+      assert.strictEqual((result?.filepath), join(tmpDir, ".codependencerc"));
     });
 
     test("should find .codependencerc.json in current directory", () => {
-      writeFileSync(
-        join(tmpDir, ".codependencerc.json"),
-        JSON.stringify({}),
-      );
+      writeFileSync(join(tmpDir, ".codependencerc.json"), JSON.stringify({}));
 
       const result = loadConfig(undefined, tmpDir);
 
-      expect(result?.filepath).toBe(join(tmpDir, ".codependencerc.json"));
+      assert.strictEqual((result?.filepath), join(tmpDir, ".codependencerc.json"));
     });
 
     test("should find legacy yaml rc files in current directory", () => {
-      writeFileSync(
-        join(tmpDir, ".codependencerc.yml"),
-        "codependencies:\n  - lodash\n",
-      );
+      writeFileSync(join(tmpDir, ".codependencerc.yml"), "codependencies:\n  - lodash\n");
 
       const result = loadConfig(undefined, tmpDir);
 
-      expect(result?.filepath).toBe(join(tmpDir, ".codependencerc.yml"));
-      expect(result?.config).toEqual({ codependencies: ["lodash"] });
+      assert.strictEqual((result?.filepath), join(tmpDir, ".codependencerc.yml"));
+      assert.deepStrictEqual((result?.config), { codependencies: ["lodash"] });
     });
 
     test("should find package.json with codependence field", () => {
@@ -407,7 +384,7 @@ describe("Config Loading", () => {
 
       const result = loadConfig(undefined, tmpDir);
 
-      expect(result?.filepath).toBe(join(tmpDir, "package.json"));
+      assert.strictEqual((result?.filepath), join(tmpDir, "package.json"));
     });
 
     test("should return null if package.json has no codependence field", () => {
@@ -416,25 +393,22 @@ describe("Config Loading", () => {
 
       const result = loadConfig(undefined, tmpDir);
 
-      expect(result).toBeNull();
+      assert.strictEqual((result), null);
     });
 
     test("should return null if no config files found", () => {
       const result = loadConfig(undefined, tmpDir);
 
-      expect(result).toBeNull();
+      assert.strictEqual((result), null);
     });
 
     test("should prioritize .codependencerc over .codependencerc.json", () => {
       writeFileSync(join(tmpDir, ".codependencerc"), JSON.stringify({}));
-      writeFileSync(
-        join(tmpDir, ".codependencerc.json"),
-        JSON.stringify({}),
-      );
+      writeFileSync(join(tmpDir, ".codependencerc.json"), JSON.stringify({}));
 
       const result = loadConfig(undefined, tmpDir);
 
-      expect(result?.filepath).toBe(join(tmpDir, ".codependencerc"));
+      assert.strictEqual((result?.filepath), join(tmpDir, ".codependencerc"));
     });
 
     test("should prioritize package.json over .codependencerc", () => {
@@ -444,7 +418,7 @@ describe("Config Loading", () => {
 
       const result = loadConfig(undefined, tmpDir);
 
-      expect(result?.filepath).toBe(join(tmpDir, "package.json"));
+      assert.strictEqual((result?.filepath), join(tmpDir, "package.json"));
     });
 
     test("should search parent directories", () => {
@@ -455,27 +429,20 @@ describe("Config Loading", () => {
 
       const result = loadConfig(undefined, nestedDir);
 
-      expect(result?.filepath).toBe(join(tmpDir, ".codependencerc"));
+      assert.strictEqual((result?.filepath), join(tmpDir, ".codependencerc"));
     });
 
     test("should throw for malformed package.json during config search", () => {
       writeFileSync(join(tmpDir, "package.json"), "{ invalid json");
 
-      expect(() => loadConfig(undefined, tmpDir)).toThrow(
-        "package.json is not valid JSON",
-      );
+      assertThrows((() => loadConfig(undefined, tmpDir)), "package.json is not valid JSON");
     });
 
     test("should throw for malformed discovered rc files instead of falling back", () => {
       writeFileSync(join(tmpDir, ".codependencerc"), "{ invalid json");
-      writeFileSync(
-        join(tmpDir, "package.json"),
-        JSON.stringify({ name: "test" }),
-      );
+      writeFileSync(join(tmpDir, "package.json"), JSON.stringify({ name: "test" }));
 
-      expect(() => loadConfig(undefined, tmpDir)).toThrow(
-        "Failed to load config",
-      );
+      assertThrows((() => loadConfig(undefined, tmpDir)), "Failed to load config");
     });
   });
 
@@ -489,7 +456,7 @@ describe("Config Loading", () => {
 
       const result = loadConfig(rcPath);
 
-      expect(result?.config.codependencies).toHaveLength(1000);
+      assert.strictEqual((result?.config.codependencies).length, 1000);
     });
 
     test("should handle config with special characters", () => {
@@ -503,21 +470,21 @@ describe("Config Loading", () => {
 
       const result = loadConfig(rcPath);
 
-      expect(result?.config).toEqual(config);
+      assert.deepStrictEqual((result?.config), config);
     });
 
     test("should throw for empty file", () => {
       const rcPath = join(tmpDir, ".codependencerc");
       writeFileSync(rcPath, "");
 
-      expect(() => loadConfig(rcPath)).toThrow("Failed to load config");
+      assertThrows((() => loadConfig(rcPath)), "Failed to load config");
     });
 
     test("should throw for file with only whitespace", () => {
       const rcPath = join(tmpDir, ".codependencerc");
       writeFileSync(rcPath, "   \n  \t  ");
 
-      expect(() => loadConfig(rcPath)).toThrow("Failed to load config");
+      assertThrows((() => loadConfig(rcPath)), "Failed to load config");
     });
   });
 });

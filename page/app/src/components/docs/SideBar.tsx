@@ -18,7 +18,8 @@ function SideBarHeader() {
 }
 
 function SideBarItem({ href, title, isActive }: SideBarItemProps) {
-  const baseClass = "block py-1.5 pl-[20px] -ml-[10px] -mr-[16px] transition text-sm";
+  const baseClass =
+    "block py-1.5 pl-[20px] -ml-[10px] -mr-[16px] transition text-sm";
   const activeClass = "text-primary border-l-2 border-primary";
   const inactiveClass =
     "hover:text-primary border-l-2 border-transparent hover:border-base-content/30";
@@ -49,7 +50,9 @@ function SideBarSection({ pathname, section }: SideBarSectionProps) {
 
   return (
     <li>
-      <h2 className="menu-title flex items-center gap-4 px-1.5">{section.title}</h2>
+      <h2 className="menu-title flex items-center gap-4 px-1.5">
+        {section.title}
+      </h2>
       <ul className="border-l border-base-content/10 ml-3">{items}</ul>
     </li>
   );
@@ -63,7 +66,11 @@ export function SideBar() {
 
   return (
     <div className="drawer-side z-40 md:border-r md:border-base-content/10">
-      <label htmlFor="my-drawer-2" aria-label="close sidebar" className="drawer-overlay" />
+      <label
+        htmlFor="my-drawer-2"
+        aria-label="close sidebar"
+        className="drawer-overlay"
+      />
       <aside className="bg-base-100 min-h-screen w-80">
         <SideBarHeader />
         <ul className="menu w-full px-4 py-0 font-sans">{sections}</ul>

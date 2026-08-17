@@ -21,23 +21,10 @@ function pinnedNodeImage({ flavor, image, nodeVersion }) {
   return image;
 }
 
-function bunArchiveSha({ arch, bunVersion, dockerPins }) {
-  const key = `linux-${arch}`;
-  const sha = dockerPins?.bunArchives?.[bunVersion]?.[key];
-  if (!sha) throw new Error(`Unable to resolve Bun ${key} SHA256 for ${bunVersion}`);
-  return sha;
-}
-
 export function parseMiseTool(miseToml, toolName) {
   const escapedToolName = toolName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = miseToml.match(new RegExp(`^\\s*${escapedToolName}\\s*=\\s*"([^"]+)"`, "m"));
   return match?.[1] ?? "";
-}
-
-export function parsePackageManagerBunVersion(packageJson) {
-  const packageManager = packageJson.packageManager;
-  if (typeof packageManager !== "string") return "";
-  return packageManager.startsWith("bun@") ? packageManager.slice("bun@".length) : "";
 }
 
 export function parseDockerfileArg(dockerfile, argName) {
@@ -50,33 +37,17 @@ export function parseDockerfileArg(dockerfile, argName) {
   return value.replace(DOCKERFILE_ARG_REFERENCE_PATTERN, (_, name) => args.get(name) ?? "");
 }
 
-export function resolveToolVersions({
-  dockerPins = {},
-  env = {},
-  miseToml,
-  nodeAlpineImage,
-  nodeSlimImage,
-  packageJson,
-}) {
+export function resolveToolVersions({ env = {}, miseToml, nodeAlpineImage, nodeSlimImage }) {
   const projectNodeVersion = parseMiseTool(miseToml, "node");
   const nodeVersion = env.INPUT_NODE_VERSION || projectNodeVersion;
   const dockerNodeVersion =
     env.NODE_DOCKER_VERSION ||
     (env.NODE_ALPINE_IMAGE || env.NODE_SLIM_IMAGE ? nodeVersion : projectNodeVersion);
-  const bunVersion =
-    env.INPUT_BUN_VERSION ||
-    parsePackageManagerBunVersion(packageJson) ||
-    parseMiseTool(miseToml, "bun");
   const nubVersion = parseMiseTool(miseToml, "nub");
   const rawNodeAlpineImage = env.NODE_ALPINE_IMAGE || nodeAlpineImage;
   const rawNodeSlimImage = env.NODE_SLIM_IMAGE || nodeSlimImage;
 
   const versions = {
-    bunLinuxAarch64Sha256:
-      env.BUN_LINUX_AARCH64_SHA256 || bunArchiveSha({ arch: "aarch64", bunVersion, dockerPins }),
-    bunLinuxX64Sha256:
-      env.BUN_LINUX_X64_SHA256 || bunArchiveSha({ arch: "x64", bunVersion, dockerPins }),
-    bunVersion,
     nodeAlpineImage: pinnedNodeImage({
       flavor: "alpine",
       image: rawNodeAlpineImage,
@@ -105,31 +76,24 @@ export function formatGitHubOutput(versions) {
 }
 
 export function readToolVersionInputs({
-  dockerPinsPath = "scripts/ci/docker-pins.json",
   nodeAlpineDockerfilePath = "tests/release/Dockerfile.npm-smoke",
   nodeSlimDockerfilePath = "tests/e2e/Dockerfile",
   env = process.env,
   misePath = ".mise.toml",
-  packagePath = "package.json",
 } = {}) {
   const nodeAlpineDockerfile = readFileSync(nodeAlpineDockerfilePath, "utf8");
   const nodeSlimDockerfile = readFileSync(nodeSlimDockerfilePath, "utf8");
 
   return {
-    dockerPins: JSON.parse(readFileSync(dockerPinsPath, "utf8")),
     env,
     miseToml: readFileSync(misePath, "utf8"),
     nodeAlpineImage: parseDockerfileArg(nodeAlpineDockerfile, "NODE_ALPINE_IMAGE"),
     nodeSlimImage: parseDockerfileArg(nodeSlimDockerfile, "NODE_SLIM_IMAGE"),
-    packageJson: JSON.parse(readFileSync(packagePath, "utf8")),
   };
 }
 
 export function resolveToolVersionValue(key, versions) {
-  if (key === "bun-linux-aarch64-sha256") return versions.bunLinuxAarch64Sha256;
-  if (key === "bun-linux-x64-sha256") return versions.bunLinuxX64Sha256;
   if (key === "node-version") return versions.nodeVersion;
-  if (key === "bun-version") return versions.bunVersion;
   if (key === "node-slim-image") return versions.nodeSlimImage;
   if (key === "node-alpine-image") return versions.nodeAlpineImage;
   if (key === "nub-version") return versions.nubVersion;

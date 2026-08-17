@@ -1,4 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
+import { assertRejects, assertThrows } from "../../../helpers/assertions";
 import {
   analyzeOnboardingProject,
   createOnboardingSetup,
@@ -82,14 +84,14 @@ describe("onboarding", () => {
       },
     ]);
 
-    expect(project.manifests).toEqual([{ path: "go.mod", name: "go.mod", manager: "go" }]);
+    assert.deepStrictEqual((project.manifests), [{ path: "go.mod", name: "go.mod", manager: "go" }]);
   });
 
   test("configures supported manifests without package.json", () => {
     const project = analyzeOnboardingProject([
       { path: "services/api/go.mod", content: "module example.com/api\n" },
-      { path: "crates/core/Cargo.toml", content: "[package]\nname = \"core\"\n" },
-      { path: "python/pyproject.toml", content: "[tool.poetry]\nname = \"api\"\n" },
+      { path: "crates/core/Cargo.toml", content: '[package]\nname = "core"\n' },
+      { path: "python/pyproject.toml", content: '[tool.poetry]\nname = "api"\n' },
       { path: "Dockerfile", content: "FROM node:26\n" },
       { path: ".github/workflows/check.yml", content: "name: Check\n" },
     ]);
@@ -100,8 +102,8 @@ describe("onboarding", () => {
     });
     const config = JSON.parse(setup.artifacts[0].content);
 
-    expect(project.manager).toBeUndefined();
-    expect(config.config).toEqual({
+    assert.strictEqual((project.manager), undefined);
+    assert.deepStrictEqual((config.config), {
       "services/api/go.mod": {
         path: "services/api/go.mod",
         manager: "go",
@@ -124,8 +126,8 @@ describe("onboarding", () => {
         mode: "precise",
       },
     });
-    expect(setup.install).toBeUndefined();
-    expect(setup.verifyCommand).toBe("codependence");
+    assert.strictEqual((setup.install), undefined);
+    assert.strictEqual((setup.verifyCommand), "codependence");
   });
 
   test("scans only the root and declared workspace packages", () => {
@@ -159,15 +161,15 @@ describe("onboarding", () => {
       },
     ]);
 
-    expect(project.manager).toBe("pnpm");
-    expect(project.managerVersion).toBe("9.15.0");
-    expect(project.manifests.map(({ path }) => path)).toEqual([
+    assert.strictEqual((project.manager), "pnpm");
+    assert.strictEqual((project.managerVersion), "9.15.0");
+    assert.deepStrictEqual((project.manifests.map(({ path }) => path)), [
       "package.json",
       "apps/web/package.json",
       "packages/ui/package.json",
     ]);
-    expect(project.dependencies.map(({ name }) => name)).toEqual(["react", "vite"]);
-    expect(project.dependencies[0].usages).toEqual([
+    assert.deepStrictEqual((project.dependencies.map(({ name }) => name)), ["react", "vite"]);
+    assert.deepStrictEqual((project.dependencies[0].usages), [
       { path: "package.json", range: "^19.0.0", sections: ["dependencies"] },
       { path: "apps/web/package.json", range: "^19.0.0", sections: ["dependencies"] },
       { path: "packages/ui/package.json", range: "^18.3.1", sections: ["peerDependencies"] },
@@ -185,8 +187,8 @@ describe("onboarding", () => {
       }),
     ]);
 
-    expect(project.manifests.map(({ path }) => path)).toEqual(["package.json", manifestPath]);
-    expect(project.dependencies.map(({ name }) => name)).toEqual(["react"]);
+    assert.deepStrictEqual((project.manifests.map(({ path }) => path)), ["package.json", manifestPath]);
+    assert.deepStrictEqual((project.dependencies.map(({ name }) => name)), ["react"]);
   });
 
   test("parses quoted pnpm workspace paths and exclusions", () => {
@@ -208,7 +210,7 @@ describe("onboarding", () => {
       },
     ]);
 
-    expect(project.manifests.map(({ path }) => path)).toEqual([
+    assert.deepStrictEqual((project.manifests.map(({ path }) => path)), [
       "package.json",
       "apps/web/package.json",
       "packages/ui/package.json",
@@ -236,11 +238,11 @@ describe("onboarding", () => {
       repository: { owner: "acme", name: "workspace" },
     });
 
-    expect(setup.artifacts.map(({ path }) => path)).toEqual([
+    assert.deepStrictEqual((setup.artifacts.map(({ path }) => path)), [
       ".codependencerc",
       ".github/workflows/codependence-node.yml",
     ]);
-    expect(JSON.parse(setup.artifacts[0].content)).toEqual({
+    assert.deepStrictEqual((JSON.parse(setup.artifacts[0].content)), {
       config: {
         root: {
           name: "workspace",
@@ -258,15 +260,13 @@ describe("onboarding", () => {
         },
       },
     });
-    expect(setup.artifacts[1].content).toContain("targets: pnpm");
-    expect(setup.artifacts[1].content).toContain("version: 9.15.0");
-    expect(setup.artifacts[1].content).toContain("secrets.CODEPENDENCE_TOKEN");
-    expect(setup.artifacts[1].content).toContain("post-update-command: 'pnpm install'");
-    expect(setup.installCommand).toBe("pnpm add --save-dev -w codependence");
-    expect(setup.verifyCommand).toBe("pnpm exec codependence");
-    expect(setup.tokenSetup?.repositorySecretUrl).toBe(
-      "https://github.com/acme/workspace/settings/secrets/actions/new",
-    );
+    assert.ok((setup.artifacts[1].content).includes("targets: pnpm"));
+    assert.ok((setup.artifacts[1].content).includes("version: 9.15.0"));
+    assert.ok((setup.artifacts[1].content).includes("secrets.CODEPENDENCE_TOKEN"));
+    assert.ok((setup.artifacts[1].content).includes("post-update-command: 'pnpm install'"));
+    assert.strictEqual((setup.installCommand), "pnpm add --save-dev -w codependence");
+    assert.strictEqual((setup.verifyCommand), "pnpm exec codependence");
+    assert.strictEqual((setup.tokenSetup?.repositorySecretUrl), "https://github.com/acme/workspace/settings/secrets/actions/new");
   });
 
   test("rejects inexact package manager versions for GitHub Actions", () => {
@@ -284,7 +284,7 @@ describe("onboarding", () => {
         repository: { owner: "acme", name: "web" },
       });
 
-    expect(createSetup).toThrow("npm requires an exact package manager version");
+    assertThrows((createSetup), "npm requires an exact package manager version");
   });
 
   test("requires a dependency in update-only mode", () => {
@@ -299,7 +299,7 @@ describe("onboarding", () => {
         enforcement: "local",
       });
 
-    expect(createSetup).toThrow("Update-only mode requires at least one dependency");
+    assertThrows((createSetup), "Update-only mode requires at least one dependency");
   });
 
   test("omits GitHub workflow and token setup for local onboarding", () => {
@@ -315,8 +315,8 @@ describe("onboarding", () => {
       enforcement: "local",
     });
 
-    expect(setup.artifacts.map(({ path }) => path)).toEqual([".codependencerc"]);
-    expect(setup.tokenSetup).toBeUndefined();
+    assert.deepStrictEqual((setup.artifacts.map(({ path }) => path)), [".codependencerc"]);
+    assert.strictEqual((setup.tokenSetup), undefined);
   });
 
   test("uses an explicit Yarn workspace-root install", () => {
@@ -336,35 +336,31 @@ describe("onboarding", () => {
       enforcement: "local",
     });
 
-    expect(setup.installCommand).toBe("yarn add --dev -W codependence");
+    assert.strictEqual((setup.installCommand), "yarn add --dev -W codependence");
   });
 
   test("scans repository files through the injected fetcher", async () => {
     const repository = parseOnboardingRepository("https://github.com/acme/workspace");
     const project = await scanOnboardingRepository(repository, githubFixtureFetcher);
 
-    expect(project.manifests.map(({ path }) => path)).toEqual([
+    assert.deepStrictEqual((project.manifests.map(({ path }) => path)), [
       "package.json",
       "apps/web/package.json",
       "services/api/go.mod",
       "python/pyproject.toml",
     ]);
-    expect(project.dependencies.map(({ name }) => name)).toEqual(["react"]);
+    assert.deepStrictEqual((project.dependencies.map(({ name }) => name)), ["react"]);
   });
 
   test("normalizes a trailing slash without accepting extra repository segments", () => {
     const repository = parseOnboardingRepository("https://github.com/acme/workspace/");
 
-    expect(repository).toEqual({ owner: "acme", name: "workspace" });
-    expect(() => parseOnboardingRepository("acme/workspace/issues")).toThrow(
-      "Enter a GitHub repository as owner/name",
-    );
+    assert.deepStrictEqual((repository), { owner: "acme", name: "workspace" });
+    assertThrows((() => parseOnboardingRepository("acme/workspace/issues")), "Enter a GitHub repository as owner/name");
   });
 
   test("wraps invalid local manifests", () => {
-    expect(() => analyzeOnboardingProject([{ path: "package.json", content: "{" }])).toThrow(
-      "package.json is not valid JSON",
-    );
+    assertThrows((() => analyzeOnboardingProject([{ path: "package.json", content: "{" }])), "package.json is not valid JSON");
   });
 
   test("rejects failed GitHub metadata and file requests", async () => {
@@ -385,12 +381,8 @@ describe("onboarding", () => {
       return Promise.resolve(githubFixtureResponse(undefined));
     };
 
-    await expect(scanOnboardingRepository(repository, failedFetcher)).rejects.toThrow(
-      "GitHub request failed with status 404",
-    );
-    await expect(scanOnboardingRepository(repository, fileFailureFetcher)).rejects.toThrow(
-      "GitHub file request failed with status 404",
-    );
+    await assertRejects(scanOnboardingRepository(repository, failedFetcher), "GitHub request failed with status 404");
+    await assertRejects(scanOnboardingRepository(repository, fileFailureFetcher), "GitHub file request failed with status 404");
   });
 
   test("rejects malformed GitHub repository responses", async () => {
@@ -409,15 +401,9 @@ describe("onboarding", () => {
         return Promise.resolve(githubFixtureResponse(body));
       };
 
-    await expect(scanOnboardingRepository(repository, invalidMetadata)).rejects.toThrow(
-      "GitHub repository metadata is invalid",
-    );
-    await expect(scanOnboardingRepository(repository, invalidTreeEntry)).rejects.toThrow(
-      "GitHub repository tree is invalid",
-    );
-    await expect(
-      scanOnboardingRepository(repository, invalidTree({ truncated: "yes", tree: [] })),
-    ).rejects.toThrow("GitHub repository tree is invalid");
+    await assertRejects(scanOnboardingRepository(repository, invalidMetadata), "GitHub repository metadata is invalid");
+    await assertRejects(scanOnboardingRepository(repository, invalidTreeEntry), "GitHub repository tree is invalid");
+    await assertRejects(scanOnboardingRepository(repository, invalidTree({ truncated: "yes", tree: [] })), "GitHub repository tree is invalid");
   });
 
   test("rejects truncated repository trees and malformed workspace lists", async () => {
@@ -429,14 +415,11 @@ describe("onboarding", () => {
       return Promise.resolve(githubFixtureResponse(body));
     };
 
-    await expect(scanOnboardingRepository(repository, truncatedFetcher)).rejects.toThrow(
-      "GitHub repository tree is too large",
-    );
-    expect(() =>
+    await assertRejects(scanOnboardingRepository(repository, truncatedFetcher), "GitHub repository tree is too large");
+    assertThrows(() =>
       analyzeOnboardingProject([
         packageFile("package.json", {}),
         { path: "pnpm-workspace.yaml", content: "packages: []" },
-      ]),
-    ).toThrow("pnpm-workspace.yaml packages must be a list of paths");
+      ]), "pnpm-workspace.yaml packages must be a list of paths");
   });
 });

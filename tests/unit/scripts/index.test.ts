@@ -1,6 +1,9 @@
-import { expect, test, jest, beforeEach } from "bun:test";
-import * as fs from "fs";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { after, beforeEach, mock, test } from "node:test";
+import assert from "node:assert/strict";
+import { assertCalledWith, assertRejects, assertThrows, match } from "../../helpers/assertions";
+import fs from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { tmpdir } from "node:os";
 import { join } from "path";
 import { logger } from "../../../src/logger";
 import { DockerProvider } from "../../../src/providers/docker";
@@ -9,6 +12,20 @@ import { NodeJSProvider } from "../../../src/providers/nodejs";
 import { versionCache, requestDeduplicator } from "../../../src/utils/cache";
 import * as scripts from "../../../src/scripts";
 import { Prompt } from "../../../src/dx";
+
+const tempDirectories = new Set<string>();
+
+const createTestDirectory = (): string => {
+  const directory = mkdtempSync(join(tmpdir(), "codependence-"));
+  tempDirectories.add(directory);
+  return directory;
+};
+
+after(() => {
+  tempDirectories.forEach((directory) => {
+    rmSync(directory, { recursive: true, force: true });
+  });
+});
 
 beforeEach(() => {
   versionCache.clear();
@@ -53,10 +70,10 @@ test("buildUpdateLists => compares repeated versions in every dependency section
     {},
   );
 
-  expect(result.depList.map(({ name }) => name)).toEqual(["runtime"]);
-  expect(result.devDepList.map(({ name }) => name)).toEqual(["development"]);
-  expect(result.peerDepList.map(({ name }) => name)).toEqual(["peer"]);
-  expect(result.optionalDepList.map(({ name }) => name)).toEqual(["optional"]);
+  assert.deepStrictEqual((result.depList.map(({ name }) => name)), ["runtime"]);
+  assert.deepStrictEqual((result.devDepList.map(({ name }) => name)), ["development"]);
+  assert.deepStrictEqual((result.peerDepList.map(({ name }) => name)), ["peer"]);
+  assert.deepStrictEqual((result.optionalDepList.map(({ name }) => name)), ["optional"]);
 });
 
 test("buildUpdateLists => compares each resolved Docker tag family", () => {
@@ -76,18 +93,18 @@ test("buildUpdateLists => compares each resolved Docker tag family", () => {
     ["node"],
   );
 
-  expect(result.depList).toEqual([
+  assert.deepStrictEqual((result.depList), [
     { name: "node", actual: "20-slim", exact: "24-slim", expected: "24-slim" },
     { name: "node", actual: "20-alpine", exact: "24-alpine", expected: "24-alpine" },
   ]);
 });
 
 test("constructVersionMap => pass", async () => {
-  const exec = jest.fn(() => ({
+  const exec = mock.fn(() => ({
     stdout: "4.0.0",
     stderr: "",
   })) as any;
-  const validate = jest.fn(() => ({
+  const validate = mock.fn(() => ({
     validForNewPackages: true,
     validForOldPackages: true,
     errors: [],
@@ -97,15 +114,15 @@ test("constructVersionMap => pass", async () => {
     exec,
     validate,
   });
-  expect(result).toEqual({ lodash: "4.0.0" });
+  assert.deepStrictEqual((result), { lodash: "4.0.0" });
 });
 
 test("constructVersionMap => with object in codependencies", async () => {
-  const exec = jest.fn(() => ({
+  const exec = mock.fn(() => ({
     stdout: "4.0.0",
     stderr: "",
   })) as any;
-  const validate = jest.fn(() => ({
+  const validate = mock.fn(() => ({
     validForNewPackages: true,
     validForOldPackages: true,
     errors: [],
@@ -115,15 +132,15 @@ test("constructVersionMap => with object in codependencies", async () => {
     exec,
     validate,
   });
-  expect(result).toEqual({ lodash: "4.0.0" });
+  assert.deepStrictEqual((result), { lodash: "4.0.0" });
 });
 
 test("constructVersionMap => with yarnConfig", async () => {
-  const exec = jest.fn(() => ({
+  const exec = mock.fn(() => ({
     stdout: '{"version":"4.0.0"}',
     stderr: "",
   })) as any;
-  const validate = jest.fn(() => ({
+  const validate = mock.fn(() => ({
     validForNewPackages: true,
     validForOldPackages: true,
     errors: [],
@@ -134,15 +151,15 @@ test("constructVersionMap => with yarnConfig", async () => {
     yarnConfig: true,
     validate,
   });
-  expect(result).toEqual({ lodash: "4.0.0" });
+  assert.deepStrictEqual((result), { lodash: "4.0.0" });
 });
 
 test("constructVersionMap => fail", async () => {
-  const exec = jest.fn(() => ({
+  const exec = mock.fn(() => ({
     stdout: "",
     stderr: "",
   })) as any;
-  const validate = jest.fn(() => ({
+  const validate = mock.fn(() => ({
     validForNewPackages: false,
     validForOldPackages: true,
     errors: ["foo-bop", "foo-beep"],
@@ -154,15 +171,15 @@ test("constructVersionMap => fail", async () => {
     validate,
     noCache: true,
   });
-  expect(result).toEqual({});
+  assert.deepStrictEqual((result), {});
 });
 
 test("constructVersionMap => with invalid item type", async () => {
-  const exec = jest.fn(() => ({
+  const exec = mock.fn(() => ({
     stdout: "4.0.0",
     stderr: "",
   })) as any;
-  const validate = jest.fn(() => ({
+  const validate = mock.fn(() => ({
     validForNewPackages: true,
     validForOldPackages: true,
     errors: [],
@@ -173,19 +190,19 @@ test("constructVersionMap => with invalid item type", async () => {
     isTesting: true,
     validate,
   });
-  expect(result).toEqual({});
+  assert.deepStrictEqual((result), {});
 });
 
 test("constructVersionMap => returns cached versions and reports progress", async () => {
   versionCache.set("npm:lodash", "4.17.21");
 
-  const exec = jest.fn();
-  const validate = jest.fn(() => ({
+  const exec = mock.fn();
+  const validate = mock.fn(() => ({
     validForNewPackages: true,
     validForOldPackages: true,
     errors: [],
   }));
-  const onProgress = jest.fn();
+  const onProgress = mock.fn();
 
   const result = await constructVersionMap({
     codependencies: ["lodash"],
@@ -194,15 +211,15 @@ test("constructVersionMap => returns cached versions and reports progress", asyn
     onProgress,
   });
 
-  expect(result).toEqual({ lodash: "4.17.21" });
-  expect(exec).not.toHaveBeenCalled();
-  expect(onProgress).toHaveBeenCalledWith(1, 1, "lodash");
+  assert.deepStrictEqual((result), { lodash: "4.17.21" });
+  assert.strictEqual((exec).mock.callCount(), 0);
+  assertCalledWith((onProgress), 1, 1, "lodash");
 });
 
 test("constructVersionMap => logs resolver errors in debug mode", async () => {
-  const debugSpy = jest.spyOn(logger, "debug").mockImplementation(() => {});
-  const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
-  const validate = jest.fn(() => ({
+  const debugSpy = mock.method(logger, "debug", () => {});
+  const errorSpy = mock.method(logger, "error", () => {});
+  const validate = mock.fn(() => ({
     validForNewPackages: true,
     validForOldPackages: true,
     errors: [],
@@ -219,17 +236,17 @@ test("constructVersionMap => logs resolver errors in debug mode", async () => {
     },
   });
 
-  expect(result).toEqual({});
-  expect(debugSpy).toHaveBeenCalledWith("ENOTFOUND registry.npmjs.org");
-  expect(errorSpy).toHaveBeenCalled();
+  assert.deepStrictEqual((result), {});
+  assertCalledWith((debugSpy), "ENOTFOUND registry.npmjs.org");
+  assert.ok((errorSpy).mock.callCount() > 0);
 
-  debugSpy.mockRestore();
-  errorSpy.mockRestore();
+  debugSpy.mock.restore();
+  errorSpy.mock.restore();
 });
 
 test("constructVersionMap => logs validation-style resolver errors directly", async () => {
-  const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
-  const validate = jest.fn(() => ({
+  const errorSpy = mock.method(logger, "error", () => {});
+  const validate = mock.fn(() => ({
     validForNewPackages: true,
     validForOldPackages: true,
     errors: [],
@@ -245,15 +262,15 @@ test("constructVersionMap => logs validation-style resolver errors directly", as
     },
   });
 
-  expect(result).toEqual({});
-  expect(errorSpy).toHaveBeenCalledWith("Invalid package metadata");
+  assert.deepStrictEqual((result), {});
+  assertCalledWith((errorSpy), "Invalid package metadata");
 
-  errorSpy.mockRestore();
+  errorSpy.mock.restore();
 });
 
 test("constructVersionTypes => with ^", () => {
   const result = constructVersionTypes("^1.2.3");
-  expect(result).toEqual({
+  assert.deepStrictEqual((result), {
     bumpCharacter: "^",
     bumpVersion: "^1.2.3",
     exactVersion: "1.2.3",
@@ -262,7 +279,7 @@ test("constructVersionTypes => with ^", () => {
 
 test("constructVersionTypes => preserves equality prefix", () => {
   const result = constructVersionTypes("==2.28.0");
-  expect(result).toEqual({
+  assert.deepStrictEqual((result), {
     bumpCharacter: "==",
     bumpVersion: "==2.28.0",
     exactVersion: "2.28.0",
@@ -271,7 +288,7 @@ test("constructVersionTypes => preserves equality prefix", () => {
 
 test("constructVersionTypes => does not reuse strict inequality prefix", () => {
   const result = constructVersionTypes("<2.0.0");
-  expect(result).toEqual({
+  assert.deepStrictEqual((result), {
     bumpCharacter: "",
     bumpVersion: "<2.0.0",
     exactVersion: "2.0.0",
@@ -280,12 +297,12 @@ test("constructVersionTypes => does not reuse strict inequality prefix", () => {
 
 test("constructVersionTypes with no specifier", () => {
   const { bumpVersion, exactVersion } = constructVersionTypes("1.2.3");
-  expect(bumpVersion).toEqual(exactVersion);
+  assert.deepStrictEqual((bumpVersion), exactVersion);
 });
 
 test("constructDepsToUpdateList => returns dep to update list with exact characters", () => {
   const result = constructDepsToUpdateList({ foo: "1.0.0" }, { foo: "2.0.0" });
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "foo",
       exact: "2.0.0",
@@ -297,7 +314,7 @@ test("constructDepsToUpdateList => returns dep to update list with exact charact
 
 test("constructDepsToUpdateList => returns dep to update list with special characters", () => {
   const result = constructDepsToUpdateList({ foo: "~1.0.0" }, { foo: "2.0.0" });
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "foo",
       exact: "2.0.0",
@@ -309,7 +326,7 @@ test("constructDepsToUpdateList => returns dep to update list with special chara
 
 test("constructDepsToUpdateList => preserves caret prefix", () => {
   const result = constructDepsToUpdateList({ foo: "^1.0.0" }, { foo: "2.0.0" });
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "foo",
       exact: "2.0.0",
@@ -321,7 +338,7 @@ test("constructDepsToUpdateList => preserves caret prefix", () => {
 
 test("constructDepsToUpdateList => preserves equality prefix once", () => {
   const result = constructDepsToUpdateList({ requests: "==2.28.0" }, { requests: "==2.31.0" });
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "requests",
       exact: "2.31.0",
@@ -333,7 +350,7 @@ test("constructDepsToUpdateList => preserves equality prefix once", () => {
 
 test("constructDepsToUpdateList => enforces explicit object target prefix", () => {
   const result = constructDepsToUpdateList({ foo: "1.0.0" }, { foo: "^1.0.0" });
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "foo",
       exact: "1.0.0",
@@ -345,7 +362,7 @@ test("constructDepsToUpdateList => enforces explicit object target prefix", () =
 
 test("constructDepsToUpdateList => updates mismatched prefixes to explicit object target", () => {
   const result = constructDepsToUpdateList({ foo: "~1.0.0" }, { foo: "^1.0.0" });
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "foo",
       exact: "1.0.0",
@@ -357,12 +374,12 @@ test("constructDepsToUpdateList => updates mismatched prefixes to explicit objec
 
 test("constructDepsToUpdateList => skips matching explicit object target", () => {
   const result = constructDepsToUpdateList({ foo: "^1.0.0" }, { foo: "^1.0.0" });
-  expect(result).toEqual([]);
+  assert.deepStrictEqual((result), []);
 });
 
 test("constructDepsToUpdateList => does not preserve strict less-than prefix", () => {
   const result = constructDepsToUpdateList({ foo: "<2.0.0" }, { foo: "3.0.0" });
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "foo",
       exact: "3.0.0",
@@ -374,7 +391,7 @@ test("constructDepsToUpdateList => does not preserve strict less-than prefix", (
 
 test("constructDepsToUpdateList => does not preserve strict greater-than prefix", () => {
   const result = constructDepsToUpdateList({ foo: ">2.0.0" }, { foo: "3.0.0" });
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "foo",
       exact: "3.0.0",
@@ -386,7 +403,7 @@ test("constructDepsToUpdateList => does not preserve strict greater-than prefix"
 
 test("constructDepsToUpdateList => handles multiple caret prefixes correctly", () => {
   const result = constructDepsToUpdateList({ foo: "^^1.0.0" }, { foo: "2.0.0" });
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "foo",
       exact: "2.0.0",
@@ -398,7 +415,7 @@ test("constructDepsToUpdateList => handles multiple caret prefixes correctly", (
 
 test("constructDepsToUpdateList => handles multiple tilde prefixes correctly", () => {
   const result = constructDepsToUpdateList({ foo: "~~~1.0.0" }, { foo: "2.0.0" });
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "foo",
       exact: "2.0.0",
@@ -410,7 +427,7 @@ test("constructDepsToUpdateList => handles multiple tilde prefixes correctly", (
 
 test("constructDepsToUpdateList => handles mixed special characters correctly", () => {
   const result = constructDepsToUpdateList({ foo: "^~^1.0.0" }, { foo: "2.0.0" });
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "foo",
       exact: "2.0.0",
@@ -426,7 +443,7 @@ test("constructPermissiveDepsToUpdateList => updates all deps except codependenc
   const versionMap = { lodash: "4.17.21", express: "4.19.0", react: "18.3.0" };
   const result = scripts.constructPermissiveDepsToUpdateList(deps, codependencies, versionMap);
 
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "lodash",
       actual: "^4.0.0",
@@ -444,7 +461,7 @@ test("constructPermissiveDepsToUpdateList => updates all deps except codependenc
 
 test("constructPermissiveDepsToUpdateList => handles empty dependencies", () => {
   const result = scripts.constructPermissiveDepsToUpdateList({}, ["react"], {});
-  expect(result).toEqual([]);
+  assert.deepStrictEqual((result), []);
 });
 
 test("constructPermissiveDepsToUpdateList => handles no codependencies", () => {
@@ -452,7 +469,7 @@ test("constructPermissiveDepsToUpdateList => handles no codependencies", () => {
   const versionMap = { lodash: "4.17.21", express: "4.19.0" };
   const result = scripts.constructPermissiveDepsToUpdateList(deps, [], versionMap);
 
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "lodash",
       actual: "^4.0.0",
@@ -470,7 +487,7 @@ test("constructPermissiveDepsToUpdateList => handles no codependencies", () => {
 
 test("constructDepsToUpdateList => preserves tilde prefix", () => {
   const result = constructDepsToUpdateList({ foo: "~1.0.0" }, { foo: "2.0.0" });
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "foo",
       exact: "2.0.0",
@@ -482,23 +499,23 @@ test("constructDepsToUpdateList => preserves tilde prefix", () => {
 
 test("constructDepsToUpdateList => with empty dependency object", () => {
   const result = constructDepsToUpdateList({}, { foo: "2.0.0" });
-  expect(result).toEqual([]);
+  assert.deepStrictEqual((result), []);
 });
 
 test("constructDepsToUpdateList => with dependency not in versionMap", () => {
   const result = constructDepsToUpdateList({ bar: "1.0.0" }, { foo: "2.0.0" });
-  expect(result).toEqual([]);
+  assert.deepStrictEqual((result), []);
 });
 
 test("constructDepsToUpdateList => with same version in versionMap", () => {
   const result = constructDepsToUpdateList({ foo: "2.0.0" }, { foo: "2.0.0" });
-  expect(result).toEqual([]);
+  assert.deepStrictEqual((result), []);
 });
 
 test("constructVersionTypes => normalizes multiple special characters to a single one", () => {
   const result = constructVersionTypes("^^1.2.3");
   // Should only extract the first ^ as the bumpCharacter and remove all special characters from exactVersion
-  expect(result).toEqual({
+  assert.deepStrictEqual((result), {
     bumpCharacter: "^",
     bumpVersion: "^^1.2.3",
     exactVersion: "1.2.3",
@@ -507,7 +524,7 @@ test("constructVersionTypes => normalizes multiple special characters to a singl
 
 test("constructVersionTypes => normalizes multiple tilde characters to a single one", () => {
   const result = constructVersionTypes("~~~1.2.3");
-  expect(result).toEqual({
+  assert.deepStrictEqual((result), {
     bumpCharacter: "~",
     bumpVersion: "~~~1.2.3",
     exactVersion: "1.2.3",
@@ -517,7 +534,7 @@ test("constructVersionTypes => normalizes multiple tilde characters to a single 
 test("constructVersionTypes => handles mixed special characters correctly", () => {
   const result = constructVersionTypes("^~^1.2.3");
   // Should use the first character as the bumpCharacter
-  expect(result).toEqual({
+  assert.deepStrictEqual((result), {
     bumpCharacter: "^",
     bumpVersion: "^~^1.2.3",
     exactVersion: "1.2.3",
@@ -526,7 +543,7 @@ test("constructVersionTypes => handles mixed special characters correctly", () =
 
 test("constructVersionTypes => handles empty string", () => {
   const result = constructVersionTypes("");
-  expect(result).toEqual({
+  assert.deepStrictEqual((result), {
     bumpCharacter: "",
     bumpVersion: "",
     exactVersion: "",
@@ -535,7 +552,7 @@ test("constructVersionTypes => handles empty string", () => {
 
 test("constructVersionTypes => handles version with only special characters", () => {
   const result = constructVersionTypes("^^^");
-  expect(result).toEqual({
+  assert.deepStrictEqual((result), {
     bumpCharacter: "^",
     bumpVersion: "^^^",
     exactVersion: "",
@@ -552,7 +569,7 @@ test("constructDeps => with update", () => {
   const depName = "bar";
   const depList = [{ name: "bar", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" }];
   const result = constructDeps(json, depName, depList);
-  expect(result).toEqual({ bar: "2.0.0" });
+  assert.deepStrictEqual((result), { bar: "2.0.0" });
 });
 
 test("constructDeps => with no deplist", () => {
@@ -570,7 +587,7 @@ test("constructDeps => with no deplist", () => {
     exact: string;
   }> = [];
   const result = constructDeps(json, depName, depList);
-  expect(result).not.toBeDefined();
+  assert.strictEqual((result), undefined);
 });
 
 test("constructDeps => with more deps", () => {
@@ -586,7 +603,7 @@ test("constructDeps => with more deps", () => {
     { name: "biz", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
   ];
   const result = constructDeps(json, depName, depList);
-  expect(result).toEqual({ bar: "2.0.0", biz: "2.0.0" });
+  assert.deepStrictEqual((result), { bar: "2.0.0", biz: "2.0.0" });
 });
 
 test("constructJson => with updates", () => {
@@ -605,7 +622,7 @@ test("constructJson => with updates", () => {
     devDepList: [],
   };
   const result = constructJson(json, depsToUpdate);
-  expect(result).toStrictEqual({
+  assert.deepStrictEqual((result), {
     name: "foo",
     path: "./test",
     version: "1.0.0",
@@ -632,7 +649,7 @@ test("constructJson => with devDependencies", () => {
     ],
   };
   const result = constructJson(json, depsToUpdate);
-  expect(result).toStrictEqual({
+  assert.deepStrictEqual((result), {
     name: "foo",
     path: "./test",
     version: "1.0.0",
@@ -659,7 +676,7 @@ test("constructJson => with peerDependencies", () => {
     ],
   };
   const result = constructJson(json, depsToUpdate);
-  expect(result).toStrictEqual({
+  assert.deepStrictEqual((result), {
     name: "foo",
     path: "./test",
     version: "1.0.0",
@@ -694,7 +711,7 @@ test("constructJson => with all dependency types", () => {
     ],
   };
   const result = constructJson(json, depsToUpdate);
-  expect(result).toStrictEqual({
+  assert.deepStrictEqual((result), {
     name: "foo",
     path: "./test",
     version: "1.0.0",
@@ -727,7 +744,7 @@ test("checkDependenciesForVersion => has updates", () => {
   const result = checkDependenciesForVersion(versionMap, json, {
     isTesting: true,
   });
-  expect(result).toEqual(true);
+  assert.deepStrictEqual((result), true);
 });
 
 test("checkDependenciesForVersion => has updates + special characters", () => {
@@ -744,7 +761,7 @@ test("checkDependenciesForVersion => has updates + special characters", () => {
   const result = checkDependenciesForVersion(versionMap, json, {
     isTesting: true,
   });
-  expect(result).toEqual(true);
+  assert.deepStrictEqual((result), true);
 });
 
 test("checkDependenciesForVersion => no updates", () => {
@@ -761,7 +778,7 @@ test("checkDependenciesForVersion => no updates", () => {
   const result = checkDependenciesForVersion(versionMap, json, {
     isTesting: true,
   });
-  expect(result).toEqual(false);
+  assert.deepStrictEqual((result), false);
 });
 
 test("checkDependenciesForVersion => no updates", () => {
@@ -778,7 +795,7 @@ test("checkDependenciesForVersion => no updates", () => {
   const result = checkDependenciesForVersion(versionMap, json, {
     isTesting: true,
   });
-  expect(result).toEqual(false);
+  assert.deepStrictEqual((result), false);
 });
 
 test("checkDependenciesForVersion => with isUpdating=true", () => {
@@ -796,12 +813,12 @@ test("checkDependenciesForVersion => with isUpdating=true", () => {
     isTesting: true,
     isUpdating: true,
   });
-  expect(result).toEqual(true);
+  assert.deepStrictEqual((result), true);
 });
 
 test("checkDependenciesForVersion => writes updates and logs debug info", () => {
-  const debugSpy = jest.spyOn(logger, "debug").mockImplementation(() => {});
-  const writeSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+  const debugSpy = mock.method(logger, "debug", () => {});
+  const writeSpy = mock.method(fs, "writeFileSync", () => {});
   const versionMap = {
     foo: "2.0.0",
     optional: "2.0.0",
@@ -820,23 +837,14 @@ test("checkDependenciesForVersion => writes updates and logs debug info", () => 
     isTesting: false,
   });
 
-  expect(result).toEqual(true);
-  expect(debugSpy).toHaveBeenCalledWith(
-    "checkDependenciesForVersion debug info",
-    expect.any(Object),
-  );
-  expect(debugSpy).toHaveBeenCalledWith("constructJson debug info", expect.any(Object));
-  expect(writeSpy).toHaveBeenCalledWith(
-    "./debug-test.json",
-    expect.stringContaining(`"foo": "2.0.0"`),
-  );
-  expect(writeSpy).toHaveBeenCalledWith(
-    "./debug-test.json",
-    expect.stringContaining(`"optional": "2.0.0"`),
-  );
+  assert.deepStrictEqual((result), true);
+  assertCalledWith((debugSpy), "checkDependenciesForVersion debug info", match.any(Object));
+  assertCalledWith((debugSpy), "constructJson debug info", match.any(Object));
+  assertCalledWith((writeSpy), "./debug-test.json", match.stringContaining(`"foo": "2.0.0"`));
+  assertCalledWith((writeSpy), "./debug-test.json", match.stringContaining(`"optional": "2.0.0"`));
 
-  debugSpy.mockRestore();
-  writeSpy.mockRestore();
+  debugSpy.mock.restore();
+  writeSpy.mock.restore();
 });
 
 test("checkDependenciesForVersion => with no dependencies", () => {
@@ -852,7 +860,7 @@ test("checkDependenciesForVersion => with no dependencies", () => {
   const result = checkDependenciesForVersion(versionMap, json, {
     isTesting: true,
   });
-  expect(result).toEqual(false);
+  assert.deepStrictEqual((result), false);
 });
 
 test("checkDependenciesForVersion => with devDependencies and peerDependencies", () => {
@@ -870,7 +878,7 @@ test("checkDependenciesForVersion => with devDependencies and peerDependencies",
   const result = checkDependenciesForVersion(versionMap, json, {
     isTesting: true,
   });
-  expect(result).toEqual(true);
+  assert.deepStrictEqual((result), true);
 });
 
 test("detectStaleCodependencies => no stale entries", () => {
@@ -878,7 +886,7 @@ test("detectStaleCodependencies => no stale entries", () => {
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-pass-package.json"];
   const result = detectStaleCodependencies(codependencies, files, rootDir);
-  expect(result).toEqual([]);
+  assert.deepStrictEqual((result), []);
 });
 
 test("detectStaleCodependencies => stale entries found", () => {
@@ -886,7 +894,7 @@ test("detectStaleCodependencies => stale entries found", () => {
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-pass-package.json"];
   const result = detectStaleCodependencies(codependencies, files, rootDir);
-  expect(result).toEqual(["removed-package", "also-gone"]);
+  assert.deepStrictEqual((result), ["removed-package", "also-gone"]);
 });
 
 test("detectStaleCodependencies => handles object-style codependencies", () => {
@@ -894,7 +902,7 @@ test("detectStaleCodependencies => handles object-style codependencies", () => {
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-pass-package.json"];
   const result = detectStaleCodependencies(codependencies, files, rootDir);
-  expect(result).toEqual(["stale-pkg"]);
+  assert.deepStrictEqual((result), ["stale-pkg"]);
 });
 
 test("detectStaleCodependencies => empty codependencies returns empty", () => {
@@ -903,7 +911,7 @@ test("detectStaleCodependencies => empty codependencies returns empty", () => {
     ["test-pass-package.json"],
     "./tests/unit/fixtures/",
   );
-  expect(result).toEqual([]);
+  assert.deepStrictEqual((result), []);
 });
 
 test("detectStaleCodependencies => unreadable file treated as no deps", () => {
@@ -912,11 +920,11 @@ test("detectStaleCodependencies => unreadable file treated as no deps", () => {
     ["nonexistent-file.json"],
     "./tests/unit/fixtures/",
   );
-  expect(result).toEqual(["some-package"]);
+  assert.deepStrictEqual((result), ["some-package"]);
 });
 
 test("checkMatches => no updates", () => {
-  const logCheckMatchesNoUpdates = jest.spyOn(console, "log");
+  const logCheckMatchesNoUpdates = mock.method(console, "log");
   const versionMap = {
     foo: "1.0.0",
     bar: "1.0.0",
@@ -925,12 +933,12 @@ test("checkMatches => no updates", () => {
   const isTesting = true;
   const files = ["test-pass-package.json"];
   checkMatches({ versionMap, files, isTesting, rootDir });
-  expect(logCheckMatchesNoUpdates).toHaveBeenCalled();
-  logCheckMatchesNoUpdates.mockRestore();
+  assert.ok((logCheckMatchesNoUpdates).mock.callCount() > 0);
+  logCheckMatchesNoUpdates.mock.restore();
 });
 
 test("checkMatches => with error", () => {
-  const logCheckMatchesWithError = jest.spyOn(console, "error");
+  const logCheckMatchesWithError = mock.method(console, "error");
   const versionMap = {
     lodash: "4.18.0",
     "fs-extra": "5.0.0",
@@ -938,15 +946,13 @@ test("checkMatches => with error", () => {
   const rootDir = "./tests/unit/fixtures/";
   const isTesting = true;
   const files = ["test-fail-package.json"];
-  expect(() => checkMatches({ versionMap, files, isTesting, rootDir })).toThrow(
-    "Dependencies are not correct.",
-  );
-  expect(logCheckMatchesWithError).toHaveBeenCalled();
-  logCheckMatchesWithError.mockRestore();
+  assertThrows((() => checkMatches({ versionMap, files, isTesting, rootDir })), "Dependencies are not correct.");
+  assert.ok((logCheckMatchesWithError).mock.callCount() > 0);
+  logCheckMatchesWithError.mock.restore();
 });
 
 test("checkMatches => with updates applied", () => {
-  const logSpy = jest.spyOn(console, "log");
+  const logSpy = mock.method(console, "log");
   const versionMap = {
     lodash: "4.18.0",
     "fs-extra": "5.0.0",
@@ -954,12 +960,12 @@ test("checkMatches => with updates applied", () => {
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
   checkMatches({ versionMap, files, rootDir, isUpdating: true, isTesting: true });
-  expect(logSpy).toHaveBeenCalled();
-  logSpy.mockRestore();
+  assert.ok((logSpy).mock.callCount() > 0);
+  logSpy.mock.restore();
 });
 
 test("checkMatches => logs debug output", () => {
-  const debugSpy = jest.spyOn(logger, "debug").mockImplementation(() => {});
+  const debugSpy = mock.method(logger, "debug", () => {});
   const versionMap = {
     foo: "1.0.0",
     bar: "1.0.0",
@@ -973,15 +979,15 @@ test("checkMatches => logs debug output", () => {
     rootDir: "./tests/unit/fixtures/",
   });
 
-  expect(debugSpy).toHaveBeenCalledWith("see updates", {
+  assertCalledWith((debugSpy), "see updates", {
     packagesNeedingUpdate: [],
   });
 
-  debugSpy.mockRestore();
+  debugSpy.mock.restore();
 });
 
 test("checkFiles => with no updates", async () => {
-  const logCheckFilesNoUpdates = jest.spyOn(console, "log");
+  const logCheckFilesNoUpdates = mock.method(console, "log");
   const codependencies = [{ lodash: "4.17.21" }, { "fs-extra": "10.1.0" }];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-pass-package.json"];
@@ -990,8 +996,8 @@ test("checkFiles => with no updates", async () => {
   } catch {
     // out-of-date deps throw in non-CLI mode
   }
-  expect(logCheckFilesNoUpdates).toHaveBeenCalled();
-  logCheckFilesNoUpdates.mockRestore();
+  assert.ok((logCheckFilesNoUpdates).mock.callCount() > 0);
+  logCheckFilesNoUpdates.mock.restore();
 });
 
 test("checkFiles => respects an explicit Node package manager", async () => {
@@ -1004,11 +1010,11 @@ test("checkFiles => respects an explicit Node package manager", async () => {
     silent: true,
   });
 
-  expect(result).toEqual([]);
+  assert.deepStrictEqual((result), []);
 });
 
 test("checkFiles => with updates (verbose mode)", async () => {
-  const logCheckFilesWithUpdates = jest.spyOn(console, "error");
+  const logCheckFilesWithUpdates = mock.method(console, "error");
   const codependencies = [{ lodash: "4.18.0" }, { "fs-extra": "5.0.0" }];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
@@ -1017,8 +1023,8 @@ test("checkFiles => with updates (verbose mode)", async () => {
   } catch {
     // out-of-date deps throw in non-CLI mode
   }
-  expect(logCheckFilesWithUpdates).toHaveBeenCalled();
-  logCheckFilesWithUpdates.mockRestore();
+  assert.ok((logCheckFilesWithUpdates).mock.callCount() > 0);
+  logCheckFilesWithUpdates.mock.restore();
 });
 
 test("checkFiles => defaults codependencies to 0.x compatible verbose mode", async () => {
@@ -1027,12 +1033,12 @@ test("checkFiles => defaults codependencies to 0.x compatible verbose mode", asy
   const files = ["test-fail-package.json"];
   const diffs = await checkFiles({ codependencies, rootDir, files, format: "json" });
 
-  expect(diffs?.map((diff) => diff.package)).toEqual(["lodash"]);
+  assert.deepStrictEqual((diffs?.map((diff) => diff.package)), ["lodash"]);
 });
 
 test("checkFiles => sets exit code for formatted CLI failures", async () => {
   const previousExitCode = process.exitCode;
-  const onDeferredFailure = jest.fn();
+  const onDeferredFailure = mock.fn();
   process.exitCode = undefined;
 
   try {
@@ -1048,22 +1054,19 @@ test("checkFiles => sets exit code for formatted CLI failures", async () => {
       onDeferredFailure,
     });
 
-    expect(diffs?.map((diff) => diff.package)).toEqual(["lodash"]);
-    expect(onDeferredFailure).toHaveBeenCalledTimes(1);
-    expect(process.exitCode).toBe(1);
+    assert.deepStrictEqual((diffs?.map((diff) => diff.package)), ["lodash"]);
+    assert.strictEqual((onDeferredFailure).mock.callCount(), 1);
+    assert.strictEqual((process.exitCode), 1);
   } finally {
     process.exitCode = previousExitCode ?? 0;
   }
 });
 
 test("checkFiles => with permissive mode only", async () => {
-  const logCheckFilesPermissive = jest.spyOn(console, "error");
+  const logCheckFilesPermissive = mock.method(console, "error");
   const codependencies = null;
-  const getLatestVersionSpy = jest
-    .spyOn(NodeJSProvider.prototype, "getLatestVersion")
-    .mockImplementation(async (packageName: string) =>
-      packageName === "lodash" ? "4.18.0" : "10.1.0",
-    );
+  const getLatestVersionSpy = mock.method(NodeJSProvider.prototype, "getLatestVersion", async (packageName: string) =>
+      packageName === "lodash" ? "4.18.0" : "10.1.0",);
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
   try {
@@ -1071,19 +1074,16 @@ test("checkFiles => with permissive mode only", async () => {
   } catch {
     // out-of-date deps throw in non-CLI mode
   }
-  expect(logCheckFilesPermissive).toHaveBeenCalled();
-  getLatestVersionSpy.mockRestore();
-  logCheckFilesPermissive.mockRestore();
+  assert.ok((logCheckFilesPermissive).mock.callCount() > 0);
+  getLatestVersionSpy.mock.restore();
+  logCheckFilesPermissive.mock.restore();
 });
 
 test("checkFiles => with permissive mode and codependencies", async () => {
-  const logCheckFilesPermissiveWithCodependencies = jest.spyOn(console, "error");
+  const logCheckFilesPermissiveWithCodependencies = mock.method(console, "error");
   const codependencies = [{ lodash: "4.17.21" }];
-  const getLatestVersionSpy = jest
-    .spyOn(NodeJSProvider.prototype, "getLatestVersion")
-    .mockImplementation(async (packageName: string) =>
-      packageName === "fs-extra" ? "10.1.0" : "4.17.21",
-    );
+  const getLatestVersionSpy = mock.method(NodeJSProvider.prototype, "getLatestVersion", async (packageName: string) =>
+      packageName === "fs-extra" ? "10.1.0" : "4.17.21",);
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
   try {
@@ -1091,13 +1091,13 @@ test("checkFiles => with permissive mode and codependencies", async () => {
   } catch {
     // out-of-date deps throw in non-CLI mode
   }
-  expect(logCheckFilesPermissiveWithCodependencies).toHaveBeenCalled();
-  getLatestVersionSpy.mockRestore();
-  logCheckFilesPermissiveWithCodependencies.mockRestore();
+  assert.ok((logCheckFilesPermissiveWithCodependencies).mock.callCount() > 0);
+  getLatestVersionSpy.mock.restore();
+  logCheckFilesPermissiveWithCodependencies.mock.restore();
 });
 
 test("checkFiles => warns on stale codependencies", async () => {
-  const warnSpy = jest.spyOn(console, "warn");
+  const warnSpy = mock.method(console, "warn");
   const codependencies = [{ lodash: "4.17.21" }, { "stale-nonexistent-package": "1.0.0" }];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-pass-package.json"];
@@ -1112,12 +1112,12 @@ test("checkFiles => warns on stale codependencies", async () => {
   } catch {
     // may throw for out-of-date deps
   }
-  expect(warnSpy).toHaveBeenCalled();
-  warnSpy.mockRestore();
+  assert.ok((warnSpy).mock.callCount() > 0);
+  warnSpy.mock.restore();
 });
 
 test("checkFiles => with dryRun shows diffs", async () => {
-  const logSpy = jest.spyOn(console, "log");
+  const logSpy = mock.method(console, "log");
   const codependencies = [{ lodash: "4.18.0" }, { "fs-extra": "5.0.0" }];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
@@ -1126,8 +1126,8 @@ test("checkFiles => with dryRun shows diffs", async () => {
   } catch {
     // may throw for out-of-date deps
   }
-  expect(logSpy).toHaveBeenCalled();
-  logSpy.mockRestore();
+  assert.ok((logSpy).mock.callCount() > 0);
+  logSpy.mock.restore();
 });
 
 test("checkDependenciesForVersion => with permissive mode", () => {
@@ -1142,7 +1142,7 @@ test("checkDependenciesForVersion => with permissive mode", () => {
     permissive: true,
     isTesting: true,
   });
-  expect(result).toEqual(true);
+  assert.deepStrictEqual((result), true);
 });
 
 test("checkDependenciesForVersion => with permissive mode and codependencies", () => {
@@ -1163,14 +1163,14 @@ test("checkDependenciesForVersion => with permissive mode and codependencies", (
     },
     codependencies,
   );
-  expect(result).toEqual(true);
+  assert.deepStrictEqual((result), true);
 });
 
 test("constructDepsToUpdateList => respects level=minor constraint", () => {
   const dep = { foo: "^1.0.0", bar: "^1.0.0" };
   const versionMap = { foo: "1.5.0", bar: "2.0.0" };
   const result = constructDepsToUpdateList(dep, versionMap, "minor");
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "foo",
       actual: "^1.0.0",
@@ -1184,7 +1184,7 @@ test("constructDepsToUpdateList => respects level=patch constraint", () => {
   const dep = { foo: "^1.0.0", bar: "^1.0.0" };
   const versionMap = { foo: "1.0.5", bar: "1.1.0" };
   const result = constructDepsToUpdateList(dep, versionMap, "patch");
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "foo",
       actual: "^1.0.0",
@@ -1198,7 +1198,7 @@ test("constructDepsToUpdateList => exact strategy ignores semver level", () => {
   const dep = { "actions/checkout": "v4" };
   const versionMap = { "actions/checkout": "v5" };
   const result = constructDepsToUpdateList(dep, versionMap, "patch", "exact");
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "actions/checkout",
       actual: "v4",
@@ -1218,7 +1218,7 @@ test("constructPermissiveDepsToUpdateList => respects level=minor constraint", (
     versionMap,
     "minor",
   );
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "lodash",
       actual: "^4.0.0",
@@ -1232,7 +1232,7 @@ test("constructPermissiveDepsToUpdateList => skips deps not in versionMap", () =
   const deps = { lodash: "^4.0.0", unknown: "^1.0.0" };
   const versionMap = { lodash: "4.17.21" };
   const result = scripts.constructPermissiveDepsToUpdateList(deps, [], versionMap);
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "lodash",
       actual: "^4.0.0",
@@ -1258,7 +1258,7 @@ test("constructPermissiveDepsToUpdateList => with mixed dependency types", () =>
   };
   const result = scripts.constructPermissiveDepsToUpdateList(deps, codependencies, versionMap);
 
-  expect(result).toEqual([
+  assert.deepStrictEqual((result), [
     {
       name: "@types/node",
       actual: "^18.0.0",
@@ -1276,8 +1276,8 @@ test("constructPermissiveDepsToUpdateList => with mixed dependency types", () =>
 
 test("filterSelectedDeps => no packages selected", () => {
   const result = filterSelectedDeps([], ["lodash", "react"], { lodash: "4.18.0", react: "18.0.0" });
-  expect(result.shouldUpdate).toBe(false);
-  expect(result.depNames).toEqual(["lodash", "react"]);
+  assert.strictEqual((result.shouldUpdate), false);
+  assert.deepStrictEqual((result.depNames), ["lodash", "react"]);
 });
 
 test("filterSelectedDeps => packages selected", () => {
@@ -1285,25 +1285,23 @@ test("filterSelectedDeps => packages selected", () => {
     lodash: "4.18.0",
     react: "18.0.0",
   });
-  expect(result.shouldUpdate).toBe(true);
-  expect(result.depNames).toEqual(["lodash"]);
-  expect(result.versionMap).toEqual({ lodash: "4.18.0" });
+  assert.strictEqual((result.shouldUpdate), true);
+  assert.deepStrictEqual((result.depNames), ["lodash"]);
+  assert.deepStrictEqual((result.versionMap), { lodash: "4.18.0" });
 });
 
 test("checkFiles => throws when no codependencies and not precise mode", async () => {
-  await expect(
-    checkFiles({
+  await assert.rejects(checkFiles({
       codependencies: undefined,
       permissive: false,
       rootDir: "./tests/unit/fixtures/",
       files: ["test-pass-package.json"],
-    } as never),
-  ).rejects.toMatch(/codependencies/);
+    } as never), (error) => { assert.match(String(error), /codependencies/); return true; });
 });
 
 test("checkFiles => interactive mode invokes prompt selection", async () => {
-  const selectSpy = jest.spyOn(Prompt.prototype, "select").mockResolvedValue([]);
-  const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
+  const selectSpy = mock.method(Prompt.prototype, "select", async () => ([]));
+  const closeSpy = mock.method(Prompt.prototype, "close");
   const codependencies = [{ lodash: "4.18.0" }, { "fs-extra": "5.0.0" }];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
@@ -1320,13 +1318,13 @@ test("checkFiles => interactive mode invokes prompt selection", async () => {
   } catch {
     // throws because deps are out of date in non-CLI mode
   }
-  expect(selectSpy).toHaveBeenCalled();
-  selectSpy.mockRestore();
-  closeSpy.mockRestore();
+  assert.ok((selectSpy).mock.callCount() > 0);
+  selectSpy.mock.restore();
+  closeSpy.mock.restore();
 });
 
 test("checkFiles => skips interactive prompt when nothing needs updating", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-interactive-no-diffs");
+  const tempDir = createTestDirectory();
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(
@@ -1344,12 +1342,11 @@ test("checkFiles => skips interactive prompt when nothing needs updating", async
     ),
   );
 
-  const selectSpy = jest.spyOn(Prompt.prototype, "select").mockResolvedValue(["lodash"]);
-  const closeSpy = jest.spyOn(Prompt.prototype, "close").mockImplementation(() => {});
+  const selectSpy = mock.method(Prompt.prototype, "select", async () => (["lodash"]));
+  const closeSpy = mock.method(Prompt.prototype, "close");
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         codependencies: [{ lodash: "2.0.0" }],
         rootDir: tempDir,
         files: ["package.json"],
@@ -1358,8 +1355,7 @@ test("checkFiles => skips interactive prompt when nothing needs updating", async
         permissive: false,
         isTesting: false,
         level: "patch",
-      }),
-    ).resolves.toEqual([
+      })), [
       {
         current: "1.0.0",
         isPinned: true,
@@ -1368,16 +1364,16 @@ test("checkFiles => skips interactive prompt when nothing needs updating", async
         willUpdate: false,
       },
     ]);
-    expect(selectSpy).not.toHaveBeenCalled();
+    assert.strictEqual((selectSpy).mock.callCount(), 0);
   } finally {
-    selectSpy.mockRestore();
-    closeSpy.mockRestore();
+    selectSpy.mock.restore();
+    closeSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => falls back to explicit language provider when no manifests match", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-provider-fallback");
+  const tempDir = createTestDirectory();
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(
@@ -1396,23 +1392,21 @@ test("checkFiles => falls back to explicit language provider when no manifests m
   );
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         codependencies: [{ lodash: "4.17.21" }],
         rootDir: tempDir,
         files: ["missing-package.json"],
         language: "nodejs",
         permissive: false,
         isTesting: true,
-      }),
-    ).resolves.toEqual([]);
+      })), []);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => handles rootDir without trailing slash", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-root-dir-no-slash");
+  const tempDir = createTestDirectory();
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(
@@ -1430,7 +1424,7 @@ test("checkFiles => handles rootDir without trailing slash", async () => {
     ),
   );
 
-  const logSpy = jest.spyOn(console, "log");
+  const logSpy = mock.method(console, "log");
   try {
     await checkFiles({
       codependencies: [{ lodash: "4.17.21" }],
@@ -1439,14 +1433,14 @@ test("checkFiles => handles rootDir without trailing slash", async () => {
       isTesting: true,
     });
   } finally {
-    expect(logSpy).toHaveBeenCalled();
-    logSpy.mockRestore();
+    assert.ok((logSpy).mock.callCount() > 0);
+    logSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => applies provider-backed manifest updates", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-provider-update");
+  const tempDir = createTestDirectory();
   const packageJsonPath = join(tempDir, "package.json");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
@@ -1465,7 +1459,7 @@ test("checkFiles => applies provider-backed manifest updates", async () => {
     ),
   );
 
-  const debugSpy = jest.spyOn(logger, "debug").mockImplementation(() => {});
+  const debugSpy = mock.method(logger, "debug", () => {});
 
   try {
     await checkFiles({
@@ -1482,22 +1476,19 @@ test("checkFiles => applies provider-backed manifest updates", async () => {
       dependencies: Record<string, string>;
     };
 
-    expect(updatedPackageJson.dependencies.lodash).toBe("4.17.21");
-    expect(debugSpy).toHaveBeenCalledWith(
-      "checkManifestDependenciesForVersion debug info",
-      expect.any(Object),
-    );
-    expect(debugSpy).toHaveBeenCalledWith("see updates", {
+    assert.strictEqual((updatedPackageJson.dependencies.lodash), "4.17.21");
+    assertCalledWith((debugSpy), "checkManifestDependenciesForVersion debug info", match.any(Object));
+    assertCalledWith((debugSpy), "see updates", {
       packagesNeedingUpdate: ["package.json"],
     });
   } finally {
-    debugSpy.mockRestore();
+    debugSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => logs manifest writes in testing update mode", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-provider-update-testing");
+  const tempDir = createTestDirectory();
   const packageJsonPath = join(tempDir, "package.json");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
@@ -1516,7 +1507,7 @@ test("checkFiles => logs manifest writes in testing update mode", async () => {
     ),
   );
 
-  const infoSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
+  const infoSpy = mock.method(logger, "info", () => {});
 
   try {
     await checkFiles({
@@ -1528,8 +1519,8 @@ test("checkFiles => logs manifest writes in testing update mode", async () => {
       isTesting: true,
     });
 
-    expect(infoSpy).toHaveBeenCalledWith(`test-writeFileSync: ${packageJsonPath}`);
-    expect(JSON.parse(fs.readFileSync(packageJsonPath, "utf8"))).toEqual({
+    assertCalledWith((infoSpy), `test-writeFileSync: ${packageJsonPath}`);
+    assert.deepStrictEqual((JSON.parse(fs.readFileSync(packageJsonPath, "utf8"))), {
       name: "provider-update-testing",
       version: "1.0.0",
       dependencies: {
@@ -1537,18 +1528,18 @@ test("checkFiles => logs manifest writes in testing update mode", async () => {
       },
     });
   } finally {
-    infoSpy.mockRestore();
+    infoSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => auto-detects python manifests", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-python-detect");
+  const tempDir = createTestDirectory();
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(join(tempDir, "requirements.txt"), "requests==2.28.0\nflask==2.0.0\n");
 
-  const logSpy = jest.spyOn(console, "log");
+  const logSpy = mock.method(console, "log");
   try {
     await checkFiles({
       codependencies: [{ requests: "==2.28.0" }],
@@ -1557,14 +1548,14 @@ test("checkFiles => auto-detects python manifests", async () => {
       isTesting: true,
     });
   } finally {
-    expect(logSpy).toHaveBeenCalled();
-    logSpy.mockRestore();
+    assert.ok((logSpy).mock.callCount() > 0);
+    logSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => respects explicit go language", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-go-language");
+  const tempDir = createTestDirectory();
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(
@@ -1579,7 +1570,7 @@ require (
 `,
   );
 
-  const logSpy = jest.spyOn(console, "log");
+  const logSpy = mock.method(console, "log");
   try {
     await checkFiles({
       codependencies: [{ "github.com/gin-gonic/gin": "v1.9.0" }],
@@ -1589,14 +1580,14 @@ require (
       isTesting: true,
     });
   } finally {
-    expect(logSpy).toHaveBeenCalled();
-    logSpy.mockRestore();
+    assert.ok((logSpy).mock.callCount() > 0);
+    logSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => auto-detects rust manifests", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-rust-detect");
+  const tempDir = createTestDirectory();
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(
@@ -1605,23 +1596,21 @@ test("checkFiles => auto-detects rust manifests", async () => {
   );
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         codependencies: [{ serde: "1.0.190" }],
         rootDir: tempDir,
         files: ["Cargo.toml"],
         permissive: false,
         isTesting: true,
         silent: true,
-      }),
-    ).resolves.toEqual([]);
+      })), []);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => updates rust manifests with normalized package names", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-rust-normalized");
+  const tempDir = createTestDirectory();
   const cargoPath = join(tempDir, "Cargo.toml");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
@@ -1640,58 +1629,54 @@ test("checkFiles => updates rust manifests with normalized package names", async
     });
 
     const updated = fs.readFileSync(cargoPath, "utf8");
-    expect(updated).toContain('serde_json = "1.0.145"');
+    assert.ok((updated).includes('serde_json = "1.0.145"'));
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => auto-detects Docker manifests", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-detect");
+  const tempDir = createTestDirectory();
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(join(tempDir, "Dockerfile"), "FROM node:20.11.1\n");
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         codependencies: [{ node: "20.11.1" }],
         rootDir: tempDir,
         files: ["Dockerfile"],
         permissive: false,
         isTesting: true,
         silent: true,
-      }),
-    ).resolves.toEqual([]);
+      })), []);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => discovers suffixed Dockerfiles by default", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-suffixed");
+  const tempDir = createTestDirectory();
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(join(tempDir, "Dockerfile.gcp"), "FROM node:20.11.1\n");
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         codependencies: [{ node: "20.11.1" }],
         rootDir: tempDir,
         language: "docker",
         mode: "verbose",
         isTesting: true,
         silent: true,
-      }),
-    ).resolves.toEqual([]);
+      })), []);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => ignores generated manifests by default", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-default-ignore");
+  const tempDir = createTestDirectory();
   const nextDir = join(tempDir, ".next", "build");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(nextDir, { recursive: true });
@@ -1699,23 +1684,21 @@ test("checkFiles => ignores generated manifests by default", async () => {
   writeFileSync(join(nextDir, "package.json"), '{"dependencies":{"lodash":"4.17.0"}}\n');
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         codependencies: [{ lodash: "4.17.21" }],
         rootDir: tempDir,
         files: ["**/package.json"],
         mode: "verbose",
         isTesting: true,
         silent: true,
-      }),
-    ).resolves.toEqual([]);
+      })), []);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => explicit ignore patterns replace compatibility defaults", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-explicit-ignore");
+  const tempDir = createTestDirectory();
   const nextDir = join(tempDir, ".next", "build");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(nextDir, { recursive: true });
@@ -1734,132 +1717,116 @@ test("checkFiles => explicit ignore patterns replace compatibility defaults", as
       silent: true,
     });
 
-    expect(diffs?.map((diff) => diff.package)).toEqual(["lodash"]);
+    assert.deepStrictEqual((diffs?.map((diff) => diff.package)), ["lodash"]);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => supports Docker precise mode", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-precise");
+  const tempDir = createTestDirectory();
   const dockerfilePath = join(tempDir, "Dockerfile");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(dockerfilePath, "FROM node:20.11.1\n");
-  const latestVersionSpy = jest
-    .spyOn(DockerProvider.prototype, "getLatestVersion")
-    .mockResolvedValue("24.0.0");
+  const latestVersionSpy = mock.method(DockerProvider.prototype, "getLatestVersion", async () => ("24.0.0"));
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         rootDir: tempDir,
         files: ["Dockerfile"],
         mode: "precise",
         update: true,
         silent: true,
-      }),
-    ).resolves.toEqual([]);
-    expect(latestVersionSpy).toHaveBeenCalledWith("node", "20.11.1");
-    expect(readFileSync(dockerfilePath, "utf8")).toBe("FROM node:24.0.0\n");
+      })), []);
+    assertCalledWith((latestVersionSpy), "node", "20.11.1");
+    assert.strictEqual((readFileSync(dockerfilePath, "utf8")), "FROM node:24.0.0\n");
   } finally {
-    latestVersionSpy.mockRestore();
+    latestVersionSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => supports Docker string codependencies", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-string-deps");
+  const tempDir = createTestDirectory();
   const dockerfilePath = join(tempDir, "Dockerfile");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(dockerfilePath, "FROM node:20.11.1\n");
-  const latestVersionSpy = jest
-    .spyOn(DockerProvider.prototype, "getLatestVersion")
-    .mockResolvedValue("24.0.0");
+  const latestVersionSpy = mock.method(DockerProvider.prototype, "getLatestVersion", async () => ("24.0.0"));
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         codependencies: ["node"],
         rootDir: tempDir,
         files: ["Dockerfile"],
         mode: "verbose",
         update: true,
         silent: true,
-      }),
-    ).resolves.toEqual([]);
-    expect(readFileSync(dockerfilePath, "utf8")).toBe("FROM node:24.0.0\n");
+      })), []);
+    assert.strictEqual((readFileSync(dockerfilePath, "utf8")), "FROM node:24.0.0\n");
   } finally {
-    latestVersionSpy.mockRestore();
+    latestVersionSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => resolves Docker string codependencies in Node roots", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-node-root");
+  const tempDir = createTestDirectory();
   const dockerfilePath = join(tempDir, "Dockerfile");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(join(tempDir, "package.json"), '{"dependencies":{"lodash":"4.17.21"}}\n');
   writeFileSync(dockerfilePath, "FROM node:20.11.1\n");
-  const latestVersionSpy = jest
-    .spyOn(DockerProvider.prototype, "getLatestVersion")
-    .mockResolvedValue("24.0.0");
+  const latestVersionSpy = mock.method(DockerProvider.prototype, "getLatestVersion", async () => ("24.0.0"));
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         codependencies: ["node"],
         rootDir: tempDir,
         files: ["Dockerfile"],
         mode: "verbose",
         update: true,
         silent: true,
-      }),
-    ).resolves.toEqual([]);
-    expect(readFileSync(dockerfilePath, "utf8")).toBe("FROM node:24.0.0\n");
+      })), []);
+    assert.strictEqual((readFileSync(dockerfilePath, "utf8")), "FROM node:24.0.0\n");
   } finally {
-    latestVersionSpy.mockRestore();
+    latestVersionSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => resolves multiple current Docker tags independently", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-conflict");
+  const tempDir = createTestDirectory();
   const dockerfilePath = join(tempDir, "Dockerfile");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(dockerfilePath, "FROM node:20-slim\nFROM node:20-alpine\n");
-  const latestVersionSpy = jest
-    .spyOn(DockerProvider.prototype, "getLatestVersion")
-    .mockImplementation(async (_name, currentVersion) => {
+  const latestVersionSpy = mock.method(DockerProvider.prototype, "getLatestVersion", async (_name, currentVersion) => {
       if (currentVersion === "20-slim") return "24-slim";
       return "24-alpine";
     });
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         codependencies: ["node"],
         rootDir: tempDir,
         files: ["Dockerfile"],
         mode: "verbose",
         update: true,
         silent: true,
-      }),
-    ).resolves.toEqual([]);
-    expect(latestVersionSpy).toHaveBeenCalledWith("node", "20-slim");
-    expect(latestVersionSpy).toHaveBeenCalledWith("node", "20-alpine");
-    expect(readFileSync(dockerfilePath, "utf8")).toBe("FROM node:24-slim\nFROM node:24-alpine\n");
+      })), []);
+    assertCalledWith((latestVersionSpy), "node", "20-slim");
+    assertCalledWith((latestVersionSpy), "node", "20-alpine");
+    assert.strictEqual((readFileSync(dockerfilePath, "utf8")), "FROM node:24-slim\nFROM node:24-alpine\n");
   } finally {
-    latestVersionSpy.mockRestore();
+    latestVersionSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => scopes Docker version cache by current tag", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-docker-cache");
+  const tempDir = createTestDirectory();
   const slimDir = join(tempDir, "slim");
   const alpineDir = join(tempDir, "alpine");
   rmSync(tempDir, { recursive: true, force: true });
@@ -1867,9 +1834,7 @@ test("checkFiles => scopes Docker version cache by current tag", async () => {
   mkdirSync(alpineDir, { recursive: true });
   writeFileSync(join(slimDir, "Dockerfile"), "FROM node:20-slim\n");
   writeFileSync(join(alpineDir, "Dockerfile"), "FROM node:20-alpine\n");
-  const latestVersionSpy = jest
-    .spyOn(DockerProvider.prototype, "getLatestVersion")
-    .mockImplementation(async (_name, currentVersion) => {
+  const latestVersionSpy = mock.method(DockerProvider.prototype, "getLatestVersion", async (_name, currentVersion) => {
       if (currentVersion === "20-slim") return "24-slim";
       return "24-alpine";
     });
@@ -1883,15 +1848,15 @@ test("checkFiles => scopes Docker version cache by current tag", async () => {
     };
     await checkFiles({ ...options, rootDir: slimDir });
     await checkFiles({ ...options, rootDir: alpineDir });
-    expect(latestVersionSpy).toHaveBeenCalledTimes(2);
+    assert.strictEqual((latestVersionSpy).mock.callCount(), 2);
   } finally {
-    latestVersionSpy.mockRestore();
+    latestVersionSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => auto-detects GitHub Actions manifests", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-detect");
+  const tempDir = createTestDirectory();
   const workflowDir = join(tempDir, ".github", "workflows");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(workflowDir, { recursive: true });
@@ -1901,23 +1866,21 @@ test("checkFiles => auto-detects GitHub Actions manifests", async () => {
   );
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         codependencies: [{ "actions/checkout": "v4" }],
         rootDir: tempDir,
         files: [".github/workflows/ci.yml"],
         permissive: false,
         isTesting: true,
         silent: true,
-      }),
-    ).resolves.toEqual([]);
+      })), []);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => supports GitHub Actions precise mode", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-precise");
+  const tempDir = createTestDirectory();
   const workflowDir = join(tempDir, ".github", "workflows");
   const workflowPath = join(workflowDir, "ci.yml");
   const currentSha = "1".repeat(40);
@@ -1928,29 +1891,25 @@ test("checkFiles => supports GitHub Actions precise mode", async () => {
     workflowPath,
     `name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@${currentSha}\n`,
   );
-  const latestVersionSpy = jest
-    .spyOn(GitHubActionsProvider.prototype, "getLatestVersion")
-    .mockResolvedValue(latestSha);
+  const latestVersionSpy = mock.method(GitHubActionsProvider.prototype, "getLatestVersion", async () => (latestSha));
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         rootDir: tempDir,
         files: [".github/workflows/ci.yml"],
         mode: "precise",
         update: true,
         silent: true,
-      }),
-    ).resolves.toEqual([]);
-    expect(readFileSync(workflowPath, "utf8")).toContain(`uses: actions/checkout@${latestSha}`);
+      })), []);
+    assert.ok((readFileSync(workflowPath, "utf8")).includes(`uses: actions/checkout@${latestSha}`));
   } finally {
-    latestVersionSpy.mockRestore();
+    latestVersionSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => updates every repeated GitHub Action ref", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-repeated");
+  const tempDir = createTestDirectory();
   const workflowDir = join(tempDir, ".github", "workflows");
   const workflowPath = join(workflowDir, "ci.yml");
   const staleSha = "1".repeat(40);
@@ -1968,9 +1927,7 @@ test("checkFiles => updates every repeated GitHub Action ref", async () => {
       - uses: actions/checkout@${latestSha}
 `,
   );
-  const latestVersionSpy = jest
-    .spyOn(GitHubActionsProvider.prototype, "getLatestVersion")
-    .mockResolvedValue(latestSha);
+  const latestVersionSpy = mock.method(GitHubActionsProvider.prototype, "getLatestVersion", async () => (latestSha));
 
   try {
     await checkFiles({
@@ -1982,16 +1939,16 @@ test("checkFiles => updates every repeated GitHub Action ref", async () => {
     });
 
     const updated = readFileSync(workflowPath, "utf8");
-    expect(updated).not.toContain(staleSha);
-    expect(updated.match(new RegExp(latestSha, "g"))).toHaveLength(2);
+    assert.ok(!(updated).includes(staleSha));
+    assert.strictEqual((updated.match(new RegExp(latestSha, "g"))).length, 2);
   } finally {
-    latestVersionSpy.mockRestore();
+    latestVersionSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => supports GitHub Actions string codependencies", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-string-deps");
+  const tempDir = createTestDirectory();
   const workflowDir = join(tempDir, ".github", "workflows");
   const workflowPath = join(workflowDir, "ci.yml");
   rmSync(tempDir, { recursive: true, force: true });
@@ -2000,30 +1957,26 @@ test("checkFiles => supports GitHub Actions string codependencies", async () => 
     workflowPath,
     "name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
   );
-  const latestVersionSpy = jest
-    .spyOn(GitHubActionsProvider.prototype, "getLatestVersion")
-    .mockResolvedValue("v5");
+  const latestVersionSpy = mock.method(GitHubActionsProvider.prototype, "getLatestVersion", async () => ("v5"));
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         codependencies: ["actions/checkout"],
         rootDir: tempDir,
         files: [".github/workflows/ci.yml"],
         mode: "verbose",
         update: true,
         silent: true,
-      }),
-    ).resolves.toEqual([]);
-    expect(readFileSync(workflowPath, "utf8")).toContain("uses: actions/checkout@v5");
+      })), []);
+    assert.ok((readFileSync(workflowPath, "utf8")).includes("uses: actions/checkout@v5"));
   } finally {
-    latestVersionSpy.mockRestore();
+    latestVersionSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => resolves GitHub Actions dependencies in Node roots", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-node-root");
+  const tempDir = createTestDirectory();
   const workflowDir = join(tempDir, ".github", "workflows");
   const workflowPath = join(workflowDir, "ci.yml");
   rmSync(tempDir, { recursive: true, force: true });
@@ -2033,30 +1986,26 @@ test("checkFiles => resolves GitHub Actions dependencies in Node roots", async (
     workflowPath,
     "name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
   );
-  const latestVersionSpy = jest
-    .spyOn(GitHubActionsProvider.prototype, "getLatestVersion")
-    .mockResolvedValue("v5");
+  const latestVersionSpy = mock.method(GitHubActionsProvider.prototype, "getLatestVersion", async () => ("v5"));
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         codependencies: ["actions/checkout"],
         rootDir: tempDir,
         files: [".github/workflows/ci.yml"],
         mode: "verbose",
         update: true,
         silent: true,
-      }),
-    ).resolves.toEqual([]);
-    expect(readFileSync(workflowPath, "utf8")).toContain("uses: actions/checkout@v5");
+      })), []);
+    assert.ok((readFileSync(workflowPath, "utf8")).includes("uses: actions/checkout@v5"));
   } finally {
-    latestVersionSpy.mockRestore();
+    latestVersionSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => auto-detects absolute GitHub Actions manifest paths", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-github-actions-absolute");
+  const tempDir = createTestDirectory();
   const workflowDir = join(tempDir, ".github", "workflows");
   const workflowPath = join(workflowDir, "ci.yml");
   rmSync(tempDir, { recursive: true, force: true });
@@ -2067,23 +2016,21 @@ test("checkFiles => auto-detects absolute GitHub Actions manifest paths", async 
   );
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         codependencies: [{ "actions/checkout": "v4" }],
         rootDir: process.cwd(),
         files: [workflowPath],
         permissive: false,
         isTesting: true,
         silent: true,
-      }),
-    ).resolves.toEqual([]);
+      })), []);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => rejects mixed-provider precise mode", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-mixed-provider-precise");
+  const tempDir = createTestDirectory();
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(join(tempDir, "package.json"), '{"dependencies":{"lodash":"4.17.21"}}\n');
@@ -2093,22 +2040,20 @@ test("checkFiles => rejects mixed-provider precise mode", async () => {
   );
 
   try {
-    await expect(
-      checkFiles({
+    await assertRejects(checkFiles({
         rootDir: tempDir,
         files: ["package.json", "Cargo.toml"],
         mode: "precise",
         isTesting: true,
         silent: true,
-      }),
-    ).rejects.toThrow("Latest resolution currently supports one provider");
+      }), "Latest resolution currently supports one provider");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => rejects mixed-provider string codependencies", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-mixed-provider-latest");
+  const tempDir = createTestDirectory();
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(join(tempDir, "package.json"), '{"dependencies":{"lodash":"4.17.21"}}\n');
@@ -2118,23 +2063,21 @@ test("checkFiles => rejects mixed-provider string codependencies", async () => {
   );
 
   try {
-    await expect(
-      checkFiles({
+    await assertRejects(checkFiles({
         codependencies: ["lodash"],
         rootDir: tempDir,
         files: ["package.json", "Cargo.toml"],
         mode: "verbose",
         isTesting: true,
         silent: true,
-      }),
-    ).rejects.toThrow("Latest resolution currently supports one provider");
+      }), "Latest resolution currently supports one provider");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => allows mixed-provider explicit pins", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-mixed-provider-explicit");
+  const tempDir = createTestDirectory();
   const workflowDir = join(tempDir, ".github", "workflows");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(workflowDir, { recursive: true });
@@ -2146,42 +2089,38 @@ test("checkFiles => allows mixed-provider explicit pins", async () => {
   );
 
   try {
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         codependencies: [{ lodash: "4.17.21" }, { alpine: "3.20" }, { "actions/checkout": "v4" }],
         rootDir: tempDir,
         files: ["package.json", "Dockerfile", ".github/workflows/ci.yml"],
         mode: "verbose",
         isTesting: true,
         silent: true,
-      }),
-    ).resolves.toEqual([]);
+      })), []);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
 test("checkFiles => logs thrown errors in debug mode", async () => {
-  const tempDir = join(process.cwd(), "tests/unit/.tmp-debug-error");
+  const tempDir = createTestDirectory();
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(join(tempDir, "package.json"), "{ invalid json");
 
-  const debugSpy = jest.spyOn(logger, "debug").mockImplementation(() => {});
+  const debugSpy = mock.method(logger, "debug", () => {});
   try {
-    await expect(
-      checkFiles({
+    await assertRejects(checkFiles({
         codependencies: [{ lodash: "4.17.21" }],
         rootDir: tempDir,
         files: ["package.json"],
         debug: true,
         permissive: false,
         isTesting: true,
-      }),
-    ).rejects.toThrow();
-    expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining("SyntaxError"));
+      }));
+    assertCalledWith((debugSpy), match.stringContaining("SyntaxError"));
   } finally {
-    debugSpy.mockRestore();
+    debugSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });

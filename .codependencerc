@@ -1,10 +1,10 @@
 {
   "targets": [
     {
-      "manager": "bun",
+      "manager": "pnpm",
       "files": ["package.json"],
       "codependencies": [
-        "bun-types",
+        "@types/node",
         "fast-check",
         "oxfmt",
         "oxlint",

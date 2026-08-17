@@ -1,54 +1,55 @@
-import { afterEach, describe, it, expect, jest } from "bun:test";
+import { afterEach, describe, it, mock } from "node:test";
+import assert from "node:assert/strict";
 import { createSpinner } from "../../../src/utils/spinner";
 
 afterEach(() => {
-  jest.useRealTimers();
-  jest.restoreAllMocks();
+  mock.timers.reset();
+  mock.restoreAll();
 });
 
 describe("createSpinner", () => {
   it("should create a spinner with text", () => {
     const spinner = createSpinner("Loading...");
-    expect(spinner).toBeDefined();
-    expect(spinner.text).toBe("Loading...");
-    expect(spinner.start).toBeDefined();
-    expect(spinner.stop).toBeDefined();
-    expect(spinner.succeed).toBeDefined();
-    expect(spinner.fail).toBeDefined();
-    expect(spinner.info).toBeDefined();
-    expect(spinner.warn).toBeDefined();
+    assert.notStrictEqual((spinner), undefined);
+    assert.strictEqual((spinner.text), "Loading...");
+    assert.notStrictEqual((spinner.start), undefined);
+    assert.notStrictEqual((spinner.stop), undefined);
+    assert.notStrictEqual((spinner.succeed), undefined);
+    assert.notStrictEqual((spinner.fail), undefined);
+    assert.notStrictEqual((spinner.info), undefined);
+    assert.notStrictEqual((spinner.warn), undefined);
   });
 
   it("should return spinner-like object from all methods", () => {
     const spinner = createSpinner("Test");
 
     const started = spinner.start();
-    expect(started.stop).toBeDefined();
+    assert.notStrictEqual((started.stop), undefined);
 
     const stopped = started.stop();
-    expect(stopped.succeed).toBeDefined();
+    assert.notStrictEqual((stopped.succeed), undefined);
 
     const succeeded = stopped.succeed();
-    expect(succeeded.fail).toBeDefined();
+    assert.notStrictEqual((succeeded.fail), undefined);
 
     const failed = succeeded.fail();
-    expect(failed.info).toBeDefined();
+    assert.notStrictEqual((failed.info), undefined);
   });
 
   it("should accept custom text in terminal methods", () => {
     const spinner = createSpinner("Loading...");
 
     const result1 = spinner.succeed("Done!");
-    expect(result1.fail).toBeDefined();
+    assert.notStrictEqual((result1.fail), undefined);
 
     const result2 = spinner.fail("Error!");
-    expect(result2.info).toBeDefined();
+    assert.notStrictEqual((result2.info), undefined);
 
     const result3 = spinner.info("Info!");
-    expect(result3.warn).toBeDefined();
+    assert.notStrictEqual((result3.warn), undefined);
 
     const result4 = spinner.warn("Warning!");
-    expect(result4.start).toBeDefined();
+    assert.notStrictEqual((result4.start), undefined);
   });
 
   it("updates spinner text", () => {
@@ -56,32 +57,32 @@ describe("createSpinner", () => {
 
     spinner.text = "Still loading...";
 
-    expect(spinner.text).toBe("Still loading...");
+    assert.strictEqual((spinner.text), "Still loading...");
   });
 
   it("renders frames while spinning", () => {
-    jest.useFakeTimers();
-    const writeSpy = jest.spyOn(process.stdout, "write").mockImplementation(() => true);
+    mock.timers.enable({ apis: ["setInterval"] });
+    const writeSpy = mock.method(process.stdout, "write", () => true);
     const spinner = createSpinner("Loading...");
 
     const started = spinner.start();
-    jest.advanceTimersByTime(80);
+    mock.timers.tick(80);
     started.stop();
 
-    const output = writeSpy.mock.calls.flat().join("");
-    expect(output).toContain("Loading...");
+    const output = writeSpy.mock.calls.flatMap((call) => call.arguments).join("");
+    assert.ok((output).includes("Loading..."));
   });
 
   it("keeps frames on one line", () => {
-    jest.useFakeTimers();
-    const writeSpy = jest.spyOn(process.stdout, "write").mockImplementation(() => true);
+    mock.timers.enable({ apis: ["setInterval"] });
+    const writeSpy = mock.method(process.stdout, "write", () => true);
     const spinner = createSpinner("Loading...\n").start();
 
-    jest.advanceTimersByTime(240);
+    mock.timers.tick(240);
     spinner.stop();
 
-    const output = writeSpy.mock.calls.flat().join("");
-    expect(output).not.toContain("\n");
+    const output = writeSpy.mock.calls.flatMap((call) => call.arguments).join("");
+    assert.ok(!(output).includes("\n"));
   });
 
   it("keeps spinner methods stable when start is called twice", () => {
@@ -91,7 +92,7 @@ describe("createSpinner", () => {
     const startedAgain = started.start();
     const stopped = startedAgain.stop();
 
-    expect(stopped.succeed).toBeDefined();
+    assert.notStrictEqual((stopped.succeed), undefined);
   });
 
   it("allows stop before start", () => {
@@ -99,6 +100,6 @@ describe("createSpinner", () => {
 
     const stopped = spinner.stop();
 
-    expect(stopped.start).toBeDefined();
+    assert.notStrictEqual((stopped.start), undefined);
   });
 });

@@ -126,10 +126,7 @@ const manifestId = (path: string): string => {
   return path.replace(/\/package\.json$/, "");
 };
 
-const manifestCodependencies = (
-  manager: DependencyManager,
-  selectedDependencies: string[],
-) => {
+const manifestCodependencies = (manager: DependencyManager, selectedDependencies: string[]) => {
   const isNodeManifest = ONBOARDING_MANAGERS.has(manager as OnboardingManager);
   if (!isNodeManifest) return {};
   return selectedCodependencies(selectedDependencies);
@@ -140,10 +137,7 @@ const manifestConfig = (
   manifest: OnboardingProject["manifests"][number],
 ) => {
   const name = manifest.name === manifest.path ? {} : { name: manifest.name };
-  const codependencies = manifestCodependencies(
-    manifest.manager,
-    answers.selectedDependencies,
-  );
+  const codependencies = manifestCodependencies(manifest.manager, answers.selectedDependencies);
   const policy = { path: manifest.path, manager: manifest.manager, mode: answers.mode };
   return Object.assign({}, name, policy, codependencies);
 };
@@ -283,10 +277,7 @@ const analyzeNodeProject = (files: OnboardingSourceFile[]): OnboardingProject | 
   if (!rootFile) return null;
 
   const selectedFiles = selectOnboardingSourceFiles(files);
-  const manifests = selectOnboardingManifests(
-    selectedFiles.map(parseOnboardingManifest),
-    files,
-  );
+  const manifests = selectOnboardingManifests(selectedFiles.map(parseOnboardingManifest), files);
   const root = manifests.find(({ path }) => path === ONBOARDING_PACKAGE_FILE);
   if (!root) throw new Error("package.json not found in the project root");
   const manager = detectOnboardingManager(root.packageJson, files);

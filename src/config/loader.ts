@@ -71,10 +71,7 @@ const searchForConfig = (searchFrom: string): ConfigResult | null => {
   return null;
 };
 
-export const loadConfig = (
-  filepath?: string,
-  searchFrom = process.cwd(),
-): ConfigResult | null => {
+export const loadConfig = (filepath?: string, searchFrom = process.cwd()): ConfigResult | null => {
   if (filepath) {
     const resolvedPath = resolve(filepath);
 

@@ -1,4 +1,5 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { describe, test, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import {
   detectNodePackageManager,
   detectPythonPackageManager,
@@ -9,7 +10,7 @@ import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 
 describe("detectNodePackageManager", () => {
-  const tmpDir = join(__dirname, ".tmp-node-pm-test");
+  const tmpDir = join(import.meta.dirname, ".tmp-node-pm-test");
 
   beforeEach(() => {
     rmSync(tmpDir, { recursive: true, force: true });
@@ -17,50 +18,44 @@ describe("detectNodePackageManager", () => {
   });
 
   test("returns npm when no lock files exist", () => {
-    expect(detectNodePackageManager(tmpDir)).toBe("npm");
+    assert.strictEqual((detectNodePackageManager(tmpDir)), "npm");
   });
 
   test("returns yarn when yarn.lock exists", () => {
     writeFileSync(join(tmpDir, "yarn.lock"), "");
 
-    expect(detectNodePackageManager(tmpDir)).toBe("yarn");
+    assert.strictEqual((detectNodePackageManager(tmpDir)), "yarn");
   });
 
   test("returns pnpm when pnpm-lock.yaml exists", () => {
     writeFileSync(join(tmpDir, "pnpm-lock.yaml"), "");
 
-    expect(detectNodePackageManager(tmpDir)).toBe("pnpm");
+    assert.strictEqual((detectNodePackageManager(tmpDir)), "pnpm");
   });
 
   test("returns bun when bun.lockb exists", () => {
     writeFileSync(join(tmpDir, "bun.lockb"), "");
 
-    expect(detectNodePackageManager(tmpDir)).toBe("bun");
+    assert.strictEqual((detectNodePackageManager(tmpDir)), "bun");
   });
 
   test("returns bun when bun.lock exists", () => {
     writeFileSync(join(tmpDir, "bun.lock"), "");
 
-    expect(detectNodePackageManager(tmpDir)).toBe("bun");
+    assert.strictEqual((detectNodePackageManager(tmpDir)), "bun");
   });
 
   test("uses package.json packageManager field when no lock files exist", () => {
-    writeFileSync(
-      join(tmpDir, "package.json"),
-      JSON.stringify({ packageManager: "pnpm@9.0.0" }),
-    );
+    writeFileSync(join(tmpDir, "package.json"), JSON.stringify({ packageManager: "pnpm@9.0.0" }));
 
-    expect(detectNodePackageManager(tmpDir)).toBe("pnpm");
+    assert.strictEqual((detectNodePackageManager(tmpDir)), "pnpm");
   });
 
   test("prefers packageManager field over stale npm lock files", () => {
-    writeFileSync(
-      join(tmpDir, "package.json"),
-      JSON.stringify({ packageManager: "pnpm@9.0.0" }),
-    );
+    writeFileSync(join(tmpDir, "package.json"), JSON.stringify({ packageManager: "pnpm@9.0.0" }));
     writeFileSync(join(tmpDir, "package-lock.json"), "");
 
-    expect(detectNodePackageManager(tmpDir)).toBe("pnpm");
+    assert.strictEqual((detectNodePackageManager(tmpDir)), "pnpm");
   });
 
   test("ignores unsupported packageManager field values", () => {
@@ -69,35 +64,35 @@ describe("detectNodePackageManager", () => {
       JSON.stringify({ packageManager: "corepack@1.0.0" }),
     );
 
-    expect(detectNodePackageManager(tmpDir)).toBe("npm");
+    assert.strictEqual((detectNodePackageManager(tmpDir)), "npm");
   });
 
   test("falls back to lock files when package.json is invalid", () => {
     writeFileSync(join(tmpDir, "package.json"), "{ invalid json");
     writeFileSync(join(tmpDir, "pnpm-lock.yaml"), "");
 
-    expect(detectNodePackageManager(tmpDir)).toBe("pnpm");
+    assert.strictEqual((detectNodePackageManager(tmpDir)), "pnpm");
   });
 
   test("prioritizes bun over yarn", () => {
     writeFileSync(join(tmpDir, "yarn.lock"), "");
     writeFileSync(join(tmpDir, "bun.lockb"), "");
 
-    expect(detectNodePackageManager(tmpDir)).toBe("bun");
+    assert.strictEqual((detectNodePackageManager(tmpDir)), "bun");
   });
 
   test("prioritizes bun over pnpm", () => {
     writeFileSync(join(tmpDir, "pnpm-lock.yaml"), "");
     writeFileSync(join(tmpDir, "bun.lockb"), "");
 
-    expect(detectNodePackageManager(tmpDir)).toBe("bun");
+    assert.strictEqual((detectNodePackageManager(tmpDir)), "bun");
   });
 
   test("prioritizes pnpm over yarn", () => {
     writeFileSync(join(tmpDir, "yarn.lock"), "");
     writeFileSync(join(tmpDir, "pnpm-lock.yaml"), "");
 
-    expect(detectNodePackageManager(tmpDir)).toBe("pnpm");
+    assert.strictEqual((detectNodePackageManager(tmpDir)), "pnpm");
   });
 
   test("prioritizes bun over all others", () => {
@@ -105,12 +100,12 @@ describe("detectNodePackageManager", () => {
     writeFileSync(join(tmpDir, "pnpm-lock.yaml"), "");
     writeFileSync(join(tmpDir, "bun.lockb"), "");
 
-    expect(detectNodePackageManager(tmpDir)).toBe("bun");
+    assert.strictEqual((detectNodePackageManager(tmpDir)), "bun");
   });
 });
 
 describe("detectPythonPackageManager", () => {
-  const tmpDir = join(__dirname, ".tmp-python-pm-test");
+  const tmpDir = join(import.meta.dirname, ".tmp-python-pm-test");
 
   beforeEach(() => {
     rmSync(tmpDir, { recursive: true, force: true });
@@ -118,31 +113,31 @@ describe("detectPythonPackageManager", () => {
   });
 
   test("returns pip as default", () => {
-    expect(detectPythonPackageManager(tmpDir)).toBe("pip");
+    assert.strictEqual((detectPythonPackageManager(tmpDir)), "pip");
   });
 
   test("returns conda when environment.yml exists", () => {
     writeFileSync(join(tmpDir, "environment.yml"), "");
 
-    expect(detectPythonPackageManager(tmpDir)).toBe("conda");
+    assert.strictEqual((detectPythonPackageManager(tmpDir)), "conda");
   });
 
   test("returns conda when environment.yaml exists", () => {
     writeFileSync(join(tmpDir, "environment.yaml"), "");
 
-    expect(detectPythonPackageManager(tmpDir)).toBe("conda");
+    assert.strictEqual((detectPythonPackageManager(tmpDir)), "conda");
   });
 
   test("returns uv when uv.lock exists", () => {
     writeFileSync(join(tmpDir, "uv.lock"), "");
 
-    expect(detectPythonPackageManager(tmpDir)).toBe("uv");
+    assert.strictEqual((detectPythonPackageManager(tmpDir)), "uv");
   });
 
   test("returns pipenv when Pipfile exists", () => {
     writeFileSync(join(tmpDir, "Pipfile"), "");
 
-    expect(detectPythonPackageManager(tmpDir)).toBe("pipenv");
+    assert.strictEqual((detectPythonPackageManager(tmpDir)), "pipenv");
   });
 
   test("returns poetry when pyproject.toml has poetry config", () => {
@@ -151,45 +146,39 @@ describe("detectPythonPackageManager", () => {
       "[tool.poetry]\nname = 'test'\n[tool.poetry.dependencies]\npython = '^3.8'\n",
     );
 
-    expect(detectPythonPackageManager(tmpDir)).toBe("poetry");
+    assert.strictEqual((detectPythonPackageManager(tmpDir)), "poetry");
   });
 
   test("returns pip when pyproject.toml lacks poetry config", () => {
-    writeFileSync(
-      join(tmpDir, "pyproject.toml"),
-      "[build-system]\nrequires = ['setuptools']\n",
-    );
+    writeFileSync(join(tmpDir, "pyproject.toml"), "[build-system]\nrequires = ['setuptools']\n");
 
-    expect(detectPythonPackageManager(tmpDir)).toBe("pip");
+    assert.strictEqual((detectPythonPackageManager(tmpDir)), "pip");
   });
 
   test("prioritizes conda over uv", () => {
     writeFileSync(join(tmpDir, "environment.yml"), "");
     writeFileSync(join(tmpDir, "uv.lock"), "");
 
-    expect(detectPythonPackageManager(tmpDir)).toBe("conda");
+    assert.strictEqual((detectPythonPackageManager(tmpDir)), "conda");
   });
 
   test("prioritizes uv over pipenv", () => {
     writeFileSync(join(tmpDir, "uv.lock"), "");
     writeFileSync(join(tmpDir, "Pipfile"), "");
 
-    expect(detectPythonPackageManager(tmpDir)).toBe("uv");
+    assert.strictEqual((detectPythonPackageManager(tmpDir)), "uv");
   });
 
   test("prioritizes pipenv over poetry", () => {
     writeFileSync(join(tmpDir, "Pipfile"), "");
-    writeFileSync(
-      join(tmpDir, "pyproject.toml"),
-      "[tool.poetry]\nname = 'test'\n",
-    );
+    writeFileSync(join(tmpDir, "pyproject.toml"), "[tool.poetry]\nname = 'test'\n");
 
-    expect(detectPythonPackageManager(tmpDir)).toBe("pipenv");
+    assert.strictEqual((detectPythonPackageManager(tmpDir)), "pipenv");
   });
 });
 
 describe("detectPythonPackageManagerForManifest", () => {
-  const tmpDir = join(__dirname, ".tmp-python-manifest-pm-test");
+  const tmpDir = join(import.meta.dirname, ".tmp-python-manifest-pm-test");
 
   beforeEach(() => {
     rmSync(tmpDir, { recursive: true, force: true });
@@ -204,14 +193,14 @@ describe("detectPythonPackageManagerForManifest", () => {
     const manifestPath = join(tmpDir, "requirements.txt");
     writeFileSync(manifestPath, "");
 
-    expect(detectPythonPackageManagerForManifest(manifestPath)).toBe("pip");
+    assert.strictEqual((detectPythonPackageManagerForManifest(manifestPath)), "pip");
   });
 
   test("returns conda for environment.yml", () => {
     const manifestPath = join(tmpDir, "environment.yml");
     writeFileSync(manifestPath, "");
 
-    expect(detectPythonPackageManagerForManifest(manifestPath)).toBe("conda");
+    assert.strictEqual((detectPythonPackageManagerForManifest(manifestPath)), "conda");
   });
 
   test("returns uv for requirements.txt when uv.lock exists", () => {
@@ -219,7 +208,7 @@ describe("detectPythonPackageManagerForManifest", () => {
     writeFileSync(manifestPath, "");
     writeFileSync(join(tmpDir, "uv.lock"), "");
 
-    expect(detectPythonPackageManagerForManifest(manifestPath)).toBe("uv");
+    assert.strictEqual((detectPythonPackageManagerForManifest(manifestPath)), "uv");
   });
 
   test("returns pipenv for Pipfile even when uv.lock exists", () => {
@@ -227,22 +216,22 @@ describe("detectPythonPackageManagerForManifest", () => {
     writeFileSync(manifestPath, "");
     writeFileSync(join(tmpDir, "uv.lock"), "");
 
-    expect(detectPythonPackageManagerForManifest(manifestPath)).toBe("pipenv");
+    assert.strictEqual((detectPythonPackageManagerForManifest(manifestPath)), "pipenv");
   });
 
   test("returns poetry for Poetry pyproject.toml", () => {
     const manifestPath = join(tmpDir, "pyproject.toml");
     writeFileSync(manifestPath, "[tool.poetry]\nname = 'test'\n");
 
-    expect(isPoetryPyproject(manifestPath)).toBe(true);
-    expect(detectPythonPackageManagerForManifest(manifestPath)).toBe("poetry");
+    assert.strictEqual((isPoetryPyproject(manifestPath)), true);
+    assert.strictEqual((detectPythonPackageManagerForManifest(manifestPath)), "poetry");
   });
 
   test("returns false for unreadable pyproject.toml", () => {
     const manifestPath = join(tmpDir, "pyproject.toml");
     mkdirSync(manifestPath);
 
-    expect(isPoetryPyproject(manifestPath)).toBe(false);
+    assert.strictEqual((isPoetryPyproject(manifestPath)), false);
   });
 
   test("returns uv for non-Poetry pyproject.toml when uv.lock exists", () => {
@@ -250,7 +239,7 @@ describe("detectPythonPackageManagerForManifest", () => {
     writeFileSync(manifestPath, "[project]\nname = 'test'\n");
     writeFileSync(join(tmpDir, "uv.lock"), "");
 
-    expect(isPoetryPyproject(manifestPath)).toBe(false);
-    expect(detectPythonPackageManagerForManifest(manifestPath)).toBe("uv");
+    assert.strictEqual((isPoetryPyproject(manifestPath)), false);
+    assert.strictEqual((detectPythonPackageManagerForManifest(manifestPath)), "uv");
   });
 });

@@ -1,19 +1,24 @@
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
-type ActionStep = { name?: string; run?: string };
-
 const actionPath = new URL("../../action.yml", import.meta.url);
-const action = Bun.YAML.parse(readFileSync(actionPath, "utf8")) as {
-  runs: { steps: ActionStep[] };
-};
+const actionLines = readFileSync(actionPath, "utf8").split("\n");
 
 const actionScript = (name: string): string => {
-  const script = action.runs.steps.find((step) => step.name === name)?.run;
-  if (script) return script;
+  const stepIndex = actionLines.findIndex((line) => line.trim() === `- name: ${name}`);
+  const nextStepIndex = actionLines.findIndex(
+    (line, index) => index > stepIndex && line.startsWith("    - name:"),
+  );
+  const stepEnd = nextStepIndex === -1 ? actionLines.length : nextStepIndex;
+  const stepLines = actionLines.slice(stepIndex, stepEnd);
+  const runIndex = stepLines.findIndex((line) => line.trim() === "run: |");
+  const scriptLines = stepLines.slice(runIndex + 1);
+  const script = scriptLines.map((line) => line.replace(/^ {8}/, "")).join("\n");
+  if (stepIndex !== -1 && runIndex !== -1) return script;
 
   throw new Error(`Action step not found: ${name}`);
 };
@@ -36,15 +41,15 @@ describe("composite action", () => {
       INPUT_TARGETS: "docker",
       INPUT_VERSION: "",
     });
-    expect(targetOutput).toContain("list=docker");
-    expect(targetOutput).toContain("branch-suffix=docker");
+    assert.ok((targetOutput).includes("list=docker"));
+    assert.ok((targetOutput).includes("branch-suffix=docker"));
 
     const pullRequestOutput = runActionScript("Prepare pull request", {
       BRANCH_PREFIX: "update-dependencies",
       BRANCH_SUFFIX: "docker",
       TARGETS: "docker",
     });
-    expect(pullRequestOutput).toContain("branch=update-dependencies/docker");
-    expect(pullRequestOutput).toContain("title=chore: update docker dependencies");
+    assert.ok((pullRequestOutput).includes("branch=update-dependencies/docker"));
+    assert.ok((pullRequestOutput).includes("title=chore: update docker dependencies"));
   });
 });

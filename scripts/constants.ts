@@ -20,13 +20,12 @@ export const BIN_RUNTIME_PACKAGE_FILE = `${BIN_RUNTIME_DIR}/package.json`;
 export const BIN_RUNTIME_TYPES_FILE = `${BIN_RUNTIME_DIR}/index.d.ts`;
 export const BIN_BUNDLE_FILE = `${BIN_RUNTIME_DIR}/index.js`;
 export const BIN_BUNDLE_ARGS = [
-  "build",
   BIN_RUNTIME_SOURCE_FILE,
-  "--outfile",
+  "--file",
   BIN_BUNDLE_FILE,
   "--format",
   "esm",
-  "--target",
+  "--platform",
   "node",
   "--minify",
 ];

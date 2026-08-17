@@ -1,4 +1,5 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, test, beforeEach } from "node:test";
+import assert from "node:assert/strict";
 import { ResponseCache, RequestDeduplicator } from "../../../src/utils/cache";
 
 describe("ResponseCache", () => {
@@ -11,12 +12,12 @@ describe("ResponseCache", () => {
   test("should store and retrieve values", () => {
     cache.set("test-key", "test-value");
     const result = cache.get("test-key");
-    expect(result).toBe("test-value");
+    assert.strictEqual((result), "test-value");
   });
 
   test("should return null for missing keys", () => {
     const result = cache.get("nonexistent");
-    expect(result).toBeNull();
+    assert.strictEqual((result), null);
   });
 
   test("should expire values after TTL", async () => {
@@ -26,7 +27,7 @@ describe("ResponseCache", () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     const result = shortCache.get("test-key");
-    expect(result).toBeNull();
+    assert.strictEqual((result), null);
   });
 
   test("should track hits and misses", () => {
@@ -38,8 +39,8 @@ describe("ResponseCache", () => {
     cache.get("key3");
 
     const stats = cache.getStats();
-    expect(stats.hits).toBe(2);
-    expect(stats.misses).toBe(2);
+    assert.strictEqual((stats.hits), 2);
+    assert.strictEqual((stats.misses), 2);
   });
 
   test("should calculate hit rate", () => {
@@ -51,12 +52,12 @@ describe("ResponseCache", () => {
     cache.get("key3");
 
     const hitRate = cache.getHitRate();
-    expect(hitRate).toBe(50);
+    assert.strictEqual((hitRate), 50);
   });
 
   test("should handle zero total requests", () => {
     const hitRate = cache.getHitRate();
-    expect(hitRate).toBe(0);
+    assert.strictEqual((hitRate), 0);
   });
 
   test("should clear cache", () => {
@@ -69,9 +70,9 @@ describe("ResponseCache", () => {
     cache.clear();
 
     const stats = cache.getStats();
-    expect(stats.size).toBe(0);
-    expect(stats.hits).toBe(0);
-    expect(stats.misses).toBe(0);
+    assert.strictEqual((stats.size), 0);
+    assert.strictEqual((stats.hits), 0);
+    assert.strictEqual((stats.misses), 0);
   });
 
   test("should track cache size", () => {
@@ -80,7 +81,7 @@ describe("ResponseCache", () => {
     cache.set("key3", "value3");
 
     const stats = cache.getStats();
-    expect(stats.size).toBe(3);
+    assert.strictEqual((stats.size), 3);
   });
 });
 
@@ -105,8 +106,8 @@ describe("RequestDeduplicator", () => {
       deduplicator.dedupe("key1", expensiveFn),
     ]);
 
-    expect(callCount).toBe(1);
-    expect(results).toEqual(["result", "result", "result"]);
+    assert.strictEqual((callCount), 1);
+    assert.deepStrictEqual((results), ["result", "result", "result"]);
   });
 
   test("should handle different keys separately", async () => {
@@ -122,7 +123,7 @@ describe("RequestDeduplicator", () => {
       deduplicator.dedupe("key3", expensiveFn),
     ]);
 
-    expect(callCount).toBe(3);
+    assert.strictEqual((callCount), 3);
   });
 
   test("should clear pending requests after completion", async () => {
@@ -138,7 +139,7 @@ describe("RequestDeduplicator", () => {
 
     await deduplicator.dedupe("key1", fn2);
 
-    expect(callCount).toBe(1);
+    assert.strictEqual((callCount), 1);
   });
 
   test("should handle errors", async () => {
@@ -146,21 +147,18 @@ describe("RequestDeduplicator", () => {
       throw new Error("Test error");
     };
 
-    const promises = [
-      deduplicator.dedupe("key1", errorFn),
-      deduplicator.dedupe("key1", errorFn),
-    ];
+    const promises = [deduplicator.dedupe("key1", errorFn), deduplicator.dedupe("key1", errorFn)];
 
     try {
       await Promise.all(promises);
-      expect(true).toBe(false);
+      assert.strictEqual((true), false);
     } catch (error) {
-      expect((error as Error).message).toBe("Test error");
+      assert.strictEqual(((error as Error).message), "Test error");
     }
   });
 
   test("should clear method works", () => {
     deduplicator.clear();
-    expect(true).toBe(true);
+    assert.strictEqual((true), true);
   });
 });

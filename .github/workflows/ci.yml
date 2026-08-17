@@ -88,8 +88,3 @@ jobs:
 
       - name: Test with Node.js
         run: node dist/cli.js --help
-
-      - name: Run unit tests
-        run: bun test tests/unit/
-        env:
-          CI: true

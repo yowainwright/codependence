@@ -1,4 +1,6 @@
-import { expect, test, describe, beforeEach } from "bun:test";
+import { test, describe, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+import { assertThrows } from "../../helpers/assertions";
 import {
   detectLanguage,
   detectPrimaryLanguage,
@@ -14,7 +16,7 @@ import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 
 describe("Language Detection", () => {
-  const tmpDir = join(__dirname, ".tmp-detection-test");
+  const tmpDir = join(import.meta.dirname, ".tmp-detection-test");
 
   beforeEach(() => {
     rmSync(tmpDir, { recursive: true, force: true });
@@ -27,10 +29,10 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].language).toBe("nodejs");
-      expect(result[0].manifestFiles).toEqual(["package.json"]);
-      expect(result[0].packageManager).toBe("npm");
+      assert.strictEqual((result).length, 1);
+      assert.strictEqual((result[0].language), "nodejs");
+      assert.deepStrictEqual((result[0].manifestFiles), ["package.json"]);
+      assert.strictEqual((result[0].packageManager), "npm");
     });
 
     test("should detect Node.js with yarn", () => {
@@ -39,7 +41,7 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("yarn");
+      assert.strictEqual((result[0].packageManager), "yarn");
     });
 
     test("should detect Node.js with pnpm", () => {
@@ -48,7 +50,7 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("pnpm");
+      assert.strictEqual((result[0].packageManager), "pnpm");
     });
 
     test("should detect Node.js with bun", () => {
@@ -57,7 +59,7 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("bun");
+      assert.strictEqual((result[0].packageManager), "bun");
     });
 
     test("should detect Node.js with current bun.lock", () => {
@@ -66,18 +68,15 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("bun");
+      assert.strictEqual((result[0].packageManager), "bun");
     });
 
     test("should detect Node.js from packageManager field", () => {
-      writeFileSync(
-        join(tmpDir, "package.json"),
-        JSON.stringify({ packageManager: "pnpm@9.0.0" }),
-      );
+      writeFileSync(join(tmpDir, "package.json"), JSON.stringify({ packageManager: "pnpm@9.0.0" }));
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("pnpm");
+      assert.strictEqual((result[0].packageManager), "pnpm");
     });
 
     test("should prioritize bun over pnpm over yarn over npm", () => {
@@ -88,7 +87,7 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("bun");
+      assert.strictEqual((result[0].packageManager), "bun");
     });
   });
 
@@ -98,10 +97,10 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].language).toBe("go");
-      expect(result[0].manifestFiles).toEqual(["go.mod"]);
-      expect(result[0].packageManager).toBe("go");
+      assert.strictEqual((result).length, 1);
+      assert.strictEqual((result[0].language), "go");
+      assert.deepStrictEqual((result[0].manifestFiles), ["go.mod"]);
+      assert.strictEqual((result[0].packageManager), "go");
     });
 
     test("should detect Go with go.mod and go.sum", () => {
@@ -110,7 +109,7 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].manifestFiles).toEqual(["go.mod", "go.sum"]);
+      assert.deepStrictEqual((result[0].manifestFiles), ["go.mod", "go.sum"]);
     });
   });
 
@@ -120,10 +119,10 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].language).toBe("rust");
-      expect(result[0].manifestFiles).toEqual(["Cargo.toml"]);
-      expect(result[0].packageManager).toBe("rust");
+      assert.strictEqual((result).length, 1);
+      assert.strictEqual((result[0].language), "rust");
+      assert.deepStrictEqual((result[0].manifestFiles), ["Cargo.toml"]);
+      assert.strictEqual((result[0].packageManager), "rust");
     });
 
     test("should detect Rust with Cargo.lock", () => {
@@ -132,7 +131,7 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].manifestFiles).toEqual(["Cargo.toml", "Cargo.lock"]);
+      assert.deepStrictEqual((result[0].manifestFiles), ["Cargo.toml", "Cargo.lock"]);
     });
   });
 
@@ -142,10 +141,10 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].language).toBe("docker");
-      expect(result[0].manifestFiles).toEqual(["Dockerfile"]);
-      expect(result[0].packageManager).toBe("docker");
+      assert.strictEqual((result).length, 1);
+      assert.strictEqual((result[0].language), "docker");
+      assert.deepStrictEqual((result[0].manifestFiles), ["Dockerfile"]);
+      assert.strictEqual((result[0].packageManager), "docker");
     });
   });
 
@@ -157,13 +156,13 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].language).toBe("github-actions");
-      expect(result[0].manifestFiles).toEqual([
+      assert.strictEqual((result).length, 1);
+      assert.strictEqual((result[0].language), "github-actions");
+      assert.deepStrictEqual((result[0].manifestFiles), [
         ".github/workflows/*.yml",
         ".github/workflows/*.yaml",
       ]);
-      expect(result[0].packageManager).toBe("github-actions");
+      assert.strictEqual((result[0].packageManager), "github-actions");
     });
   });
 
@@ -173,10 +172,10 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].language).toBe("python");
-      expect(result[0].manifestFiles).toContain("requirements.txt");
-      expect(result[0].packageManager).toBe("pip");
+      assert.strictEqual((result).length, 1);
+      assert.strictEqual((result[0].language), "python");
+      assert.ok((result[0].manifestFiles).includes("requirements.txt"));
+      assert.strictEqual((result[0].packageManager), "pip");
     });
 
     test("should detect Python with pip", () => {
@@ -184,19 +183,16 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("pip");
+      assert.strictEqual((result[0].packageManager), "pip");
     });
 
     test("should detect Python with poetry", () => {
-      writeFileSync(
-        join(tmpDir, "pyproject.toml"),
-        "[tool.poetry.dependencies]\\npython = '^3.8'",
-      );
+      writeFileSync(join(tmpDir, "pyproject.toml"), "[tool.poetry.dependencies]\\npython = '^3.8'");
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("poetry");
-      expect(result[0].manifestFiles).toContain("pyproject.toml");
+      assert.strictEqual((result[0].packageManager), "poetry");
+      assert.ok((result[0].manifestFiles).includes("pyproject.toml"));
     });
 
     test("should detect Python with pipenv", () => {
@@ -204,8 +200,8 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("pipenv");
-      expect(result[0].manifestFiles).toContain("Pipfile");
+      assert.strictEqual((result[0].packageManager), "pipenv");
+      assert.ok((result[0].manifestFiles).includes("Pipfile"));
     });
 
     test("should detect Python with conda", () => {
@@ -213,8 +209,8 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("conda");
-      expect(result[0].manifestFiles).toContain("environment.yml");
+      assert.strictEqual((result[0].packageManager), "conda");
+      assert.ok((result[0].manifestFiles).includes("environment.yml"));
     });
 
     test("should detect Python with conda using .yaml extension", () => {
@@ -222,8 +218,8 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("conda");
-      expect(result[0].manifestFiles).toContain("environment.yaml");
+      assert.strictEqual((result[0].packageManager), "conda");
+      assert.ok((result[0].manifestFiles).includes("environment.yaml"));
     });
 
     test("should detect Python with uv", () => {
@@ -232,7 +228,7 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("uv");
+      assert.strictEqual((result[0].packageManager), "uv");
     });
 
     test("should include all Python manifest files found", () => {
@@ -241,8 +237,8 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].manifestFiles).toContain("requirements.txt");
-      expect(result[0].manifestFiles).toContain("pyproject.toml");
+      assert.ok((result[0].manifestFiles).includes("requirements.txt"));
+      assert.ok((result[0].manifestFiles).includes("pyproject.toml"));
     });
 
     test("should detect pyproject.toml without poetry as pip", () => {
@@ -250,7 +246,7 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("pip");
+      assert.strictEqual((result[0].packageManager), "pip");
     });
   });
 
@@ -262,12 +258,12 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result).toHaveLength(3);
+      assert.strictEqual((result).length, 3);
 
       const languages = result.map((r) => r.language);
-      expect(languages).toContain("nodejs");
-      expect(languages).toContain("go");
-      expect(languages).toContain("python");
+      assert.ok((languages).includes("nodejs"));
+      assert.ok((languages).includes("go"));
+      assert.ok((languages).includes("python"));
     });
 
     test("should detect Node.js + Go polyglot", () => {
@@ -276,9 +272,9 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result).toHaveLength(2);
-      expect(result[0].language).toBe("nodejs");
-      expect(result[1].language).toBe("go");
+      assert.strictEqual((result).length, 2);
+      assert.strictEqual((result[0].language), "nodejs");
+      assert.strictEqual((result[1].language), "go");
     });
 
     test("should detect Node.js + Python polyglot", () => {
@@ -288,11 +284,11 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result).toHaveLength(2);
-      expect(result[0].language).toBe("nodejs");
-      expect(result[0].packageManager).toBe("yarn");
-      expect(result[1].language).toBe("python");
-      expect(result[1].packageManager).toBe("pip");
+      assert.strictEqual((result).length, 2);
+      assert.strictEqual((result[0].language), "nodejs");
+      assert.strictEqual((result[0].packageManager), "yarn");
+      assert.strictEqual((result[1].language), "python");
+      assert.strictEqual((result[1].packageManager), "pip");
     });
   });
 
@@ -300,7 +296,7 @@ describe("Language Detection", () => {
     test("should return empty array when no manifests found", () => {
       const result = detectLanguage(tmpDir);
 
-      expect(result).toEqual([]);
+      assert.deepStrictEqual((result), []);
     });
 
     test("should ignore non-manifest files", () => {
@@ -310,7 +306,7 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result).toEqual([]);
+      assert.deepStrictEqual((result), []);
     });
   });
 
@@ -321,14 +317,14 @@ describe("Language Detection", () => {
 
       const result = detectPrimaryLanguage(tmpDir);
 
-      expect(result).not.toBeNull();
-      expect(result?.language).toBe("nodejs");
+      assert.notStrictEqual((result), null);
+      assert.strictEqual((result?.language), "nodejs");
     });
 
     test("should return null when no languages detected", () => {
       const result = detectPrimaryLanguage(tmpDir);
 
-      expect(result).toBeNull();
+      assert.strictEqual((result), null);
     });
 
     test("should ignore unreadable GitHub workflow paths", () => {
@@ -337,7 +333,7 @@ describe("Language Detection", () => {
 
       const result = detectPrimaryLanguage(tmpDir);
 
-      expect(result).toBeNull();
+      assert.strictEqual((result), null);
     });
 
     test("should prefer Node.js in mixed projects", () => {
@@ -346,7 +342,7 @@ describe("Language Detection", () => {
 
       const result = detectPrimaryLanguage(tmpDir);
 
-      expect(result?.language).toBe("nodejs");
+      assert.strictEqual((result?.language), "nodejs");
     });
   });
 
@@ -354,43 +350,41 @@ describe("Language Detection", () => {
     test("should get NodeJSProvider for nodejs", () => {
       const Provider = getLanguageProvider("nodejs");
 
-      expect(Provider).toBe(NodeJSProvider);
+      assert.strictEqual((Provider), NodeJSProvider);
     });
 
     test("should get GoProvider for go", () => {
       const Provider = getLanguageProvider("go");
 
-      expect(Provider).toBe(GoProvider);
+      assert.strictEqual((Provider), GoProvider);
     });
 
     test("should get PythonProvider for python", () => {
       const Provider = getLanguageProvider("python");
 
-      expect(Provider).toBe(PythonProvider);
+      assert.strictEqual((Provider), PythonProvider);
     });
 
     test("should get RustProvider for rust", () => {
       const Provider = getLanguageProvider("rust");
 
-      expect(Provider).toBe(RustProvider);
+      assert.strictEqual((Provider), RustProvider);
     });
 
     test("should get DockerProvider for docker", () => {
       const Provider = getLanguageProvider("docker");
 
-      expect(Provider).toBe(DockerProvider);
+      assert.strictEqual((Provider), DockerProvider);
     });
 
     test("should get GitHubActionsProvider for github-actions", () => {
       const Provider = getLanguageProvider("github-actions");
 
-      expect(Provider).toBe(GitHubActionsProvider);
+      assert.strictEqual((Provider), GitHubActionsProvider);
     });
 
     test("should throw error for unsupported language", () => {
-      expect(() => getLanguageProvider("ruby" as any)).toThrow(
-        "Unsupported language: ruby",
-      );
+      assertThrows((() => getLanguageProvider("ruby" as any)), "Unsupported language: ruby");
     });
   });
 
@@ -402,7 +396,7 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("conda");
+      assert.strictEqual((result[0].packageManager), "conda");
     });
 
     test("should prioritize uv over pipenv for Python", () => {
@@ -412,19 +406,16 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("uv");
+      assert.strictEqual((result[0].packageManager), "uv");
     });
 
     test("should prioritize pipenv over poetry for Python", () => {
       writeFileSync(join(tmpDir, "Pipfile"), "");
-      writeFileSync(
-        join(tmpDir, "pyproject.toml"),
-        "[tool.poetry]\\nname = 'test'",
-      );
+      writeFileSync(join(tmpDir, "pyproject.toml"), "[tool.poetry]\\nname = 'test'");
 
       const result = detectLanguage(tmpDir);
 
-      expect(result[0].packageManager).toBe("pipenv");
+      assert.strictEqual((result[0].packageManager), "pipenv");
     });
   });
 });

@@ -1,4 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
+import { assertRejects, assertThrows } from "../../helpers/assertions";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,44 +17,44 @@ import {
 describe("scripts/brew", () => {
   test("builds the published npm tarball URL", () => {
     const url = "https://registry.npmjs.org/codependence/-/codependence-1.1.0.tgz";
-    expect(npmTarballUrl("1.1.0")).toBe(url);
+    assert.strictEqual((npmTarballUrl("1.1.0")), url);
   });
 
   test("accepts only stable versions", () => {
-    expect(() => validateStableVersion("1.1.0")).not.toThrow();
-    expect(() => validateStableVersion("1.1.0-beta.1")).toThrow("Invalid stable version");
-    expect(() => validateStableVersion("v1.1.0")).toThrow("Invalid stable version");
+    assert.doesNotThrow((() => validateStableVersion("1.1.0")));
+    assertThrows((() => validateStableVersion("1.1.0-beta.1")), "Invalid stable version");
+    assertThrows((() => validateStableVersion("v1.1.0")), "Invalid stable version");
   });
 
   test("rejects prereleases before generating", async () => {
     const options = { argv: ["validate-version"], env: { VERSION: "1.1.0-rc.0" } };
-    await expect(runBrewCli(options)).rejects.toThrow("Invalid stable version");
+    await assertRejects(runBrewCli(options), "Invalid stable version");
   });
 
   test("downloads published tarball bytes", async () => {
     const fetchImpl = async () => new Response("published tarball");
     const tarball = await fetchPublishedTarball(npmTarballUrl("1.1.0"), fetchImpl);
-    expect(tarball).toEqual(Buffer.from("published tarball"));
+    assert.deepStrictEqual((tarball), Buffer.from("published tarball"));
   });
 
   test("rejects unavailable published tarballs", async () => {
     const fetchImpl = async () => new Response(null, { status: 404 });
     const download = fetchPublishedTarball(npmTarballUrl("1.1.0"), fetchImpl);
-    await expect(download).rejects.toThrow("Unable to download published tarball: 404");
+    await assertRejects(download, "Unable to download published tarball: 404");
   });
 
   test("computes a hexadecimal SHA256", () => {
     const digest = sha256(Buffer.from("hello"));
-    expect(digest).toHaveLength(64);
-    expect(digest).toMatch(/^[a-f0-9]+$/);
+    assert.strictEqual((digest).length, 64);
+    assert.match((digest), /^[a-f0-9]+$/);
   });
 
   test("renders a Node-backed formula", () => {
     const formula = renderFormula({ digest: "abc123", url: npmTarballUrl("1.1.0") });
-    expect(formula).not.toMatch(/^\s+version\s/m);
-    expect(formula).toContain('depends_on "node"');
-    expect(formula).toContain('system bin/"codependence", "--help"');
-    expect(formula).toContain('system bin/"cdp", "--help"');
+    assert.doesNotMatch((formula), /^\s+version\s/m);
+    assert.ok((formula).includes('depends_on "node"'));
+    assert.ok((formula).includes('system bin/"codependence", "--help"'));
+    assert.ok((formula).includes('system bin/"cdp", "--help"'));
   });
 
   test("generates a formula from a local tarball", () => {
@@ -62,8 +64,8 @@ describe("scripts/brew", () => {
     try {
       writeFileSync(tarballPath, "local tarball");
       const formula = createLocalFormula({ outputPath, tarballPath, version: "1.1.0" });
-      expect(formula.digest).toBe(sha256(Buffer.from("local tarball")));
-      expect(readFileSync(outputPath, "utf8")).not.toMatch(/^\s+version\s/m);
+      assert.strictEqual((formula.digest), sha256(Buffer.from("local tarball")));
+      assert.doesNotMatch((readFileSync(outputPath, "utf8")), /^\s+version\s/m);
     } finally {
       rmSync(directory, { recursive: true });
     }

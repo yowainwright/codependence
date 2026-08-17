@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
 
 const filter = `
   .runs |= map(
@@ -44,6 +45,6 @@ describe("Scorecard SARIF filtering", () => {
     const filtered = JSON.parse(output) as typeof sarif;
     const ruleIds = filtered.runs[0].results.map(({ ruleId }) => ruleId);
 
-    expect(ruleIds).toEqual(["OtherRule", "PinnedDependenciesID", "PinnedDependenciesID"]);
+    assert.deepStrictEqual((ruleIds), ["OtherRule", "PinnedDependenciesID", "PinnedDependenciesID"]);
   });
 });

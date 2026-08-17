@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
 import fc from "fast-check";
 import { parseJSON, parseYAML } from "../../src/config/utils";
 
@@ -37,7 +38,7 @@ describe("config parser properties", () => {
         const expected = JSON.parse(serialized);
         const parsed = parseJSON(serialized);
 
-        expect(parsed).toEqual(isRecord(expected) ? expected : null);
+        assert.deepStrictEqual((parsed), isRecord(expected) ? expected : null);
       }),
       PROPERTY_OPTIONS,
     );
@@ -47,7 +48,7 @@ describe("config parser properties", () => {
     fc.assert(
       fc.property(fc.string({ maxLength: 500 }), (content) => {
         const parsed = parseJSON(content);
-        expect(parsed === null || isRecord(parsed)).toBe(true);
+        assert.strictEqual((parsed === null || isRecord(parsed)), true);
       }),
       PROPERTY_OPTIONS,
     );
@@ -56,7 +57,7 @@ describe("config parser properties", () => {
   test("YAML parsing round-trips supported scalar mappings", () => {
     fc.assert(
       fc.property(yamlConfig, (config) => {
-        expect(parseYAML(serializeYaml(config))).toEqual(config);
+        assert.deepStrictEqual((parseYAML(serializeYaml(config))), config);
       }),
       PROPERTY_OPTIONS,
     );
@@ -66,7 +67,7 @@ describe("config parser properties", () => {
     fc.assert(
       fc.property(fc.string({ maxLength: 500 }), (content) => {
         const parsed = parseYAML(content);
-        expect(parsed === null || isRecord(parsed)).toBe(true);
+        assert.strictEqual((parsed === null || isRecord(parsed)), true);
       }),
       PROPERTY_OPTIONS,
     );

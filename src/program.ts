@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
+import fs from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { createLogger, logger } from "./logger";
 import { assertTargetLockfiles, checkFiles } from "./scripts";
@@ -95,6 +95,8 @@ import {
   CodependenceTarget,
 } from "./types";
 
+export const programDependencies = { checkFiles, exec, loadConfig };
+
 const gradient = (text: string) => bold(cyan(text));
 
 const isInitType = (value: string | undefined): value is InitType =>
@@ -132,11 +134,11 @@ const isOnboardingEnforcement = (value: string | undefined): value is Onboarding
 
 const readOnboardingFile = (rootDir: string, path: string): OnboardingSourceFile => ({
   path,
-  content: readFileSync(join(rootDir, path), "utf8"),
+  content: fs.readFileSync(join(rootDir, path), "utf8"),
 });
 
 const onboardingRootFiles = (rootDir: string): OnboardingSourceFile[] =>
-  readdirSync(rootDir, { withFileTypes: true })
+  fs.readdirSync(rootDir, { withFileTypes: true })
     .filter((entry) => entry.isFile())
     .map(({ name }) => {
       if (name === ONBOARDING_PNPM_WORKSPACE_FILE) return readOnboardingFile(rootDir, name);
@@ -260,7 +262,7 @@ const packageConfigArtifact = (
   codependence: Record<string, unknown> | string,
 ): OnboardingSetup["artifacts"][number] => {
   const path = MANIFEST_FILES.PACKAGE_JSON;
-  const packageJson = JSON.parse(readFileSync(join(rootDir, path), "utf8"));
+  const packageJson = JSON.parse(fs.readFileSync(join(rootDir, path), "utf8"));
   const updatedPackage = Object.assign({}, packageJson, { codependence });
   const content = `${JSON.stringify(updatedPackage, null, 2)}\n`;
   return { path, content };
@@ -276,10 +278,7 @@ const manifestPath = (value: unknown): string | undefined => {
   return typeof value.path === "string" ? value.path : undefined;
 };
 
-const mergeManifest = (
-  existing: unknown,
-  generated: unknown,
-): Record<string, unknown> => {
+const mergeManifest = (existing: unknown, generated: unknown): Record<string, unknown> => {
   if (!isRecord(generated)) return {};
   if (!isRecord(existing)) return generated;
   const { codependencies: _codependencies, permissive: _permissive, ...preserved } = existing;
@@ -340,7 +339,7 @@ const existingConfigArtifacts = (
   content: string,
 ): OnboardingSetup["artifacts"] | undefined => {
   const result = CONFIG_FILES.reduce<ReturnType<typeof loadConfig>>(
-    (found, filename) => found || loadConfig(join(rootDir, filename)),
+    (found, filename) => found || programDependencies.loadConfig(join(rootDir, filename)),
     null,
   );
   if (!result) return undefined;
@@ -359,7 +358,7 @@ const newConfigArtifacts = (
   project: OnboardingProject,
   content: string,
 ): OnboardingSetup["artifacts"] => {
-  const hasPackageJson = existsSync(join(rootDir, MANIFEST_FILES.PACKAGE_JSON));
+  const hasPackageJson = fs.existsSync(join(rootDir, MANIFEST_FILES.PACKAGE_JSON));
   const hasSingleNodeManifest =
     project.manifests.length === 1 && project.manifests[0].path === MANIFEST_FILES.PACKAGE_JSON;
   if (hasSingleNodeManifest) {
@@ -390,7 +389,7 @@ const prepareOnboardingSetup = (
 const assertOnboardingWrites = (rootDir: string, setup: OnboardingSetup, force: boolean): void => {
   if (force) return;
   const workflows = setup.artifacts.filter(({ path }) => path.startsWith(".github/workflows/"));
-  const existing = workflows.filter(({ path }) => existsSync(join(rootDir, path)));
+  const existing = workflows.filter(({ path }) => fs.existsSync(join(rootDir, path)));
   if (existing.length === 0) return;
   throw new Error(
     `Refusing to overwrite onboarding files: ${existing.map(({ path }) => path).join(", ")}`,
@@ -400,8 +399,8 @@ const assertOnboardingWrites = (rootDir: string, setup: OnboardingSetup, force: 
 const writeOnboardingArtifacts = (rootDir: string, setup: OnboardingSetup): void => {
   setup.artifacts.forEach(({ path, content }) => {
     const destination = join(rootDir, path);
-    mkdirSync(dirname(destination), { recursive: true });
-    writeFileSync(destination, content);
+    fs.mkdirSync(dirname(destination), { recursive: true });
+    fs.writeFileSync(destination, content);
   });
 };
 
@@ -416,7 +415,7 @@ const snapshotOnboardingArtifacts = (
 ): OnboardingArtifactSnapshot[] =>
   artifacts.map(({ path }) => {
     const destination = join(rootDir, path);
-    const content = existsSync(destination) ? readFileSync(destination, "utf8") : undefined;
+    const content = fs.existsSync(destination) ? fs.readFileSync(destination, "utf8") : undefined;
     return { path, content };
   });
 
@@ -426,16 +425,13 @@ const restoreOnboardingArtifacts = (
 ): void => {
   snapshots.forEach(({ path, content }) => {
     const destination = join(rootDir, path);
-    if (content === undefined && existsSync(destination)) return unlinkSync(destination);
+    if (content === undefined && fs.existsSync(destination)) return fs.unlinkSync(destination);
     if (content === undefined) return;
-    writeFileSync(destination, content);
+    fs.writeFileSync(destination, content);
   });
 };
 
-const needsGeneratedWorkflows = (
-  answers: OnboardingAnswers,
-  setup: OnboardingSetup,
-): boolean => {
+const needsGeneratedWorkflows = (answers: OnboardingAnswers, setup: OnboardingSetup): boolean => {
   if (answers.enforcement === "local") return false;
   return !setup.artifacts.some(({ path }) => path.startsWith(".github/workflows/"));
 };
@@ -452,7 +448,10 @@ const generatedOnboardingWorkflows = (
     tokenSecret: stringOption(options.tokenSecret),
     versions: stringListOption(options.version),
   });
-  return paths.map((path) => ({ path: relative(rootDir, path), content: readFileSync(path, "utf8") }));
+  return paths.map((path) => ({
+    path: relative(rootDir, path),
+    content: fs.readFileSync(path, "utf8"),
+  }));
 };
 
 const writeConfiguredOnboarding = (
@@ -483,7 +482,7 @@ const installOnboardingCli = async (
   const shouldSkipInstall = !needsLocalCli || skipInstall;
   if (shouldSkipInstall) return;
   if (!setup.install) return;
-  await exec(setup.install.command, setup.install.args, { cwd: rootDir });
+  await programDependencies.exec(setup.install.command, setup.install.args, { cwd: rootDir });
 };
 
 const printOnboardingResult = (
@@ -535,7 +534,7 @@ const applyOnboarding = async (
   const { answers, project } = configured;
   const setup = prepareOnboardingSetup(rootDir, project, configured.setup);
   const existingPaths = new Set(
-    setup.artifacts.filter(({ path }) => existsSync(join(rootDir, path))).map(({ path }) => path),
+    setup.artifacts.filter(({ path }) => fs.existsSync(join(rootDir, path))).map(({ path }) => path),
   );
   assertOnboardingWrites(rootDir, setup, Boolean(options.force));
   await installOnboardingCli(rootDir, answers, setup, Boolean(options.skipInstall));
@@ -582,7 +581,7 @@ const areaForManager = (manager: DependencyManager): WorkflowArea => {
 };
 
 const configuredTargets = (rootDir: string): CodependenceTarget[] => {
-  const result = loadConfig(undefined, rootDir);
+  const result = programDependencies.loadConfig(undefined, rootDir);
   if (!result) {
     throw new Error(
       "Codependence configuration not found. Add manager targets before running `codependence init actions`.",
@@ -637,7 +636,7 @@ const assignment = (value: string, label: string): readonly [string, string] => 
 const parseAssignments = (values: string[] = [], label: string): Map<string, string> =>
   new Map(values.map((value) => assignment(value, label)));
 
-const readFile = (path: string): string => (existsSync(path) ? readFileSync(path, "utf8") : "");
+const readFile = (path: string): string => (fs.existsSync(path) ? fs.readFileSync(path, "utf8") : "");
 
 const readPackageManagerVersion = (rootDir: string, manager: DependencyManager): string => {
   const content = readFile(join(rootDir, MANIFEST_FILES.PACKAGE_JSON));
@@ -940,19 +939,19 @@ const legacyInfrastructureWorkflowPath = (
   if (!includesDocker) return undefined;
 
   const path = workflowPath(rootDir, "infrastructure");
-  if (!existsSync(path)) return undefined;
+  if (!fs.existsSync(path)) return undefined;
 
-  const content = readFileSync(path, "utf8");
+  const content = fs.readFileSync(path, "utf8");
   const isGenerated = content.startsWith(GENERATED_ACTION_HEADER);
   const targetsDocker = workflowTargetsManager(content, LANGUAGES.DOCKER);
   return isGenerated && targetsDocker ? path : undefined;
 };
 
 const migrateLegacyInfrastructureWorkflow = (path: string): void => {
-  const content = readFileSync(path, "utf8");
+  const content = fs.readFileSync(path, "utf8");
   const targetsGitHubActions = workflowTargetsManager(content, LANGUAGES.GITHUB_ACTIONS);
   if (!targetsGitHubActions) {
-    unlinkSync(path);
+    fs.unlinkSync(path);
     return;
   }
 
@@ -960,13 +959,13 @@ const migrateLegacyInfrastructureWorkflow = (path: string): void => {
     .split("\n")
     .filter((line) => line.trim() !== LANGUAGES.DOCKER)
     .join("\n");
-  writeFileSync(path, workflow);
+  fs.writeFileSync(path, workflow);
 };
 
 const assertSafeWrites = (rootDir: string, paths: string[], force: boolean): void => {
   if (force) return;
 
-  const existing = paths.filter(existsSync);
+  const existing = paths.filter(fs.existsSync);
   if (existing.length === 0) return;
 
   const names = existing.map((path) => relative(rootDir, path));
@@ -1009,7 +1008,7 @@ const writeWorkflows = (
   commands: Map<string, string>,
   secretName: string,
 ): void => {
-  mkdirSync(join(rootDir, ".github", "workflows"), { recursive: true });
+  fs.mkdirSync(join(rootDir, ".github", "workflows"), { recursive: true });
   definitions.forEach((definition) => {
     const workflow = renderWorkflow({
       ...definition,
@@ -1017,7 +1016,7 @@ const writeWorkflows = (
       tokenSecret: secretName,
       versions,
     });
-    writeFileSync(workflowPath(rootDir, definition.area), workflow);
+    fs.writeFileSync(workflowPath(rootDir, definition.area), workflow);
   });
 };
 
@@ -1163,7 +1162,7 @@ const runTarget = async (
   const onDeferredFailure = () => {
     targetFailed = true;
   };
-  const diffs = await checkFiles({
+  const diffs = await programDependencies.checkFiles({
     ...options,
     onProgress,
     deferFailure,
@@ -1187,7 +1186,7 @@ const runTargets = (
 
 const loadActionConfigs = (options: Options): ActionConfigs => {
   if (options.config) {
-    const configFileResult = loadConfig(options.config);
+    const configFileResult = programDependencies.loadConfig(options.config);
     if (!configFileResult) throw new Error(`Config file not found: ${options.config}`);
     assertLoadedConfig(configFileResult.config);
     const configRootDir = dirname(configFileResult.filepath);
@@ -1195,7 +1194,7 @@ const loadActionConfigs = (options: Options): ActionConfigs => {
     return { baseConfig: {}, pathConfig: normalizedConfig };
   }
 
-  const result = loadConfig(undefined, options.searchPath);
+  const result = programDependencies.loadConfig(undefined, options.searchPath);
   if (!result) return { baseConfig: {}, pathConfig: {} };
 
   assertLoadedConfig(result.config);
@@ -1282,7 +1281,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
       const formattedOutput = format(dependencyInfo, formatType, duration);
 
       if (updatedOptions.outputFile) {
-        writeFileSync(updatedOptions.outputFile, formattedOutput);
+        fs.writeFileSync(updatedOptions.outputFile, formattedOutput);
         actionLogger.print(`Output written to ${updatedOptions.outputFile}`);
       } else {
         actionLogger.print(formattedOutput);
@@ -1382,11 +1381,11 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
     const requestedDeps = hasArrayInput ? input : codependencies;
     const rcPath = ".codependencerc";
     const packageJsonPath = MANIFEST_FILES.PACKAGE_JSON;
-    const hasConfig = existsSync(rcPath);
+    const hasConfig = fs.existsSync(rcPath);
     const hasPackageJsonConfig = (() => {
-      if (!existsSync(packageJsonPath)) return false;
+      if (!fs.existsSync(packageJsonPath)) return false;
       try {
-        const content = readFileSync(packageJsonPath, "utf8");
+        const content = fs.readFileSync(packageJsonPath, "utf8");
         const packageJson = JSON.parse(content);
         return !!packageJson.codependence;
       } catch {
@@ -1400,12 +1399,12 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
       return;
     }
 
-    const hasPackageJson = existsSync(packageJsonPath);
+    const hasPackageJson = fs.existsSync(packageJsonPath);
     if (!hasPackageJson) {
       throw new Error("package.json not found in the current directory");
     }
 
-    const content = readFileSync(packageJsonPath, "utf8");
+    const content = fs.readFileSync(packageJsonPath, "utf8");
     let packageJson: PackageJSON;
     try {
       packageJson = JSON.parse(content) as PackageJSON;
@@ -1520,10 +1519,10 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
         ...packageJson,
         codependence: config,
       };
-      writeFileSync(packageJsonPath, JSON.stringify(updatedPackageJson, null, 2));
+      fs.writeFileSync(packageJsonPath, JSON.stringify(updatedPackageJson, null, 2));
       spinner2.succeed("Added codependence configuration to package.json");
     } else {
-      writeFileSync(rcPath, JSON.stringify(config, null, 2));
+      fs.writeFileSync(rcPath, JSON.stringify(config, null, 2));
       spinner2.succeed("Created .codependencerc configuration file");
     }
 
