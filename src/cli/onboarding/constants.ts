@@ -10,6 +10,30 @@ import {
 export const ONBOARDING_PACKAGE_FILE = "package.json";
 export const ONBOARDING_PNPM_WORKSPACE_FILE = "pnpm-workspace.yaml";
 
+export const ONBOARDING_RECURSIVE_SOURCE_FILES = [
+  "package.json",
+  "requirements.txt",
+  "pyproject.toml",
+  "Pipfile",
+  "environment.yml",
+  "environment.yaml",
+  "go.mod",
+  "Cargo.toml",
+  "uv.lock",
+];
+
+export const ONBOARDING_SOURCE_PATTERNS = [
+  ...ONBOARDING_RECURSIVE_SOURCE_FILES.flatMap((file) => [file, `**/${file}`]),
+  "Dockerfile",
+  "Dockerfile.*",
+  "**/Dockerfile",
+  "**/Dockerfile.*",
+  ".github/workflows/*.yml",
+  ".github/workflows/*.yaml",
+  "**/.github/workflows/*.yml",
+  "**/.github/workflows/*.yaml",
+];
+
 export const ONBOARDING_DEPENDENCY_SECTIONS: OnboardingDependencySection[] = [
   "dependencies",
   "devDependencies",

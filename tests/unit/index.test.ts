@@ -37,6 +37,8 @@ describe("package entry", () => {
     expect(entry.schema.definitions.manifest.properties.ignore).toEqual({
       $ref: "#/properties/ignore",
     });
+    expect(entry.schema.anyOf).toContainEqual({ required: ["permissive"] });
+    expect(entry.schema.anyOf).toContainEqual({ required: ["mode"] });
   });
 
   test("keeps runtime dependencies out of the published package", () => {

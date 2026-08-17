@@ -1,5 +1,4 @@
 import { readFileSync } from "fs";
-import { extname } from "path";
 import { SPLIT_INITIAL } from "./constants";
 import type { ParsedBlock, ParsedField, ParsedLine, SplitState } from "./types";
 
@@ -369,10 +368,7 @@ export const loadPackageJson = (filepath: string): Record<string, unknown> | str
 
 export const loadRcFile = (filepath: string): Record<string, unknown> => {
   const content = readFileSync(filepath, "utf8");
-  const extension = extname(filepath);
-  const isYaml = extension === ".yaml" || extension === ".yml";
-  const config =
-    isYaml ? parseYAML(content) : (parseJSON(content) ?? parseYAML(content));
+  const config = parseJSON(content) ?? parseYAML(content);
 
   if (!config) {
     throw new ConfigLoadError(filepath, "file is empty, invalid, or did not export an object");

@@ -1041,6 +1041,103 @@ describe("onboardAction", () => {
     }
   });
 
+  test("configures a Go project without package.json", async () => {
+    const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-onboarding-unit-"));
+    fs.writeFileSync(join(rootDir, "go.mod"), "module example.com/api\n\ngo 1.26\n");
+
+    try {
+      await run([
+        "node",
+        "script.js",
+        "init",
+        "config",
+        rootDir,
+        "--mode",
+        "precise",
+        "--non-interactive",
+      ]);
+
+      const result = config.loadConfig(join(rootDir, ".codependencerc"));
+      expect(result?.config).toEqual({
+        config: { "go.mod": { path: "go.mod", manager: "go", mode: "precise" } },
+      });
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("generates GitHub enforcement for a Go project", async () => {
+    const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-onboarding-unit-"));
+    fs.writeFileSync(join(rootDir, "go.mod"), "module example.com/api\n\ngo 1.26.4\n");
+
+    try {
+      await run([
+        "node",
+        "script.js",
+        "init",
+        rootDir,
+        "--mode",
+        "precise",
+        "--enforcement",
+        "github",
+        "--repository",
+        "acme/api",
+        "--non-interactive",
+      ]);
+
+      const workflowPath = join(rootDir, ".github/workflows/codependence-go.yml");
+      expect(fs.readFileSync(workflowPath, "utf8")).toContain("targets: go");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("preserves existing named config while updating detected manifests", async () => {
+    const existing = {
+      $schema: "https://unpkg.com/codependence/src/schema.json",
+      update: true,
+      config: {
+        web: {
+          name: "web",
+          path: "package.json",
+          manager: "npm",
+          mode: "verbose",
+          codependencies: ["react"],
+        },
+        api: { path: "services/api/go.mod", manager: "go", mode: "precise" },
+      },
+    };
+    const rootDir = createOnboardingProject(
+      { name: "web", packageManager: "pnpm@9.15.0" },
+      { ".codependencerc.yml": JSON.stringify(existing) },
+    );
+
+    try {
+      await run([
+        "node",
+        "script.js",
+        "init",
+        "config",
+        rootDir,
+        "--mode",
+        "precise",
+        "--non-interactive",
+      ]);
+
+      const result = config.loadConfig(join(rootDir, ".codependencerc.yml"));
+      expect(result?.config).toEqual({
+        $schema: existing.$schema,
+        update: true,
+        config: {
+          web: { name: "web", path: "package.json", manager: "pnpm", mode: "precise" },
+          api: existing.config.api,
+        },
+      });
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
   test("writes local and GitHub setup without installing when configured", async () => {
     const packageJson = {
       name: "workspace",
@@ -1078,7 +1175,7 @@ describe("onboardAction", () => {
 
       expect(fs.existsSync(join(rootDir, ".codependencerc"))).toBe(true);
       expect(fs.existsSync(join(rootDir, ".github/workflows/codependence-node.yml"))).toBe(true);
-      expect(printSpy).toHaveBeenCalledWith("Configured 2 package manifest(s).");
+      expect(printSpy).toHaveBeenCalledWith("Configured 2 manifest(s).");
       expect(closeSpy).toHaveBeenCalled();
 
       await expect(

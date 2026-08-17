@@ -5,8 +5,10 @@ import { MANIFEST_FILES } from "../providers/constants";
 import { ConfigLoadError, loadPackageJson, loadRcFile } from "./utils";
 import type { ConfigResult } from "./types";
 
-const loadPackageConfig = (filepath: string): ConfigResult | null => {
-  const config = loadPackageJson(filepath);
+const packageConfigResult = (
+  filepath: string,
+  config: Record<string, unknown> | string | null,
+): ConfigResult | null => {
   if (!config) return null;
   if (typeof config !== "string") return { config, filepath };
 
@@ -18,6 +20,9 @@ const loadPackageConfig = (filepath: string): ConfigResult | null => {
   return { config: loadRcFile(configPath), filepath: configPath };
 };
 
+const loadPackageConfig = (filepath: string): ConfigResult | null =>
+  packageConfigResult(filepath, loadPackageJson(filepath));
+
 const loadCandidate = (directory: string, filename: string): ConfigResult | null => {
   const filepath = resolve(directory, filename);
   if (!existsSync(filepath)) return null;
@@ -28,12 +33,16 @@ const loadCandidate = (directory: string, filename: string): ConfigResult | null
 const preferredPackageConfig = (
   directory: string,
 ): { config: ConfigResult | null; cause?: unknown } => {
+  const filepath = resolve(directory, MANIFEST_FILES.PACKAGE_JSON);
+  if (!existsSync(filepath)) return { config: null };
+
+  let packageConfig: ReturnType<typeof loadPackageJson>;
   try {
-    const config = loadCandidate(directory, MANIFEST_FILES.PACKAGE_JSON);
-    return { config };
+    packageConfig = loadPackageJson(filepath);
   } catch (cause) {
     return { config: null, cause };
   }
+  return { config: packageConfigResult(filepath, packageConfig) };
 };
 
 const loadConfigFromDirectory = (directory: string): ConfigResult | null => {

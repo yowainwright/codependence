@@ -125,7 +125,6 @@
   "properties": {
     "$schema": {
       "type": "string",
-      "minLength": 1,
       "description": "Configuration schema URL"
     },
     "config": {
@@ -316,20 +315,10 @@
       "required": ["codependencies"]
     },
     {
-      "required": ["permissive"],
-      "properties": {
-        "permissive": {
-          "const": true
-        }
-      }
+      "required": ["permissive"]
     },
     {
-      "required": ["mode"],
-      "properties": {
-        "mode": {
-          "const": "precise"
-        }
-      }
+      "required": ["mode"]
     }
   ]
 }

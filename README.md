@@ -62,7 +62,7 @@ The policy runs the same way locally, in scripts, and in CI. Other update strate
 <!-- installation commands matching package.json name and the Homebrew release workflow -->
 
 ```sh
-npm install --save-dev codependence
+npm install --global codependence
 # or
 brew install yowainwright/tap/codependence
 ```
@@ -88,6 +88,10 @@ For a small Node project, put the configuration object under `codependence` in `
 ```
 
 The path is relative to `package.json`. Each entry in `config` represents one manifest and requires `path` and `manager`; `name` is optional.
+
+Editors can use the published [configuration schema][configuration-schema] for validation and completion.
+
+[configuration-schema]: https://unpkg.com/codependence/src/schema.json
 
 ```sh
 codependence

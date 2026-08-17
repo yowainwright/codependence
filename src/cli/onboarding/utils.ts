@@ -8,6 +8,7 @@ import {
   ONBOARDING_MANAGER_FILES,
   ONBOARDING_PACKAGE_FILE,
   ONBOARDING_PNPM_WORKSPACE_FILE,
+  ONBOARDING_RECURSIVE_SOURCE_FILES,
   ONBOARDING_REPOSITORY_CONCURRENCY,
   ONBOARDING_USAGE_SEPARATOR,
   ONBOARDING_WORKSPACE_INSTALLS,
@@ -19,7 +20,6 @@ import type {
   OnboardingFetcher,
   OnboardingManager,
   OnboardingPackageJson,
-  OnboardingProject,
   OnboardingRepository,
   OnboardingSourceFile,
   ParsedOnboardingManifest,
@@ -301,10 +301,13 @@ export const managerFromFiles = (files: OnboardingSourceFile[]): OnboardingManag
   return ONBOARDING_MANAGER_ORDER.find(hasManagerFile) || "npm";
 };
 
-export const onboardingInstallArgs = (project: OnboardingProject): string[] => {
-  if (!project.workspace) return ONBOARDING_INSTALLS[project.manager];
-  const workspaceInstall = ONBOARDING_WORKSPACE_INSTALLS[project.manager];
-  return workspaceInstall || ONBOARDING_INSTALLS[project.manager];
+export const onboardingInstallArgs = (
+  manager: OnboardingManager,
+  workspace: boolean,
+): string[] => {
+  if (!workspace) return ONBOARDING_INSTALLS[manager];
+  const workspaceInstall = ONBOARDING_WORKSPACE_INSTALLS[manager];
+  return workspaceInstall || ONBOARDING_INSTALLS[manager];
 };
 
 export const selectedCodependencies = (
@@ -383,10 +386,23 @@ const repositoryRawPath = (
 };
 
 const managerFiles = new Set(Object.values(ONBOARDING_MANAGER_FILES).flat());
+const recursiveSourceFiles = new Set(ONBOARDING_RECURSIVE_SOURCE_FILES);
+
+const isWorkflowSourcePath = (path: string): boolean => {
+  const segments = pathSegments(path);
+  const filename = segments.at(-1) || "";
+  const directory = segments.slice(-3, -1).join("/");
+  const isYaml = filename.endsWith(".yml") || filename.endsWith(".yaml");
+  return directory === ".github/workflows" && isYaml;
+};
 
 const isRepositorySourcePath = (path: string): boolean => {
   if (isIgnoredOnboardingPath(path)) return false;
   if (isOnboardingPackageFile(path)) return true;
+  const filename = pathSegments(path).at(-1) || "";
+  if (recursiveSourceFiles.has(filename)) return true;
+  if (filename === "Dockerfile" || filename.startsWith("Dockerfile.")) return true;
+  if (isWorkflowSourcePath(path)) return true;
   const isRootFile = !path.includes("/");
   return isRootFile && managerFiles.has(path);
 };
@@ -394,7 +410,8 @@ const isRepositorySourcePath = (path: string): boolean => {
 const sourceFileNeedsContent = (path: string): boolean => {
   const isPackageFile = isOnboardingPackageFile(path);
   const isWorkspaceFile = path === ONBOARDING_PNPM_WORKSPACE_FILE;
-  return isPackageFile || isWorkspaceFile;
+  const isPyproject = pathSegments(path).at(-1) === "pyproject.toml";
+  return isPackageFile || isWorkspaceFile || isPyproject || isWorkflowSourcePath(path);
 };
 
 const mapConcurrentBatch = async <Input, Output>(

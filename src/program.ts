@@ -27,6 +27,7 @@ import {
 } from "./cli/onboarding";
 import type {
   OnboardingAnswers,
+  OnboardingArtifact,
   OnboardingEnforcement,
   OnboardingMode,
   OnboardingProject,
@@ -60,7 +61,11 @@ import {
   WORKFLOW_AREAS,
   WORKFLOW_LABELS,
 } from "./cli/constants";
-import { ONBOARDING_CONFIG_PATH, ONBOARDING_PNPM_WORKSPACE_FILE } from "./cli/onboarding/constants";
+import {
+  ONBOARDING_CONFIG_PATH,
+  ONBOARDING_PNPM_WORKSPACE_FILE,
+  ONBOARDING_SOURCE_PATTERNS,
+} from "./cli/onboarding/constants";
 import type {
   InitGitHubActionsOptions,
   RenderWorkflowOptions,
@@ -139,7 +144,7 @@ const onboardingRootFiles = (rootDir: string): OnboardingSourceFile[] =>
     });
 
 const onboardingManifestFiles = (rootDir: string): OnboardingSourceFile[] => {
-  const paths = glob(["package.json", "**/package.json"], {
+  const paths = glob(ONBOARDING_SOURCE_PATTERNS, {
     cwd: rootDir,
     ignore: [...DEFAULT_IGNORE_PATTERNS],
   });
@@ -180,6 +185,7 @@ const selectOnboardingDependencies = (
   if (options.codependencies !== undefined) {
     return Promise.resolve(stringListOption(options.codependencies));
   }
+  if (project.dependencies.length === 0) return Promise.resolve([]);
   if (options.nonInteractive === true) return Promise.resolve([]);
   const choices = project.dependencies.map(dependencyChoice);
   return prompt.select("Select dependencies for this policy", choices);
@@ -229,7 +235,7 @@ const ensureOnboardingVersion = async (
   enforcement: OnboardingEnforcement,
   options: Record<string, unknown>,
 ): Promise<OnboardingProject> => {
-  if (project.managerVersion || enforcement === "local") return project;
+  if (!project.manager || project.managerVersion || enforcement === "local") return project;
   const configured = onboardingVersionOption(project.manager, options.version);
   if (configured) return { ...project, managerVersion: configured };
   if (options.nonInteractive === true) throw new Error("GitHub onboarding requires --version");
@@ -260,6 +266,75 @@ const packageConfigArtifact = (
   return { path, content };
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  if (typeof value !== "object" || value === null) return false;
+  return !Array.isArray(value);
+};
+
+const manifestPath = (value: unknown): string | undefined => {
+  if (!isRecord(value)) return undefined;
+  return typeof value.path === "string" ? value.path : undefined;
+};
+
+const mergeManifest = (
+  existing: unknown,
+  generated: unknown,
+): Record<string, unknown> => {
+  if (!isRecord(generated)) return {};
+  if (!isRecord(existing)) return generated;
+  const { codependencies: _codependencies, permissive: _permissive, ...preserved } = existing;
+  return Object.assign({}, preserved, generated);
+};
+
+const mergeManifestConfigs = (
+  existing: Record<string, unknown>,
+  generated: Record<string, unknown>,
+): Record<string, unknown> => {
+  const idsByPath = new Map(
+    Object.entries(existing)
+      .map(([id, value]) => [manifestPath(value), id] as const)
+      .filter(([path]) => path !== undefined),
+  );
+  return Object.entries(generated).reduce((entries, [generatedId, value]) => {
+    const path = manifestPath(value);
+    const id = (path && idsByPath.get(path)) || generatedId;
+    const entry = mergeManifest(entries[id], value);
+    return Object.assign({}, entries, { [id]: entry });
+  }, existing);
+};
+
+const hasFlatPolicy = (config: Record<string, unknown>): boolean => {
+  if ("targets" in config) return true;
+  return TARGET_OVERRIDE_FIELDS.some((field) => field in config);
+};
+
+const mergeOnboardingConfig = (
+  existing: Record<string, unknown>,
+  generated: Record<string, unknown>,
+): Record<string, unknown> => {
+  const existingEntries = existing.config;
+  const generatedEntries = generated.config;
+  if (!isRecord(generatedEntries)) throw new Error("Generated configuration is invalid");
+  if (existingEntries === undefined && !hasFlatPolicy(existing)) {
+    return Object.assign({}, existing, generated);
+  }
+  if (!isRecord(existingEntries)) {
+    throw new Error("Init cannot safely replace a flat or targets configuration");
+  }
+  const config = mergeManifestConfigs(existingEntries, generatedEntries);
+  return Object.assign({}, existing, { config });
+};
+
+const configContent = (config: Record<string, unknown>): string =>
+  `${JSON.stringify(config, null, 2)}\n`;
+
+const assertLoadedConfig = (config: Record<string, unknown>): void => {
+  if (!("config" in config)) return;
+  const result = validateConfig(config, { requirePolicy: false });
+  if (result.valid) return;
+  throw new Error(`Invalid config\n${formatValidationErrors(result.errors)}`);
+};
+
 const existingConfigArtifacts = (
   rootDir: string,
   content: string,
@@ -269,11 +344,14 @@ const existingConfigArtifacts = (
     null,
   );
   if (!result) return undefined;
+  assertLoadedConfig(result.config);
 
   const path = relative(rootDir, result.filepath);
   if (path.startsWith("..")) throw new Error("Init only updates configuration in its directory");
-  if (path !== MANIFEST_FILES.PACKAGE_JSON) return [{ path, content }];
-  return [packageConfigArtifact(rootDir, JSON.parse(content))];
+  const generated = JSON.parse(content) as Record<string, unknown>;
+  const merged = mergeOnboardingConfig(result.config, generated);
+  if (path !== MANIFEST_FILES.PACKAGE_JSON) return [{ path, content: configContent(merged) }];
+  return [packageConfigArtifact(rootDir, merged)];
 };
 
 const newConfigArtifacts = (
@@ -281,13 +359,18 @@ const newConfigArtifacts = (
   project: OnboardingProject,
   content: string,
 ): OnboardingSetup["artifacts"] => {
-  if (project.manifests.length === 1) {
+  const hasPackageJson = existsSync(join(rootDir, MANIFEST_FILES.PACKAGE_JSON));
+  const hasSingleNodeManifest =
+    project.manifests.length === 1 && project.manifests[0].path === MANIFEST_FILES.PACKAGE_JSON;
+  if (hasSingleNodeManifest) {
     return [packageConfigArtifact(rootDir, JSON.parse(content))];
   }
 
+  const config = { path: ONBOARDING_CONFIG_PATH, content };
+  if (!hasPackageJson) return [config];
   const pointer = `./${ONBOARDING_CONFIG_PATH}`;
   const packageJson = packageConfigArtifact(rootDir, pointer);
-  return [packageJson, { path: ONBOARDING_CONFIG_PATH, content }];
+  return [packageJson, config];
 };
 
 const prepareOnboardingSetup = (
@@ -322,6 +405,74 @@ const writeOnboardingArtifacts = (rootDir: string, setup: OnboardingSetup): void
   });
 };
 
+interface OnboardingArtifactSnapshot {
+  path: string;
+  content?: string;
+}
+
+const snapshotOnboardingArtifacts = (
+  rootDir: string,
+  artifacts: OnboardingArtifact[],
+): OnboardingArtifactSnapshot[] =>
+  artifacts.map(({ path }) => {
+    const destination = join(rootDir, path);
+    const content = existsSync(destination) ? readFileSync(destination, "utf8") : undefined;
+    return { path, content };
+  });
+
+const restoreOnboardingArtifacts = (
+  rootDir: string,
+  snapshots: OnboardingArtifactSnapshot[],
+): void => {
+  snapshots.forEach(({ path, content }) => {
+    const destination = join(rootDir, path);
+    if (content === undefined && existsSync(destination)) return unlinkSync(destination);
+    if (content === undefined) return;
+    writeFileSync(destination, content);
+  });
+};
+
+const needsGeneratedWorkflows = (
+  answers: OnboardingAnswers,
+  setup: OnboardingSetup,
+): boolean => {
+  if (answers.enforcement === "local") return false;
+  return !setup.artifacts.some(({ path }) => path.startsWith(".github/workflows/"));
+};
+
+const generatedOnboardingWorkflows = (
+  rootDir: string,
+  options: Record<string, unknown>,
+): OnboardingArtifact[] => {
+  const paths = initGitHubActions({
+    force: Boolean(options.force),
+    postUpdateCommands: stringListOption(options.postUpdateCommand),
+    rootDir,
+    schedules: stringListOption(options.schedule),
+    tokenSecret: stringOption(options.tokenSecret),
+    versions: stringListOption(options.version),
+  });
+  return paths.map((path) => ({ path: relative(rootDir, path), content: readFileSync(path, "utf8") }));
+};
+
+const writeConfiguredOnboarding = (
+  rootDir: string,
+  answers: OnboardingAnswers,
+  setup: OnboardingSetup,
+  options: Record<string, unknown>,
+): OnboardingSetup => {
+  const snapshots = snapshotOnboardingArtifacts(rootDir, setup.artifacts);
+  writeOnboardingArtifacts(rootDir, setup);
+  if (!needsGeneratedWorkflows(answers, setup)) return setup;
+  try {
+    const workflows = generatedOnboardingWorkflows(rootDir, options);
+    return Object.assign({}, setup, { artifacts: setup.artifacts.concat(workflows) });
+  } catch (cause) {
+    restoreOnboardingArtifacts(rootDir, snapshots);
+    throw cause;
+  }
+};
+
 const installOnboardingCli = async (
   rootDir: string,
   answers: OnboardingAnswers,
@@ -331,6 +482,7 @@ const installOnboardingCli = async (
   const needsLocalCli = answers.enforcement === "local" || answers.enforcement === "both";
   const shouldSkipInstall = !needsLocalCli || skipInstall;
   if (shouldSkipInstall) return;
+  if (!setup.install) return;
   await exec(setup.install.command, setup.install.args, { cwd: rootDir });
 };
 
@@ -339,7 +491,7 @@ const printOnboardingResult = (
   setup: OnboardingSetup,
   existingPaths: Set<string>,
 ): void => {
-  logger.print(`Configured ${project.manifests.length} package manifest(s).`);
+  logger.print(`Configured ${project.manifests.length} manifest(s).`);
   setup.artifacts.forEach(({ path }) => {
     const action = existingPaths.has(path) ? "Updated" : "Created";
     logger.print(`${action} ${path}`);
@@ -387,8 +539,8 @@ const applyOnboarding = async (
   );
   assertOnboardingWrites(rootDir, setup, Boolean(options.force));
   await installOnboardingCli(rootDir, answers, setup, Boolean(options.skipInstall));
-  writeOnboardingArtifacts(rootDir, setup);
-  printOnboardingResult(project, setup, existingPaths);
+  const writtenSetup = writeConfiguredOnboarding(rootDir, answers, setup, options);
+  printOnboardingResult(project, writtenSetup, existingPaths);
 };
 
 const runOnboardingPrompt = async (
@@ -1031,13 +1183,6 @@ const runTargets = (
     async (result, target) => runTarget(await result, target, onProgress, deferFailure),
     Promise.resolve<TargetRunResult>({ diffs: [], failed: false }),
   );
-};
-
-const assertLoadedConfig = (config: Record<string, unknown>): void => {
-  if (!("config" in config)) return;
-  const result = validateConfig(config, { requirePolicy: false });
-  if (result.valid) return;
-  throw new Error(`Invalid config\n${formatValidationErrors(result.errors)}`);
 };
 
 const loadActionConfigs = (options: Options): ActionConfigs => {

@@ -2,9 +2,13 @@ import { expect, test, describe, beforeEach } from "bun:test";
 import { loadConfig, validateConfig } from "../../../src/config";
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
+import { tmpdir } from "os";
 
 describe("Config Loading", () => {
-  const tmpDir = join("/tmp", `codependence-config-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const tmpDir = join(
+    tmpdir(),
+    `codependence-config-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
 
   beforeEach(() => {
     rmSync(tmpDir, { recursive: true, force: true });
@@ -58,6 +62,18 @@ describe("Config Loading", () => {
 
       expect(result?.config).toEqual(config);
       expect(result?.filepath).toBe(configPath);
+    });
+
+    test("should not ignore a broken package.json config reference", () => {
+      const pkgPath = join(tmpDir, "package.json");
+      const rcPath = join(tmpDir, ".codependencerc");
+
+      writeFileSync(pkgPath, JSON.stringify({ codependence: "./missing.json" }));
+      writeFileSync(rcPath, JSON.stringify({ permissive: true }));
+
+      expect(() => loadConfig(undefined, tmpDir)).toThrow(
+        "referenced config does not exist: ./missing.json",
+      );
     });
 
     test("should return null if file not found", () => {
@@ -145,6 +161,15 @@ describe("Config Loading", () => {
         permissive: false,
         mode: "verbose",
       });
+    });
+
+    test("should load JSON syntax from a YAML config file", () => {
+      const rcPath = join(tmpDir, ".codependencerc.yaml");
+      const config = { config: { api: { path: "go.mod", manager: "go" } } };
+
+      writeFileSync(rcPath, JSON.stringify(config));
+
+      expect(loadConfig(rcPath)?.config).toEqual(config);
     });
 
     test("should load unindented YAML block arrays", () => {
