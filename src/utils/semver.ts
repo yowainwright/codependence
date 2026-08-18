@@ -1,9 +1,6 @@
 import type { Level } from "../types";
 import type { VersionStrategy } from "../providers/types";
-import {
-  REPEATING_VERSION_PREFIXES,
-  VERSION_COMPARISON_PREFIXES,
-} from "./constants";
+import { REPEATING_VERSION_PREFIXES, VERSION_COMPARISON_PREFIXES } from "./constants";
 
 export const stripRepeatingVersionPrefixes = (version: string): string => {
   let index = 0;
@@ -14,9 +11,7 @@ export const stripRepeatingVersionPrefixes = (version: string): string => {
 };
 
 const stripVersionPrefix = (version: string): string => {
-  const comparisonPrefix = VERSION_COMPARISON_PREFIXES.find((prefix) =>
-    version.startsWith(prefix),
-  );
+  const comparisonPrefix = VERSION_COMPARISON_PREFIXES.find((prefix) => version.startsWith(prefix));
   if (comparisonPrefix) return version.slice(comparisonPrefix.length);
 
   const withoutRepeatingPrefixes = stripRepeatingVersionPrefixes(version);
@@ -25,9 +20,7 @@ const stripVersionPrefix = (version: string): string => {
   return version.startsWith("v") ? version.slice(1) : version;
 };
 
-export const parseSemver = (
-  version: string,
-): [number, number, number] => {
+export const parseSemver = (version: string): [number, number, number] => {
   const cleaned = stripVersionPrefix(version);
   const parts = cleaned.split(".").map(Number);
   return [parts[0] || 0, parts[1] || 0, parts[2] || 0];

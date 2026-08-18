@@ -106,9 +106,9 @@ Codependence - Enforce dependency version policy across your project
 Usage: codependence [command] [options]
 
 Commands:
-  onboard                           Set up project dependency policy
-  init [type] [items...]            Initialize Codependence
-                                    Types: rc, package, default, actions
+  init [directory]                  Run guided project setup
+  init config [directory]           Create or update configuration only
+  init actions [managers...]        Generate GitHub Actions workflows
 
 Options:
   -t, --isTestingCLI               Enable CLI only testing
@@ -119,10 +119,10 @@ Options:
   --post-update-command [name=cmd...] Override generated lockfile commands
   --schedule [area=cron...]        Override generated workflow schedules
   --token-secret <name>            GitHub PAT secret name for generated workflows
-  --enforcement <type>             Onboarding target: local, github, or both
+  --enforcement <type>             Init target: local, github, or both
   --repository <owner/name>        GitHub repository used for token setup links
-  --non-interactive                Require onboarding choices as flags
-  --skip-install                   Do not install the local CLI during onboarding
+  --non-interactive                Require guided setup choices as flags
+  --skip-install                   Do not install the local CLI during setup
   --force                           Replace generated workflow files
   --lockfile [policy]              Require lockfiles, or pass false to allow manifest-only updates
   -u, --update                      Update dependencies based on check
@@ -149,10 +149,9 @@ Options:
 
 Examples:
   # Get started
-  codependence onboard                       Set up a workspace-aware project policy
-  codependence init                           Interactive setup wizard
-  codependence init rc                        Create .codependencerc with all deps pinned
-  codependence init rc react lodash           Create .codependencerc with listed deps pinned
+  codependence init                           Configure the project and enforcement
+  codependence init config                    Create or update configuration only
+  codependence init config services/api       Configure a specific directory
   codependence init actions                   Create split dependency update workflows
   codependence init actions --version uv=0.8.0
                                               Supply a missing exact tool version

@@ -1,4 +1,0 @@
-[test]
-coverage = true
-coverageThreshold = { line = 80 }
-coverageReporter = ["text", "lcov"]

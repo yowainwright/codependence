@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync, writeFileSync } from "fs";
+import fs from "node:fs";
 import { basename, dirname, isAbsolute, relative, resolve, sep, win32 } from "path";
 import {
   DockerProvider,
@@ -261,6 +261,11 @@ const collectDepNamesFromManifest = (manifest: DependencyManifest): string[] => 
 const collectAllDepNamesFromManifests = (manifests: LoadedManifest[]): string[] =>
   Array.from(new Set(manifests.flatMap(({ manifest }) => collectDepNamesFromManifest(manifest))));
 
+const isFile = (path: string): boolean => {
+  if (!fs.existsSync(path)) return false;
+  return fs.statSync(path).isFile();
+};
+
 const assertCustomLockfiles = (rootDir: string, lockfile: string | string[]): void => {
   const lockfiles = Array.isArray(lockfile) ? lockfile : [lockfile];
   const absolutePaths = lockfiles.filter((file) => isAbsolute(file) || win32.isAbsolute(file));
@@ -277,7 +282,7 @@ const assertCustomLockfiles = (rootDir: string, lockfile: string | string[]): vo
     throw new Error(`Lockfile path escapes target root: ${outsideRoot.join(", ")}`);
   }
 
-  const missing = paths.filter((file) => !existsSync(file) || !statSync(file).isFile());
+  const missing = paths.filter((file) => !isFile(file));
   if (missing.length === 0) return;
 
   throw new Error(`Required lockfile(s) not found: ${missing.join(", ")}`);
@@ -297,7 +302,7 @@ const assertStandardLockfile = (loadedManifest: LoadedManifest, rootDir: string)
   if (!hasDependencies) return;
 
   const paths = standardLockfilePaths(loadedManifest, rootDir);
-  const hasLockfile = paths.some(existsSync);
+  const hasLockfile = paths.some(isFile);
   if (hasLockfile) return;
 
   const manager = loadedManifest.packageManager;
@@ -1140,7 +1145,7 @@ const applyUpdates = <T extends PackageJSON>(
   const updatedJson = constructJson(json, depsToUpdate, isDebugging);
   const { path, ...newJson } = updatedJson;
   if (!isTesting) {
-    writeFileSync(path, JSON.stringify(newJson, null, 2).concat("\n"));
+    fs.writeFileSync(path, JSON.stringify(newJson, null, 2).concat("\n"));
   } else {
     logger.info(`test-writeFileSync: ${path}`);
   }
@@ -1247,7 +1252,7 @@ const processMatchedFile = (
   codependencies?: Array<string>,
 ): boolean => {
   const path = resolveManifestPath(rootDir, file);
-  const packageJson = readFileSync(path, "utf8");
+  const packageJson = fs.readFileSync(path, "utf8");
   const json = JSON.parse(packageJson);
   const jsonWithPath = { ...json, path };
 
@@ -1376,7 +1381,7 @@ const checkLoadedManifests = async ({
 const extractDepNamesFromFile = (rootDir: string, file: string): string[] => {
   const path = resolveManifestPath(rootDir, file);
   try {
-    const json = JSON.parse(readFileSync(path, "utf8"));
+    const json = JSON.parse(fs.readFileSync(path, "utf8"));
     return DEP_SECTIONS.flatMap((section) => {
       const dependencies = json[section] as Record<string, string> | undefined;
       return dependencies ? Object.keys(dependencies) : [];

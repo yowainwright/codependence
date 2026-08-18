@@ -1,9 +1,16 @@
-import { afterEach, describe, expect, jest, test } from "bun:test";
-import * as binary from "../../src/bin";
+import { afterEach, describe, test, mock } from "node:test";
+import assert from "node:assert/strict";
+import { assertCalledWith, assertRejects, assertThrows } from "../helpers/assertions";
 import * as host from "../../src/bin/utils";
 import { normalizeBinaryArgv } from "../../src/bin/utils";
 import { logger } from "../../src/logger";
-import * as program from "../../src/program";
+import * as programModule from "../../src/program";
+
+const runMock = mock.fn(programModule.run);
+mock.module(new URL("../../src/program.ts", import.meta.url).href, {
+  exports: { ...programModule, run: runMock },
+});
+const binary = await import("../../src/bin");
 
 describe("binary host", () => {
   let restoreHost: (() => void) | undefined;
@@ -14,66 +21,66 @@ describe("binary host", () => {
   });
 
   test("returns no adapters before configuration", () => {
-    expect(host.hasBinaryHost()).toBe(false);
-    expect(host.binaryExecFile()).toBeUndefined();
-    expect(host.runBinaryExecFileSync("go", ["mod", "tidy"], "/repo")).toBe(false);
-    expect(host.askBinaryHost("Continue?")).toBeUndefined();
+    assert.strictEqual((host.hasBinaryHost()), false);
+    assert.strictEqual((host.binaryExecFile()), undefined);
+    assert.strictEqual((host.runBinaryExecFileSync("go", ["mod", "tidy"], "/repo")), false);
+    assert.strictEqual((host.askBinaryHost("Continue?")), undefined);
   });
 
   test("bridges async, sync, and prompt calls", async () => {
-    const exec = jest.fn().mockResolvedValue('{"stdout":"1.2.3","stderr":"warning"}');
-    const execSync = jest.fn().mockReturnValue('{"stdout":"done","stderr":""}');
-    const question = jest.fn().mockResolvedValue("yes");
+    const exec = mock.fn(async () => ('{"stdout":"1.2.3","stderr":"warning"}'));
+    const execSync = mock.fn(() => ('{"stdout":"done","stderr":""}'));
+    const question = mock.fn(async () => ("yes"));
     restoreHost = host.configureBinaryHost(exec, execSync, question);
 
     const execFile = host.binaryExecFile();
     const result = await execFile?.("npm", ["view"], { cwd: "/repo", encoding: "utf8" });
 
-    expect(host.hasBinaryHost()).toBe(true);
-    expect(result).toEqual({ stdout: "1.2.3", stderr: "warning" });
-    expect(exec).toHaveBeenCalledWith("npm", ["view"], "/repo");
-    expect(host.runBinaryExecFileSync("go", ["mod", "tidy"], "/repo")).toBe(true);
-    expect(execSync).toHaveBeenCalledWith("go", ["mod", "tidy"], "/repo");
-    expect(await host.askBinaryHost("Continue?")).toBe("yes");
+    assert.strictEqual((host.hasBinaryHost()), true);
+    assert.deepStrictEqual((result), { stdout: "1.2.3", stderr: "warning" });
+    assertCalledWith((exec), "npm", ["view"], "/repo");
+    assert.strictEqual((host.runBinaryExecFileSync("go", ["mod", "tidy"], "/repo")), true);
+    assertCalledWith((execSync), "go", ["mod", "tidy"], "/repo");
+    assert.strictEqual((await host.askBinaryHost("Continue?")), "yes");
   });
 
   test("normalizes missing output fields", async () => {
-    const exec = jest.fn().mockResolvedValue("{}");
-    restoreHost = host.configureBinaryHost(exec, jest.fn(), jest.fn());
+    const exec = mock.fn(async () => ("{}"));
+    restoreHost = host.configureBinaryHost(exec, mock.fn(), mock.fn());
 
     const result = await host.binaryExecFile()?.("npm", [], { encoding: "utf8" });
 
-    expect(result).toEqual({ stdout: "", stderr: "" });
-    expect(exec).toHaveBeenCalledWith("npm", [], "");
+    assert.deepStrictEqual((result), { stdout: "", stderr: "" });
+    assertCalledWith((exec), "npm", [], "");
   });
 
   test("throws host errors from async and sync calls", async () => {
     const failure = '{"stdout":"","stderr":"","error":"command failed"}';
     restoreHost = host.configureBinaryHost(
-      jest.fn().mockResolvedValue(failure),
-      jest.fn(() => failure),
-      jest.fn(),
+      mock.fn(async () => (failure)),
+      mock.fn(() => failure),
+      mock.fn(),
     );
 
-    await expect(host.binaryExecFile()?.("npm", [], { encoding: "utf8" })).rejects.toThrow(
-      "command failed",
-    );
-    expect(() => host.runBinaryExecFileSync("go", [], "")).toThrow("command failed");
+    await assertRejects(host.binaryExecFile()?.("npm", [], { encoding: "utf8" }), "command failed");
+    assertThrows((() => host.runBinaryExecFileSync("go", [], "")), "command failed");
   });
 });
 
 describe("binary utilities", () => {
   afterEach(() => {
-    jest.restoreAllMocks();
+    runMock.mock.restore();
+    runMock.mock.resetCalls();
+    mock.restoreAll();
   });
 
   test("adds the script argument when argv is empty", () => {
-    expect(normalizeBinaryArgv([])).toEqual(["codependence", "codependence"]);
+    assert.deepStrictEqual((normalizeBinaryArgv([])), ["codependence", "codependence"]);
   });
 
   test("replaces a duplicated executable with the script name", () => {
     const argv = ["/usr/local/bin/codependence", "/usr/local/bin/codependence", "--help"];
-    expect(normalizeBinaryArgv(argv)).toEqual([
+    assert.deepStrictEqual((normalizeBinaryArgv(argv)), [
       "/usr/local/bin/codependence",
       "codependence",
       "--help",
@@ -81,7 +88,7 @@ describe("binary utilities", () => {
   });
 
   test("adds the script argument before CLI options", () => {
-    expect(normalizeBinaryArgv(["/usr/local/bin/codependence", "--help"])).toEqual([
+    assert.deepStrictEqual((normalizeBinaryArgv(["/usr/local/bin/codependence", "--help"])), [
       "/usr/local/bin/codependence",
       "codependence",
       "--help",
@@ -89,30 +96,32 @@ describe("binary utilities", () => {
   });
 
   test("preserves Unix and Windows script paths", () => {
-    expect(normalizeBinaryArgv(["node", "dist/cli"])).toEqual(["node", "dist/cli"]);
-    expect(normalizeBinaryArgv(["node", "dist\\cli"])).toEqual(["node", "dist\\cli"]);
+    assert.deepStrictEqual((normalizeBinaryArgv(["node", "dist/cli"])), ["node", "dist/cli"]);
+    assert.deepStrictEqual((normalizeBinaryArgv(["node", "dist\\cli"])), ["node", "dist\\cli"]);
   });
 
   test("preserves script filenames with supported extensions", () => {
-    expect(normalizeBinaryArgv(["node", "cli.mjs"])).toEqual(["node", "cli.mjs"]);
+    assert.deepStrictEqual((normalizeBinaryArgv(["node", "cli.mjs"])), ["node", "cli.mjs"]);
   });
 
   test("runs the CLI with normalized arguments", async () => {
-    const run = jest.spyOn(program, "run").mockResolvedValue(undefined);
+    runMock.mock.mockImplementation(async () => undefined);
 
     await binary.runBinary(["/usr/local/bin/codependence", "--help"]);
 
-    expect(run).toHaveBeenCalledWith(["/usr/local/bin/codependence", "codependence", "--help"]);
+    assertCalledWith(runMock, ["/usr/local/bin/codependence", "codependence", "--help"]);
   });
 
   test("logs CLI failures and exits with status 2", async () => {
-    jest.spyOn(program, "run").mockRejectedValue(new Error("broken CLI"));
-    const logError = jest.spyOn(logger, "error").mockImplementation(() => {});
-    const exit = jest.spyOn(process, "exit").mockImplementation((() => {}) as () => never);
+    runMock.mock.mockImplementation(async () => {
+      throw new Error("broken CLI");
+    });
+    const logError = mock.method(logger, "error", () => {});
+    const exit = mock.method(process, "exit", (() => {}) as () => never);
 
     await binary.runBinary(["codependence"]);
 
-    expect(logError).toHaveBeenCalledWith("broken CLI");
-    expect(exit).toHaveBeenCalledWith(2);
+    assertCalledWith((logError), "broken CLI");
+    assertCalledWith((exit), 2);
   });
 });

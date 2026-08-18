@@ -22,7 +22,7 @@ const compilePattern = (pattern: string): RegExp => {
   const normalizedPattern = normalizePath(pattern);
   let source = "^";
 
-  for (let index = 0; index < normalizedPattern.length; ) {
+  for (let index = 0; index < normalizedPattern.length;) {
     const char = normalizedPattern[index];
     const next = normalizedPattern[index + 1];
     const afterNext = normalizedPattern[index + 2];

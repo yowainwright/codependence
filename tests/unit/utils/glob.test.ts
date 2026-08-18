@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { after, before, describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -11,7 +12,7 @@ const writeFile = (path: string): void => {
 };
 
 describe("glob", () => {
-  beforeAll(() => {
+  before(() => {
     testDir = mkdtempSync(join(tmpdir(), "codependence-glob-"));
     mkdirSync(join(testDir, "src"), { recursive: true });
     mkdirSync(join(testDir, "dist"), { recursive: true });
@@ -34,26 +35,26 @@ describe("glob", () => {
     writeFile("README.md");
   });
 
-  afterAll(() => {
+  after(() => {
     rmSync(testDir, { recursive: true, force: true });
   });
 
   it("finds files matching a root pattern", () => {
     const files = sync("*.ts", { cwd: testDir });
 
-    expect(files).toEqual(["file1.ts", "file2.ts"]);
+    assert.deepStrictEqual((files), ["file1.ts", "file2.ts"]);
   });
 
   it("finds recursive matches including root files", () => {
     const files = sync("**/*.ts", { cwd: testDir });
 
-    expect(files).toEqual(["file1.ts", "file2.ts", "src/index.ts"]);
+    assert.deepStrictEqual((files), ["file1.ts", "file2.ts", "src/index.ts"]);
   });
 
   it("keeps await glob compatibility", async () => {
     const files = await glob("**/*.ts", { cwd: testDir });
 
-    expect(files).toEqual(["file1.ts", "file2.ts", "src/index.ts"]);
+    assert.deepStrictEqual((files), ["file1.ts", "file2.ts", "src/index.ts"]);
   });
 
   it("supports ignore patterns", () => {
@@ -62,19 +63,19 @@ describe("glob", () => {
       ignore: ["src/**"],
     });
 
-    expect(files).toEqual(["file1.ts", "file2.ts"]);
+    assert.deepStrictEqual((files), ["file1.ts", "file2.ts"]);
   });
 
   it("supports multiple patterns", () => {
     const files = sync(["*.ts", "*.md"], { cwd: testDir });
 
-    expect(files).toEqual(["README.md", "file1.ts", "file2.ts"]);
+    assert.deepStrictEqual((files), ["README.md", "file1.ts", "file2.ts"]);
   });
 
   it("returns an empty array when no files match", () => {
     const files = sync("*.xyz", { cwd: testDir });
 
-    expect(files).toEqual([]);
+    assert.deepStrictEqual((files), []);
   });
 
   it("matches root files with recursive package patterns", () => {
@@ -83,7 +84,7 @@ describe("glob", () => {
       ignore: ["**/node_modules/**"],
     });
 
-    expect(files).toEqual([
+    assert.deepStrictEqual((files), [
       "package.json",
       "packages/api/package.json",
       "packages/app/package.json",
@@ -93,28 +94,25 @@ describe("glob", () => {
   it("does not implicitly ignore dependency directories", () => {
     const files = sync("**/package.json", { cwd: testDir });
 
-    expect(files).toContain("node_modules/pkg/package.json");
+    assert.ok((files).includes("node_modules/pkg/package.json"));
   });
 
   it("matches direct workspace patterns", () => {
     const files = sync("packages/*/package.json", { cwd: testDir });
 
-    expect(files).toEqual(["packages/api/package.json", "packages/app/package.json"]);
+    assert.deepStrictEqual((files), ["packages/api/package.json", "packages/app/package.json"]);
   });
 
   it("matches wildcard directories followed by literal child segments", () => {
     const files = sync("packages/*/config/deps.json", { cwd: testDir });
 
-    expect(files).toEqual([
-      "packages/api/config/deps.json",
-      "packages/app/config/deps.json",
-    ]);
+    assert.deepStrictEqual((files), ["packages/api/config/deps.json", "packages/app/config/deps.json"]);
   });
 
   it("supports question mark patterns", () => {
     const files = sync("file?.ts", { cwd: testDir });
 
-    expect(files).toEqual(["file1.ts", "file2.ts"]);
+    assert.deepStrictEqual((files), ["file1.ts", "file2.ts"]);
   });
 
   it("deduplicates overlapping patterns", () => {
@@ -123,7 +121,7 @@ describe("glob", () => {
       ignore: ["**/node_modules/**"],
     });
 
-    expect(files).toEqual([
+    assert.deepStrictEqual((files), [
       "package.json",
       "packages/api/package.json",
       "packages/app/package.json",
@@ -133,7 +131,7 @@ describe("glob", () => {
   it("returns absolute paths when requested", () => {
     const files = sync("package.json", { cwd: testDir, absolute: true });
 
-    expect(files).toEqual([resolve(testDir, "package.json")]);
+    assert.deepStrictEqual((files), [resolve(testDir, "package.json")]);
   });
 
   it("supports absolute patterns", () => {
@@ -142,12 +140,12 @@ describe("glob", () => {
       absolute: true,
     });
 
-    expect(files).toEqual([resolve(testDir, "package.json")]);
+    assert.deepStrictEqual((files), [resolve(testDir, "package.json")]);
   });
 
   it("returns an empty array for missing directories", () => {
     const files = sync("*.txt", { cwd: resolve(testDir, "missing") });
 
-    expect(files).toEqual([]);
+    assert.deepStrictEqual((files), []);
   });
 });

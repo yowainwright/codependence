@@ -1,6 +1,9 @@
 packages:
-- page/app
-nodeLinker: hoisted
+  - page/app
+allowBuilds:
+  '@nubjs/nub': true
+  esbuild: true
+nodeLinker: isolated
 overrides:
   ip-address: 10.3.1
   nanoid: 3.3.18

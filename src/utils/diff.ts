@@ -143,10 +143,7 @@ export const displayVersionDiffs = (diffs: VersionDiff[], isDryRun: boolean): vo
   logger.print("");
 };
 
-const readDependencyManifest = (
-  file: string,
-  rootDir: string,
-): DependencyManifest | null => {
+const readDependencyManifest = (file: string, rootDir: string): DependencyManifest | null => {
   const path = resolve(rootDir, file);
   try {
     return JSON.parse(readFileSync(path, "utf8"));
@@ -164,10 +161,7 @@ const resolvedPackageNames = (
   return new Set(packageNames);
 };
 
-const versionDiffKey = (
-  diff: VersionDiff,
-  resolvedPackages: ReadonlySet<string>,
-): string => {
+const versionDiffKey = (diff: VersionDiff, resolvedPackages: ReadonlySet<string>): string => {
   const current = resolvedPackages.has(diff.package) ? diff.current : "";
   return `${diff.package}\0${current}\0${diff.latest}`;
 };
@@ -209,11 +203,5 @@ export const collectAllDiffs = (
   const manifests = files
     .map((file) => readDependencyManifest(file, rootDir))
     .filter((manifest): manifest is DependencyManifest => manifest !== null);
-  return collectDiffsFromManifests(
-    versionMap,
-    manifests,
-    codependencies,
-    permissive,
-    level,
-  );
+  return collectDiffsFromManifests(versionMap, manifests, codependencies, permissive, level);
 };

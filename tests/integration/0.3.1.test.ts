@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as entry from "../../src";
@@ -32,7 +33,7 @@ describe("0.3.1 compatibility", () => {
       "-y",
     ]);
 
-    expect(parsed.options).toEqual({
+    assert.deepStrictEqual((parsed.options), {
       isTestingCLI: true,
       isTesting: true,
       files: ["package.json"],
@@ -51,19 +52,19 @@ describe("0.3.1 compatibility", () => {
   test("keeps the legacy package entry and binary names", () => {
     const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));
 
-    expect(typeof entry.script).toBe("function");
-    expect(packageJson.bin).toEqual({
+    assert.strictEqual((typeof entry.script), "function");
+    assert.deepStrictEqual((packageJson.bin), {
       codependence: "dist/cli.js",
       cdp: "dist/cli.js",
     });
-    expect(packageJson.exports["."].import).toBe("./dist/index.js");
-    expect(packageJson.exports["."].require).toBe("./dist/index.cjs");
+    assert.strictEqual((packageJson.exports["."].import), "./dist/index.js");
+    assert.strictEqual((packageJson.exports["."].require), "./dist/index.cjs");
   });
 
   test("loads embedded package.json policy", () => {
     const result = loadConfig(join(fixtureRoot, "package.json"));
 
-    expect(result?.config).toEqual({
+    assert.deepStrictEqual((result?.config), {
       codependencies: [{ lodash: "4.17.21" }],
     });
   });
@@ -76,6 +77,6 @@ describe("0.3.1 compatibility", () => {
       silent: true,
     });
 
-    expect(result).toBeUndefined();
+    assert.strictEqual((result), undefined);
   });
 });

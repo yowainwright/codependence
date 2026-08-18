@@ -666,7 +666,7 @@ function assertPullRequestOpen(state: PullRequestState, prUrl: string, deadline:
 }
 
 async function delay(milliseconds: number) {
-  await Bun.sleep(milliseconds);
+  await new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function refreshReleaseBranch(context: ReleaseContext, prUrl: string): void {

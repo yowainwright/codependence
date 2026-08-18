@@ -7,7 +7,9 @@ import select
 import sys
 import time
 
-PROMPT = "Enter your choice (number):"
+CHOICE_PROMPT = "Enter your choice (number):"
+CHOICES_PROMPT = "Enter your choices (comma-separated numbers or press Enter for none):"
+MAX_PROMPT_LENGTH = max(len(CHOICE_PROMPT), len(CHOICES_PROMPT))
 TIMEOUT_SECONDS = 10
 
 
@@ -20,15 +22,19 @@ def read_output(fd: int) -> bytes:
         raise
 
 
-def send_answers(fd: int, pending: str, answers: list[str]) -> str:
-    while answers and PROMPT in pending:
-        _, pending = pending.split(PROMPT, 1)
-        os.write(fd, answers.pop(0).encode())
-    return pending[-len(PROMPT) :]
+def send_answers(fd: int, pending: str, answers: list[tuple[str, str]]) -> str:
+    while answers:
+        prompt, answer = answers[0]
+        if prompt not in pending:
+            break
+        _, pending = pending.split(prompt, 1)
+        os.write(fd, answer.encode())
+        answers.pop(0)
+    return pending[-MAX_PROMPT_LENGTH:]
 
 
-def child_result(status: int, answers: list[str], output: str) -> int:
-    if answers or "setup complete!" not in output:
+def child_result(status: int, answers: list[tuple[str, str]], output: str) -> int:
+    if answers or "Configured 1 manifest(s)." not in output:
         return 1
     return os.waitstatus_to_exitcode(status)
 
@@ -39,7 +45,11 @@ def run_interactive(binary: str, work_dir: str) -> int:
         os.chdir(work_dir)
         os.execv(binary, [binary, "init"])
 
-    answers = ["2\n", "1\n"]
+    answers = [
+        (CHOICE_PROMPT, "2\n"),
+        (CHOICES_PROMPT, "1\n"),
+        (CHOICE_PROMPT, "3\n"),
+    ]
     output = ""
     pending = ""
     deadline = time.monotonic() + TIMEOUT_SECONDS

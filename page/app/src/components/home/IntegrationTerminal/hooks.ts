@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
-import type { LineSegment, AnimationStep } from './types';
+import { useState, useEffect, useRef } from "react";
+import type { LineSegment, AnimationStep } from "./types";
 import {
   ANIMATION_STEPS,
   TYPING_SPEED_MS,
   SPINNER_FRAME_MS,
   LOOP_DELAY_MS,
   SPINNER_FRAMES,
-} from './constants';
+} from "./constants";
 
 export function useIntersectionObserver() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -22,7 +22,7 @@ export function useIntersectionObserver() {
           setIsVisible(true);
         }
       },
-      { threshold: 0.3 }
+      { threshold: 0.3 },
     );
 
     if (containerRef.current) {
@@ -57,14 +57,14 @@ export function useTerminalAnimation(isVisible: boolean) {
       return () => clearTimeout(timeout);
     }
 
-    if (currentStep.type === 'pause') {
+    if (currentStep.type === "pause") {
       const timeout = setTimeout(() => {
         setStepIndex((prev) => prev + 1);
       }, currentStep.duration);
       return () => clearTimeout(timeout);
     }
 
-    if (currentStep.type === 'spinner') {
+    if (currentStep.type === "spinner") {
       setIsShowingSpinner(true);
 
       const spinnerInterval = setInterval(() => {
@@ -82,8 +82,8 @@ export function useTerminalAnimation(isVisible: boolean) {
       };
     }
 
-    if (currentStep.type === 'type') {
-      const fullText = currentStep.lines.map((l) => l.text).join('');
+    if (currentStep.type === "type") {
+      const fullText = currentStep.lines.map((l) => l.text).join("");
       const totalChars = fullText.length;
 
       if (charIndex < totalChars) {

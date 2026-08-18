@@ -1,5 +1,7 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { afterEach, describe, test } from "node:test";
+import assert from "node:assert/strict";
+import { assertRejects, assertThrows } from "../helpers/assertions";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { assertTargetLockfiles, checkFiles } from "../../src/scripts";
@@ -39,7 +41,7 @@ describe("lockfiles", () => {
       update: true,
     });
 
-    await expect(update).rejects.toThrow("bun.lock");
+    await assertRejects(update, "bun.lock");
   });
 
   test("requires every configured lockfile", async () => {
@@ -57,7 +59,21 @@ describe("lockfiles", () => {
       update: true,
     });
 
-    await expect(update).rejects.toThrow("generated/dependencies.lock");
+    await assertRejects(update, "generated/dependencies.lock");
+  });
+
+  test("rejects a directory used as a lockfile", () => {
+    const root = createWorkspace("package.json", nodeManifest);
+    mkdirSync(join(root, "bun.lock"));
+
+    assertThrows(() =>
+      assertTargetLockfiles({
+        files: ["package.json"],
+        language: "nodejs",
+        lockfile: true,
+        packageManager: "bun",
+        rootDir: root,
+      }), "Required bun lockfile not found");
   });
 
   test("rejects absolute custom lockfile paths", async () => {
@@ -73,7 +89,7 @@ describe("lockfiles", () => {
       silent: true,
     });
 
-    await expect(update).rejects.toThrow("Lockfile path must be repository-relative");
+    await assertRejects(update, "Lockfile path must be repository-relative");
   });
 
   test("rejects custom lockfile paths outside the target root", async () => {
@@ -89,7 +105,7 @@ describe("lockfiles", () => {
       silent: true,
     });
 
-    await expect(update).rejects.toThrow("Lockfile path escapes target root");
+    await assertRejects(update, "Lockfile path escapes target root");
   });
 
   test("rejects lockfile enforcement without a standard manager lockfile", async () => {
@@ -105,22 +121,21 @@ describe("lockfiles", () => {
       silent: true,
     });
 
-    await expect(update).rejects.toThrow("No standard lockfile is defined for pip");
+    await assertRejects(update, "No standard lockfile is defined for pip");
   });
 
   test("preflights a target with its required lockfile", () => {
     const root = createWorkspace("package.json", nodeManifest);
     writeFileSync(join(root, "bun.lock"), "");
 
-    expect(() =>
+    assert.doesNotThrow(() =>
       assertTargetLockfiles({
         files: ["package.json"],
         language: "nodejs",
         lockfile: true,
         packageManager: "bun",
         rootDir: root,
-      }),
-    ).not.toThrow();
+      }));
   });
 
   test("requires uv.lock for a managed uv project", async () => {
@@ -145,7 +160,7 @@ describe("lockfiles", () => {
       update: true,
     });
 
-    await expect(update).rejects.toThrow("uv.lock");
+    await assertRejects(update, "uv.lock");
   });
 
   test("fails before editing a managed Go module without go.sum", async () => {
@@ -170,8 +185,8 @@ describe("lockfiles", () => {
       update: true,
     });
 
-    await expect(update).rejects.toThrow("go.sum");
-    expect(readFileSync(join(root, "go.mod"), "utf8")).toBe(original);
+    await assertRejects(update, "go.sum");
+    assert.strictEqual((readFileSync(join(root, "go.mod"), "utf8")), original);
   });
 
   test("allows an explicit manifest-only Go update", async () => {
@@ -196,21 +211,19 @@ describe("lockfiles", () => {
       update: true,
     });
 
-    expect(readFileSync(join(root, "go.mod"), "utf8")).toContain("github.com/google/uuid v1.6.0");
+    assert.ok((readFileSync(join(root, "go.mod"), "utf8")).includes("github.com/google/uuid v1.6.0"));
   });
 
   test("allows a dependency-free Go module without go.sum", async () => {
     const root = createWorkspace("go.mod", "module example.com/tools\n\ngo 1.26.1\n");
 
-    await expect(
-      checkFiles({
+    await assert.deepStrictEqual(await (checkFiles({
         files: ["go.mod"],
         language: "go",
         lockfile: true,
         mode: "precise",
         rootDir: root,
         silent: true,
-      }),
-    ).resolves.toEqual([]);
+      })), []);
   });
 });

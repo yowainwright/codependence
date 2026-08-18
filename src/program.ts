@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
+import fs from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { createLogger, logger } from "./logger";
 import { assertTargetLockfiles, checkFiles } from "./scripts";
@@ -10,7 +10,14 @@ import { Prompt } from "./dx";
 import { exec } from "./utils/exec";
 import { glob } from "./utils/glob";
 import { DEFAULT_IGNORE_PATTERNS } from "./scripts/constants";
-import { expandTargets, formatValidationErrors, loadConfig, validateConfig } from "./config";
+import {
+  expandTargets,
+  CONFIG_FILES,
+  formatValidationErrors,
+  loadConfig,
+  normalizeConfigShape,
+  validateConfig,
+} from "./config";
 import { parseArgs, showHelp } from "./cli/parser";
 import {
   analyzeOnboardingProject,
@@ -53,7 +60,11 @@ import {
   WORKFLOW_AREAS,
   WORKFLOW_LABELS,
 } from "./cli/constants";
-import { ONBOARDING_PNPM_WORKSPACE_FILE } from "./cli/onboarding/constants";
+import {
+  ONBOARDING_CONFIG_PATH,
+  ONBOARDING_PNPM_WORKSPACE_FILE,
+  ONBOARDING_SOURCE_PATTERNS,
+} from "./cli/onboarding/constants";
 import type {
   InitGitHubActionsOptions,
   RenderWorkflowOptions,
@@ -82,6 +93,8 @@ import {
   TargetRunResult,
   CodependenceTarget,
 } from "./types";
+
+export const programDependencies = { checkFiles, exec, loadConfig };
 
 const gradient = (text: string) => bold(cyan(text));
 
@@ -120,11 +133,11 @@ const isOnboardingEnforcement = (value: string | undefined): value is Onboarding
 
 const readOnboardingFile = (rootDir: string, path: string): OnboardingSourceFile => ({
   path,
-  content: readFileSync(join(rootDir, path), "utf8"),
+  content: fs.readFileSync(join(rootDir, path), "utf8"),
 });
 
 const onboardingRootFiles = (rootDir: string): OnboardingSourceFile[] =>
-  readdirSync(rootDir, { withFileTypes: true })
+  fs.readdirSync(rootDir, { withFileTypes: true })
     .filter((entry) => entry.isFile())
     .map(({ name }) => {
       if (name === ONBOARDING_PNPM_WORKSPACE_FILE) return readOnboardingFile(rootDir, name);
@@ -132,7 +145,7 @@ const onboardingRootFiles = (rootDir: string): OnboardingSourceFile[] =>
     });
 
 const onboardingManifestFiles = (rootDir: string): OnboardingSourceFile[] => {
-  const paths = glob(["package.json", "**/package.json"], {
+  const paths = glob(ONBOARDING_SOURCE_PATTERNS, {
     cwd: rootDir,
     ignore: [...DEFAULT_IGNORE_PATTERNS],
   });
@@ -173,6 +186,7 @@ const selectOnboardingDependencies = (
   if (options.codependencies !== undefined) {
     return Promise.resolve(stringListOption(options.codependencies));
   }
+  if (project.dependencies.length === 0) return Promise.resolve([]);
   if (options.nonInteractive === true) return Promise.resolve([]);
   const choices = project.dependencies.map(dependencyChoice);
   return prompt.select("Select dependencies for this policy", choices);
@@ -222,7 +236,7 @@ const ensureOnboardingVersion = async (
   enforcement: OnboardingEnforcement,
   options: Record<string, unknown>,
 ): Promise<OnboardingProject> => {
-  if (project.managerVersion || enforcement === "local") return project;
+  if (!project.manager || project.managerVersion || enforcement === "local") return project;
   const configured = onboardingVersionOption(project.manager, options.version);
   if (configured) return { ...project, managerVersion: configured };
   if (options.nonInteractive === true) throw new Error("GitHub onboarding requires --version");
@@ -242,9 +256,139 @@ const collectOnboardingAnswers = async (
   return { mode, selectedDependencies, enforcement, repository };
 };
 
+const packageConfigArtifact = (
+  rootDir: string,
+  codependence: Record<string, unknown> | string,
+): OnboardingSetup["artifacts"][number] => {
+  const path = MANIFEST_FILES.PACKAGE_JSON;
+  const packageJson = JSON.parse(fs.readFileSync(join(rootDir, path), "utf8"));
+  const updatedPackage = Object.assign({}, packageJson, { codependence });
+  const content = `${JSON.stringify(updatedPackage, null, 2)}\n`;
+  return { path, content };
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  if (typeof value !== "object" || value === null) return false;
+  return !Array.isArray(value);
+};
+
+const manifestPath = (value: unknown): string | undefined => {
+  if (!isRecord(value)) return undefined;
+  return typeof value.path === "string" ? value.path : undefined;
+};
+
+const mergeManifest = (existing: unknown, generated: unknown): Record<string, unknown> => {
+  if (!isRecord(generated)) return {};
+  if (!isRecord(existing)) return generated;
+  const { codependencies: _codependencies, permissive: _permissive, ...preserved } = existing;
+  return Object.assign({}, preserved, generated);
+};
+
+const mergeManifestConfigs = (
+  existing: Record<string, unknown>,
+  generated: Record<string, unknown>,
+): Record<string, unknown> => {
+  const idsByPath = new Map(
+    Object.entries(existing)
+      .map(([id, value]) => [manifestPath(value), id] as const)
+      .filter(([path]) => path !== undefined),
+  );
+  return Object.entries(generated).reduce((entries, [generatedId, value]) => {
+    const path = manifestPath(value);
+    const id = (path && idsByPath.get(path)) || generatedId;
+    const entry = mergeManifest(entries[id], value);
+    return Object.assign({}, entries, { [id]: entry });
+  }, existing);
+};
+
+const hasFlatPolicy = (config: Record<string, unknown>): boolean => {
+  if ("targets" in config) return true;
+  return TARGET_OVERRIDE_FIELDS.some((field) => field in config);
+};
+
+const mergeOnboardingConfig = (
+  existing: Record<string, unknown>,
+  generated: Record<string, unknown>,
+): Record<string, unknown> => {
+  const existingEntries = existing.config;
+  const generatedEntries = generated.config;
+  if (!isRecord(generatedEntries)) throw new Error("Generated configuration is invalid");
+  if (existingEntries === undefined && !hasFlatPolicy(existing)) {
+    return Object.assign({}, existing, generated);
+  }
+  if (!isRecord(existingEntries)) {
+    throw new Error("Init cannot safely replace a flat or targets configuration");
+  }
+  const config = mergeManifestConfigs(existingEntries, generatedEntries);
+  return Object.assign({}, existing, { config });
+};
+
+const configContent = (config: Record<string, unknown>): string =>
+  `${JSON.stringify(config, null, 2)}\n`;
+
+const assertLoadedConfig = (config: Record<string, unknown>): void => {
+  if (!("config" in config)) return;
+  const result = validateConfig(config, { requirePolicy: false });
+  if (result.valid) return;
+  throw new Error(`Invalid config\n${formatValidationErrors(result.errors)}`);
+};
+
+const existingConfigArtifacts = (
+  rootDir: string,
+  content: string,
+): OnboardingSetup["artifacts"] | undefined => {
+  const result = CONFIG_FILES.reduce<ReturnType<typeof loadConfig>>(
+    (found, filename) => found || programDependencies.loadConfig(join(rootDir, filename)),
+    null,
+  );
+  if (!result) return undefined;
+  assertLoadedConfig(result.config);
+
+  const path = relative(rootDir, result.filepath);
+  if (path.startsWith("..")) throw new Error("Init only updates configuration in its directory");
+  const generated = JSON.parse(content) as Record<string, unknown>;
+  const merged = mergeOnboardingConfig(result.config, generated);
+  if (path !== MANIFEST_FILES.PACKAGE_JSON) return [{ path, content: configContent(merged) }];
+  return [packageConfigArtifact(rootDir, merged)];
+};
+
+const newConfigArtifacts = (
+  rootDir: string,
+  project: OnboardingProject,
+  content: string,
+): OnboardingSetup["artifacts"] => {
+  const hasPackageJson = fs.existsSync(join(rootDir, MANIFEST_FILES.PACKAGE_JSON));
+  const hasSingleNodeManifest =
+    project.manifests.length === 1 && project.manifests[0].path === MANIFEST_FILES.PACKAGE_JSON;
+  if (hasSingleNodeManifest) {
+    return [packageConfigArtifact(rootDir, JSON.parse(content))];
+  }
+
+  const config = { path: ONBOARDING_CONFIG_PATH, content };
+  if (!hasPackageJson) return [config];
+  const pointer = `./${ONBOARDING_CONFIG_PATH}`;
+  const packageJson = packageConfigArtifact(rootDir, pointer);
+  return [packageJson, config];
+};
+
+const prepareOnboardingSetup = (
+  rootDir: string,
+  project: OnboardingProject,
+  setup: OnboardingSetup,
+): OnboardingSetup => {
+  const config = setup.artifacts.find(({ path }) => path === ONBOARDING_CONFIG_PATH);
+  if (!config) return setup;
+
+  const workflows = setup.artifacts.filter(({ path }) => path !== ONBOARDING_CONFIG_PATH);
+  const existing = existingConfigArtifacts(rootDir, config.content);
+  const configArtifacts = existing || newConfigArtifacts(rootDir, project, config.content);
+  return Object.assign({}, setup, { artifacts: configArtifacts.concat(workflows) });
+};
+
 const assertOnboardingWrites = (rootDir: string, setup: OnboardingSetup, force: boolean): void => {
   if (force) return;
-  const existing = setup.artifacts.filter(({ path }) => existsSync(join(rootDir, path)));
+  const workflows = setup.artifacts.filter(({ path }) => path.startsWith(".github/workflows/"));
+  const existing = workflows.filter(({ path }) => fs.existsSync(join(rootDir, path)));
   if (existing.length === 0) return;
   throw new Error(
     `Refusing to overwrite onboarding files: ${existing.map(({ path }) => path).join(", ")}`,
@@ -254,9 +398,72 @@ const assertOnboardingWrites = (rootDir: string, setup: OnboardingSetup, force: 
 const writeOnboardingArtifacts = (rootDir: string, setup: OnboardingSetup): void => {
   setup.artifacts.forEach(({ path, content }) => {
     const destination = join(rootDir, path);
-    mkdirSync(dirname(destination), { recursive: true });
-    writeFileSync(destination, content);
+    fs.mkdirSync(dirname(destination), { recursive: true });
+    fs.writeFileSync(destination, content);
   });
+};
+
+const snapshotOnboardingArtifacts = (
+  rootDir: string,
+  artifacts: OnboardingSetup["artifacts"],
+) =>
+  artifacts.map(({ path }) => {
+    const destination = join(rootDir, path);
+    const content = fs.existsSync(destination) ? fs.readFileSync(destination, "utf8") : undefined;
+    return { path, content };
+  });
+
+const restoreOnboardingArtifacts = (
+  rootDir: string,
+  snapshots: ReturnType<typeof snapshotOnboardingArtifacts>,
+): void => {
+  snapshots.forEach(({ path, content }) => {
+    const destination = join(rootDir, path);
+    if (content === undefined && fs.existsSync(destination)) return fs.unlinkSync(destination);
+    if (content === undefined) return;
+    fs.writeFileSync(destination, content);
+  });
+};
+
+const needsGeneratedWorkflows = (answers: OnboardingAnswers, setup: OnboardingSetup): boolean => {
+  if (answers.enforcement === "local") return false;
+  return !setup.artifacts.some(({ path }) => path.startsWith(".github/workflows/"));
+};
+
+const generatedOnboardingWorkflows = (
+  rootDir: string,
+  options: Record<string, unknown>,
+): OnboardingSetup["artifacts"] => {
+  const paths = initGitHubActions({
+    force: Boolean(options.force),
+    postUpdateCommands: stringListOption(options.postUpdateCommand),
+    rootDir,
+    schedules: stringListOption(options.schedule),
+    tokenSecret: stringOption(options.tokenSecret),
+    versions: stringListOption(options.version),
+  });
+  return paths.map((path) => ({
+    path: relative(rootDir, path),
+    content: fs.readFileSync(path, "utf8"),
+  }));
+};
+
+const writeConfiguredOnboarding = (
+  rootDir: string,
+  answers: OnboardingAnswers,
+  setup: OnboardingSetup,
+  options: Record<string, unknown>,
+): OnboardingSetup => {
+  const snapshots = snapshotOnboardingArtifacts(rootDir, setup.artifacts);
+  writeOnboardingArtifacts(rootDir, setup);
+  if (!needsGeneratedWorkflows(answers, setup)) return setup;
+  try {
+    const workflows = generatedOnboardingWorkflows(rootDir, options);
+    return Object.assign({}, setup, { artifacts: setup.artifacts.concat(workflows) });
+  } catch (cause) {
+    restoreOnboardingArtifacts(rootDir, snapshots);
+    throw cause;
+  }
 };
 
 const installOnboardingCli = async (
@@ -266,13 +473,22 @@ const installOnboardingCli = async (
   skipInstall: boolean,
 ): Promise<void> => {
   const needsLocalCli = answers.enforcement === "local" || answers.enforcement === "both";
-  if (!needsLocalCli || skipInstall) return;
-  await exec(setup.install.command, setup.install.args, { cwd: rootDir });
+  const shouldSkipInstall = !needsLocalCli || skipInstall;
+  if (shouldSkipInstall) return;
+  if (!setup.install) return;
+  await programDependencies.exec(setup.install.command, setup.install.args, { cwd: rootDir });
 };
 
-const printOnboardingResult = (project: OnboardingProject, setup: OnboardingSetup): void => {
-  logger.print(`Onboarded ${project.manifests.length} package manifest(s).`);
-  setup.artifacts.forEach(({ path }) => logger.print(`Created ${path}`));
+const printOnboardingResult = (
+  project: OnboardingProject,
+  setup: OnboardingSetup,
+  existingPaths: Set<string>,
+): void => {
+  logger.print(`Configured ${project.manifests.length} manifest(s).`);
+  setup.artifacts.forEach(({ path }) => {
+    const action = existingPaths.has(path) ? "Updated" : "Created";
+    logger.print(`${action} ${path}`);
+  });
   logger.print(`Verify with: ${setup.verifyCommand}`);
   if (!setup.tokenSetup) return;
   logger.print(`Create a fine-grained PAT: ${setup.tokenSetup.personalAccessTokenUrl}`);
@@ -309,11 +525,15 @@ const applyOnboarding = async (
   configured: ConfiguredOnboarding,
   options: Record<string, unknown>,
 ): Promise<void> => {
-  const { answers, project, setup } = configured;
-  assertOnboardingWrites(rootDir, setup, options.force === true);
-  await installOnboardingCli(rootDir, answers, setup, options.skipInstall === true);
-  writeOnboardingArtifacts(rootDir, setup);
-  printOnboardingResult(project, setup);
+  const { answers, project } = configured;
+  const setup = prepareOnboardingSetup(rootDir, project, configured.setup);
+  const existingPaths = new Set(
+    setup.artifacts.filter(({ path }) => fs.existsSync(join(rootDir, path))).map(({ path }) => path),
+  );
+  assertOnboardingWrites(rootDir, setup, Boolean(options.force));
+  await installOnboardingCli(rootDir, answers, setup, Boolean(options.skipInstall));
+  const writtenSetup = writeConfiguredOnboarding(rootDir, answers, setup, options);
+  printOnboardingResult(project, writtenSetup, existingPaths);
 };
 
 const runOnboardingPrompt = async (
@@ -355,15 +575,18 @@ const areaForManager = (manager: DependencyManager): WorkflowArea => {
 };
 
 const configuredTargets = (rootDir: string): CodependenceTarget[] => {
-  const result = loadConfig(undefined, rootDir);
+  const result = programDependencies.loadConfig(undefined, rootDir);
   if (!result) {
     throw new Error(
       "Codependence configuration not found. Add manager targets before running `codependence init actions`.",
     );
   }
 
-  const targets = result.config.targets;
-  if (!Array.isArray(targets) || targets.length === 0) {
+  const configRootDir = dirname(result.filepath);
+  const normalizedConfig = normalizeConfigShape(result.config, configRootDir);
+  const targets = normalizedConfig.targets;
+  const hasTargets = Array.isArray(targets) && targets.length > 0;
+  if (!hasTargets) {
     throw new Error(
       "Codependence configuration must define manager targets before GitHub Actions can be generated.",
     );
@@ -407,7 +630,7 @@ const assignment = (value: string, label: string): readonly [string, string] => 
 const parseAssignments = (values: string[] = [], label: string): Map<string, string> =>
   new Map(values.map((value) => assignment(value, label)));
 
-const readFile = (path: string): string => (existsSync(path) ? readFileSync(path, "utf8") : "");
+const readFile = (path: string): string => (fs.existsSync(path) ? fs.readFileSync(path, "utf8") : "");
 
 const readPackageManagerVersion = (rootDir: string, manager: DependencyManager): string => {
   const content = readFile(join(rootDir, MANIFEST_FILES.PACKAGE_JSON));
@@ -710,19 +933,19 @@ const legacyInfrastructureWorkflowPath = (
   if (!includesDocker) return undefined;
 
   const path = workflowPath(rootDir, "infrastructure");
-  if (!existsSync(path)) return undefined;
+  if (!fs.existsSync(path)) return undefined;
 
-  const content = readFileSync(path, "utf8");
+  const content = fs.readFileSync(path, "utf8");
   const isGenerated = content.startsWith(GENERATED_ACTION_HEADER);
   const targetsDocker = workflowTargetsManager(content, LANGUAGES.DOCKER);
   return isGenerated && targetsDocker ? path : undefined;
 };
 
 const migrateLegacyInfrastructureWorkflow = (path: string): void => {
-  const content = readFileSync(path, "utf8");
+  const content = fs.readFileSync(path, "utf8");
   const targetsGitHubActions = workflowTargetsManager(content, LANGUAGES.GITHUB_ACTIONS);
   if (!targetsGitHubActions) {
-    unlinkSync(path);
+    fs.unlinkSync(path);
     return;
   }
 
@@ -730,13 +953,13 @@ const migrateLegacyInfrastructureWorkflow = (path: string): void => {
     .split("\n")
     .filter((line) => line.trim() !== LANGUAGES.DOCKER)
     .join("\n");
-  writeFileSync(path, workflow);
+  fs.writeFileSync(path, workflow);
 };
 
 const assertSafeWrites = (rootDir: string, paths: string[], force: boolean): void => {
   if (force) return;
 
-  const existing = paths.filter(existsSync);
+  const existing = paths.filter(fs.existsSync);
   if (existing.length === 0) return;
 
   const names = existing.map((path) => relative(rootDir, path));
@@ -779,7 +1002,7 @@ const writeWorkflows = (
   commands: Map<string, string>,
   secretName: string,
 ): void => {
-  mkdirSync(join(rootDir, ".github", "workflows"), { recursive: true });
+  fs.mkdirSync(join(rootDir, ".github", "workflows"), { recursive: true });
   definitions.forEach((definition) => {
     const workflow = renderWorkflow({
       ...definition,
@@ -787,7 +1010,7 @@ const writeWorkflows = (
       tokenSecret: secretName,
       versions,
     });
-    writeFileSync(workflowPath(rootDir, definition.area), workflow);
+    fs.writeFileSync(workflowPath(rootDir, definition.area), workflow);
   });
 };
 
@@ -933,7 +1156,7 @@ const runTarget = async (
   const onDeferredFailure = () => {
     targetFailed = true;
   };
-  const diffs = await checkFiles({
+  const diffs = await programDependencies.checkFiles({
     ...options,
     onProgress,
     deferFailure,
@@ -957,15 +1180,21 @@ const runTargets = (
 
 const loadActionConfigs = (options: Options): ActionConfigs => {
   if (options.config) {
-    const configFileResult = loadConfig(options.config);
+    const configFileResult = programDependencies.loadConfig(options.config);
     if (!configFileResult) throw new Error(`Config file not found: ${options.config}`);
-    return { baseConfig: {}, pathConfig: configFileResult.config };
+    assertLoadedConfig(configFileResult.config);
+    const configRootDir = dirname(configFileResult.filepath);
+    const normalizedConfig = normalizeConfigShape(configFileResult.config, configRootDir);
+    return { baseConfig: {}, pathConfig: normalizedConfig };
   }
 
-  const result = loadConfig(undefined, options.searchPath);
+  const result = programDependencies.loadConfig(undefined, options.searchPath);
   if (!result) return { baseConfig: {}, pathConfig: {} };
 
-  return { baseConfig: result.config, pathConfig: {} };
+  assertLoadedConfig(result.config);
+  const configRootDir = dirname(result.filepath);
+  const normalizedConfig = normalizeConfigShape(result.config, configRootDir);
+  return { baseConfig: normalizedConfig, pathConfig: {} };
 };
 
 export async function action(options: Options = {}): Promise<void | Options> {
@@ -1046,7 +1275,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
       const formattedOutput = format(dependencyInfo, formatType, duration);
 
       if (updatedOptions.outputFile) {
-        writeFileSync(updatedOptions.outputFile, formattedOutput);
+        fs.writeFileSync(updatedOptions.outputFile, formattedOutput);
         actionLogger.print(`Output written to ${updatedOptions.outputFile}`);
       } else {
         actionLogger.print(formattedOutput);
@@ -1146,11 +1375,11 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
     const requestedDeps = hasArrayInput ? input : codependencies;
     const rcPath = ".codependencerc";
     const packageJsonPath = MANIFEST_FILES.PACKAGE_JSON;
-    const hasConfig = existsSync(rcPath);
+    const hasConfig = fs.existsSync(rcPath);
     const hasPackageJsonConfig = (() => {
-      if (!existsSync(packageJsonPath)) return false;
+      if (!fs.existsSync(packageJsonPath)) return false;
       try {
-        const content = readFileSync(packageJsonPath, "utf8");
+        const content = fs.readFileSync(packageJsonPath, "utf8");
         const packageJson = JSON.parse(content);
         return !!packageJson.codependence;
       } catch {
@@ -1164,12 +1393,12 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
       return;
     }
 
-    const hasPackageJson = existsSync(packageJsonPath);
+    const hasPackageJson = fs.existsSync(packageJsonPath);
     if (!hasPackageJson) {
       throw new Error("package.json not found in the current directory");
     }
 
-    const content = readFileSync(packageJsonPath, "utf8");
+    const content = fs.readFileSync(packageJsonPath, "utf8");
     let packageJson: PackageJSON;
     try {
       packageJson = JSON.parse(content) as PackageJSON;
@@ -1284,10 +1513,10 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
         ...packageJson,
         codependence: config,
       };
-      writeFileSync(packageJsonPath, JSON.stringify(updatedPackageJson, null, 2));
+      fs.writeFileSync(packageJsonPath, JSON.stringify(updatedPackageJson, null, 2));
       spinner2.succeed("Added codependence configuration to package.json");
     } else {
-      writeFileSync(rcPath, JSON.stringify(config, null, 2));
+      fs.writeFileSync(rcPath, JSON.stringify(config, null, 2));
       spinner2.succeed("Created .codependencerc configuration file");
     }
 
@@ -1311,35 +1540,43 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
   }
 }
 
+const guidedInitOptions = (
+  initType: InitType | undefined,
+  initDeps: string[],
+  options: Record<string, unknown>,
+): Record<string, unknown> => {
+  const rootDir = initDeps[0] || stringOption(options.rootDir);
+  const rootOption = rootDir ? { rootDir } : {};
+  const configOptions = initType === "config" ? { enforcement: "local", skipInstall: true } : {};
+  return Object.assign({}, options, rootOption, configOptions);
+};
+
+const runInitCommand = async (args: string[], options: Record<string, unknown>): Promise<void> => {
+  const initType = args.find(isInitType);
+  const initIndex = args.indexOf("init");
+  const initArgs = args.slice(initIndex + 1);
+  const initDeps = collectInitDeps(initArgs);
+  if (initType === "actions") return initActions(options, initDeps);
+
+  const usesGuidedConfig = initType === "config" || initType === undefined;
+  if (usesGuidedConfig) return onboardAction(guidedInitOptions(initType, initDeps, options));
+
+  const codependencies = resolveInitDeps(options.codependencies, initDeps);
+  return initAction(initType, codependencies);
+};
+
 export async function run(args: string[] = process.argv): Promise<void> {
   const parsed = parseArgs(args);
-
-  const isHelpRequested = parsed.options.help === true;
+  const isHelpRequested = Boolean(parsed.options.help);
   if (isHelpRequested) {
     showHelp();
     return;
   }
 
-  if (parsed.command === "onboard") {
-    await onboardAction(parsed.options);
-    return;
-  }
+  if (parsed.command === "onboard") throw new Error("Unknown command: onboard");
 
   const isInitCommand = args.includes("init");
-  if (isInitCommand) {
-    const initType = args.find(isInitType);
-    const initIndex = args.indexOf("init");
-    const initArgs = args.slice(initIndex + 1);
-    const initDeps = collectInitDeps(initArgs);
-    if (initType === "actions") {
-      initActions(parsed.options, initDeps);
-      return;
-    }
-
-    const codependencies = resolveInitDeps(parsed.options.codependencies, initDeps);
-    await initAction(initType, codependencies);
-    return;
-  }
+  if (isInitCommand) return runInitCommand(args, parsed.options);
 
   await action(parsed.options as Options);
 }

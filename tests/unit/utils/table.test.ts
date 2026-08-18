@@ -1,4 +1,5 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
 import { createTable, formatVersionTable } from "../../../src/utils/table";
 import type { TableColumn, TableRow, TableVersionDiff } from "../../../src/utils/types";
 
@@ -16,14 +17,14 @@ describe("createTable", () => {
 
     const result = createTable(columns, rows);
 
-    expect(result).toContain("┌");
-    expect(result).toContain("┐");
-    expect(result).toContain("└");
-    expect(result).toContain("┘");
-    expect(result).toContain("Name");
-    expect(result).toContain("Value");
-    expect(result).toContain("foo");
-    expect(result).toContain("bar");
+    assert.ok((result).includes("┌"));
+    assert.ok((result).includes("┐"));
+    assert.ok((result).includes("└"));
+    assert.ok((result).includes("┘"));
+    assert.ok((result).includes("Name"));
+    assert.ok((result).includes("Value"));
+    assert.ok((result).includes("foo"));
+    assert.ok((result).includes("bar"));
   });
 
   test("should handle empty rows", () => {
@@ -36,10 +37,10 @@ describe("createTable", () => {
 
     const result = createTable(columns, rows);
 
-    expect(result).toContain("Name");
-    expect(result).toContain("Value");
-    expect(result).toContain("┌");
-    expect(result).toContain("┘");
+    assert.ok((result).includes("Name"));
+    assert.ok((result).includes("Value"));
+    assert.ok((result).includes("┌"));
+    assert.ok((result).includes("┘"));
   });
 
   test("should handle left alignment", () => {
@@ -49,7 +50,7 @@ describe("createTable", () => {
 
     const result = createTable(columns, rows);
 
-    expect(result).toContain("test");
+    assert.ok((result).includes("test"));
   });
 
   test("should handle right alignment", () => {
@@ -59,7 +60,7 @@ describe("createTable", () => {
 
     const result = createTable(columns, rows);
 
-    expect(result).toContain("123");
+    assert.ok((result).includes("123"));
   });
 
   test("should handle center alignment", () => {
@@ -69,7 +70,7 @@ describe("createTable", () => {
 
     const result = createTable(columns, rows);
 
-    expect(result).toContain("text");
+    assert.ok((result).includes("text"));
   });
 
   test("should handle missing values in rows", () => {
@@ -82,7 +83,7 @@ describe("createTable", () => {
 
     const result = createTable(columns, rows);
 
-    expect(result).toContain("value1");
+    assert.ok((result).includes("value1"));
   });
 });
 
@@ -107,14 +108,14 @@ describe("formatVersionTable", () => {
 
     const result = formatVersionTable(diffs);
 
-    expect(result).toContain("lodash");
-    expect(result).toContain("4.17.0");
-    expect(result).toContain("4.17.21");
-    expect(result).toContain("express");
-    expect(result).toContain("4.18.0");
-    expect(result).toContain("4.19.0");
-    expect(result).toContain("Update");
-    expect(result).toContain("Pinned");
+    assert.ok((result).includes("lodash"));
+    assert.ok((result).includes("4.17.0"));
+    assert.ok((result).includes("4.17.21"));
+    assert.ok((result).includes("express"));
+    assert.ok((result).includes("4.18.0"));
+    assert.ok((result).includes("4.19.0"));
+    assert.ok((result).includes("Update"));
+    assert.ok((result).includes("Pinned"));
   });
 
   test("should handle empty diffs array", () => {
@@ -122,10 +123,10 @@ describe("formatVersionTable", () => {
 
     const result = formatVersionTable(diffs);
 
-    expect(result).toContain("Package");
-    expect(result).toContain("Current");
-    expect(result).toContain("Latest");
-    expect(result).toContain("Action");
+    assert.ok((result).includes("Package"));
+    assert.ok((result).includes("Current"));
+    assert.ok((result).includes("Latest"));
+    assert.ok((result).includes("Action"));
   });
 
   test("should handle single diff", () => {
@@ -141,8 +142,8 @@ describe("formatVersionTable", () => {
 
     const result = formatVersionTable(diffs);
 
-    expect(result).toContain("react");
-    expect(result).toContain("18.2.0");
-    expect(result).toContain("18.3.0");
+    assert.ok((result).includes("react"));
+    assert.ok((result).includes("18.2.0"));
+    assert.ok((result).includes("18.3.0"));
   });
 });

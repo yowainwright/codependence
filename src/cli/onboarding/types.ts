@@ -1,3 +1,5 @@
+import type { DependencyManager } from "../../types";
+
 export class OnboardingError extends Error {
   readonly cause?: unknown;
 
@@ -47,6 +49,7 @@ export interface OnboardingPackageJson {
 export interface OnboardingManifest {
   path: string;
   name: string;
+  manager: DependencyManager;
 }
 
 export interface OnboardingDependencyUsage {
@@ -61,14 +64,14 @@ export interface OnboardingDependency {
 }
 
 export interface OnboardingProject {
-  manager: OnboardingManager;
+  manager?: OnboardingManager;
   managerVersion?: string;
   workspace: boolean;
   manifests: OnboardingManifest[];
   dependencies: OnboardingDependency[];
 }
 
-export interface ParsedOnboardingManifest extends OnboardingManifest {
+export interface ParsedOnboardingManifest extends Omit<OnboardingManifest, "manager"> {
   packageJson: OnboardingPackageJson;
 }
 
@@ -107,15 +110,15 @@ export interface OnboardingCommand {
 
 export interface OnboardingSetup {
   artifacts: OnboardingArtifact[];
-  installCommand: string;
-  install: OnboardingCommand;
+  installCommand?: string;
+  install?: OnboardingCommand;
   verifyCommand: string;
   tokenSetup?: OnboardingTokenSetup;
 }
 
 export interface OnboardingCommandSet {
-  installCommand: string;
-  install: OnboardingCommand;
+  installCommand?: string;
+  install?: OnboardingCommand;
   verifyCommand: string;
 }
 

@@ -1,4 +1,6 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, test, mock } from "node:test";
+import assert from "node:assert/strict";
+import { assertCalledWith, assertContainsEqual, assertNotContainsEqual, assertRejects, assertThrows, match } from "../../helpers/assertions";
 import {
   buildCurrentVersionTagPlan,
   buildReleaseItArgs,
@@ -37,7 +39,7 @@ interface ReleaseFlowState {
 
 function createRunner(overrides: Record<string, GitResult> = {}) {
   const calls: string[][] = [];
-  const runner = mock<ReleaseRunner>((command, args) => {
+  const runner = mock.fn<ReleaseRunner>((command, args) => {
     const call = [command, ...Array.from(args)];
     calls.push(call);
     return overrides[call.join(" ")] ?? ok();
@@ -46,7 +48,7 @@ function createRunner(overrides: Record<string, GitResult> = {}) {
 }
 
 function createLogger() {
-  return { error: mock(() => {}), log: mock(() => {}), warn: mock(() => {}) };
+  return { error: mock.fn(() => {}), log: mock.fn(() => {}), warn: mock.fn(() => {}) };
 }
 
 const readyMain = {
@@ -168,7 +170,7 @@ function releaseFlowResult(key: string, prUrl: string, state: ReleaseFlowState):
 
 function createReleaseFlowRunner(prUrl: string, state: ReleaseFlowState = {}) {
   const calls: string[][] = [];
-  const runner = mock<ReleaseRunner>((command, args) => {
+  const runner = mock.fn<ReleaseRunner>((command, args) => {
     const call = [command, ...Array.from(args)];
     calls.push(call);
     return releaseFlowResult(call.join(" "), prUrl, state);
@@ -178,7 +180,7 @@ function createReleaseFlowRunner(prUrl: string, state: ReleaseFlowState = {}) {
 
 describe("scripts/release arguments", () => {
   test("reads explicit stable release options", () => {
-    expect(parseArgs(["--increment=minor", "--dry-run", "--timeout-minutes=15"])).toEqual({
+    assert.deepStrictEqual((parseArgs(["--increment=minor", "--dry-run", "--timeout-minutes=15"])), {
       dryRun: true,
       increment: "minor",
       timeoutMinutes: 15,
@@ -186,13 +188,13 @@ describe("scripts/release arguments", () => {
   });
 
   test("rejects unsafe and invalid options", () => {
-    expect(() => parseArgs(["--no-wait"])).toThrow("cannot safely tag");
-    expect(() => parseArgs(["--increment=nightly"])).toThrow("Invalid release increment");
-    expect(() => parseArgs(["--timeout-minutes=0"])).toThrow("Invalid timeout");
+    assertThrows((() => parseArgs(["--no-wait"])), "cannot safely tag");
+    assertThrows((() => parseArgs(["--increment=nightly"])), "Invalid release increment");
+    assertThrows((() => parseArgs(["--timeout-minutes=0"])), "Invalid timeout");
   });
 
   test("builds non-publishing release-it arguments", () => {
-    expect(buildReleaseItArgs({ increment: "patch" })).toEqual([
+    assert.deepStrictEqual((buildReleaseItArgs({ increment: "patch" })), [
       "--increment=patch",
       "--git.tag=false",
       "--git.push=false",
@@ -203,7 +205,7 @@ describe("scripts/release arguments", () => {
   });
 
   test("reads release-it version output", () => {
-    expect(parseReleaseVersion("codependence 1.2.3 to 1.2.4-beta.6")).toBe("1.2.4-beta.6");
+    assert.strictEqual((parseReleaseVersion("codependence 1.2.3 to 1.2.4-beta.6")), "1.2.4-beta.6");
   });
 });
 
@@ -211,24 +213,24 @@ describe("scripts/release plans", () => {
   test("describes the release PR gate", () => {
     const plan = buildReleasePlan("1.2.4");
     const output = formatReleasePlan(plan);
-    expect(plan.branch).toBe("release/v1.2.4");
-    expect(plan.pullRequestTitle).toBe("chore(release): v1.2.4");
-    expect(output).toContain("wait for required checks");
-    expect(output).toContain("squash-merge the release PR");
+    assert.strictEqual((plan.branch), "release/v1.2.4");
+    assert.strictEqual((plan.pullRequestTitle), "chore(release): v1.2.4");
+    assert.ok((output).includes("wait for required checks"));
+    assert.ok((output).includes("squash-merge the release PR"));
   });
 
   test("describes tagging an existing prerelease package version", () => {
     const plan = buildCurrentVersionTagPlan("1.2.4-beta.2");
-    expect(plan.commands).toContain("git push origin refs/tags/v1.2.4-beta.2");
+    assert.ok((plan.commands).includes("git push origin refs/tags/v1.2.4-beta.2"));
   });
 });
 
 describe("scripts/release versions", () => {
   test("advances stable and prerelease versions", () => {
-    expect(incrementStableVersion("1.2.3", "patch")).toBe("1.2.4");
-    expect(incrementStableVersion("1.2.3", "minor")).toBe("1.3.0");
-    expect(incrementStableVersion("1.2.3", "major")).toBe("2.0.0");
-    expect(incrementPreReleaseVersion("1.2.4-beta.7", "beta")).toBe("1.2.4-beta.8");
+    assert.strictEqual((incrementStableVersion("1.2.3", "patch")), "1.2.4");
+    assert.strictEqual((incrementStableVersion("1.2.3", "minor")), "1.3.0");
+    assert.strictEqual((incrementStableVersion("1.2.3", "major")), "2.0.0");
+    assert.strictEqual((incrementPreReleaseVersion("1.2.4-beta.7", "beta")), "1.2.4-beta.8");
   });
 
   test("checks local and remote tags", () => {
@@ -236,7 +238,7 @@ describe("scripts/release versions", () => {
       "git rev-parse -q --verify refs/tags/v1.2.4": missing(),
       "git ls-remote --tags origin refs/tags/v1.2.4": ok("abc refs/tags/v1.2.4\n"),
     });
-    expect(releaseTagExists(runner, "v1.2.4")).toBe(true);
+    assert.strictEqual((releaseTagExists(runner, "v1.2.4")), true);
   });
 
   test("skips occupied stable release tags", () => {
@@ -246,7 +248,7 @@ describe("scripts/release versions", () => {
       "git ls-remote --tags origin refs/tags/v1.2.5": ok(),
     });
     const args = { dryRun: true, increment: "patch" as const, timeoutMinutes: 90 };
-    expect(resolveAvailableReleaseVersion(runner, args, "1.2.4")).toBe("1.2.5");
+    assert.strictEqual((resolveAvailableReleaseVersion(runner, args, "1.2.4")), "1.2.5");
   });
 });
 
@@ -255,7 +257,7 @@ describe("scripts/release flow", () => {
     const { runner } = createRunner(readyMain);
     const options = { packageVersion: "1.2.3", runner };
     const release = runRelease(options);
-    await expect(release).rejects.toThrow("explicit increment");
+    await assertRejects(release, "explicit increment");
   });
 
   test("dry-runs an existing prerelease version as a tag-only release", async () => {
@@ -268,9 +270,9 @@ describe("scripts/release flow", () => {
     const { runner } = createRunner(overrides);
     const options = { dryRun: true, logger, packageVersion: "1.2.4-beta.2", runner };
     const code = await runRelease(options);
-    const expected = expect.stringContaining("git push origin refs/tags/v1.2.4-beta.2");
-    expect(code).toBe(0);
-    expect(logger.log).toHaveBeenCalledWith(expected);
+    const expected = match.stringContaining("git push origin refs/tags/v1.2.4-beta.2");
+    assert.strictEqual((code), 0);
+    assertCalledWith((logger.log), expected);
   });
 
   test("merges the release PR before tagging its merge commit", async () => {
@@ -297,9 +299,9 @@ describe("scripts/release flow", () => {
       "Release 1.2.4",
       MERGE_COMMIT,
     ];
-    expect(code).toBe(0);
-    expect(calls).toContainEqual(mergeCall);
-    expect(calls).toContainEqual(tagCall);
+    assert.strictEqual((code), 0);
+    assertContainsEqual((calls), mergeCall);
+    assertContainsEqual((calls), tagCall);
   });
 
   test("resumes an existing release PR", async () => {
@@ -309,9 +311,9 @@ describe("scripts/release flow", () => {
     const { calls, runner } = createReleaseFlowRunner(prUrl, state);
     const code = await runRelease({ increment: "patch", logger, runner });
     const createBranch = ["git", "switch", "--create", "release/v1.2.4"];
-    expect(code).toBe(0);
-    expect(logger.log).toHaveBeenCalledWith(`Resuming ${prUrl}`);
-    expect(calls).not.toContainEqual(createBranch);
+    assert.strictEqual((code), 0);
+    assertCalledWith((logger.log), `Resuming ${prUrl}`);
+    assertNotContainsEqual((calls), createBranch);
   });
 
   test("fetches a missing local branch before resuming an existing PR", async () => {
@@ -320,8 +322,8 @@ describe("scripts/release flow", () => {
     const { calls, runner } = createReleaseFlowRunner(prUrl, { existingPullRequest: true });
     const code = await runRelease({ increment: "patch", logger, runner });
     const source = "refs/heads/release/v1.2.4";
-    expect(code).toBe(0);
-    expect(calls).toContainEqual(["git", "fetch", "origin", `${source}:${source}`]);
+    assert.strictEqual((code), 0);
+    assertContainsEqual((calls), ["git", "fetch", "origin", `${source}:${source}`]);
   });
 
   test("rejects an existing PR whose head changed", async () => {
@@ -330,7 +332,7 @@ describe("scripts/release flow", () => {
     const state = { existingPullRequest: true, localBranch: true, mismatchedPullRequest: true };
     const { runner } = createReleaseFlowRunner(prUrl, state);
     const release = runRelease({ increment: "patch", logger, runner });
-    await expect(release).rejects.toThrow("Release PR head does not match");
+    await assertRejects(release, "Release PR head does not match");
   });
 
   test("rejects an existing release commit with unrelated files", async () => {
@@ -339,7 +341,7 @@ describe("scripts/release flow", () => {
     const state = { existingPullRequest: true, extraReleaseFile: true, localBranch: true };
     const { runner } = createReleaseFlowRunner(prUrl, state);
     const release = runRelease({ increment: "patch", logger, runner });
-    await expect(release).rejects.toThrow("Unverified release files");
+    await assertRejects(release, "Unverified release files");
   });
 
   test("rejects unrelated package changes in an existing release commit", async () => {
@@ -348,7 +350,7 @@ describe("scripts/release flow", () => {
     const state = { existingPullRequest: true, localBranch: true, mismatchedReleaseDiff: true };
     const { runner } = createReleaseFlowRunner(prUrl, state);
     const release = runRelease({ increment: "patch", logger, runner });
-    await expect(release).rejects.toThrow("Unverified release diff");
+    await assertRejects(release, "Unverified release diff");
   });
 
   test("opens a PR for an already-pushed release branch", async () => {
@@ -359,9 +361,9 @@ describe("scripts/release flow", () => {
     const code = await runRelease({ increment: "patch", logger, runner });
     const createBranch = ["git", "switch", "--create", "release/v1.2.4"];
     const createdPullRequest = calls.some((call) => call[0] === "gh" && call[1] === "pr");
-    expect(code).toBe(0);
-    expect(calls).not.toContainEqual(createBranch);
-    expect(createdPullRequest).toBe(true);
+    assert.strictEqual((code), 0);
+    assertNotContainsEqual((calls), createBranch);
+    assert.strictEqual((createdPullRequest), true);
   });
 
   test("rejects unrelated files in an already-merged release", async () => {
@@ -371,7 +373,7 @@ describe("scripts/release flow", () => {
     const { runner } = createReleaseFlowRunner(prUrl, state);
     const options = { increment: "patch" as const, logger, packageVersion: "1.2.3", runner };
     const release = runRelease(options);
-    await expect(release).rejects.toThrow("Unverified release files");
+    await assertRejects(release, "Unverified release files");
   });
 
   test("rejects unrelated package changes in a merged release PR", async () => {
@@ -380,7 +382,7 @@ describe("scripts/release flow", () => {
     const state = { mergedPullRequest: true, mismatchedMergedDiff: true };
     const { runner } = createReleaseFlowRunner(prUrl, state);
     const release = runRelease({ increment: "patch", logger, runner });
-    await expect(release).rejects.toThrow("Unverified release diff");
+    await assertRejects(release, "Unverified release diff");
   });
 
   test("rejects a merged release outside the first-parent history", async () => {
@@ -390,7 +392,7 @@ describe("scripts/release flow", () => {
     const { runner } = createReleaseFlowRunner(prUrl, state);
     const options = { increment: "patch" as const, logger, packageVersion: "1.2.3", runner };
     const release = runRelease(options);
-    await expect(release).rejects.toThrow("Unverified release ancestry");
+    await assertRejects(release, "Unverified release ancestry");
   });
 
   test("rejects unexpected refs on a merged release PR", async () => {
@@ -399,7 +401,7 @@ describe("scripts/release flow", () => {
     const state = { mergedPullRequest: true, mismatchedMergedRefs: true };
     const { runner } = createReleaseFlowRunner(prUrl, state);
     const release = runRelease({ increment: "patch", logger, runner });
-    await expect(release).rejects.toThrow("Unverified release PR");
+    await assertRejects(release, "Unverified release PR");
   });
 
   test("retries an unpushed local release branch", async () => {
@@ -409,9 +411,9 @@ describe("scripts/release flow", () => {
     const { calls, runner } = createReleaseFlowRunner(prUrl, state);
     const code = await runRelease({ increment: "patch", logger, runner });
     const push = ["git", "push", "--set-upstream", "origin", "release/v1.2.4"];
-    expect(code).toBe(0);
-    expect(calls).toContainEqual(["git", "switch", "release/v1.2.4"]);
-    expect(calls).toContainEqual(push);
+    assert.strictEqual((code), 0);
+    assertContainsEqual((calls), ["git", "switch", "release/v1.2.4"]);
+    assertContainsEqual((calls), push);
   });
 
   test("retries a merged release whose tag push failed", async () => {
@@ -422,8 +424,8 @@ describe("scripts/release flow", () => {
     const code = await runRelease(options);
     const tag = ["git", "tag", "--annotate", "v1.2.3", "--message", "Release 1.2.3", MERGE_COMMIT];
     const ranReleaseIt = calls.some((call) => call[0] === "./node_modules/.bin/release-it");
-    expect(code).toBe(0);
-    expect(calls).toContainEqual(tag);
-    expect(ranReleaseIt).toBe(false);
+    assert.strictEqual((code), 0);
+    assertContainsEqual((calls), tag);
+    assert.strictEqual((ranReleaseIt), false);
   });
 });

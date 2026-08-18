@@ -79,7 +79,7 @@ export function Header() {
             href={GITHUB_URL}
             aria-label="github"
           >
-            <FaGithub className="h-4 w-4" />
+            <FaGithub size={16} />
           </a>
           <ThemeToggle />
         </div>

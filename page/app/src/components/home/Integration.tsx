@@ -1,10 +1,11 @@
 import { useState } from "react";
 import type { ChangeEvent, Dispatch, SetStateAction } from "react";
-import { Effect } from "effect";
 import { CopyButton } from "@/components/common/CopyButton";
 import {
   analyzeOnboardingProject,
   createOnboardingSetup,
+  isOnboardingSourcePath,
+  onboardingSourceFileNeedsContent,
   parseOnboardingRepository,
   scanOnboardingRepository,
 } from "@codependence/onboarding";
@@ -75,14 +76,6 @@ const INITIAL_SESSION: OnboardingSession = {
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Onboarding failed";
 
-const runSiteEffect = async <Value,>(
-  effect: Effect.Effect<Value, string>,
-): Promise<Value> => {
-  const result = await Effect.runPromise(Effect.either(effect));
-  if (result._tag === "Left") throw new Error(result.left);
-  return result.right;
-};
-
 const updateSession = (
   setSession: SessionSetter,
   values: Partial<OnboardingSession>,
@@ -90,18 +83,12 @@ const updateSession = (
   setSession((current) => ({ ...current, ...values }));
 };
 
-const shouldReadFile = (name: string, prefix: string): boolean =>
-  name === "package.json" ||
-  name === "pnpm-workspace.yaml" ||
-  prefix.length === 0;
-
 const sourceFile = async (
   handle: FileSystemFileHandle,
   path: string,
 ): Promise<OnboardingSourceFile> => {
   const file = await handle.getFile();
-  const needsContent =
-    path.endsWith("package.json") || path === "pnpm-workspace.yaml";
+  const needsContent = onboardingSourceFileNeedsContent(path);
   const content = needsContent ? await file.text() : "";
   return { path, content };
 };
@@ -113,7 +100,7 @@ const scanDirectory = async (
   const files: OnboardingSourceFile[] = [];
   for await (const [name, handle] of directory.entries()) {
     const path = prefix ? `${prefix}/${name}` : name;
-    const isFile = handle.kind === "file" && shouldReadFile(name, prefix);
+    const isFile = handle.kind === "file" && isOnboardingSourcePath(path);
     const fileHandle = handle as FileSystemFileHandle;
     if (isFile) files.push(await sourceFile(fileHandle, path));
     const isDirectory = handle.kind === "directory";
@@ -133,12 +120,7 @@ const selectProject = async (): Promise<{
     throw new Error("Directory selection is not supported by this browser");
   const handle = await pickerWindow.showDirectoryPicker();
   const files = await scanDirectory(handle);
-  const project = await runSiteEffect(
-    Effect.try({
-      try: () => analyzeOnboardingProject(files),
-      catch: errorMessage,
-    }),
-  );
+  const project = analyzeOnboardingProject(files);
   return { handle, project };
 };
 
@@ -171,12 +153,7 @@ const repositoryProjectScan = async (
   value: string,
 ): Promise<Partial<OnboardingSession>> => {
   const repository = parseOnboardingRepository(value);
-  const project = await runSiteEffect(
-    Effect.tryPromise({
-      try: () => scanOnboardingRepository(repository),
-      catch: errorMessage,
-    }),
-  );
+  const project = await scanOnboardingRepository(repository);
   const repositoryName = `${repository.owner}/${repository.name}`;
   const managerVersion = project.managerVersion || "";
   return {
@@ -230,12 +207,7 @@ const generateSetup = async (
       repository,
       selectedDependencies,
     };
-    const setup = await runSiteEffect(
-      Effect.try({
-        try: () => createOnboardingSetup(project, answers),
-        catch: errorMessage,
-      }),
-    );
+    const setup = createOnboardingSetup(project, answers);
     updateSession(setSession, {
       setup,
       error: "",

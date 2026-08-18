@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, test } from "node:test";
+import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -79,11 +80,11 @@ describe("scripts/upload-release-assets", () => {
     const fixture = createFixture();
     const result = runUpload(fixture);
     const log = readFileSync(fixture.logPath, "utf8");
-    expect(result.status).toBe(0);
-    expect(result.stdout).toBe("123\n");
-    expect(log).toContain("api --paginate --slurp");
-    expect(log).toContain("api --method POST");
-    expect(log).toContain("releases/123/assets?name=codependence.tgz");
+    assert.strictEqual((result.status), 0);
+    assert.strictEqual((result.stdout), "123\n");
+    assert.ok((log).includes("api --paginate --slurp"));
+    assert.ok((log).includes("api --method POST"));
+    assert.ok((log).includes("releases/123/assets?name=codependence.tgz"));
   });
 
   test("skips an existing asset with the expected digest", () => {
@@ -91,31 +92,31 @@ describe("scripts/upload-release-assets", () => {
     const fixture = createFixture(`sha256:${digest}`);
     const result = runUpload(fixture);
     const log = readFileSync(fixture.logPath, "utf8");
-    expect(result.status).toBe(0);
-    expect(result.stdout).toBe("123\n");
-    expect(log).not.toContain("api --method POST");
+    assert.strictEqual((result.status), 0);
+    assert.strictEqual((result.stdout), "123\n");
+    assert.ok(!(log).includes("api --method POST"));
   });
 
   test("rejects an existing asset with a different digest", () => {
     const fixture = createFixture("sha256:unexpected");
     const result = runUpload(fixture);
     const log = readFileSync(fixture.logPath, "utf8");
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("Release asset digest mismatch: codependence.tgz");
-    expect(log).not.toContain("api --method POST");
+    assert.strictEqual((result.status), 1);
+    assert.ok((result.stderr).includes("Release asset digest mismatch: codependence.tgz"));
+    assert.ok(!(log).includes("api --method POST"));
   });
 
   test("rejects an existing asset without a published digest", () => {
     const fixture = createFixture(null);
     const result = runUpload(fixture);
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("Release asset digest unavailable: codependence.tgz");
+    assert.strictEqual((result.status), 1);
+    assert.ok((result.stderr).includes("Release asset digest unavailable: codependence.tgz"));
   });
 
   test("rejects a missing release", () => {
     const fixture = createFixture(undefined, false);
     const result = runUpload(fixture);
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("Release not found: v1.2.3");
+    assert.strictEqual((result.status), 1);
+    assert.ok((result.stderr).includes("Release not found: v1.2.3"));
   });
 });

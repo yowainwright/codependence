@@ -35,7 +35,15 @@ export type CodependenceTarget = {
   lockfile?: LockfilePolicy;
 };
 
+export type CodependenceManifest = Omit<CodependenceTarget, "files" | "rootDir"> & {
+  name?: string;
+  path: string;
+};
+
+export type CodependenceManifestConfig = Record<string, CodependenceManifest>;
+
 export type Options = {
+  $schema?: string;
   isTestingCLI?: boolean;
   isTestingAction?: boolean;
   isTesting?: boolean;
@@ -122,6 +130,8 @@ export type CheckMatches = {
 };
 
 export type CodependenceConfig = {
+  $schema?: string;
+  config?: CodependenceManifestConfig;
   codependencies?: CodeDependencies;
   permissive?: boolean;
   language?: SupportedLanguage;
@@ -133,7 +143,7 @@ export type CodependenceConfig = {
 
 export type PackageJSON = {
   path: string;
-  codependence?: CodependenceConfig;
+  codependence?: CodependenceConfig | string;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;

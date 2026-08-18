@@ -3,19 +3,17 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
+import { assertMatchObject, assertThrows } from "../../../helpers/assertions";
 import {
   formatGitHubOutput,
   parseDockerfileArg,
   parseMiseTool,
-  parsePackageManagerBunVersion,
   resolveToolVersionValue,
   resolveToolVersions,
 } from "../../../../scripts/ci/tool-versions.js";
 import {
-  BUN_LINUX_AARCH64_SHA256 as bunLinuxAarch64Sha256,
-  BUN_LINUX_X64_SHA256 as bunLinuxX64Sha256,
-  DOCKER_PINS as dockerPins,
   MISE_TOML as miseToml,
   NODE_ALPINE_IMAGE as nodeAlpineImage,
   NODE_SLIM_IMAGE as nodeSlimImage,
@@ -82,10 +80,7 @@ function createDockerFixture(): DockerFixture {
   return { fixturePath, logPath };
 }
 
-function runE2eWithFakeDocker(
-  runner: E2eRunner,
-  overrides: NodeJS.ProcessEnv = {},
-): E2eRunResult {
+function runE2eWithFakeDocker(runner: E2eRunner, overrides: NodeJS.ProcessEnv = {}): E2eRunResult {
   const { fixturePath, logPath } = createDockerFixture();
   const path = `${fixturePath}:${process.env.PATH ?? ""}`;
   const env = { ...process.env, ...overrides, DOCKER_LOG: logPath, PATH: path };
@@ -105,40 +100,30 @@ function runE2eWithFakeDocker(
 function expectScopedCleanup(result: E2eRunResult, runner: E2eRunner): void {
   const cleanupCommand = result.commands.at(-1);
   const systemPrune = result.commands.find((command) => command.startsWith("system prune"));
-  expect(cleanupCommand).toBe(runner.cleanupCommand);
-  expect(systemPrune).toBeUndefined();
+  assert.strictEqual((cleanupCommand), runner.cleanupCommand);
+  assert.strictEqual((systemPrune), undefined);
 }
 
 function resolveVersions(overrides = {}) {
   return resolveToolVersions({
-    dockerPins,
     miseToml,
     nodeAlpineImage,
     nodeSlimImage,
-    packageJson: { packageManager: "bun@1.3.14" },
     ...overrides,
   });
 }
 
 describe("scripts/ci/tool-versions", () => {
   test("parseMiseTool reads quoted tool versions", () => {
-    expect(parseMiseTool(miseToml, "bun")).toBe("1.3.14");
-    expect(parseMiseTool(miseToml, "node")).toBe("26.7.0");
-    expect(parseMiseTool(miseToml, "nub")).toBe("0.7.5");
-  });
-
-  test("parsePackageManagerBunVersion reads packageManager", () => {
-    expect(parsePackageManagerBunVersion({ packageManager: "bun@1.3.14" })).toBe("1.3.14");
-    expect(parsePackageManagerBunVersion({ packageManager: "npm@11.0.0" })).toBe("");
+    assert.strictEqual((parseMiseTool(miseToml, "node")), "26.7.0");
+    assert.strictEqual((parseMiseTool(miseToml, "nub")), "0.7.5");
   });
 
   test("parseDockerfileArg reads pinned ARG defaults", () => {
-    expect(
-      parseDockerfileArg(
+    assert.strictEqual(parseDockerfileArg(
         `ARG NODE_SLIM_IMAGE=${nodeSlimImage}\nFROM \${NODE_SLIM_IMAGE}`,
         "NODE_SLIM_IMAGE",
-      ),
-    ).toBe(nodeSlimImage);
+      ), nodeSlimImage);
   });
 
   test("e2e Dockerfiles share the same pinned Node slim image", () => {
@@ -148,32 +133,30 @@ describe("scripts/ci/tool-versions", () => {
       "tests/e2e/Dockerfile.multilang",
     ];
 
-    expect(
-      dockerfiles.map((dockerfile) =>
+    assert.deepStrictEqual(dockerfiles.map((dockerfile) =>
         parseDockerfileArg(
           readFileSync(new URL(`../../../../${dockerfile}`, import.meta.url), "utf8"),
           "NODE_SLIM_IMAGE",
         ),
-      ),
-    ).toEqual([nodeSlimImage, nodeSlimImage, nodeSlimImage]);
+      ), [nodeSlimImage, nodeSlimImage, nodeSlimImage]);
   });
 
   E2E_RUNNERS.forEach((runner) => {
     test(`${runner.name} e2e cleans Docker images after success`, () => {
       const result = runE2eWithFakeDocker(runner);
-      expect(result.status).toBe(0);
+      assert.strictEqual((result.status), 0);
       expectScopedCleanup(result, runner);
     });
 
     test(`${runner.name} e2e cleans Docker images after failure`, () => {
       const result = runE2eWithFakeDocker(runner, DOCKER_RUN_FAILURE);
-      expect(result.status).not.toBe(0);
+      assert.notStrictEqual((result.status), 0);
       expectScopedCleanup(result, runner);
     });
 
     test(`${runner.name} e2e cleans Docker images after interruption`, () => {
       const result = runE2eWithFakeDocker(runner, DOCKER_RUN_INTERRUPTION);
-      expect(result.status).toBe(143);
+      assert.strictEqual((result.status), 143);
       expectScopedCleanup(result, runner);
     });
   });
@@ -184,32 +167,22 @@ describe("scripts/ci/tool-versions", () => {
       "tests/release/Dockerfile.published",
     ];
 
-    expect(
-      dockerfiles.map((dockerfile) =>
+    assert.deepStrictEqual(dockerfiles.map((dockerfile) =>
         parseDockerfileArg(
           readFileSync(new URL(`../../../../${dockerfile}`, import.meta.url), "utf8"),
           "NODE_ALPINE_IMAGE",
         ),
-      ),
-    ).toEqual([nodeAlpineImage, nodeAlpineImage]);
+      ), [nodeAlpineImage, nodeAlpineImage]);
   });
 
   test("resolveToolVersions prefers explicit env overrides", () => {
-    expect(
-      resolveVersions({
+    assert.deepStrictEqual(resolveVersions({
         env: {
-          BUN_LINUX_AARCH64_SHA256: "aarch64-test",
-          BUN_LINUX_X64_SHA256: "x64-test",
-          INPUT_BUN_VERSION: "1.2.3",
           INPUT_NODE_VERSION: "22",
           NODE_ALPINE_IMAGE: "node:22-alpine@sha256:test",
           NODE_SLIM_IMAGE: "node:22-slim@sha256:test",
         },
-      }),
-    ).toEqual({
-      bunLinuxAarch64Sha256: "aarch64-test",
-      bunLinuxX64Sha256: "x64-test",
-      bunVersion: "1.2.3",
+      }), {
       nodeAlpineImage: "node:22-alpine@sha256:test",
       nodeSlimImage: "node:22-slim@sha256:test",
       nodeVersion: "22",
@@ -218,16 +191,13 @@ describe("scripts/ci/tool-versions", () => {
   });
 
   test("resolveToolVersions keeps digest pins for patch-level Node versions", () => {
-    expect(
-      resolveVersions({
+    assertMatchObject(resolveVersions({
         miseToml: `
 [tools]
-bun = "1.3.14"
 node = "26.3.0"
 nub = "0.7.5"
 `,
-      }),
-    ).toMatchObject({
+      }), {
       nodeAlpineImage,
       nodeSlimImage,
       nodeVersion: "26.3.0",
@@ -235,7 +205,7 @@ nub = "0.7.5"
   });
 
   test("resolveToolVersions keeps project Docker pins for runtime Node overrides", () => {
-    expect(resolveVersions({ env: { INPUT_NODE_VERSION: "20" } })).toMatchObject({
+    assertMatchObject((resolveVersions({ env: { INPUT_NODE_VERSION: "20" } })), {
       nodeAlpineImage,
       nodeSlimImage,
       nodeVersion: "20",
@@ -243,31 +213,21 @@ nub = "0.7.5"
   });
 
   test("resolveToolVersions rejects unpinned Docker image defaults", () => {
-    expect(() => resolveVersions({ nodeSlimImage: "node:26-slim" })).toThrow("Expected slim image");
+    assertThrows((() => resolveVersions({ nodeSlimImage: "node:26-slim" })), "Expected slim image");
   });
 
   test("formatGitHubOutput emits stable output names", () => {
-    expect(
-      formatGitHubOutput({
-        bunLinuxAarch64Sha256,
-        bunLinuxX64Sha256,
-        bunVersion: "1.3.14",
+    assert.strictEqual(formatGitHubOutput({
         nodeAlpineImage,
         nodeSlimImage,
         nodeVersion: "24",
         nubVersion: "0.7.5",
-      }),
-    ).toBe(
-      [
-        `bun_linux_aarch64_sha256=${bunLinuxAarch64Sha256}`,
-        `bun_linux_x64_sha256=${bunLinuxX64Sha256}`,
-        "bun_version=1.3.14",
+      }), [
         `node_alpine_image=${nodeAlpineImage}`,
         `node_slim_image=${nodeSlimImage}`,
         "node_version=24",
         "nub_version=0.7.5",
-      ].join("\n"),
-    );
+      ].join("\n"));
   });
 
   test("setup action passes the resolved Nub version to both branches", () => {
@@ -279,7 +239,7 @@ nub = "0.7.5"
       /nub-version: \$\{\{ steps\.tool-versions\.outputs\.nub_version \}\}/g,
     );
 
-    expect(nubPins).toHaveLength(2);
+    assert.strictEqual((nubPins).length, 2);
   });
 
   test("contributor setup names the official scoped Nub package", () => {
@@ -288,22 +248,20 @@ nub = "0.7.5"
       "utf8",
     );
 
-    expect(contributing).toContain("npm install --global @nubjs/nub@0.7.5");
-    expect(contributing).toContain("https://nubjs.com/docs/install");
+    assert.ok((contributing).includes("npm install --global @nubjs/nub@0.7.5"));
+    const installLink = /^\[nub-install\]: (.+)$/m.exec(contributing);
+    assert.ok(installLink);
+    assert.strictEqual(installLink[1], "https://nubjs.com/docs/install");
   });
 
   test("resolveToolVersionValue rejects unknown keys", () => {
-    expect(() =>
+    assertThrows(() =>
       resolveToolVersionValue("missing", {
-        bunLinuxAarch64Sha256,
-        bunLinuxX64Sha256,
-        bunVersion: "1.3.14",
         nodeAlpineImage,
         nodeSlimImage,
         nodeVersion: "24",
         nubVersion: "0.7.5",
-      }),
-    ).toThrow("Unknown tool version key");
+      }), "Unknown tool version key");
   });
 
   test("direct Node CLI prints requested tool versions", () => {
@@ -312,19 +270,8 @@ nub = "0.7.5"
       encoding: "utf8",
     });
 
-    expect(result.status).toBe(0);
-    expect(result.stderr).toBe("");
-    expect(result.stdout.trim()).toBe(nodeSlimImage);
-  });
-
-  test("direct Node CLI prints requested Bun archive hash", () => {
-    const result = spawnSync("node", ["scripts/ci/tool-versions.js", "bun-linux-x64-sha256"], {
-      cwd: new URL("../../../../", import.meta.url),
-      encoding: "utf8",
-    });
-
-    expect(result.status).toBe(0);
-    expect(result.stderr).toBe("");
-    expect(result.stdout.trim()).toBe(bunLinuxX64Sha256);
+    assert.strictEqual((result.status), 0);
+    assert.strictEqual((result.stderr), "");
+    assert.strictEqual((result.stdout.trim()), nodeSlimImage);
   });
 });

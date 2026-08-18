@@ -1,5 +1,40 @@
-import { describe, expect, test } from "bun:test";
-import { expandTargets } from "../../../src/config";
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
+import { assertMatches, assertThrows, match } from "../../helpers/assertions";
+import { expandTargets, normalizeConfigShape } from "../../../src/config";
+
+test("normalizes named manifest config for the existing target runner", () => {
+  const config = {
+    config: {
+      web: {
+        name: "@project/web",
+        path: "packages/web/package.json",
+        manager: "pnpm",
+        mode: "precise",
+      },
+    },
+  };
+
+  assert.deepStrictEqual((normalizeConfigShape(config, "/repo")), {
+    targets: [
+      {
+        files: ["packages/web/package.json"],
+        manager: "pnpm",
+        mode: "precise",
+        rootDir: "/repo",
+      },
+    ],
+  });
+  assert.deepStrictEqual((normalizeConfigShape(config)), {
+    targets: [
+      {
+        files: ["packages/web/package.json"],
+        manager: "pnpm",
+        mode: "precise",
+      },
+    ],
+  });
+});
 
 describe("expandTargets", () => {
   test("keeps legacy flat options as one target", () => {
@@ -9,7 +44,7 @@ describe("expandTargets", () => {
       mode: "precise" as const,
     };
 
-    expect(expandTargets(options)).toEqual([options]);
+    assert.deepStrictEqual((expandTargets(options)), [options]);
   });
 
   test("maps manager policies to independent provider runs", () => {
@@ -29,15 +64,15 @@ describe("expandTargets", () => {
       ],
     });
 
-    expect(targets).toEqual([
-      expect.objectContaining({
+    assertMatches((targets), [
+      match.objectContaining({
         language: "nodejs",
         packageManager: "bun",
         files: ["package.json"],
         codependencies: ["typescript"],
         update: true,
       }),
-      expect.objectContaining({
+      match.objectContaining({
         language: "github-actions",
         packageManager: "github-actions",
         files: [".github/workflows/*.yml"],
@@ -56,30 +91,28 @@ describe("expandTargets", () => {
       ],
     });
 
-    expect(targets).toEqual([
-      expect.objectContaining({
+    assertMatches((targets), [
+      match.objectContaining({
         packageManager: "go",
       }),
     ]);
   });
 
   test("rejects unknown configured target selections", () => {
-    expect(() =>
+    assertThrows(() =>
       expandTargets({
         target: ["services"],
         targets: [{ manager: "go", mode: "precise" }],
-      }),
-    ).toThrow("Unknown target manager(s): services");
+      }), "Unknown target manager(s): services");
   });
 
   test("rejects target selection without named configuration targets", () => {
-    expect(() =>
+    assertThrows(() =>
       expandTargets({
         target: ["services"],
         language: "go",
         mode: "precise",
-      }),
-    ).toThrow("Unknown target manager(s): services");
+      }), "Unknown target manager(s): services");
   });
 
   test("uses manager-scoped Python manifest defaults", () => {
@@ -93,7 +126,7 @@ describe("expandTargets", () => {
       ],
     });
 
-    expect(targets.map(({ files }) => files)).toEqual([
+    assert.deepStrictEqual((targets.map(({ files }) => files)), [
       ["requirements.txt"],
       ["Pipfile"],
       ["pyproject.toml"],
@@ -117,13 +150,13 @@ describe("expandTargets", () => {
       ],
     });
 
-    expect(targets).toEqual([
-      expect.objectContaining({
+    assertMatches((targets), [
+      match.objectContaining({
         packageManager: "go",
         rootDir: "/repo",
         ignore: ["**/generated/**"],
       }),
-      expect.objectContaining({
+      match.objectContaining({
         packageManager: "bun",
         rootDir: "/repo/frontend",
         ignore: ["**/.cache/**"],
@@ -140,6 +173,6 @@ describe("expandTargets", () => {
       ],
     });
 
-    expect(targets.map(({ lockfile }) => lockfile)).toEqual([true, false]);
+    assert.deepStrictEqual((targets.map(({ lockfile }) => lockfile)), [true, false]);
   });
 });

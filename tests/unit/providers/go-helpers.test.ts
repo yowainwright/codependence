@@ -1,4 +1,5 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
 import {
   parseRequireBlock,
   parseSingleRequires,
@@ -16,7 +17,7 @@ require (
 
     const result = parseRequireBlock(content);
 
-    expect(result).toEqual({
+    assert.deepStrictEqual((result), {
       "github.com/gin-gonic/gin": "v1.9.1",
       "github.com/lib/pq": "v1.10.9",
     });
@@ -25,7 +26,7 @@ require (
   test("returns empty object when no require block", () => {
     const content = "module example.com/app\n\ngo 1.21\n";
 
-    expect(parseRequireBlock(content)).toEqual({});
+    assert.deepStrictEqual((parseRequireBlock(content)), {});
   });
 
   test("ignores blank lines in require block", () => {
@@ -37,7 +38,7 @@ require (
 
     const result = parseRequireBlock(content);
 
-    expect(result).toEqual({
+    assert.deepStrictEqual((result), {
       "github.com/pkg1": "v1.0.0",
       "github.com/pkg2": "v2.0.0",
     });
@@ -51,14 +52,14 @@ require (
 
     const result = parseRequireBlock(content);
 
-    expect(result["github.com/pkg1"]).toBe("v1.0.0");
-    expect(result["github.com/pkg2"]).toBeDefined();
+    assert.strictEqual((result["github.com/pkg1"]), "v1.0.0");
+    assert.notStrictEqual((result["github.com/pkg2"]), undefined);
   });
 
   test("handles empty require block", () => {
     const content = "require (\n)";
 
-    expect(parseRequireBlock(content)).toEqual({});
+    assert.deepStrictEqual((parseRequireBlock(content)), {});
   });
 });
 
@@ -74,7 +75,7 @@ require github.com/joho/godotenv v1.5.1
 
     const result = parseSingleRequires(content);
 
-    expect(result).toEqual({
+    assert.deepStrictEqual((result), {
       "github.com/stretchr/testify": "v1.8.4",
       "github.com/joho/godotenv": "v1.5.1",
     });
@@ -83,7 +84,7 @@ require github.com/joho/godotenv v1.5.1
   test("returns empty object when no single requires", () => {
     const content = "module example.com/app\n\ngo 1.21\n";
 
-    expect(parseSingleRequires(content)).toEqual({});
+    assert.deepStrictEqual((parseSingleRequires(content)), {});
   });
 
   test("does not match require blocks", () => {
@@ -91,7 +92,7 @@ require github.com/joho/godotenv v1.5.1
 \tgithub.com/pkg v1.0.0
 )`;
 
-    expect(parseSingleRequires(content)).toEqual({});
+    assert.deepStrictEqual((parseSingleRequires(content)), {});
   });
 
   test("handles single require statement", () => {
@@ -99,7 +100,7 @@ require github.com/joho/godotenv v1.5.1
 
     const result = parseSingleRequires(content);
 
-    expect(result).toEqual({ "github.com/pkg": "v1.0.0" });
+    assert.deepStrictEqual((result), { "github.com/pkg": "v1.0.0" });
   });
 });
 
@@ -112,10 +113,10 @@ describe("buildRequireBlock", () => {
 
     const result = buildRequireBlock(deps);
 
-    expect(result).toContain("require (");
-    expect(result).toContain("\tgithub.com/gin-gonic/gin v1.9.1");
-    expect(result).toContain("\tgithub.com/lib/pq v1.10.9");
-    expect(result).toContain(")");
+    assert.ok((result).includes("require ("));
+    assert.ok((result).includes("\tgithub.com/gin-gonic/gin v1.9.1"));
+    assert.ok((result).includes("\tgithub.com/lib/pq v1.10.9"));
+    assert.ok((result).includes(")"));
   });
 
   test("builds block with single dependency", () => {
@@ -123,13 +124,13 @@ describe("buildRequireBlock", () => {
 
     const result = buildRequireBlock(deps);
 
-    expect(result).toBe("require (\n\tgithub.com/pkg v1.0.0\n)");
+    assert.strictEqual((result), "require (\n\tgithub.com/pkg v1.0.0\n)");
   });
 
   test("builds empty require block", () => {
     const result = buildRequireBlock({});
 
-    expect(result).toBe("require (\n\n)");
+    assert.strictEqual((result), "require (\n\n)");
   });
 
   test("uses tab indentation for entries", () => {
@@ -138,6 +139,6 @@ describe("buildRequireBlock", () => {
     const result = buildRequireBlock(deps);
     const lines = result.split("\n");
 
-    expect(lines[1].startsWith("\t")).toBe(true);
+    assert.strictEqual((lines[1].startsWith("\t")), true);
   });
 });

@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, test } from "node:test";
+import assert from "node:assert/strict";
+import { assertRejects } from "../../helpers/assertions";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { DockerProvider } from "../../../src/providers/docker";
@@ -27,7 +29,7 @@ const authorizationFor = (request: DockerRequest): string | null =>
 const responseWithStatus = (status: number): Response => new Response(null, { status });
 
 describe("DockerProvider", () => {
-  const tmpDir = join(__dirname, ".tmp-docker-test");
+  const tmpDir = join(import.meta.dirname, ".tmp-docker-test");
   const dockerfilePath = join(tmpDir, "Dockerfile");
 
   beforeEach(() => {
@@ -38,15 +40,15 @@ describe("DockerProvider", () => {
   test("should expose provider metadata", () => {
     const provider = new DockerProvider();
 
-    expect(provider.language).toBe("docker");
-    expect(provider.capabilities).toEqual({
+    assert.strictEqual((provider.language), "docker");
+    assert.deepStrictEqual((provider.capabilities), {
       supportsLatestResolution: true,
       supportsPreciseMode: true,
       versionStrategy: "exact",
     });
-    expect(provider.validatePackageName("ghcr.io/org/image")).toBe(true);
-    expect(provider.validatePackageName("registry.internal:5000/org/image")).toBe(true);
-    expect(provider.validatePackageName("bad image")).toBe(false);
+    assert.strictEqual((provider.validatePackageName("ghcr.io/org/image")), true);
+    assert.strictEqual((provider.validatePackageName("registry.internal:5000/org/image")), true);
+    assert.strictEqual((provider.validatePackageName("bad image")), false);
   });
 
   test("should resolve Docker Hub tags with authentication and pagination", async () => {
@@ -80,11 +82,11 @@ describe("DockerProvider", () => {
     const expectedBasic = `Basic ${btoa(`${username}:${credential}`)}`;
     const expectedBearer = `Bearer ${registryCredential}`;
 
-    await expect(provider.getLatestVersion("node", "20-slim")).resolves.toBe("24.1.0-slim");
-    expect(requests.map(({ url }) => url)).toEqual(expectedUrls);
-    expect(authorizationFor(requests[1])).toBe(expectedBasic);
-    expect(authorizationFor(requests[2])).toBe(expectedBearer);
-    expect(authorizationFor(requests[3])).toBe(expectedBearer);
+    await assert.strictEqual(await (provider.getLatestVersion("node", "20-slim")), "24.1.0-slim");
+    assert.deepStrictEqual((requests.map(({ url }) => url)), expectedUrls);
+    assert.strictEqual((authorizationFor(requests[1])), expectedBasic);
+    assert.strictEqual((authorizationFor(requests[2])), expectedBearer);
+    assert.strictEqual((authorizationFor(requests[3])), expectedBearer);
   });
 
   test("should resolve GHCR tags with configured credentials", async () => {
@@ -108,11 +110,9 @@ describe("DockerProvider", () => {
     const expectedBasic = `Basic ${btoa(`${username}:${credential}`)}`;
     const expectedBearer = `Bearer ${registryCredential}`;
 
-    await expect(provider.getLatestVersion("ghcr.io/acme/widget", "v1-alpine")).resolves.toBe(
-      "v2.0-alpine",
-    );
-    expect(authorizationFor(requests[1])).toBe(expectedBasic);
-    expect(authorizationFor(requests[2])).toBe(expectedBearer);
+    await assert.strictEqual(await (provider.getLatestVersion("ghcr.io/acme/widget", "v1-alpine")), "v2.0-alpine");
+    assert.strictEqual((authorizationFor(requests[1])), expectedBasic);
+    assert.strictEqual((authorizationFor(requests[2])), expectedBearer);
   });
 
   test("should resolve public GHCR tags without workflow credentials", async () => {
@@ -127,8 +127,8 @@ describe("DockerProvider", () => {
     const { fetch, requests } = mockFetch([unauthorized, tokenResponse, tagsResponse]);
     const provider = new DockerProvider({ fetch, ghcrCredentials: {} });
 
-    await expect(provider.getAllVersions("ghcr.io/acme/widget")).resolves.toEqual(["1.0"]);
-    expect(authorizationFor(requests[1])).toBeNull();
+    await assert.deepStrictEqual(await (provider.getAllVersions("ghcr.io/acme/widget")), ["1.0"]);
+    assert.strictEqual((authorizationFor(requests[1])), null);
   });
 
   test("should retry public GHCR token requests without rejected credentials", async () => {
@@ -146,10 +146,10 @@ describe("DockerProvider", () => {
     const token = crypto.randomUUID();
     const provider = new DockerProvider({ fetch, ghcrCredentials: { username: "octocat", token } });
 
-    await expect(provider.getAllVersions("ghcr.io/acme/widget")).resolves.toEqual(["1.0"]);
-    expect(authorizationFor(requests[1])).toBe(`Basic ${btoa(`octocat:${token}`)}`);
-    expect(authorizationFor(requests[2])).toBeNull();
-    expect(authorizationFor(requests[3])).toBe(`Bearer ${registryCredential}`);
+    await assert.deepStrictEqual(await (provider.getAllVersions("ghcr.io/acme/widget")), ["1.0"]);
+    assert.strictEqual((authorizationFor(requests[1])), `Basic ${btoa(`octocat:${token}`)}`);
+    assert.strictEqual((authorizationFor(requests[2])), null);
+    assert.strictEqual((authorizationFor(requests[3])), `Bearer ${registryCredential}`);
   });
 
   test("should normalize registry-qualified Docker Hub image names", async () => {
@@ -157,27 +157,23 @@ describe("DockerProvider", () => {
     const { fetch, requests } = mockFetch([Response.json(tagBody)]);
     const provider = new DockerProvider({ fetch });
 
-    await expect(provider.getAllVersions("docker.io/acme/widget")).resolves.toEqual(["1.0"]);
-    expect(requests[0].url).toBe("https://registry-1.docker.io/v2/acme/widget/tags/list?n=100");
+    await assert.deepStrictEqual(await (provider.getAllVersions("docker.io/acme/widget")), ["1.0"]);
+    assert.strictEqual((requests[0].url), "https://registry-1.docker.io/v2/acme/widget/tags/list?n=100");
   });
 
   test("should ignore numeric tags less specific than the current tag", async () => {
     const tagBody = { name: "library/alpine", tags: ["3.20", "3.21.1", "20260127"] };
     const provider = new DockerProvider({ fetch: mockFetch([Response.json(tagBody)]).fetch });
 
-    await expect(provider.getLatestVersion("alpine", "3.19")).resolves.toBe("3.21.1");
+    await assert.strictEqual(await (provider.getLatestVersion("alpine", "3.19")), "3.21.1");
   });
 
   test("should fail safely for unsupported or ambiguous tag resolution", async () => {
     const provider = new DockerProvider({ fetch: mockFetch([]).fetch });
 
-    await expect(
-      provider.getLatestVersion("registry.example.com/acme/widget", "1.0"),
-    ).rejects.toThrow("Unsupported Docker registry");
-    await expect(provider.getLatestVersion("node", "latest")).rejects.toThrow(
-      "cannot safely resolve mutable tag",
-    );
-    await expect(provider.getLatestVersion("node")).rejects.toThrow("requires a current tag");
+    await assertRejects(provider.getLatestVersion("registry.example.com/acme/widget", "1.0"), "Unsupported Docker registry");
+    await assertRejects(provider.getLatestVersion("node", "latest"), "cannot safely resolve mutable tag");
+    await assertRejects(provider.getLatestVersion("node"), "requires a current tag");
   });
 
   test("should report missing images and registry rate limits", async () => {
@@ -186,12 +182,8 @@ describe("DockerProvider", () => {
     const missing = new DockerProvider({ fetch: missingFetch });
     const limited = new DockerProvider({ fetch: limitedFetch });
 
-    await expect(missing.getAllVersions("missing/image")).rejects.toThrow(
-      "Docker image not found: missing/image",
-    );
-    await expect(limited.getAllVersions("node")).rejects.toThrow(
-      "Docker registry rate limit exceeded for node",
-    );
+    await assertRejects(missing.getAllVersions("missing/image"), "Docker image not found: missing/image");
+    await assertRejects(limited.getAllVersions("node"), "Docker registry rate limit exceeded for node");
   });
 
   test("should reject untrusted authentication and pagination URLs", async () => {
@@ -208,12 +200,8 @@ describe("DockerProvider", () => {
     const paginationFetch = mockFetch([paginationResponse]).fetch;
     const paginationProvider = new DockerProvider({ fetch: paginationFetch });
 
-    await expect(authProvider.getAllVersions("node")).rejects.toThrow(
-      "Untrusted Docker authentication URL",
-    );
-    await expect(paginationProvider.getAllVersions("node")).rejects.toThrow(
-      "Untrusted Docker pagination URL",
-    );
+    await assertRejects(authProvider.getAllVersions("node"), "Untrusted Docker authentication URL");
+    await assertRejects(paginationProvider.getAllVersions("node"), "Untrusted Docker pagination URL");
   });
 
   test("should report invalid registry responses without exposing credentials", async () => {
@@ -228,16 +216,12 @@ describe("DockerProvider", () => {
     const tagBody = { tags: ["latest", "24-alpine"] };
     const incompatible = new DockerProvider({ fetch: mockFetch([Response.json(tagBody)]).fetch });
 
-    await expect(withText.getAllVersions("node")).rejects.toThrow("500 Registry unavailable");
-    await expect(withoutText.getAllVersions("node")).rejects.toThrow("failed for node: 500");
-    await expect(invalidTags.getAllVersions("node")).rejects.toThrow("returned invalid tags");
-    await expect(malformedTags.getAllVersions("node")).rejects.toThrow("invalid tags JSON");
-    await expect(networkFailure.getAllVersions("node")).rejects.toThrow(
-      "Docker registry network request failed for node",
-    );
-    await expect(incompatible.getLatestVersion("node", "20-slim")).rejects.toThrow(
-      "No compatible Docker tags found",
-    );
+    await assertRejects(withText.getAllVersions("node"), "500 Registry unavailable");
+    await assertRejects(withoutText.getAllVersions("node"), "failed for node: 500");
+    await assertRejects(invalidTags.getAllVersions("node"), "returned invalid tags");
+    await assertRejects(malformedTags.getAllVersions("node"), "invalid tags JSON");
+    await assertRejects(networkFailure.getAllVersions("node"), "Docker registry network request failed for node");
+    await assertRejects(incompatible.getLatestVersion("node", "20-slim"), "No compatible Docker tags found");
   });
 
   test("should reject incomplete credentials and invalid authentication responses", async () => {
@@ -254,12 +238,8 @@ describe("DockerProvider", () => {
     });
     const invalid = new DockerProvider({ fetch: mockFetch(invalidFetchResponses).fetch });
 
-    await expect(incomplete.getAllVersions("node")).rejects.toThrow(
-      "credentials require both username and token",
-    );
-    await expect(invalid.getAllVersions("node")).rejects.toThrow(
-      "authentication response did not include a token",
-    );
+    await assertRejects(incomplete.getAllVersions("node"), "credentials require both username and token");
+    await assertRejects(invalid.getAllVersions("node"), "authentication response did not include a token");
   });
 
   test("should read Dockerfile image tags", () => {
@@ -276,12 +256,12 @@ FROM scratch
     const provider = new DockerProvider();
     const manifest = provider.readManifest(dockerfilePath);
 
-    expect(manifest.dependencies).toEqual({
+    assert.deepStrictEqual((manifest.dependencies), {
       node: "20.11.1",
       nginx: "1.25",
       alpine: "3.19",
     });
-    expect(manifest.dependencyVersions).toEqual({
+    assert.deepStrictEqual((manifest.dependencyVersions), {
       node: ["20.11.1"],
       nginx: ["1.25"],
       alpine: ["3.19"],
@@ -312,13 +292,13 @@ FROM scratch
 
     const updated = readFileSync(dockerfilePath, "utf8");
 
-    expect(updated).toContain("FROM node:22.0.0 AS build");
-    expect(updated).toContain("FROM --platform=linux/amd64 nginx:1.27");
-    expect(updated).toContain("ARG ALPINE_VERSION=3.20");
-    expect(updated).toContain("FROM alpine:${ALPINE_VERSION}");
-    expect(updated).toContain("FROM debian:${DEBIAN_VERSION}");
-    expect(updated).toContain("FROM alpine@sha256:abc123");
-    expect(updated).toContain("FROM scratch");
+    assert.ok((updated).includes("FROM node:22.0.0 AS build"));
+    assert.ok((updated).includes("FROM --platform=linux/amd64 nginx:1.27"));
+    assert.ok((updated).includes("ARG ALPINE_VERSION=3.20"));
+    assert.ok((updated).includes("FROM alpine:${ALPINE_VERSION}"));
+    assert.ok((updated).includes("FROM debian:${DEBIAN_VERSION}"));
+    assert.ok((updated).includes("FROM alpine@sha256:abc123"));
+    assert.ok((updated).includes("FROM scratch"));
   });
 
   test("should preserve ARG formatting and static tag suffixes", () => {
@@ -329,7 +309,7 @@ FROM node:\${NODE_VERSION}-slim AS build
 
     const provider = new DockerProvider();
     const manifest = provider.readManifest(dockerfilePath);
-    expect(manifest.dependencies).toEqual({ node: "20.11.1-slim" });
+    assert.deepStrictEqual((manifest.dependencies), { node: "20.11.1-slim" });
 
     provider.writeManifest(dockerfilePath, {
       filePath: dockerfilePath,
@@ -337,7 +317,7 @@ FROM node:\${NODE_VERSION}-slim AS build
     });
 
     const updated = readFileSync(dockerfilePath, "utf8");
-    expect(updated).toContain('ARG NODE_VERSION = "24.0.0" # shared runtime');
-    expect(updated).toContain("FROM node:${NODE_VERSION}-slim AS build");
+    assert.ok((updated).includes('ARG NODE_VERSION = "24.0.0" # shared runtime'));
+    assert.ok((updated).includes("FROM node:${NODE_VERSION}-slim AS build"));
   });
 });

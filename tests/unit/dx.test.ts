@@ -1,4 +1,6 @@
-import { describe, it, expect, beforeEach, jest } from "bun:test";
+import { describe, it, beforeEach, mock } from "node:test";
+import assert from "node:assert/strict";
+import { assertCalledWith } from "../helpers/assertions";
 import inquirerCheckbox from "@inquirer/checkbox";
 import inquirerSelect from "@inquirer/select";
 import {
@@ -23,7 +25,7 @@ describe("DX Utilities", () => {
 
     beforeEach(() => {
       mockStream = {
-        write: jest.fn(),
+        write: mock.fn(),
       };
     });
 
@@ -31,154 +33,154 @@ describe("DX Utilities", () => {
       const output = createOutput(mockStream);
 
       output.write("test");
-      expect(mockStream.write).toHaveBeenCalledWith("test");
+      assertCalledWith((mockStream.write), "test");
     });
 
     it("should write line with newline", () => {
       const output = createOutput(mockStream);
 
       output.writeLine("test");
-      expect(mockStream.write).toHaveBeenCalledWith("test\n");
+      assertCalledWith((mockStream.write), "test\n");
     });
 
     it("should clear line", () => {
       const output = createOutput(mockStream);
 
       output.clearLine();
-      expect(mockStream.write).toHaveBeenCalledWith("\r\x1b[K");
+      assertCalledWith((mockStream.write), "\r\x1b[K");
     });
 
     it("should hide cursor", () => {
       const output = createOutput(mockStream);
 
       output.hideCursor();
-      expect(mockStream.write).toHaveBeenCalledWith("\x1b[?25l");
+      assertCalledWith((mockStream.write), "\x1b[?25l");
     });
 
     it("should show cursor", () => {
       const output = createOutput(mockStream);
 
       output.showCursor();
-      expect(mockStream.write).toHaveBeenCalledWith("\x1b[?25h");
+      assertCalledWith((mockStream.write), "\x1b[?25h");
     });
 
     it("should use default output", () => {
-      expect(defaultOutput).toBeDefined();
-      expect(defaultOutput.write).toBeDefined();
+      assert.notStrictEqual((defaultOutput), undefined);
+      assert.notStrictEqual((defaultOutput.write), undefined);
     });
   });
 
   describe("Prompt styles", () => {
     it("should use a single-choice prompt for radio", () => {
-      expect(radio).toBe(inquirerSelect);
+      assert.strictEqual((radio), inquirerSelect);
     });
 
     it("should use a multi-choice prompt for select", () => {
-      expect(select).toBe(inquirerCheckbox);
+      assert.strictEqual((select), inquirerCheckbox);
     });
   });
 
   describe("Format Utilities", () => {
     it("should get terminal width", () => {
       const width = getTerminalWidth();
-      expect(typeof width).toBe("number");
-      expect(width).toBeGreaterThan(0);
+      assert.strictEqual((typeof width), "number");
+      assert.ok((width) > 0);
     });
 
     it("should calculate visible length without ANSI codes", () => {
-      expect(visibleLength("hello")).toBe(5);
-      expect(visibleLength("\x1b[31mhello\x1b[0m")).toBe(5);
-      expect(visibleLength("\x1b[1;32mtest\x1b[0m")).toBe(4);
+      assert.strictEqual((visibleLength("hello")), 5);
+      assert.strictEqual((visibleLength("\x1b[31mhello\x1b[0m")), 5);
+      assert.strictEqual((visibleLength("\x1b[1;32mtest\x1b[0m")), 4);
     });
 
     it("should pad strings left by default", () => {
-      expect(pad("test", 8)).toBe("test    ");
+      assert.strictEqual((pad("test", 8)), "test    ");
     });
 
     it("should pad strings right", () => {
-      expect(pad("test", 8, "right")).toBe("    test");
+      assert.strictEqual((pad("test", 8, "right")), "    test");
     });
 
     it("should pad strings center", () => {
-      expect(pad("test", 8, "center")).toBe("  test  ");
-      expect(pad("test", 9, "center")).toBe("  test   ");
+      assert.strictEqual((pad("test", 8, "center")), "  test  ");
+      assert.strictEqual((pad("test", 9, "center")), "  test   ");
     });
 
     it("should not pad if string is already long enough", () => {
-      expect(pad("testing", 5)).toBe("testing");
+      assert.strictEqual((pad("testing", 5)), "testing");
     });
 
     it("should truncate long strings", () => {
-      expect(truncate("hello world", 8)).toBe("hello...");
-      expect(truncate("short", 10)).toBe("short");
+      assert.strictEqual((truncate("hello world", 8)), "hello...");
+      assert.strictEqual((truncate("short", 10)), "short");
     });
 
     it("should handle truncate edge cases", () => {
-      expect(truncate("test", 3)).toBe("...");
-      expect(truncate("test", 2)).toBe("..");
-      expect(truncate("test", 1)).toBe(".");
+      assert.strictEqual((truncate("test", 3)), "...");
+      assert.strictEqual((truncate("test", 2)), "..");
+      assert.strictEqual((truncate("test", 1)), ".");
     });
 
     it("should indent text", () => {
-      expect(indent("test")).toBe("  test");
-      expect(indent("test", 4)).toBe("    test");
+      assert.strictEqual((indent("test")), "  test");
+      assert.strictEqual((indent("test", 4)), "    test");
     });
 
     it("should add line prefix", () => {
-      expect(line("test")).toBe("\ntest");
+      assert.strictEqual((line("test")), "\ntest");
     });
 
     it("should format numbered items", () => {
-      expect(item(1, "test")).toBe("  1. test");
-      expect(item(5, "item", 4)).toBe("    5. item");
+      assert.strictEqual((item(1, "test")), "  1. test");
+      assert.strictEqual((item(5, "item", 4)), "    5. item");
     });
 
     it("should create dividers", () => {
       const div = divider("-", 10);
-      expect(div).toBe("----------");
+      assert.strictEqual((div), "----------");
     });
 
     it("should create dividers with default length", () => {
       const div = divider();
-      expect(typeof div).toBe("string");
-      expect(div.length).toBeGreaterThan(0);
+      assert.strictEqual((typeof div), "string");
+      assert.ok((div.length) > 0);
     });
 
     it("should create boxes", () => {
       const lines = ["Hello", "World"];
       const boxed = box(lines);
 
-      expect(boxed).toHaveLength(4);
-      expect(boxed[0]).toMatch(/^┌.*┐$/);
-      expect(boxed[1]).toMatch(/^│.*│$/);
-      expect(boxed[2]).toMatch(/^│.*│$/);
-      expect(boxed[3]).toMatch(/^└.*┘$/);
+      assert.strictEqual((boxed).length, 4);
+      assert.match((boxed[0]), /^┌.*┐$/);
+      assert.match((boxed[1]), /^│.*│$/);
+      assert.match((boxed[2]), /^│.*│$/);
+      assert.match((boxed[3]), /^└.*┘$/);
     });
 
     it("should create boxes with title", () => {
       const lines = ["Content"];
       const boxed = box(lines, { title: "Test" });
 
-      expect(boxed[0]).toContain("Test");
+      assert.ok((boxed[0]).includes("Test"));
     });
 
     it("should create boxes with custom width", () => {
       const lines = ["Short"];
       const boxed = box(lines, { width: 20 });
 
-      expect(boxed[0]).toHaveLength(20);
+      assert.strictEqual((boxed[0]).length, 20);
     });
 
     it("should create boxes with custom padding", () => {
       const lines = ["Test"];
       const boxed = box(lines, { padding: 3 });
 
-      expect(boxed[1]).toMatch(/^│   Test.*   │$/);
+      assert.match((boxed[1]), /^│   Test.*   │$/);
     });
 
     it("should handle empty box content", () => {
       const boxed = box([]);
-      expect(boxed).toHaveLength(2);
+      assert.strictEqual((boxed).length, 2);
     });
   });
 });

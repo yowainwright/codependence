@@ -9,9 +9,6 @@ ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 # Change to root directory for Docker builds
 cd "$ROOT_DIR"
 
-BUN_VERSION="$(node scripts/ci/tool-versions.js bun-version)"
-BUN_LINUX_X64_SHA256="$(node scripts/ci/tool-versions.js bun-linux-x64-sha256)"
-BUN_LINUX_AARCH64_SHA256="$(node scripts/ci/tool-versions.js bun-linux-aarch64-sha256)"
 NODE_SLIM_IMAGE="$(node scripts/ci/tool-versions.js node-slim-image)"
 TEST_IMAGE="codependence-test:latest"
 BUILDER_IMAGE="codependence-builder:latest"
@@ -74,9 +71,6 @@ enable_cleanup() {
     trap 'exit 143' TERM
 }
 
-export BUN_VERSION
-export BUN_LINUX_X64_SHA256
-export BUN_LINUX_AARCH64_SHA256
 export NODE_SLIM_IMAGE
 
 case "$COMMAND" in
@@ -88,7 +82,7 @@ esac
 case "$COMMAND" in
 	    "test")
 	        print_status "Running automated tests..."
-	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t "$TEST_IMAGE" -f tests/e2e/Dockerfile . && docker run --rm "$TEST_IMAGE"
+	        docker build --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t "$TEST_IMAGE" -f tests/e2e/Dockerfile . && docker run --rm "$TEST_IMAGE"
 	        print_success "Automated tests completed!"
 	        ;;
     
@@ -100,21 +94,21 @@ case "$COMMAND" in
     
 	    "build")
 	        print_status "Building project in Docker..."
-	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target builder -t "$BUILDER_IMAGE" -f tests/e2e/Dockerfile .
+	        docker build --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target builder -t "$BUILDER_IMAGE" -f tests/e2e/Dockerfile .
 	        print_success "Build completed!"
 	        ;;
     
 	    "level-mode")
 	        print_status "Running level and mode feature tests..."
-	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t "$LEVEL_MODE_IMAGE" -f tests/e2e/Dockerfile.level-mode . && docker run --rm "$LEVEL_MODE_IMAGE"
+	        docker build --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t "$LEVEL_MODE_IMAGE" -f tests/e2e/Dockerfile.level-mode . && docker run --rm "$LEVEL_MODE_IMAGE"
 	        print_success "Level and mode tests completed!"
 	        ;;
 
 	    "all")
 	        print_status "Running all e2e test suites..."
-	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t "$TEST_IMAGE" -f tests/e2e/Dockerfile . && docker run --rm "$TEST_IMAGE"
+	        docker build --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t "$TEST_IMAGE" -f tests/e2e/Dockerfile . && docker run --rm "$TEST_IMAGE"
 	        print_success "Init tests completed!"
-	        docker build --build-arg "BUN_VERSION=$BUN_VERSION" --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t "$LEVEL_MODE_IMAGE" -f tests/e2e/Dockerfile.level-mode . && docker run --rm "$LEVEL_MODE_IMAGE"
+	        docker build --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t "$LEVEL_MODE_IMAGE" -f tests/e2e/Dockerfile.level-mode . && docker run --rm "$LEVEL_MODE_IMAGE"
 	        print_success "Level and mode tests completed!"
         print_success "All e2e test suites completed!"
         ;;

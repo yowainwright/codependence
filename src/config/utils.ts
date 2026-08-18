@@ -1,5 +1,4 @@
 import { readFileSync } from "fs";
-import { extname } from "path";
 import { SPLIT_INITIAL } from "./constants";
 import type { ParsedBlock, ParsedField, ParsedLine, SplitState } from "./types";
 
@@ -354,22 +353,22 @@ export const parseYAML = (content: string): Record<string, unknown> | null => {
   return Object.keys(config).length > 0 ? config : null;
 };
 
-export const loadPackageJson = (filepath: string): Record<string, unknown> | null => {
+export const loadPackageJson = (filepath: string): Record<string, unknown> | string | null => {
   const json = parseJSON(readFileSync(filepath, "utf8"));
   if (!json) {
     throw new ConfigLoadError(filepath, "package.json is not valid JSON");
   }
 
   const codependenceConfig = json.codependence;
+  if (typeof codependenceConfig === "string" && codependenceConfig.length > 0) {
+    return codependenceConfig;
+  }
   return isRecord(codependenceConfig) ? codependenceConfig : null;
 };
 
 export const loadRcFile = (filepath: string): Record<string, unknown> => {
   const content = readFileSync(filepath, "utf8");
-  const extension = extname(filepath);
-  const isYaml = extension === ".yaml" || extension === ".yml";
-  const config =
-    isYaml ? parseYAML(content) : (parseJSON(content) ?? parseYAML(content));
+  const config = parseJSON(content) ?? parseYAML(content);
 
   if (!config) {
     throw new ConfigLoadError(filepath, "file is empty, invalid, or did not export an object");

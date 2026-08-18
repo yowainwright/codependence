@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, test, mock } from "node:test";
+import assert from "node:assert/strict";
+import { assertRejects } from "../../helpers/assertions";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { GitHubActionsProvider } from "../../../src/providers/github-actions";
@@ -10,7 +12,7 @@ const jsonResponse = (value: unknown, status = 200): Response =>
   });
 
 describe("GitHubActionsProvider", () => {
-  const tmpDir = join(__dirname, ".tmp-github-actions-test");
+  const tmpDir = join(import.meta.dirname, ".tmp-github-actions-test");
   const workflowPath = join(tmpDir, "ci.yml");
   const shaSegment = "0123456789abcdef";
   const sha1Ref = `${shaSegment}${shaSegment}01234567`;
@@ -25,18 +27,18 @@ describe("GitHubActionsProvider", () => {
   test("should expose provider metadata", () => {
     const provider = new GitHubActionsProvider();
 
-    expect(provider.language).toBe("github-actions");
-    expect(provider.capabilities).toEqual({
+    assert.strictEqual((provider.language), "github-actions");
+    assert.deepStrictEqual((provider.capabilities), {
       supportsLatestResolution: true,
       supportsPreciseMode: true,
       versionStrategy: "exact",
     });
-    expect(provider.validatePackageName("actions/checkout")).toBe(true);
-    expect(provider.validatePackageName("local-action")).toBe(false);
+    assert.strictEqual((provider.validatePackageName("actions/checkout")), true);
+    assert.strictEqual((provider.validatePackageName("local-action")), false);
   });
 
   test("should resolve the latest GitHub release", async () => {
-    const fetch = mock(async (url: string) => {
+    const fetch = mock.fn(async (url: string) => {
       const isCommitRequest = url.endsWith("/commits/v5.0.0");
       if (isCommitRequest) return jsonResponse({ sha: latestSha });
 
@@ -52,24 +54,20 @@ describe("GitHubActionsProvider", () => {
 
     const version = await provider.getLatestVersion("actions/checkout/sub-action");
 
-    expect(version).toBe(latestSha);
-    expect(fetch).toHaveBeenCalledTimes(2);
-    expect(fetch.mock.calls[0][0]).toBe(
-      "https://github.example/api/v3/repos/actions/checkout/releases/latest",
-    );
-    expect(fetch.mock.calls[0][1].headers).toEqual({
+    assert.strictEqual((version), latestSha);
+    assert.strictEqual((fetch).mock.callCount(), 2);
+    assert.strictEqual((fetch.mock.calls[0].arguments[0]), "https://github.example/api/v3/repos/actions/checkout/releases/latest");
+    assert.deepStrictEqual((fetch.mock.calls[0].arguments[1].headers), {
       Accept: "application/vnd.github+json",
       Authorization: authorization,
       "User-Agent": "codependence",
     });
-    expect(fetch.mock.calls[1][0]).toBe(
-      "https://github.example/api/v3/repos/actions/checkout/commits/v5.0.0",
-    );
+    assert.strictEqual((fetch.mock.calls[1].arguments[0]), "https://github.example/api/v3/repos/actions/checkout/commits/v5.0.0");
   });
 
   test("should fall back to the newest stable repository tag", async () => {
     let requestCount = 0;
-    const fetch = mock(async () => {
+    const fetch = mock.fn(async () => {
       requestCount += 1;
       const isReleaseRequest = requestCount === 1;
       if (isReleaseRequest) return jsonResponse({}, 404);
@@ -91,28 +89,26 @@ describe("GitHubActionsProvider", () => {
 
     const version = await provider.getLatestVersion("actions/checkout");
 
-    expect(version).toBe(latestSha);
-    expect(fetch).toHaveBeenCalledTimes(3);
+    assert.strictEqual((version), latestSha);
+    assert.strictEqual((fetch).mock.callCount(), 3);
   });
 
   test("should list repository tags", async () => {
-    const fetch = mock(async () =>
+    const fetch = mock.fn(async () =>
       jsonResponse([{ name: "v5" }, { name: "v4" }, { invalid: true }]),
     );
     const provider = new GitHubActionsProvider({ fetch });
 
     const versions = await provider.getAllVersions("actions/checkout");
 
-    expect(versions).toEqual(["v5", "v4"]);
+    assert.deepStrictEqual((versions), ["v5", "v4"]);
   });
 
   test("should report GitHub API failures", async () => {
-    const fetch = mock(async () => new Response(null, { status: 403, statusText: "Forbidden" }));
+    const fetch = mock.fn(async () => new Response(null, { status: 403, statusText: "Forbidden" }));
     const provider = new GitHubActionsProvider({ fetch });
 
-    await expect(provider.getLatestVersion("actions/checkout")).rejects.toThrow(
-      "GitHub API request failed for actions/checkout: 403 Forbidden",
-    );
+    await assertRejects(provider.getLatestVersion("actions/checkout"), "GitHub API request failed for actions/checkout: 403 Forbidden");
   });
 
   test("should read external action refs", () => {
@@ -132,7 +128,7 @@ jobs:
     const provider = new GitHubActionsProvider();
     const manifest = provider.readManifest(workflowPath);
 
-    expect(manifest.dependencies).toEqual({
+    assert.deepStrictEqual((manifest.dependencies), {
       "actions/checkout": "v4",
       "actions/setup-node": "v4",
       "actions/cache": sha1Ref,
@@ -154,11 +150,8 @@ jobs:
     const provider = new GitHubActionsProvider();
     const manifest = provider.readManifest(workflowPath);
 
-    expect(manifest.dependencies["actions/checkout"]).toBe(latestSha);
-    expect(manifest.dependencyVersions?.["actions/checkout"]).toEqual([
-      "v3",
-      latestSha,
-    ]);
+    assert.strictEqual((manifest.dependencies["actions/checkout"]), latestSha);
+    assert.deepStrictEqual((manifest.dependencyVersions?.["actions/checkout"]), ["v3", latestSha]);
   });
 
   test("should update SHA pins with their release labels", async () => {
@@ -166,7 +159,7 @@ jobs:
   - uses: actions/checkout@${sha1Ref} # v4.0.0
 `;
     writeFileSync(workflowPath, content);
-    const fetch = mock(async (url: string) => {
+    const fetch = mock.fn(async (url: string) => {
       const isCommitRequest = url.endsWith("/commits/v5.0.0");
       if (isCommitRequest) return jsonResponse({ sha: latestSha });
 
@@ -181,7 +174,7 @@ jobs:
     });
 
     const updated = readFileSync(workflowPath, "utf8");
-    expect(updated).toContain(`uses: actions/checkout@${latestSha} # v5.0.0`);
+    assert.ok((updated).includes(`uses: actions/checkout@${latestSha} # v5.0.0`));
   });
 
   test("should update external action refs", () => {
@@ -207,10 +200,10 @@ jobs:
 
     const updated = readFileSync(workflowPath, "utf8");
 
-    expect(updated).toContain("uses: actions/checkout@v4");
-    expect(updated).toContain('uses: "actions/setup-node@v4"');
-    expect(updated).toContain(`uses: actions/cache@${sha1Ref}`);
-    expect(updated).toContain(`uses: actions/upload-artifact@${sha256Ref}`);
-    expect(updated).toContain("uses: ./local-action");
+    assert.ok((updated).includes("uses: actions/checkout@v4"));
+    assert.ok((updated).includes('uses: "actions/setup-node@v4"'));
+    assert.ok((updated).includes(`uses: actions/cache@${sha1Ref}`));
+    assert.ok((updated).includes(`uses: actions/upload-artifact@${sha256Ref}`));
+    assert.ok((updated).includes("uses: ./local-action"));
   });
 });

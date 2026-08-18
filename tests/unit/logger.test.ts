@@ -1,13 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from "bun:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
+import assert from "node:assert/strict";
+import { assertCalledWith, match } from "../helpers/assertions";
 import { createLogger } from "../../src/logger";
 import { createAnsiPattern } from "../../src/utils/constants";
 
 describe("Logger", () => {
   let consoleSpy: {
-    log: jest.Mock<any>;
-    error: jest.Mock<any>;
-    warn: jest.Mock<any>;
-    debug: jest.Mock<any>;
+    log: ReturnType<typeof mock.method>;
+    error: ReturnType<typeof mock.method>;
+    warn: ReturnType<typeof mock.method>;
+    debug: ReturnType<typeof mock.method>;
   };
 
   const stripAnsi = (str: string): string => {
@@ -16,53 +18,53 @@ describe("Logger", () => {
 
   beforeEach(() => {
     consoleSpy = {
-      log: jest.spyOn(console, "log").mockImplementation(() => {}),
-      error: jest.spyOn(console, "error").mockImplementation(() => {}),
-      warn: jest.spyOn(console, "warn").mockImplementation(() => {}),
-      debug: jest.spyOn(console, "debug").mockImplementation(() => {}),
+      log: mock.method(console, "log", () => {}),
+      error: mock.method(console, "error", () => {}),
+      warn: mock.method(console, "warn", () => {}),
+      debug: mock.method(console, "debug", () => {}),
     };
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    mock.restoreAll();
   });
 
   describe("log levels", () => {
     it("should log error messages", () => {
       const logger = createLogger();
       logger.error("Test error");
-      expect(consoleSpy.error).toHaveBeenCalledWith(expect.stringContaining("codependence"));
-      expect(consoleSpy.error).toHaveBeenCalledWith(expect.stringContaining("Test error"));
+      assertCalledWith((consoleSpy.error), match.stringContaining("codependence"));
+      assertCalledWith((consoleSpy.error), match.stringContaining("Test error"));
     });
 
     it("should log warning messages", () => {
       const logger = createLogger();
       logger.warn("Test warning");
-      expect(consoleSpy.warn).toHaveBeenCalledWith(expect.stringContaining("codependence"));
-      expect(consoleSpy.warn).toHaveBeenCalledWith(expect.stringContaining("Test warning"));
+      assertCalledWith((consoleSpy.warn), match.stringContaining("codependence"));
+      assertCalledWith((consoleSpy.warn), match.stringContaining("Test warning"));
     });
 
     it("should log info messages", () => {
       const logger = createLogger();
       logger.info("Test info");
-      expect(consoleSpy.log).toHaveBeenCalled();
-      const call = stripAnsi(consoleSpy.log.mock.calls[0][0]);
-      expect(call).toContain("codependence");
-      expect(call).toContain("Test info");
+      assert.ok((consoleSpy.log).mock.callCount() > 0);
+      const call = stripAnsi(consoleSpy.log.mock.calls[0].arguments[0]);
+      assert.ok((call).includes("codependence"));
+      assert.ok((call).includes("Test info"));
     });
 
     it("should log debug messages when level is debug", () => {
       const logger = createLogger({ level: "debug" });
       logger.debug("Test debug");
-      expect(consoleSpy.debug).toHaveBeenCalledWith(expect.stringContaining("codependence"));
-      expect(consoleSpy.debug).toHaveBeenCalledWith(expect.stringContaining("Test debug"));
+      assertCalledWith((consoleSpy.debug), match.stringContaining("codependence"));
+      assertCalledWith((consoleSpy.debug), match.stringContaining("Test debug"));
     });
 
     it("should log verbose messages when level is verbose", () => {
       const logger = createLogger({ level: "verbose" });
       logger.verbose("Test verbose");
-      expect(consoleSpy.debug).toHaveBeenCalledWith(expect.stringContaining("codependence"));
-      expect(consoleSpy.debug).toHaveBeenCalledWith(expect.stringContaining("Test verbose"));
+      assertCalledWith((consoleSpy.debug), match.stringContaining("codependence"));
+      assertCalledWith((consoleSpy.debug), match.stringContaining("Test verbose"));
     });
   });
 
@@ -75,10 +77,10 @@ describe("Logger", () => {
       logger.info("info message");
       logger.debug("debug message");
 
-      expect(consoleSpy.error).toHaveBeenCalled();
-      expect(consoleSpy.warn).toHaveBeenCalled();
-      expect(consoleSpy.log).not.toHaveBeenCalled();
-      expect(consoleSpy.debug).not.toHaveBeenCalled();
+      assert.ok((consoleSpy.error).mock.callCount() > 0);
+      assert.ok((consoleSpy.warn).mock.callCount() > 0);
+      assert.strictEqual((consoleSpy.log).mock.callCount(), 0);
+      assert.strictEqual((consoleSpy.debug).mock.callCount(), 0);
     });
 
     it("should not log anything when silent is true", () => {
@@ -90,10 +92,10 @@ describe("Logger", () => {
       logger.debug("test");
       logger.verbose("test");
 
-      expect(consoleSpy.log).not.toHaveBeenCalled();
-      expect(consoleSpy.error).not.toHaveBeenCalled();
-      expect(consoleSpy.warn).not.toHaveBeenCalled();
-      expect(consoleSpy.debug).not.toHaveBeenCalled();
+      assert.strictEqual((consoleSpy.log).mock.callCount(), 0);
+      assert.strictEqual((consoleSpy.error).mock.callCount(), 0);
+      assert.strictEqual((consoleSpy.warn).mock.callCount(), 0);
+      assert.strictEqual((consoleSpy.debug).mock.callCount(), 0);
     });
   });
 
@@ -102,28 +104,28 @@ describe("Logger", () => {
       const logger = createLogger();
       const error = new Error("Test error details");
       logger.error("Error occurred", error);
-      expect(consoleSpy.error).toHaveBeenCalledWith(expect.stringContaining("Error occurred"));
-      expect(consoleSpy.error).toHaveBeenCalledWith(expect.stringContaining("Test error details"));
+      assertCalledWith((consoleSpy.error), match.stringContaining("Error occurred"));
+      assertCalledWith((consoleSpy.error), match.stringContaining("Test error details"));
     });
 
     it("should handle string errors", () => {
       const logger = createLogger();
       logger.error("Error occurred", "String error");
-      expect(consoleSpy.error).toHaveBeenCalledWith(expect.stringContaining("String error"));
+      assertCalledWith((consoleSpy.error), match.stringContaining("String error"));
     });
 
     it("should handle debug with data", () => {
       const logger = createLogger({ level: "debug" });
       logger.debug("Debug message", { foo: "bar" });
-      expect(consoleSpy.debug).toHaveBeenCalledWith(expect.stringContaining("Debug message"));
-      expect(consoleSpy.debug).toHaveBeenCalledWith(expect.stringContaining('"foo": "bar"'));
+      assertCalledWith((consoleSpy.debug), match.stringContaining("Debug message"));
+      assertCalledWith((consoleSpy.debug), match.stringContaining('"foo": "bar"'));
     });
 
     it("should handle verbose with data", () => {
       const logger = createLogger({ level: "verbose" });
       logger.verbose("Verbose message", { baz: "qux" });
-      expect(consoleSpy.debug).toHaveBeenCalledWith(expect.stringContaining("Verbose message"));
-      expect(consoleSpy.debug).toHaveBeenCalledWith(expect.stringContaining('"baz": "qux"'));
+      assertCalledWith((consoleSpy.debug), match.stringContaining("Verbose message"));
+      assertCalledWith((consoleSpy.debug), match.stringContaining('"baz": "qux"'));
     });
   });
 
@@ -131,49 +133,49 @@ describe("Logger", () => {
     it("should print plain messages", () => {
       const logger = createLogger();
       logger.print("Plain message");
-      expect(consoleSpy.log).toHaveBeenCalledWith("Plain message");
+      assertCalledWith((consoleSpy.log), "Plain message");
     });
 
     it("should print plain errors", () => {
       const logger = createLogger();
       logger.printError("Plain error");
-      expect(consoleSpy.error).toHaveBeenCalledWith("Plain error");
+      assertCalledWith((consoleSpy.error), "Plain error");
     });
 
     it("should print lines with newline prefix", () => {
       const logger = createLogger();
       logger.line("Line message");
-      expect(consoleSpy.log).toHaveBeenCalledWith("\nLine message");
+      assertCalledWith((consoleSpy.log), "\nLine message");
     });
 
     it("should indent messages", () => {
       const logger = createLogger();
       logger.indent("Indented", 4);
-      expect(consoleSpy.log).toHaveBeenCalledWith("    Indented");
+      assertCalledWith((consoleSpy.log), "    Indented");
     });
 
     it("should indent with default 2 spaces", () => {
       const logger = createLogger();
       logger.indent("Default indent");
-      expect(consoleSpy.log).toHaveBeenCalledWith("  Default indent");
+      assertCalledWith((consoleSpy.log), "  Default indent");
     });
 
     it("should format numbered items", () => {
       const logger = createLogger();
       logger.item(1, "First item");
-      expect(consoleSpy.log).toHaveBeenCalledWith("  1. First item");
+      assertCalledWith((consoleSpy.log), "  1. First item");
     });
 
     it("should add spacing", () => {
       const logger = createLogger();
       logger.space();
-      expect(consoleSpy.log).toHaveBeenCalledWith();
+      assertCalledWith((consoleSpy.log));
     });
 
     it("should add separator", () => {
       const logger = createLogger();
       logger.separator();
-      expect(consoleSpy.log).toHaveBeenCalledWith("─".repeat(50));
+      assertCalledWith((consoleSpy.log), "─".repeat(50));
     });
 
     it("should not output utilities when silent", () => {
@@ -187,8 +189,8 @@ describe("Logger", () => {
       logger.space();
       logger.separator();
 
-      expect(consoleSpy.log).not.toHaveBeenCalled();
-      expect(consoleSpy.error).not.toHaveBeenCalled();
+      assert.strictEqual((consoleSpy.log).mock.callCount(), 0);
+      assert.strictEqual((consoleSpy.error).mock.callCount(), 0);
     });
   });
 
@@ -197,22 +199,22 @@ describe("Logger", () => {
       const logger = createLogger({ structured: true });
       logger.info("Test message");
 
-      expect(consoleSpy.log).toHaveBeenCalledWith(expect.stringMatching(/^\{.*\}$/));
+      assertCalledWith((consoleSpy.log), match.stringMatching(/^\{.*\}$/));
 
-      const logCall = consoleSpy.log.mock.calls[0][0];
+      const logCall = consoleSpy.log.mock.calls[0].arguments[0];
       const parsedLog = JSON.parse(logCall as string);
-      expect(parsedLog.level).toBe("info");
-      expect(parsedLog.message).toBe("Test message");
-      expect(parsedLog.timestamp).toBeDefined();
+      assert.strictEqual((parsedLog.level), "info");
+      assert.strictEqual((parsedLog.message), "Test message");
+      assert.notStrictEqual((parsedLog.timestamp), undefined);
     });
 
     it("should include data in structured output", () => {
       const logger = createLogger({ structured: true, level: "debug" });
       logger.debug("Debug test", { key: "value" });
 
-      const logCall = consoleSpy.debug.mock.calls[0][0];
+      const logCall = consoleSpy.debug.mock.calls[0].arguments[0];
       const parsedLog = JSON.parse(logCall as string);
-      expect(parsedLog.data).toEqual({ key: "value" });
+      assert.deepStrictEqual((parsedLog.data), { key: "value" });
     });
   });
 
@@ -220,15 +222,15 @@ describe("Logger", () => {
     it("should handle empty messages", () => {
       const logger = createLogger();
       logger.info("");
-      expect(consoleSpy.log).toHaveBeenCalled();
-      const call = stripAnsi(consoleSpy.log.mock.calls[0][0]);
-      expect(call).toContain("codependence");
+      assert.ok((consoleSpy.log).mock.callCount() > 0);
+      const call = stripAnsi(consoleSpy.log.mock.calls[0].arguments[0]);
+      assert.ok((call).includes("codependence"));
     });
 
     it("should handle undefined error", () => {
       const logger = createLogger();
       logger.error("Test");
-      expect(consoleSpy.error).toHaveBeenCalled();
+      assert.ok((consoleSpy.error).mock.callCount() > 0);
     });
   });
 });

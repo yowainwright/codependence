@@ -8,9 +8,6 @@ ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 cd "$ROOT_DIR"
 
-BUN_VERSION="$(node scripts/ci/tool-versions.js bun-version)"
-BUN_LINUX_X64_SHA256="$(node scripts/ci/tool-versions.js bun-linux-x64-sha256)"
-BUN_LINUX_AARCH64_SHA256="$(node scripts/ci/tool-versions.js bun-linux-aarch64-sha256)"
 NODE_SLIM_IMAGE="$(node scripts/ci/tool-versions.js node-slim-image)"
 INIT_IMAGE="codependence-test:latest"
 MULTILANG_IMAGE="codependence-multilang-test:latest"
@@ -52,9 +49,6 @@ run_step() {
 
 build_init_image() {
     run_step "Built Node.js init test image" docker build \
-        --build-arg "BUN_VERSION=$BUN_VERSION" \
-        --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" \
-        --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" \
         --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" \
         --target test \
         -t "$INIT_IMAGE" \
@@ -67,9 +61,6 @@ run_init_tests() {
 
 build_multilang_image() {
     run_step "Built multi-language test image" docker build \
-        --build-arg "BUN_VERSION=$BUN_VERSION" \
-        --build-arg "BUN_LINUX_X64_SHA256=$BUN_LINUX_X64_SHA256" \
-        --build-arg "BUN_LINUX_AARCH64_SHA256=$BUN_LINUX_AARCH64_SHA256" \
         --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" \
         --target multilang-test \
         -t "$MULTILANG_IMAGE" \

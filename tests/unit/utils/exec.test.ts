@@ -1,16 +1,21 @@
-import { describe, it, expect, jest, beforeEach } from "bun:test";
-import type { ExecFn } from "../../../src/utils/types";
-
-let exec: ExecFn;
-
-beforeEach(async () => {
-  ({ exec } = await import(import.meta.dir + "/../../../src/utils/exec.ts?" + Date.now()));
-});
+import { describe, it, mock } from "node:test";
+import assert from "node:assert/strict";
+import { assertCalledWith, assertNthCalledWith } from "../../helpers/assertions";
+import { exec } from "../../../src/utils/exec";
 
 const makeExecFileFn = (result: { stdout: string; stderr: string }) =>
-  jest.fn().mockResolvedValue(result);
+  mock.fn(async () => (result));
 
-const makeSleepFn = () => jest.fn().mockResolvedValue(undefined);
+const makeSleepFn = () => mock.fn(async () => (undefined));
+
+const rejectOnceThenResolve = <T>(error: unknown, result: T) => {
+  const execFileFn = mock.fn();
+  execFileFn.mock.mockImplementationOnce(async () => {
+    throw error;
+  });
+  execFileFn.mock.mockImplementationOnce(async () => result, 1);
+  return execFileFn;
+};
 
 describe("exec", () => {
   describe("success path", () => {
@@ -18,21 +23,21 @@ describe("exec", () => {
       const execFileFn = makeExecFileFn({ stdout: "output", stderr: "warn" });
       const sleepFn = makeSleepFn();
       const result = await exec("npm", ["view"], { execFileFn, sleepFn });
-      expect(result).toEqual({ stdout: "output", stderr: "warn" });
+      assert.deepStrictEqual((result), { stdout: "output", stderr: "warn" });
     });
 
     it("normalizes undefined stdout/stderr to empty string", async () => {
-      const execFileFn = jest.fn().mockResolvedValue({ stdout: undefined, stderr: undefined });
+      const execFileFn = mock.fn(async () => ({ stdout: undefined, stderr: undefined }));
       const sleepFn = makeSleepFn();
       const result = await exec("npm", ["view"], { execFileFn, sleepFn });
-      expect(result).toEqual({ stdout: "", stderr: "" });
+      assert.deepStrictEqual((result), { stdout: "", stderr: "" });
     });
 
     it("passes command, args, cwd, and encoding to execFileFn", async () => {
       const execFileFn = makeExecFileFn({ stdout: "", stderr: "" });
       const sleepFn = makeSleepFn();
       await exec("npm", ["install", "--save"], { cwd: "/tmp", execFileFn, sleepFn });
-      expect(execFileFn).toHaveBeenCalledWith("npm", ["install", "--save"], {
+      assertCalledWith((execFileFn), "npm", ["install", "--save"], {
         cwd: "/tmp",
         encoding: "utf8",
       });
@@ -42,32 +47,32 @@ describe("exec", () => {
   describe("non-retryable errors", () => {
     it("throws immediately on ENOENT without sleeping", async () => {
       const error = Object.assign(new Error("not found"), { code: "ENOENT" });
-      const execFileFn = jest.fn().mockRejectedValue(error);
+      const execFileFn = mock.fn(async () => { throw error; });
       const sleepFn = makeSleepFn();
-      await expect(exec("npm", ["view"], { execFileFn, sleepFn })).rejects.toBe(error);
-      expect(sleepFn).not.toHaveBeenCalled();
+      await assert.rejects(exec("npm", ["view"], { execFileFn, sleepFn }), (error) => { assert.strictEqual(error, error); return true; });
+      assert.strictEqual((sleepFn).mock.callCount(), 0);
     });
 
     it("throws immediately on generic error message without sleeping", async () => {
       const error = new Error("something went wrong");
-      const execFileFn = jest.fn().mockRejectedValue(error);
+      const execFileFn = mock.fn(async () => { throw error; });
       const sleepFn = makeSleepFn();
-      await expect(exec("npm", ["view"], { execFileFn, sleepFn })).rejects.toBe(error);
-      expect(sleepFn).not.toHaveBeenCalled();
+      await assert.rejects(exec("npm", ["view"], { execFileFn, sleepFn }), (error) => { assert.strictEqual(error, error); return true; });
+      assert.strictEqual((sleepFn).mock.callCount(), 0);
     });
 
     it("throws immediately for non-object error (string)", async () => {
-      const execFileFn = jest.fn().mockRejectedValue("string error");
+      const execFileFn = mock.fn(async () => { throw "string error"; });
       const sleepFn = makeSleepFn();
-      await expect(exec("npm", ["view"], { execFileFn, sleepFn })).rejects.toBe("string error");
-      expect(sleepFn).not.toHaveBeenCalled();
+      await assert.rejects(exec("npm", ["view"], { execFileFn, sleepFn }), (error) => { assert.strictEqual(error, "string error"); return true; });
+      assert.strictEqual((sleepFn).mock.callCount(), 0);
     });
 
     it("throws immediately for empty object error", async () => {
-      const execFileFn = jest.fn().mockRejectedValue({});
+      const execFileFn = mock.fn(async () => { throw {}; });
       const sleepFn = makeSleepFn();
-      await expect(exec("npm", ["view"], { execFileFn, sleepFn })).rejects.toEqual({});
-      expect(sleepFn).not.toHaveBeenCalled();
+      await assert.rejects(exec("npm", ["view"], { execFileFn, sleepFn }), (error) => { assert.deepStrictEqual(error, {}); return true; });
+      assert.strictEqual((sleepFn).mock.callCount(), 0);
     });
   });
 
@@ -75,102 +80,90 @@ describe("exec", () => {
     for (const code of ["ETIMEDOUT", "ECONNRESET", "ENOTFOUND", "EAI_AGAIN"]) {
       it(`retries on ${code} then succeeds`, async () => {
         const retryableError = Object.assign(new Error(code), { code });
-        const execFileFn = jest
-          .fn()
-          .mockRejectedValueOnce(retryableError)
-          .mockResolvedValueOnce({ stdout: "ok", stderr: "" });
+        const execFileFn = rejectOnceThenResolve(retryableError, {
+          stdout: "ok",
+          stderr: "",
+        });
         const sleepFn = makeSleepFn();
         const result = await exec("npm", ["view"], { execFileFn, sleepFn, retryDelay: 0 });
-        expect(result).toEqual({ stdout: "ok", stderr: "" });
-        expect(execFileFn).toHaveBeenCalledTimes(2);
-        expect(sleepFn).toHaveBeenCalledTimes(1);
+        assert.deepStrictEqual((result), { stdout: "ok", stderr: "" });
+        assert.strictEqual((execFileFn).mock.callCount(), 2);
+        assert.strictEqual((sleepFn).mock.callCount(), 1);
       });
     }
   });
 
   describe("retryable errors by message", () => {
     it("retries on message containing 'timeout'", async () => {
-      const execFileFn = jest
-        .fn()
-        .mockRejectedValueOnce(new Error("Request timeout occurred"))
-        .mockResolvedValueOnce({ stdout: "ok", stderr: "" });
+      const execFileFn = rejectOnceThenResolve(new Error("Request timeout occurred"), {
+        stdout: "ok",
+        stderr: "",
+      });
       const sleepFn = makeSleepFn();
       const result = await exec("npm", ["view"], { execFileFn, sleepFn, retryDelay: 0 });
-      expect(result).toEqual({ stdout: "ok", stderr: "" });
-      expect(execFileFn).toHaveBeenCalledTimes(2);
+      assert.deepStrictEqual((result), { stdout: "ok", stderr: "" });
+      assert.strictEqual((execFileFn).mock.callCount(), 2);
     });
 
     it("retries on message containing 'network' (case-insensitive)", async () => {
-      const execFileFn = jest
-        .fn()
-        .mockRejectedValueOnce(new Error("NETWORK FAILURE"))
-        .mockResolvedValueOnce({ stdout: "ok", stderr: "" });
+      const execFileFn = rejectOnceThenResolve(new Error("NETWORK FAILURE"), {
+        stdout: "ok",
+        stderr: "",
+      });
       const sleepFn = makeSleepFn();
       const result = await exec("npm", ["view"], { execFileFn, sleepFn, retryDelay: 0 });
-      expect(result).toEqual({ stdout: "ok", stderr: "" });
-      expect(execFileFn).toHaveBeenCalledTimes(2);
+      assert.deepStrictEqual((result), { stdout: "ok", stderr: "" });
+      assert.strictEqual((execFileFn).mock.callCount(), 2);
     });
   });
 
   describe("retry exhaustion", () => {
     it("throws after maxRetries attempts", async () => {
       const error = Object.assign(new Error("timeout"), { code: "ETIMEDOUT" });
-      const execFileFn = jest.fn().mockRejectedValue(error);
+      const execFileFn = mock.fn(async () => { throw error; });
       const sleepFn = makeSleepFn();
-      await expect(
-        exec("npm", ["view"], { execFileFn, sleepFn, maxRetries: 3, retryDelay: 0 }),
-      ).rejects.toBe(error);
-      expect(execFileFn).toHaveBeenCalledTimes(3);
-      expect(sleepFn).toHaveBeenCalledTimes(2);
+      await assert.rejects(exec("npm", ["view"], { execFileFn, sleepFn, maxRetries: 3, retryDelay: 0 }), (error) => { assert.strictEqual(error, error); return true; });
+      assert.strictEqual((execFileFn).mock.callCount(), 3);
+      assert.strictEqual((sleepFn).mock.callCount(), 2);
     });
   });
 
   describe("backoff timing", () => {
     it("calls sleepFn with exponential backoff based on retryDelay", async () => {
       const error = Object.assign(new Error("timeout"), { code: "ETIMEDOUT" });
-      const execFileFn = jest.fn().mockRejectedValue(error);
+      const execFileFn = mock.fn(async () => { throw error; });
       const sleepFn = makeSleepFn();
-      await expect(
-        exec("npm", ["view"], { execFileFn, sleepFn, maxRetries: 3, retryDelay: 100 }),
-      ).rejects.toBe(error);
-      expect(sleepFn).toHaveBeenNthCalledWith(1, 100);
-      expect(sleepFn).toHaveBeenNthCalledWith(2, 200);
+      await assert.rejects(exec("npm", ["view"], { execFileFn, sleepFn, maxRetries: 3, retryDelay: 100 }), (error) => { assert.strictEqual(error, error); return true; });
+      assertNthCalledWith((sleepFn), 1, 100);
+      assertNthCalledWith((sleepFn), 2, 200);
     });
 
     it("respects custom retryDelay", async () => {
       const error = Object.assign(new Error("timeout"), { code: "ETIMEDOUT" });
-      const execFileFn = jest
-        .fn()
-        .mockRejectedValueOnce(error)
-        .mockResolvedValueOnce({ stdout: "", stderr: "" });
+      const execFileFn = rejectOnceThenResolve(error, { stdout: "", stderr: "" });
       const sleepFn = makeSleepFn();
       await exec("npm", ["view"], { execFileFn, sleepFn, retryDelay: 500 });
-      expect(sleepFn).toHaveBeenCalledWith(500);
+      assertCalledWith((sleepFn), 500);
     });
   });
 
   describe("default options", () => {
     it("uses the default sleep between retries", async () => {
       const error = Object.assign(new Error("timeout"), { code: "ETIMEDOUT" });
-      const execFileFn = jest
-        .fn()
-        .mockRejectedValueOnce(error)
-        .mockResolvedValueOnce({ stdout: "ok", stderr: "" });
+      const execFileFn = rejectOnceThenResolve(error, { stdout: "ok", stderr: "" });
 
       const result = await exec("npm", ["view"], { execFileFn, retryDelay: 0 });
 
-      expect(result).toEqual({ stdout: "ok", stderr: "" });
-      expect(execFileFn).toHaveBeenCalledTimes(2);
+      assert.deepStrictEqual((result), { stdout: "ok", stderr: "" });
+      assert.strictEqual((execFileFn).mock.callCount(), 2);
     });
 
     it("defaults maxRetries to 3 (verified by exhaustion call count)", async () => {
       const error = Object.assign(new Error("timeout"), { code: "ETIMEDOUT" });
-      const execFileFn = jest.fn().mockRejectedValue(error);
+      const execFileFn = mock.fn(async () => { throw error; });
       const sleepFn = makeSleepFn();
-      await expect(exec("npm", ["view"], { execFileFn, sleepFn, retryDelay: 0 })).rejects.toBe(
-        error,
-      );
-      expect(execFileFn).toHaveBeenCalledTimes(3);
+      await assert.rejects(exec("npm", ["view"], { execFileFn, sleepFn, retryDelay: 0 }), (error) => { assert.strictEqual(error, error); return true; });
+      assert.strictEqual((execFileFn).mock.callCount(), 3);
     });
   });
 });

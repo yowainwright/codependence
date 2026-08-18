@@ -2,20 +2,58 @@ import { existsSync } from "fs";
 import { resolve, dirname } from "path";
 import { CONFIG_FILES } from "./constants";
 import { MANIFEST_FILES } from "../providers/constants";
-import { loadPackageJson, loadRcFile } from "./utils";
+import { ConfigLoadError, loadPackageJson, loadRcFile } from "./utils";
 import type { ConfigResult } from "./types";
 
-const loadConfigFromDirectory = (directory: string): ConfigResult | null => {
-  const filename = CONFIG_FILES.find((candidate) => existsSync(resolve(directory, candidate)));
-  if (!filename) return null;
+const packageConfigResult = (
+  filepath: string,
+  config: Record<string, unknown> | string | null,
+): ConfigResult | null => {
+  if (!config) return null;
+  if (typeof config !== "string") return { config, filepath };
 
-  const filepath = resolve(directory, filename);
-  if (filename !== MANIFEST_FILES.PACKAGE_JSON) {
-    return { config: loadRcFile(filepath), filepath };
+  const configPath = resolve(dirname(filepath), config);
+  if (!existsSync(configPath)) {
+    throw new ConfigLoadError(filepath, `referenced config does not exist: ${config}`);
   }
 
-  const config = loadPackageJson(filepath);
-  return config ? { config, filepath } : null;
+  return { config: loadRcFile(configPath), filepath: configPath };
+};
+
+const loadPackageConfig = (filepath: string): ConfigResult | null =>
+  packageConfigResult(filepath, loadPackageJson(filepath));
+
+const loadCandidate = (directory: string, filename: string): ConfigResult | null => {
+  const filepath = resolve(directory, filename);
+  if (!existsSync(filepath)) return null;
+  return { config: loadRcFile(filepath), filepath };
+};
+
+const preferredPackageConfig = (
+  directory: string,
+): { config: ConfigResult | null; cause?: unknown } => {
+  const filepath = resolve(directory, MANIFEST_FILES.PACKAGE_JSON);
+  if (!existsSync(filepath)) return { config: null };
+
+  let packageConfig: ReturnType<typeof loadPackageJson>;
+  try {
+    packageConfig = loadPackageJson(filepath);
+  } catch (cause) {
+    return { config: null, cause };
+  }
+  return { config: packageConfigResult(filepath, packageConfig) };
+};
+
+const loadConfigFromDirectory = (directory: string): ConfigResult | null => {
+  const preferred = preferredPackageConfig(directory);
+  if (preferred.config) return preferred.config;
+  const rcConfig = CONFIG_FILES.slice(1).reduce<ConfigResult | null>(
+    (result, filename) => result || loadCandidate(directory, filename),
+    null,
+  );
+  if (rcConfig) return rcConfig;
+  if (preferred.cause) throw preferred.cause;
+  return null;
 };
 
 const searchForConfig = (searchFrom: string): ConfigResult | null => {
@@ -32,10 +70,7 @@ const searchForConfig = (searchFrom: string): ConfigResult | null => {
   return null;
 };
 
-export const loadConfig = (
-  filepath?: string,
-  searchFrom = process.cwd(),
-): ConfigResult | null => {
+export const loadConfig = (filepath?: string, searchFrom = process.cwd()): ConfigResult | null => {
   if (filepath) {
     const resolvedPath = resolve(filepath);
 
@@ -44,8 +79,7 @@ export const loadConfig = (
     }
 
     if (filepath.endsWith(MANIFEST_FILES.PACKAGE_JSON)) {
-      const config = loadPackageJson(resolvedPath);
-      return config ? { config, filepath: resolvedPath } : null;
+      return loadPackageConfig(resolvedPath);
     }
 
     return { config: loadRcFile(resolvedPath), filepath: resolvedPath };

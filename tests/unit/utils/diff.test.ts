@@ -1,9 +1,7 @@
-import { describe, test, expect, beforeEach, afterEach, spyOn } from "bun:test";
-import {
-  buildVersionDiff,
-  displayVersionDiffs,
-  collectAllDiffs,
-} from "../../../src/utils/diff";
+import { describe, test, beforeEach, afterEach, mock } from "node:test";
+import assert from "node:assert/strict";
+import { assertCalledWith, assertMatchObject, match } from "../../helpers/assertions";
+import { buildVersionDiff, displayVersionDiffs, collectAllDiffs } from "../../../src/utils/diff";
 import type { VersionDiff } from "../../../src/types";
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
@@ -25,22 +23,17 @@ describe("buildVersionDiff", () => {
     const codependencies = ["lodash"];
     const permissive = false;
 
-    const diffs = buildVersionDiff(
-      versionMap,
-      packageJson,
-      codependencies,
-      permissive,
-    );
+    const diffs = buildVersionDiff(versionMap, packageJson, codependencies, permissive);
 
-    expect(diffs).toHaveLength(2);
-    expect(diffs[0]).toMatchObject({
+    assert.strictEqual((diffs).length, 2);
+    assertMatchObject((diffs[0]), {
       package: "lodash",
       current: "4.17.0",
       latest: "4.17.21",
       isPinned: true,
       willUpdate: true,
     });
-    expect(diffs[1]).toMatchObject({
+    assertMatchObject((diffs[1]), {
       package: "express",
       current: "4.18.0",
       latest: "4.19.0",
@@ -65,15 +58,10 @@ describe("buildVersionDiff", () => {
     const codependencies = ["lodash"];
     const permissive = true;
 
-    const diffs = buildVersionDiff(
-      versionMap,
-      packageJson,
-      codependencies,
-      permissive,
-    );
+    const diffs = buildVersionDiff(versionMap, packageJson, codependencies, permissive);
 
-    expect(diffs[0].willUpdate).toBe(false);
-    expect(diffs[1].willUpdate).toBe(true);
+    assert.strictEqual((diffs[0].willUpdate), false);
+    assert.strictEqual((diffs[1].willUpdate), true);
   });
 
   test("should handle devDependencies", () => {
@@ -90,15 +78,10 @@ describe("buildVersionDiff", () => {
     const codependencies = ["jest"];
     const permissive = false;
 
-    const diffs = buildVersionDiff(
-      versionMap,
-      packageJson,
-      codependencies,
-      permissive,
-    );
+    const diffs = buildVersionDiff(versionMap, packageJson, codependencies, permissive);
 
-    expect(diffs).toHaveLength(1);
-    expect(diffs[0].package).toBe("jest");
+    assert.strictEqual((diffs).length, 1);
+    assert.strictEqual((diffs[0].package), "jest");
   });
 
   test("should handle peerDependencies", () => {
@@ -115,15 +98,10 @@ describe("buildVersionDiff", () => {
     const codependencies = [];
     const permissive = false;
 
-    const diffs = buildVersionDiff(
-      versionMap,
-      packageJson,
-      codependencies,
-      permissive,
-    );
+    const diffs = buildVersionDiff(versionMap, packageJson, codependencies, permissive);
 
-    expect(diffs).toHaveLength(1);
-    expect(diffs[0].package).toBe("react");
+    assert.strictEqual((diffs).length, 1);
+    assert.strictEqual((diffs[0].package), "react");
   });
 
   test("should compare every repeated dependency version", () => {
@@ -139,8 +117,8 @@ describe("buildVersionDiff", () => {
       false,
     );
 
-    expect(diffs[0].current).toBe("1.0.0");
-    expect(diffs[0].latest).toBe(latestVersion);
+    assert.strictEqual((diffs[0].current), "1.0.0");
+    assert.strictEqual((diffs[0].latest), latestVersion);
   });
 
   test("should compare each resolved Docker tag family", () => {
@@ -160,7 +138,7 @@ describe("buildVersionDiff", () => {
       false,
     );
 
-    expect(diffs).toEqual([
+    assert.deepStrictEqual((diffs), [
       {
         package: "node",
         current: "20-slim",
@@ -193,15 +171,10 @@ describe("buildVersionDiff", () => {
     const codependencies = [];
     const permissive = false;
 
-    const diffs = buildVersionDiff(
-      versionMap,
-      packageJson,
-      codependencies,
-      permissive,
-    );
+    const diffs = buildVersionDiff(versionMap, packageJson, codependencies, permissive);
 
-    expect(diffs).toHaveLength(1);
-    expect(diffs[0].package).toBe("lodash");
+    assert.strictEqual((diffs).length, 1);
+    assert.strictEqual((diffs[0].package), "lodash");
   });
 });
 
@@ -217,11 +190,11 @@ describe("displayVersionDiffs", () => {
       },
     ];
 
-    const consoleSpy = spyOn(console, "log");
+    const consoleSpy = mock.method(console, "log");
     displayVersionDiffs(diffs, false);
 
-    expect(consoleSpy).toHaveBeenCalled();
-    consoleSpy.mockRestore();
+    assert.ok((consoleSpy).mock.callCount() > 0);
+    consoleSpy.mock.restore();
   });
 
   test("should show dry-run message when in dry-run mode", () => {
@@ -235,25 +208,21 @@ describe("displayVersionDiffs", () => {
       },
     ];
 
-    const consoleSpy = spyOn(console, "log");
+    const consoleSpy = mock.method(console, "log");
     displayVersionDiffs(diffs, true);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("would be updated"),
-    );
-    consoleSpy.mockRestore();
+    assertCalledWith((consoleSpy), match.stringContaining("would be updated"));
+    consoleSpy.mock.restore();
   });
 
   test("should show success message when no changes", () => {
     const diffs: VersionDiff[] = [];
 
-    const consoleSpy = spyOn(console, "log");
+    const consoleSpy = mock.method(console, "log");
     displayVersionDiffs(diffs, false);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("up-to-date"),
-    );
-    consoleSpy.mockRestore();
+    assertCalledWith((consoleSpy), match.stringContaining("up-to-date"));
+    consoleSpy.mock.restore();
   });
 
   test("should filter out packages with same version", () => {
@@ -267,13 +236,11 @@ describe("displayVersionDiffs", () => {
       },
     ];
 
-    const consoleSpy = spyOn(console, "log");
+    const consoleSpy = mock.method(console, "log");
     displayVersionDiffs(diffs, false);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("up-to-date"),
-    );
-    consoleSpy.mockRestore();
+    assertCalledWith((consoleSpy), match.stringContaining("up-to-date"));
+    consoleSpy.mock.restore();
   });
 });
 
@@ -311,17 +278,11 @@ describe("collectAllDiffs", () => {
     const codependencies = ["lodash"];
     const permissive = false;
 
-    const diffs = collectAllDiffs(
-      versionMap,
-      files,
-      testDir + "/",
-      codependencies,
-      permissive,
-    );
+    const diffs = collectAllDiffs(versionMap, files, testDir + "/", codependencies, permissive);
 
-    expect(diffs).toHaveLength(2);
-    expect(diffs.find((d) => d.package === "lodash")).toBeDefined();
-    expect(diffs.find((d) => d.package === "express")).toBeDefined();
+    assert.strictEqual((diffs).length, 2);
+    assert.notStrictEqual((diffs.find((d) => d.package === "lodash")), undefined);
+    assert.notStrictEqual((diffs.find((d) => d.package === "express")), undefined);
   });
 
   test("should deduplicate packages across files", () => {
@@ -346,16 +307,10 @@ describe("collectAllDiffs", () => {
     const codependencies = [];
     const permissive = false;
 
-    const diffs = collectAllDiffs(
-      versionMap,
-      files,
-      testDir + "/",
-      codependencies,
-      permissive,
-    );
+    const diffs = collectAllDiffs(versionMap, files, testDir + "/", codependencies, permissive);
 
-    expect(diffs).toHaveLength(1);
-    expect(diffs[0].package).toBe("lodash");
+    assert.strictEqual((diffs).length, 1);
+    assert.strictEqual((diffs[0].package), "lodash");
   });
 
   test("should preserve distinct current versions with the same target", () => {
@@ -379,6 +334,6 @@ describe("collectAllDiffs", () => {
       false,
     );
 
-    expect(diffs.map(({ current }) => current)).toEqual(["20-slim", "22-slim"]);
+    assert.deepStrictEqual((diffs.map(({ current }) => current)), ["20-slim", "22-slim"]);
   });
 });

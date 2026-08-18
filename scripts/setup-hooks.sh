@@ -17,25 +17,25 @@ echo "Setting up git hooks..."
 # Check if core.hooksPath is set and reset it if needed
 CURRENT_HOOKS_PATH=$(git config --get core.hooksPath 2>/dev/null || echo "")
 if [ -n "$CURRENT_HOOKS_PATH" ]; then
-  echo "⚠️  Found core.hooksPath set to: $CURRENT_HOOKS_PATH"
+  echo "Found core.hooksPath set to: $CURRENT_HOOKS_PATH"
   echo "   Resetting to use .git/hooks/ instead..."
   git config --unset core.hooksPath
-  echo "✓ Reset core.hooksPath"
+  echo "Reset core.hooksPath"
 fi
 
 mkdir -p "$HOOKS_DIR"
 
-if [ -f "$PRE_COMMIT" ]; then
-  echo "pre-commit hook already exists, skipping..."
-else
+if [ ! -f "$PRE_COMMIT" ] || grep -Eq '^(bun|nub) run lint$' "$PRE_COMMIT"; then
   cat > "$PRE_COMMIT" << 'EOF'
 #!/bin/sh
-nub run lint
-nub run build
-nub run test
+mise exec -- nub run lint
+mise exec -- nub run build
+mise exec -- nub run test
 EOF
   chmod +x "$PRE_COMMIT"
-  echo "✓ Created pre-commit hook"
+  echo "Installed pre-commit hook"
+else
+  echo "pre-commit hook already exists, skipping..."
 fi
 
 if [ -f "$POST_CHECKOUT" ]; then
@@ -49,7 +49,7 @@ fi
 nub install
 EOF
   chmod +x "$POST_CHECKOUT"
-  echo "✓ Created post-checkout hook"
+  echo "Created post-checkout hook"
 fi
 
 if [ -f "$COMMIT_MSG" ]; then
@@ -76,7 +76,7 @@ if [ ${#commit_msg} -gt 120 ]; then
 fi
 EOF
   chmod +x "$COMMIT_MSG"
-  echo "✓ Created commit-msg hook"
+  echo "Created commit-msg hook"
 fi
 
 echo "Git hooks setup complete!"

@@ -1,12 +1,35 @@
 import { LANGUAGES } from "../providers/constants";
 import type {
   CheckFiles,
+  CodependenceManifest,
   CodependenceTarget,
   DependencyManager,
   Options,
   SupportedLanguage,
 } from "../types";
 import { DEFAULT_MANAGER_FILES, NODE_MANAGERS, PYTHON_MANAGERS } from "./constants";
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  const isObject = typeof value === "object" && value !== null;
+  if (!isObject) return false;
+  return !Array.isArray(value);
+};
+
+const manifestTarget = (value: unknown, rootDir?: string): CodependenceTarget => {
+  const { name: _name, path, ...target } = value as CodependenceManifest;
+  const root = rootDir ? { rootDir } : {};
+  return Object.assign({}, target, root, { files: [path] });
+};
+
+export const normalizeConfigShape = (
+  config: Record<string, unknown>,
+  rootDir?: string,
+): Record<string, unknown> => {
+  if (!isRecord(config.config)) return config;
+  const targets = Object.values(config.config).map((entry) => manifestTarget(entry, rootDir));
+  const { config: _config, ...rest } = config;
+  return Object.assign({}, rest, { targets });
+};
 
 const languageForManager = (manager: DependencyManager): SupportedLanguage => {
   if (NODE_MANAGERS.has(manager)) return LANGUAGES.NODEJS;
