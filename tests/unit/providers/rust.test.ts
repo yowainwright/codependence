@@ -1,15 +1,18 @@
-import { afterEach, beforeEach, describe, test, mock } from "node:test";
+import { after, afterEach, beforeEach, describe, test, mock } from "node:test";
 import assert from "node:assert/strict";
 import { assertCalledWith } from "../../helpers/assertions";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
-import * as execModule from "../../../src/utils/exec";
+import { configureBinaryHost } from "../../../src/bin/utils";
+import { RustProvider } from "../../../src/providers/rust";
+import { exec } from "../../../src/utils/exec";
 
-const execMock = mock.fn<typeof execModule.exec>();
-mock.module(new URL("../../../src/utils/exec.ts", import.meta.url).href, {
-  exports: { exec: execMock },
-});
-const { RustProvider } = await import("../../../src/providers/rust");
+const execMock = mock.fn<typeof exec>();
+const runExecMock = async (command: string, args: string[]): Promise<string> =>
+  JSON.stringify(await execMock(command, args));
+const restoreBinaryHost = configureBinaryHost(runExecMock, () => "{}", async () => "");
+
+after(restoreBinaryHost);
 
 describe("RustProvider", () => {
   const tmpDir = join(import.meta.dirname, ".tmp-rust-test");

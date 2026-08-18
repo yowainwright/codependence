@@ -35,7 +35,7 @@ const prepareCoverage = (coverageEnabled: boolean): void => {
 };
 
 const createNodeArgs = (options: TestRunnerOptions, loaderUrl: string): string[] => {
-  const baseArgs = ["--import", loaderUrl, "--experimental-test-module-mocks"];
+  const baseArgs = ["--import", loaderUrl];
   const coverageArgs = options.coverageEnabled ? TEST_COVERAGE_ARGS : [];
   const testArgs = ["--test"].concat(options.testArgs);
   return baseArgs.concat(coverageArgs, testArgs);

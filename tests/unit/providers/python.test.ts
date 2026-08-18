@@ -1,15 +1,18 @@
-import { test, describe, beforeEach, afterEach, mock } from "node:test";
+import { test, describe, beforeEach, after, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { assertCalledWith } from "../../helpers/assertions";
 import { writeFileSync, readFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
-import * as execModule from "../../../src/utils/exec";
+import { configureBinaryHost } from "../../../src/bin/utils";
+import { PythonProvider } from "../../../src/providers/python";
+import { exec } from "../../../src/utils/exec";
 
-const execMock = mock.fn<typeof execModule.exec>();
-mock.module(new URL("../../../src/utils/exec.ts", import.meta.url).href, {
-  exports: { exec: execMock },
-});
-const { PythonProvider } = await import("../../../src/providers/python");
+const execMock = mock.fn<typeof exec>();
+const runExecMock = async (command: string, args: string[]): Promise<string> =>
+  JSON.stringify(await execMock(command, args));
+const restoreBinaryHost = configureBinaryHost(runExecMock, () => "{}", async () => "");
+
+after(restoreBinaryHost);
 
 describe("PythonProvider", () => {
   afterEach(() => {

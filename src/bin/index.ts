@@ -5,9 +5,9 @@ import type { BinaryArgv } from "./types";
 
 export { configureBinaryHost } from "./utils";
 
-export const runBinary = async (argv: BinaryArgv): Promise<void> => {
+export const runBinary = async (argv: BinaryArgv, runProgram: typeof run = run): Promise<void> => {
   try {
-    await run(normalizeBinaryArgv(argv));
+    await runProgram(normalizeBinaryArgv(argv));
   } catch (error) {
     const err = error as Error;
     logger.error(err.message || err.toString());
