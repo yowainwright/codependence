@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "url";
 import { logger } from "./logger";
 import { run } from "./program";
-import configurationSchema from "./schema.json";
+import configurationSchema from "./schema.json" with { type: "json" };
 import { checkFiles, codependence, script } from "./scripts";
 
 const schema = configurationSchema;

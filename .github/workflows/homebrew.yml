@@ -70,7 +70,7 @@ jobs:
 
       - name: Validate stable version
         run: |
-          nub scripts/brew.ts validate-version
+          nub scripts/release/brew/index.ts validate-version
 
       - name: Wait for npm package availability
         run: |
@@ -109,7 +109,7 @@ jobs:
           echo "sigstore_bundle=$SIGSTORE_BUNDLE" >> "$GITHUB_OUTPUT"
 
       - name: Generate formula from published tarball
-        run: nub scripts/brew.ts generate
+        run: nub scripts/release/brew/index.ts generate
 
       - name: Create formula test tap
         run: |

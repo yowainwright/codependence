@@ -33,10 +33,7 @@ export interface PackageManifest {
 
 export type PreRelease = "alpha" | "beta" | "rc";
 export type ReleaseIncrement = "patch" | "minor" | "major";
-export type ReleaseRunner = (
-  command: string,
-  args: readonly string[],
-) => GitResult;
+export type ReleaseRunner = (command: string, args: readonly string[]) => GitResult;
 export type ReleaseLogger = Pick<Console, "error" | "log" | "warn">;
 
 export interface ReleaseOptions {
@@ -77,4 +74,31 @@ export interface TagPlan {
   steps: string[];
   tagName: string;
   version: string;
+}
+
+export interface PullRequestState {
+  mergeCommit?: { oid?: string } | null;
+  mergeStateStatus?: string;
+  mergedAt?: string | null;
+  state: string;
+}
+
+export interface ReleasePullRequest extends PullRequestState {
+  baseRefName?: string;
+  headRefName?: string;
+  headRefOid?: string;
+  url: string;
+}
+
+export interface ReleasePullRequestTarget {
+  headCommit?: string;
+  mergeCommit?: string;
+  url: string;
+}
+
+export interface ReleaseContext {
+  cwd: string;
+  logger: ReleaseLogger;
+  pollIntervalMs: number;
+  runner: ReleaseRunner;
 }

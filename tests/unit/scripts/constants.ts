@@ -1,4 +1,4 @@
-import type { GitResult } from "../../../scripts/tag-release";
+import type { GitResult } from "../../../scripts/release";
 
 export const READY_GIT_OVERRIDES: Record<string, GitResult> = {
   "branch --show-current": { status: 0, stdout: "main\n", stderr: "" },

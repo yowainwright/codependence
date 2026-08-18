@@ -54,7 +54,7 @@ import type {
   VersionResolver,
 } from "./types";
 import { STRICT_INEQUALITY_VERSION_PREFIXES, VERSION_PREFIXES } from "../utils/constants";
-import {
+import type {
   CheckFiles,
   ConstructVersionMapOptions,
   CheckMatches,

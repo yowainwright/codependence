@@ -15,7 +15,7 @@ import {
   runRelease,
   type ReleaseRunner,
 } from "../../../scripts/release";
-import type { GitResult } from "../../../scripts/tag-release";
+import type { GitResult } from "../../../scripts/release";
 
 const MERGE_COMMIT = "a".repeat(40);
 const ok = (stdout = ""): GitResult => ({ status: 0, stdout, stderr: "" });

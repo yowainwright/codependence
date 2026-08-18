@@ -12,9 +12,9 @@ import {
   runBrewCli,
   sha256,
   validateStableVersion,
-} from "../../../scripts/brew";
+} from "../../../scripts/release/brew";
 
-describe("scripts/brew", () => {
+describe("scripts/release/brew", () => {
   test("builds the published npm tarball URL", () => {
     const url = "https://registry.npmjs.org/codependence/-/codependence-1.1.0.tgz";
     assert.strictEqual((npmTarballUrl("1.1.0")), url);
