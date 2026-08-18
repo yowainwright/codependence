@@ -4,6 +4,7 @@ export const TEST_COVERAGE_ARGS = [
   "--experimental-test-coverage",
   "--test-coverage-include=src/**/*.ts",
   "--test-coverage-lines=80",
+  "--test-concurrency=1",
   "--test-reporter=spec",
   "--test-reporter-destination=stdout",
   "--test-reporter=lcov",
