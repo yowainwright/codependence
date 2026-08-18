@@ -5,10 +5,10 @@ import {
   assertMissingTag,
   assertReleaseReady,
   formatTagName,
-  parseArgs,
+  parseTagArgs,
   runReleaseTag,
   type GitResult,
-} from "../../../scripts/tag-release";
+} from "../../../scripts/release";
 import { READY_GIT_OVERRIDES } from "./constants";
 
 const ok = (stdout = ""): GitResult => ({ status: 0, stdout, stderr: "" });
@@ -25,10 +25,10 @@ function createGit(overrides: Record<string, GitResult> = {}) {
   return { calls: () => calls, git };
 }
 
-describe("scripts/tag-release", () => {
+describe("scripts/release tag", () => {
   test("parseArgs detects dry run", () => {
-    assert.deepStrictEqual((parseArgs(["--dry-run"])), { dryRun: true });
-    assert.deepStrictEqual((parseArgs([])), { dryRun: false });
+    assert.deepStrictEqual((parseTagArgs(["--dry-run"])), { dryRun: true });
+    assert.deepStrictEqual((parseTagArgs([])), { dryRun: false });
   });
 
   test("formatTagName formats semver release tags", () => {

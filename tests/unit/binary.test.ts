@@ -3,14 +3,10 @@ import assert from "node:assert/strict";
 import { assertCalledWith, assertRejects, assertThrows } from "../helpers/assertions";
 import * as host from "../../src/bin/utils";
 import { normalizeBinaryArgv } from "../../src/bin/utils";
+import * as binary from "../../src/bin";
 import { logger } from "../../src/logger";
-import * as programModule from "../../src/program";
 
-const runMock = mock.fn(programModule.run);
-mock.module(new URL("../../src/program.ts", import.meta.url).href, {
-  exports: { ...programModule, run: runMock },
-});
-const binary = await import("../../src/bin");
+const runMock = mock.fn(async () => undefined);
 
 describe("binary host", () => {
   let restoreHost: (() => void) | undefined;
@@ -107,7 +103,7 @@ describe("binary utilities", () => {
   test("runs the CLI with normalized arguments", async () => {
     runMock.mock.mockImplementation(async () => undefined);
 
-    await binary.runBinary(["/usr/local/bin/codependence", "--help"]);
+    await binary.runBinary(["/usr/local/bin/codependence", "--help"], runMock);
 
     assertCalledWith(runMock, ["/usr/local/bin/codependence", "codependence", "--help"]);
   });
@@ -119,7 +115,7 @@ describe("binary utilities", () => {
     const logError = mock.method(logger, "error", () => {});
     const exit = mock.method(process, "exit", (() => {}) as () => never);
 
-    await binary.runBinary(["codependence"]);
+    await binary.runBinary(["codependence"], runMock);
 
     assertCalledWith((logError), "broken CLI");
     assertCalledWith((exit), 2);

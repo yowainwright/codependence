@@ -4,23 +4,30 @@ import { assertCalledWith, assertThrows } from "../../helpers/assertions";
 import { writeFileSync, readFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 import { logger } from "../../../src/logger";
-import * as execModule from "../../../src/utils/exec";
+import { configureBinaryHost } from "../../../src/bin/utils";
+import { exec } from "../../../src/utils/exec";
+import { GoProvider, runGoModTidy, updateRequireLine, updateExistingRequireLines } from "../../../src/providers/go";
 
-const execMock = mock.fn<typeof execModule.exec>();
-mock.module(new URL("../../../src/utils/exec.ts", import.meta.url).href, {
-  exports: { exec: execMock },
-});
-const { GoProvider, runGoModTidy, updateRequireLine, updateExistingRequireLines } = await import(
-  "../../../src/providers/go"
-);
+const execMock = mock.fn<typeof exec>();
+const runExecMock = async (command: string, args: string[]): Promise<string> =>
+  JSON.stringify(await execMock(command, args));
+let restoreBinaryHost: (() => void) | undefined;
+
+const configureExecMock = (): void => {
+  restoreBinaryHost = configureBinaryHost(runExecMock, () => "{}", async () => "");
+};
 
 describe("GoProvider", () => {
   afterEach(() => {
+    restoreBinaryHost?.();
+    restoreBinaryHost = undefined;
     execMock.mock.restore();
     execMock.mock.resetCalls();
   });
 
   describe("getLatestVersion", () => {
+    beforeEach(configureExecMock);
+
     test("should get latest version from go list output", async () => {
       execMock.mock.mockImplementation(() => ({
         stdout: "github.com/example/pkg v1.0.0 v1.1.0 v1.2.0 v1.2.1 v2.0.0",
@@ -81,6 +88,8 @@ describe("GoProvider", () => {
   });
 
   describe("getAllVersions", () => {
+    beforeEach(configureExecMock);
+
     test("should get all versions as array", async () => {
       execMock.mock.mockImplementation(() => ({
         stdout: "github.com/example/pkg v1.0.0 v1.1.0 v2.0.0",

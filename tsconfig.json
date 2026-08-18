@@ -11,6 +11,7 @@
     "lib": ["esnext", "dom", "es6", "dom.iterable"],
     "forceConsistentCasingInFileNames": true,
     "types": ["node"],
+    "verbatimModuleSyntax": true,
     "noEmit": false,
     "noImplicitReturns": true,
     "noUnusedLocals": true,

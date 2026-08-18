@@ -1,37 +1,14 @@
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
-import { logger } from "../src/logger";
-
-const STABLE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
-const FORMULA_HEADER = [
-  "class Codependence < Formula",
-  '  desc "Enforce dependency version policy across projects, workspaces, and CI"',
-  '  homepage "https://jeffry.in/codependence/"',
-];
-const FORMULA_BODY = [
-  '  license "MIT"',
-  "",
-  '  depends_on "node"',
-  "",
-  "  def install",
-  '    system "npm", "install", *std_npm_args, "--ignore-scripts"',
-  '    bin.install_symlink libexec.glob("bin/*")',
-  "  end",
-  "",
-  "  test do",
-  '    system bin/"codependence", "--help"',
-  '    system bin/"cdp", "--help"',
-  "  end",
-  "end",
-];
-
-type Fetch = typeof fetch;
-type FormulaSource = { digest: string; url: string };
-type FormulaInput = FormulaSource & { version: string };
-type FormulaOptions = { outputPath: string; version: string };
-type PublishedFormulaOptions = FormulaOptions & { fetchImpl?: Fetch };
-type LocalFormulaOptions = FormulaOptions & { tarballPath: string };
-type CliOptions = { argv?: string[]; env?: Record<string, string | undefined> };
+import { FORMULA_BODY, FORMULA_HEADER, STABLE_VERSION_PATTERN } from "./constants";
+import type {
+  Fetch,
+  FormulaInput,
+  FormulaOptions,
+  FormulaSource,
+  LocalFormulaOptions,
+  PublishedFormulaOptions,
+} from "./types";
 
 export const validateStableVersion = (version: string): void => {
   if (STABLE_VERSION_PATTERN.test(version)) return;
@@ -86,35 +63,17 @@ export const createLocalFormula = ({
   return createFormula(content, { outputPath, version });
 };
 
-const requiredEnv = (env: Record<string, string | undefined>, name: string): string => {
+export const requiredEnv = (env: Record<string, string | undefined>, name: string): string => {
   const value = env[name];
   if (value) return value;
   throw new Error(`${name} is required`);
 };
 
-const createLocalFormulaFromEnv = (env: Record<string, string | undefined>, version: string) => {
+export const createLocalFormulaFromEnv = (
+  env: Record<string, string | undefined>,
+  version: string,
+): void => {
   const outputPath = requiredEnv(env, "FORMULA_PATH");
   const tarballPath = requiredEnv(env, "TARBALL_PATH");
   createLocalFormula({ outputPath, tarballPath, version });
 };
-
-export const runBrewCli = async ({
-  argv = process.argv.slice(2),
-  env = process.env,
-}: CliOptions = {}): Promise<void> => {
-  const command = argv[0] ?? "generate";
-  const version = requiredEnv(env, "VERSION");
-  validateStableVersion(version);
-  if (command === "validate-version") return;
-  if (command === "generate-local") return createLocalFormulaFromEnv(env, version);
-  if (command !== "generate") throw new Error(`Unknown command: ${command}`);
-  const outputPath = requiredEnv(env, "FORMULA_PATH");
-  await createPublishedFormula({ outputPath, version });
-};
-
-if (import.meta.main) {
-  runBrewCli().catch((error) => {
-    logger.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
-  });
-}

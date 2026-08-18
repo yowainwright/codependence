@@ -79,7 +79,7 @@ import {
   INTERNAL_OPTION_FIELDS,
   TARGET_OVERRIDE_FIELDS,
 } from "./constants";
-import {
+import type {
   ActionConfigs,
   Options,
   PackageJSON,
