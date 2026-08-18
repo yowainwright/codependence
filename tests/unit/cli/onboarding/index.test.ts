@@ -4,6 +4,8 @@ import { assertRejects, assertThrows } from "../../../helpers/assertions";
 import {
   analyzeOnboardingProject,
   createOnboardingSetup,
+  isOnboardingSourcePath,
+  onboardingSourceFileNeedsContent,
   parseOnboardingRepository,
   scanOnboardingRepository,
 } from "../../../../src/cli/onboarding";
@@ -15,6 +17,24 @@ const packageFile = (path: string, value: Record<string, unknown>) => ({
 });
 
 const questionMark = String.fromCharCode(63);
+
+test("selects supported browser onboarding files", () => {
+  const paths = [
+    "package.json",
+    "services/api/go.mod",
+    "crates/core/Cargo.toml",
+    "python/pyproject.toml",
+    "containers/Dockerfile.dev",
+    "services/api/.github/workflows/update.yaml",
+  ];
+
+  assert.strictEqual((paths.every(isOnboardingSourcePath)), true);
+  assert.strictEqual((isOnboardingSourcePath("node_modules/pkg/package.json")), false);
+  assert.strictEqual((isOnboardingSourcePath("README.md")), false);
+  assert.strictEqual((onboardingSourceFileNeedsContent("python/pyproject.toml")), true);
+  assert.strictEqual((onboardingSourceFileNeedsContent(".github/workflows/update.yml")), true);
+  assert.strictEqual((onboardingSourceFileNeedsContent("services/api/go.mod")), false);
+});
 
 const githubTree = {
   sha: "tree-sha",
@@ -128,6 +148,30 @@ describe("onboarding", () => {
     });
     assert.strictEqual((setup.install), undefined);
     assert.strictEqual((setup.verifyCommand), "codependence");
+  });
+
+  test("detects supported Python manifests", () => {
+    const project = analyzeOnboardingProject([
+      { path: "requirements.txt", content: "requests==2.32.0\n" },
+      { path: "pipenv/Pipfile", content: "[packages]\n" },
+      { path: "conda/environment.yml", content: "dependencies: []\n" },
+      { path: "uv/pyproject.toml", content: "[project]\n" },
+      { path: "uv/uv.lock", content: "" },
+      { path: "poetry/pyproject.toml", content: "[tool.poetry]\n" },
+      { path: "pip/pyproject.toml", content: "[project]\n" },
+      { path: "Dockerfile.dev", content: "FROM node:26\n" },
+    ]);
+    const managers = project.manifests.map(({ path, manager }) => ({ path, manager }));
+
+    assert.deepStrictEqual((managers), [
+      { path: "requirements.txt", manager: "pip" },
+      { path: "pipenv/Pipfile", manager: "pipenv" },
+      { path: "conda/environment.yml", manager: "conda" },
+      { path: "uv/pyproject.toml", manager: "uv" },
+      { path: "poetry/pyproject.toml", manager: "poetry" },
+      { path: "pip/pyproject.toml", manager: "pip" },
+      { path: "Dockerfile.dev", manager: "docker" },
+    ]);
   });
 
   test("scans only the root and declared workspace packages", () => {
@@ -287,6 +331,22 @@ describe("onboarding", () => {
     assertThrows((createSetup), "npm requires an exact package manager version");
   });
 
+  test("requires a package manager version for GitHub Actions", () => {
+    const project = analyzeOnboardingProject([
+      packageFile("package.json", { dependencies: { react: "^19.0.0" } }),
+      { path: "package-lock.json", content: "" },
+    ]);
+    const createSetup = () =>
+      createOnboardingSetup(project, {
+        mode: "precise",
+        selectedDependencies: [],
+        enforcement: "github",
+        repository: { owner: "acme", name: "web" },
+      });
+
+    assertThrows((createSetup), "packageManager must include an exact version");
+  });
+
   test("requires a dependency in update-only mode", () => {
     const project = analyzeOnboardingProject([
       packageFile("package.json", { dependencies: { react: "^19.0.0" } }),
@@ -361,6 +421,7 @@ describe("onboarding", () => {
 
   test("wraps invalid local manifests", () => {
     assertThrows((() => analyzeOnboardingProject([{ path: "package.json", content: "{" }])), "package.json is not valid JSON");
+    assertThrows((() => analyzeOnboardingProject([{ path: "README.md", content: "" }])), "No supported package manifests found");
   });
 
   test("rejects failed GitHub metadata and file requests", async () => {
@@ -420,6 +481,11 @@ describe("onboarding", () => {
       analyzeOnboardingProject([
         packageFile("package.json", {}),
         { path: "pnpm-workspace.yaml", content: "packages: []" },
+      ]), "pnpm-workspace.yaml packages must be a list of paths");
+    assertThrows(() =>
+      analyzeOnboardingProject([
+        packageFile("package.json", {}),
+        { path: "pnpm-workspace.yaml", content: "packages:\n  invalid" },
       ]), "pnpm-workspace.yaml packages must be a list of paths");
   });
 });

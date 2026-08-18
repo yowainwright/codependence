@@ -1,4 +1,13 @@
 coverage:
+  status:
+    project:
+      default:
+        target: 95%
+        threshold: 0%
+    patch:
+      default:
+        target: 95%
+        threshold: 0%
   ignore:
     - "src/types.ts"
     - "src/**/types.ts"

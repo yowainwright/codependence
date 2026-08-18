@@ -393,7 +393,7 @@ const isWorkflowSourcePath = (path: string): boolean => {
   return directory === ".github/workflows" && isYaml;
 };
 
-const isRepositorySourcePath = (path: string): boolean => {
+export const isOnboardingSourcePath = (path: string): boolean => {
   if (isIgnoredOnboardingPath(path)) return false;
   if (isOnboardingPackageFile(path)) return true;
   const filename = pathSegments(path).at(-1) || "";
@@ -404,7 +404,7 @@ const isRepositorySourcePath = (path: string): boolean => {
   return isRootFile && managerFiles.has(path);
 };
 
-const sourceFileNeedsContent = (path: string): boolean => {
+export const onboardingSourceFileNeedsContent = (path: string): boolean => {
   const isPackageFile = isOnboardingPackageFile(path);
   const isWorkspaceFile = path === ONBOARDING_PNPM_WORKSPACE_FILE;
   const isPyproject = pathSegments(path).at(-1) === "pyproject.toml";
@@ -437,7 +437,7 @@ const repositorySourceFile = async (
   revision: string,
   path: string,
 ): Promise<OnboardingSourceFile> => {
-  if (!sourceFileNeedsContent(path)) return { path, content: "" };
+  if (!onboardingSourceFileNeedsContent(path)) return { path, content: "" };
   const url = repositoryRawPath(repository, revision, path);
   const content = await requestText(fetcher, url);
   return { path, content };
@@ -464,7 +464,7 @@ export const repositorySourceFiles = async (
     throw new Error("GitHub repository tree is too large to scan completely");
   }
   const paths = tree.tree
-    .filter(({ path, type }) => type === "blob" && isRepositorySourcePath(path))
+    .filter(({ path, type }) => type === "blob" && isOnboardingSourcePath(path))
     .map(({ path }) => path);
   return mapConcurrent(paths, ONBOARDING_REPOSITORY_CONCURRENCY, (path) =>
     repositorySourceFile(fetcher, repository, branch, path),

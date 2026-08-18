@@ -261,6 +261,11 @@ const collectDepNamesFromManifest = (manifest: DependencyManifest): string[] => 
 const collectAllDepNamesFromManifests = (manifests: LoadedManifest[]): string[] =>
   Array.from(new Set(manifests.flatMap(({ manifest }) => collectDepNamesFromManifest(manifest))));
 
+const isFile = (path: string): boolean => {
+  if (!fs.existsSync(path)) return false;
+  return fs.statSync(path).isFile();
+};
+
 const assertCustomLockfiles = (rootDir: string, lockfile: string | string[]): void => {
   const lockfiles = Array.isArray(lockfile) ? lockfile : [lockfile];
   const absolutePaths = lockfiles.filter((file) => isAbsolute(file) || win32.isAbsolute(file));
@@ -277,7 +282,7 @@ const assertCustomLockfiles = (rootDir: string, lockfile: string | string[]): vo
     throw new Error(`Lockfile path escapes target root: ${outsideRoot.join(", ")}`);
   }
 
-  const missing = paths.filter((file) => !fs.existsSync(file) || !fs.statSync(file).isFile());
+  const missing = paths.filter((file) => !isFile(file));
   if (missing.length === 0) return;
 
   throw new Error(`Required lockfile(s) not found: ${missing.join(", ")}`);
@@ -297,7 +302,7 @@ const assertStandardLockfile = (loadedManifest: LoadedManifest, rootDir: string)
   if (!hasDependencies) return;
 
   const paths = standardLockfilePaths(loadedManifest, rootDir);
-  const hasLockfile = paths.some(fs.existsSync);
+  const hasLockfile = paths.some(isFile);
   if (hasLockfile) return;
 
   const manager = loadedManifest.packageManager;

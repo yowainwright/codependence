@@ -50,6 +50,8 @@ import {
   workflowSecretExpression,
 } from "./utils";
 
+export { isOnboardingSourcePath, onboardingSourceFileNeedsContent } from "./utils";
+
 export const onboardingError = (cause: unknown): OnboardingError => {
   if (cause instanceof OnboardingError) return cause;
   const message = cause instanceof Error ? cause.message : "Onboarding failed";

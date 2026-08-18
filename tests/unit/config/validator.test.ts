@@ -127,7 +127,13 @@ describe("validateConfig", () => {
           targets: [{ manager: "bun" }],
         }).valid, true);
       assert.strictEqual(validateConfig({
-          config: { web: { manager: "pnpm", path: "packages/web/package.json" } },
+          config: {
+            web: {
+              manager: "pnpm",
+              path: "packages/web/package.json",
+              rootDir: "packages/web",
+            },
+          },
         }).valid, true);
     });
 
@@ -138,6 +144,43 @@ describe("validateConfig", () => {
 
       assert.strictEqual((result.valid), false);
       assert.strictEqual((result.errors[0].field), "config.web.path");
+    });
+
+    it("rejects a non-object named config", () => {
+      const result = validateConfig({ config: [] });
+
+      assert.strictEqual((result.valid), false);
+      assert.strictEqual((result.errors[0].field), "config");
+    });
+
+    it("rejects config and targets together", () => {
+      const result = validateConfig({ config: {}, targets: [] });
+
+      assert.deepStrictEqual((result), {
+        valid: false,
+        errors: [
+          {
+            field: "root",
+            message: 'Configuration cannot define both "config" and "targets"',
+            suggestion: 'Keep "config" and remove "targets"',
+          },
+        ],
+      });
+    });
+
+    it("rejects malformed named config entries", () => {
+      const result = validateConfig({
+        config: {
+          missing: null,
+          unsafe: { name: "", path: "../package.json", manager: "pnpm" },
+        },
+      });
+      const fields = result.errors.map(({ field }) => field);
+
+      assert.strictEqual((result.valid), false);
+      assert.ok((fields).includes("config.missing"));
+      assert.ok((fields).includes("config.unsafe"));
+      assert.ok((fields).includes("config.unsafe.path"));
     });
 
     it("should reject non-object config", () => {

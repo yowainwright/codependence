@@ -27,7 +27,6 @@ import {
 } from "./cli/onboarding";
 import type {
   OnboardingAnswers,
-  OnboardingArtifact,
   OnboardingEnforcement,
   OnboardingMode,
   OnboardingProject,
@@ -404,15 +403,10 @@ const writeOnboardingArtifacts = (rootDir: string, setup: OnboardingSetup): void
   });
 };
 
-interface OnboardingArtifactSnapshot {
-  path: string;
-  content?: string;
-}
-
 const snapshotOnboardingArtifacts = (
   rootDir: string,
-  artifacts: OnboardingArtifact[],
-): OnboardingArtifactSnapshot[] =>
+  artifacts: OnboardingSetup["artifacts"],
+) =>
   artifacts.map(({ path }) => {
     const destination = join(rootDir, path);
     const content = fs.existsSync(destination) ? fs.readFileSync(destination, "utf8") : undefined;
@@ -421,7 +415,7 @@ const snapshotOnboardingArtifacts = (
 
 const restoreOnboardingArtifacts = (
   rootDir: string,
-  snapshots: OnboardingArtifactSnapshot[],
+  snapshots: ReturnType<typeof snapshotOnboardingArtifacts>,
 ): void => {
   snapshots.forEach(({ path, content }) => {
     const destination = join(rootDir, path);
@@ -439,7 +433,7 @@ const needsGeneratedWorkflows = (answers: OnboardingAnswers, setup: OnboardingSe
 const generatedOnboardingWorkflows = (
   rootDir: string,
   options: Record<string, unknown>,
-): OnboardingArtifact[] => {
+): OnboardingSetup["artifacts"] => {
   const paths = initGitHubActions({
     force: Boolean(options.force),
     postUpdateCommands: stringListOption(options.postUpdateCommand),

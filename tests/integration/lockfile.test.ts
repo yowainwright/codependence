@@ -1,7 +1,7 @@
 import { afterEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { assertRejects } from "../helpers/assertions";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { assertRejects, assertThrows } from "../helpers/assertions";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { assertTargetLockfiles, checkFiles } from "../../src/scripts";
@@ -60,6 +60,20 @@ describe("lockfiles", () => {
     });
 
     await assertRejects(update, "generated/dependencies.lock");
+  });
+
+  test("rejects a directory used as a lockfile", () => {
+    const root = createWorkspace("package.json", nodeManifest);
+    mkdirSync(join(root, "bun.lock"));
+
+    assertThrows(() =>
+      assertTargetLockfiles({
+        files: ["package.json"],
+        language: "nodejs",
+        lockfile: true,
+        packageManager: "bun",
+        rootDir: root,
+      }), "Required bun lockfile not found");
   });
 
   test("rejects absolute custom lockfile paths", async () => {

@@ -1109,6 +1109,77 @@ describe("onboardAction", () => {
     }
   });
 
+  test("preserves supplemental options when creating named config", async () => {
+    const existing = {
+      $schema: "https://unpkg.com/codependence/src/schema.json",
+      update: true,
+    };
+    const rootDir = createOnboardingProject(
+      { name: "web", packageManager: "pnpm@9.15.0" },
+      { ".codependencerc": JSON.stringify(existing) },
+    );
+
+    try {
+      await onboardAction({
+        rootDir,
+        mode: "precise",
+        enforcement: "local",
+        nonInteractive: true,
+        skipInstall: true,
+      });
+
+      const result = config.loadConfig(join(rootDir, ".codependencerc"));
+      assert.strictEqual((result?.config.$schema), existing.$schema);
+      assert.strictEqual((result?.config.update), true);
+      assert.strictEqual((result?.config.config.root.path), "package.json");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("refuses to replace flat configuration", async () => {
+    const rootDir = createOnboardingProject(
+      { name: "web", packageManager: "pnpm@9.15.0" },
+      { ".codependencerc": JSON.stringify({ mode: "precise" }) },
+    );
+
+    try {
+      await assertRejects(onboardAction({
+          rootDir,
+          mode: "precise",
+          enforcement: "local",
+          nonInteractive: true,
+          skipInstall: true,
+        }), "Init cannot safely replace a flat or targets configuration");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rolls back configuration when workflow generation fails", async () => {
+    const packageJson = { name: "mixed", packageManager: "npm@10.9.2" };
+    const rootDir = createOnboardingProject(packageJson, {
+      "package-lock.json": "",
+      "Cargo.toml": '[package]\nname = "mixed"\n',
+    });
+
+    try {
+      await assertRejects(onboardAction({
+          rootDir,
+          mode: "precise",
+          enforcement: "github",
+          repository: "acme/mixed",
+          nonInteractive: true,
+        }), "Missing exact tool version for: rust");
+
+      const restoredPackage = JSON.parse(fs.readFileSync(join(rootDir, "package.json"), "utf8"));
+      assert.deepStrictEqual((restoredPackage), packageJson);
+      assert.strictEqual((fs.existsSync(join(rootDir, ".codependencerc"))), false);
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
   test("writes local and GitHub setup without installing when configured", async () => {
     const packageJson = {
       name: "workspace",

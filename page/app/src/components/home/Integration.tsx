@@ -4,6 +4,8 @@ import { CopyButton } from "@/components/common/CopyButton";
 import {
   analyzeOnboardingProject,
   createOnboardingSetup,
+  isOnboardingSourcePath,
+  onboardingSourceFileNeedsContent,
   parseOnboardingRepository,
   scanOnboardingRepository,
 } from "@codependence/onboarding";
@@ -81,18 +83,12 @@ const updateSession = (
   setSession((current) => ({ ...current, ...values }));
 };
 
-const shouldReadFile = (name: string, prefix: string): boolean =>
-  name === "package.json" ||
-  name === "pnpm-workspace.yaml" ||
-  prefix.length === 0;
-
 const sourceFile = async (
   handle: FileSystemFileHandle,
   path: string,
 ): Promise<OnboardingSourceFile> => {
   const file = await handle.getFile();
-  const needsContent =
-    path.endsWith("package.json") || path === "pnpm-workspace.yaml";
+  const needsContent = onboardingSourceFileNeedsContent(path);
   const content = needsContent ? await file.text() : "";
   return { path, content };
 };
@@ -104,7 +100,7 @@ const scanDirectory = async (
   const files: OnboardingSourceFile[] = [];
   for await (const [name, handle] of directory.entries()) {
     const path = prefix ? `${prefix}/${name}` : name;
-    const isFile = handle.kind === "file" && shouldReadFile(name, prefix);
+    const isFile = handle.kind === "file" && isOnboardingSourcePath(path);
     const fileHandle = handle as FileSystemFileHandle;
     if (isFile) files.push(await sourceFile(fileHandle, path));
     const isDirectory = handle.kind === "directory";

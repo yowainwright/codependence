@@ -26,7 +26,6 @@ const loadPackageConfig = (filepath: string): ConfigResult | null =>
 const loadCandidate = (directory: string, filename: string): ConfigResult | null => {
   const filepath = resolve(directory, filename);
   if (!existsSync(filepath)) return null;
-  if (filename === MANIFEST_FILES.PACKAGE_JSON) return loadPackageConfig(filepath);
   return { config: loadRcFile(filepath), filepath };
 };
 

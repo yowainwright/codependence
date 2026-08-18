@@ -25,6 +25,15 @@ test("normalizes named manifest config for the existing target runner", () => {
       },
     ],
   });
+  assert.deepStrictEqual((normalizeConfigShape(config)), {
+    targets: [
+      {
+        files: ["packages/web/package.json"],
+        manager: "pnpm",
+        mode: "precise",
+      },
+    ],
+  });
 });
 
 describe("expandTargets", () => {
