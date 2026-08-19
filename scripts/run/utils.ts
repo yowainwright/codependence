@@ -4,6 +4,7 @@ import { registerHooks } from "node:module";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  NUB_PRELOAD_OPTION_PATTERN,
   TEST_COVERAGE_ARGS,
   TEST_COVERAGE_DIR,
   TEST_COVERAGE_EXCLUDE,
@@ -60,6 +61,15 @@ const createNodeArgs = (options: TestRunnerOptions, loaderUrl: string): string[]
   return baseArgs.concat(coverageArgs, testArgs);
 };
 
+const createTestEnvironment = (coverageEnabled: boolean): NodeJS.ProcessEnv => {
+  const nodeOptions = process.env.NODE_OPTIONS;
+  const usesNativeTypeScript = Boolean(process.features.typescript);
+  if (!coverageEnabled || !nodeOptions || !usesNativeTypeScript) return process.env;
+
+  const filteredOptions = nodeOptions.replace(NUB_PRELOAD_OPTION_PATTERN, "").trim();
+  return { ...process.env, NODE_OPTIONS: filteredOptions };
+};
+
 const assertCoverageReport = (coverageEnabled: boolean, status: number | null): void => {
   const successfulCoverage = coverageEnabled && status === 0;
   if (!successfulCoverage) return;
@@ -72,7 +82,8 @@ export const runTests = (args: string[], loaderUrl: string): void => {
   prepareCoverage(options.coverageEnabled);
 
   const nodeArgs = createNodeArgs(options, loaderUrl);
-  const result = spawnSync(process.execPath, nodeArgs, { stdio: "inherit" });
+  const env = createTestEnvironment(options.coverageEnabled);
+  const result = spawnSync(process.execPath, nodeArgs, { env, stdio: "inherit" });
 
   if (result.error) throw result.error;
   assertCoverageReport(options.coverageEnabled, result.status);
