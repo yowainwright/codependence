@@ -67,7 +67,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
       "@codependence/onboarding": path.resolve(
         __dirname,
-        "../../src/cli/onboarding/index.ts",
+        "../../src/cli/init/index.ts",
       ),
     },
     dedupe: ["react", "react-dom"],
