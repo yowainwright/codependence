@@ -3,14 +3,18 @@ import assert from "node:assert/strict";
 import { assertCalledWith } from "../../helpers/assertions";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
-import { configureBinaryHost } from "../../../src/bin/utils";
+import { configureBinaryHost } from "../../../src/cli/utils";
 import { RustProvider } from "../../../src/providers/rust";
-import { exec } from "../../../src/utils/exec";
+import { exec } from "../../../src/utils/process";
 
 const execMock = mock.fn<typeof exec>();
 const runExecMock = async (command: string, args: string[]): Promise<string> =>
   JSON.stringify(await execMock(command, args));
-const restoreBinaryHost = configureBinaryHost(runExecMock, () => "{}", async () => "");
+const restoreBinaryHost = configureBinaryHost(
+  runExecMock,
+  () => "{}",
+  async () => "",
+);
 
 after(restoreBinaryHost);
 
@@ -31,15 +35,15 @@ describe("RustProvider", () => {
   test("should expose provider metadata", async () => {
     const provider = new RustProvider({ isTesting: true });
 
-    assert.strictEqual((provider.language), "rust");
-    assert.deepStrictEqual((provider.capabilities), {
+    assert.strictEqual(provider.language, "rust");
+    assert.deepStrictEqual(provider.capabilities, {
       supportsLatestResolution: true,
       supportsPreciseMode: true,
       versionStrategy: "semver",
     });
-    assert.deepStrictEqual((await provider.getAllVersions("serde")), []);
-    assert.strictEqual((provider.validatePackageName("serde_json")), true);
-    assert.strictEqual((provider.validatePackageName("serde json")), false);
+    assert.deepStrictEqual(await provider.getAllVersions("serde"), []);
+    assert.strictEqual(provider.validatePackageName("serde_json"), true);
+    assert.strictEqual(provider.validatePackageName("serde json"), false);
   });
 
   test("should read latest version from cargo search output", async () => {
@@ -52,8 +56,8 @@ describe("RustProvider", () => {
 
     const version = await provider.getLatestVersion("serde");
 
-    assert.strictEqual((version), "1.0.210");
-    assertCalledWith((execMock), "cargo", ["search", "serde", "--limit", "1"]);
+    assert.strictEqual(version, "1.0.210");
+    assertCalledWith(execMock, "cargo", ["search", "serde", "--limit", "1"]);
   });
 
   test("should read latest version for normalized cargo package names", async () => {
@@ -66,7 +70,7 @@ describe("RustProvider", () => {
 
     const version = await provider.getLatestVersion("serde-json");
 
-    assert.strictEqual((version), "1.0.145");
+    assert.strictEqual(version, "1.0.145");
   });
 
   test("should return empty latest version for unmatched cargo output", async () => {
@@ -79,7 +83,7 @@ describe("RustProvider", () => {
 
     const version = await provider.getLatestVersion("serde");
 
-    assert.strictEqual((version), "");
+    assert.strictEqual(version, "");
   });
 
   test("should read Cargo.toml dependency sections", () => {
@@ -103,13 +107,13 @@ nix = "0.27.1"
     const provider = new RustProvider();
     const manifest = provider.readManifest(cargoPath);
 
-    assert.deepStrictEqual((manifest.dependencies), {
+    assert.deepStrictEqual(manifest.dependencies, {
       serde: "1.0.190",
       tokio: "1.32.0",
       serde_json: "1.0.100",
       nix: "0.27.1",
     });
-    assert.deepStrictEqual((manifest.devDependencies), {
+    assert.deepStrictEqual(manifest.devDependencies, {
       pretty_assertions: "1.4.0",
     });
   });
@@ -142,10 +146,12 @@ pretty_assertions = "1.4.0"
 
     const updated = readFileSync(cargoPath, "utf8");
 
-    assert.ok((updated).includes('serde = "1.0.200"'));
-    assert.ok((updated).includes('version = "1.35.0"'));
-    assert.ok((updated).includes('serde_json_renamed = { package = "serde_json", version = "1.0.145" }'));
-    assert.ok((updated).includes('local = { path = "../local" }'));
-    assert.ok((updated).includes('pretty_assertions = "1.4.1"'));
+    assert.ok(updated.includes('serde = "1.0.200"'));
+    assert.ok(updated.includes('version = "1.35.0"'));
+    assert.ok(
+      updated.includes('serde_json_renamed = { package = "serde_json", version = "1.0.145" }'),
+    );
+    assert.ok(updated.includes('local = { path = "../local" }'));
+    assert.ok(updated.includes('pretty_assertions = "1.4.1"'));
   });
 });

@@ -15,7 +15,7 @@ test("normalizes named manifest config for the existing target runner", () => {
     },
   };
 
-  assert.deepStrictEqual((normalizeConfigShape(config, "/repo")), {
+  assert.deepStrictEqual(normalizeConfigShape(config, "/repo"), {
     targets: [
       {
         files: ["packages/web/package.json"],
@@ -25,7 +25,7 @@ test("normalizes named manifest config for the existing target runner", () => {
       },
     ],
   });
-  assert.deepStrictEqual((normalizeConfigShape(config)), {
+  assert.deepStrictEqual(normalizeConfigShape(config), {
     targets: [
       {
         files: ["packages/web/package.json"],
@@ -44,7 +44,7 @@ describe("expandTargets", () => {
       mode: "precise" as const,
     };
 
-    assert.deepStrictEqual((expandTargets(options)), [options]);
+    assert.deepStrictEqual(expandTargets(options), [options]);
   });
 
   test("maps manager policies to independent provider runs", () => {
@@ -64,7 +64,7 @@ describe("expandTargets", () => {
       ],
     });
 
-    assertMatches((targets), [
+    assertMatches(targets, [
       match.objectContaining({
         language: "nodejs",
         packageManager: "bun",
@@ -91,7 +91,7 @@ describe("expandTargets", () => {
       ],
     });
 
-    assertMatches((targets), [
+    assertMatches(targets, [
       match.objectContaining({
         packageManager: "go",
       }),
@@ -99,20 +99,26 @@ describe("expandTargets", () => {
   });
 
   test("rejects unknown configured target selections", () => {
-    assertThrows(() =>
-      expandTargets({
-        target: ["services"],
-        targets: [{ manager: "go", mode: "precise" }],
-      }), "Unknown target manager(s): services");
+    assertThrows(
+      () =>
+        expandTargets({
+          target: ["services"],
+          targets: [{ manager: "go", mode: "precise" }],
+        }),
+      "Unknown target manager(s): services",
+    );
   });
 
   test("rejects target selection without named configuration targets", () => {
-    assertThrows(() =>
-      expandTargets({
-        target: ["services"],
-        language: "go",
-        mode: "precise",
-      }), "Unknown target manager(s): services");
+    assertThrows(
+      () =>
+        expandTargets({
+          target: ["services"],
+          language: "go",
+          mode: "precise",
+        }),
+      "Unknown target manager(s): services",
+    );
   });
 
   test("uses manager-scoped Python manifest defaults", () => {
@@ -126,13 +132,16 @@ describe("expandTargets", () => {
       ],
     });
 
-    assert.deepStrictEqual((targets.map(({ files }) => files)), [
-      ["requirements.txt"],
-      ["Pipfile"],
-      ["pyproject.toml"],
-      ["pyproject.toml"],
-      ["environment.yml", "environment.yaml"],
-    ]);
+    assert.deepStrictEqual(
+      targets.map(({ files }) => files),
+      [
+        ["requirements.txt"],
+        ["Pipfile"],
+        ["pyproject.toml"],
+        ["pyproject.toml"],
+        ["environment.yml", "environment.yaml"],
+      ],
+    );
   });
 
   test("inherits shared scope options and allows target overrides", () => {
@@ -150,7 +159,7 @@ describe("expandTargets", () => {
       ],
     });
 
-    assertMatches((targets), [
+    assertMatches(targets, [
       match.objectContaining({
         packageManager: "go",
         rootDir: "/repo",
@@ -173,6 +182,9 @@ describe("expandTargets", () => {
       ],
     });
 
-    assert.deepStrictEqual((targets.map(({ lockfile }) => lockfile)), [true, false]);
+    assert.deepStrictEqual(
+      targets.map(({ lockfile }) => lockfile),
+      [true, false],
+    );
   });
 });

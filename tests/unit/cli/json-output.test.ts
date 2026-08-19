@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs
 import { tmpdir } from "os";
 import { join } from "path";
 
-const cliPath = join(process.cwd(), "src/cli.ts");
+const cliPath = join(process.cwd(), "src/cli/index.ts");
 
 const createOutdatedProject = (): string => {
   const workDir = mkdtempSync(join(tmpdir(), "codependence-cli-json-"));
@@ -57,10 +57,10 @@ describe("CLI JSON output contract", () => {
       const output = JSON.parse(result.stdout.trim());
       const packageJson = readPackageJson(workDir);
 
-      assert.strictEqual((result.status), 1);
-      assert.strictEqual((output.status), "outdated");
-      assert.strictEqual((output.summary.outdated), 1);
-      assert.deepStrictEqual((output.dependencies), [
+      assert.strictEqual(result.status, 1);
+      assert.strictEqual(output.status, "outdated");
+      assert.strictEqual(output.summary.outdated, 1);
+      assert.deepStrictEqual(output.dependencies, [
         {
           package: "lodash",
           current: "4.17.21",
@@ -70,7 +70,7 @@ describe("CLI JSON output contract", () => {
           canAutoUpdate: true,
         },
       ]);
-      assert.strictEqual((packageJson.dependencies.lodash), "4.17.21");
+      assert.strictEqual(packageJson.dependencies.lodash, "4.17.21");
     } finally {
       rmSync(workDir, { recursive: true, force: true });
     }
@@ -84,10 +84,10 @@ describe("CLI JSON output contract", () => {
       const output = JSON.parse(result.stdout.trim());
       const packageJson = readPackageJson(workDir);
 
-      assert.strictEqual((result.status), 0);
-      assert.strictEqual((output.status), "outdated");
-      assert.strictEqual((output.summary.outdated), 1);
-      assert.strictEqual((packageJson.dependencies.lodash), "4.18.0");
+      assert.strictEqual(result.status, 0);
+      assert.strictEqual(output.status, "outdated");
+      assert.strictEqual(output.summary.outdated, 1);
+      assert.strictEqual(packageJson.dependencies.lodash, "4.18.0");
     } finally {
       rmSync(workDir, { recursive: true, force: true });
     }
@@ -105,9 +105,9 @@ describe("CLI JSON output contract", () => {
       ]);
       const packageJson = readPackageJson(workDir);
 
-      assert.strictEqual((result.status), 2);
-      assert.ok((result.stderr).includes("Config file not found"));
-      assert.strictEqual((packageJson.dependencies.lodash), "4.17.21");
+      assert.strictEqual(result.status, 2);
+      assert.ok(result.stderr.includes("Config file not found"));
+      assert.strictEqual(packageJson.dependencies.lodash, "4.17.21");
     } finally {
       rmSync(workDir, { recursive: true, force: true });
     }
@@ -121,7 +121,7 @@ describe("CLI JSON output contract", () => {
       encoding: "utf8",
     });
 
-    assert.strictEqual((result.status), 0);
-    assert.ok((result.stdout).includes("Usage"));
+    assert.strictEqual(result.status, 0);
+    assert.ok(result.stdout.includes("Usage"));
   });
 });

@@ -10,15 +10,5 @@ const runBuildStep = (command: string, args: string[]): void => {
   process.exit(result.status ?? 1);
 };
 
-const declarationArgs = [
-  "--emitDeclarationOnly",
-  "--declaration",
-  "--outDir",
-  "dist",
-  "--rootDir",
-  "src",
-];
-
 runBuildStep("rolldown", ["--config", "rolldown.config.mjs"]);
-runBuildStep("tsc", declarationArgs);
 chmodSync("dist/cli.js", 0o755);

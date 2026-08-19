@@ -1,0 +1,333 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://unpkg.com/codependence/src/config/schema.json",
+  "x-revision": 2,
+  "x-created": "2025-11-23",
+  "x-updated": "2026-08-17",
+  "x-history": "https://github.com/yowainwright/codependence/commits/main/src/config/schema.json",
+  "title": "Codependence Configuration",
+  "description": "Configuration for managing dependency versions across your project",
+  "type": "object",
+  "additionalProperties": false,
+  "definitions": {
+    "manager": {
+      "type": "string",
+      "enum": [
+        "bun",
+        "npm",
+        "pnpm",
+        "yarn",
+        "conda",
+        "pip",
+        "pipenv",
+        "poetry",
+        "uv",
+        "go",
+        "rust",
+        "docker",
+        "github-actions"
+      ]
+    },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "allOf": [
+        { "pattern": "^[^/\\\\]" },
+        { "not": { "pattern": "^[A-Za-z]:[/\\\\]" } },
+        { "not": { "pattern": "(^|[/\\\\])\\.\\.([/\\\\]|$)" } }
+      ],
+      "description": "Path relative to the configuration directory without parent traversal"
+    },
+    "lockfile": {
+      "description": "Require standard lockfiles or list repository-relative lockfile paths",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/definitions/repositoryPath"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/repositoryPath"
+          }
+        }
+      ]
+    },
+    "target": {
+      "type": "object",
+      "description": "Manager configuration; mode is inferred",
+      "additionalProperties": false,
+      "required": ["manager"],
+      "properties": {
+        "manager": {
+          "$ref": "#/definitions/manager"
+        },
+        "codependencies": {
+          "$ref": "#/properties/codependencies"
+        },
+        "permissive": {
+          "$ref": "#/properties/permissive"
+        },
+        "files": {
+          "$ref": "#/properties/files"
+        },
+        "ignore": {
+          "$ref": "#/properties/ignore"
+        },
+        "level": {
+          "$ref": "#/properties/level"
+        },
+        "mode": {
+          "$ref": "#/properties/mode"
+        },
+        "lockfile": {
+          "$ref": "#/definitions/lockfile"
+        },
+        "rootDir": {
+          "$ref": "#/properties/rootDir"
+        }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "description": "Manifest configuration; mode is inferred",
+      "additionalProperties": false,
+      "required": ["path", "manager"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "$ref": "#/definitions/repositoryPath"
+        },
+        "manager": {
+          "$ref": "#/definitions/manager"
+        },
+        "codependencies": {
+          "$ref": "#/properties/codependencies"
+        },
+        "permissive": {
+          "$ref": "#/properties/permissive"
+        },
+        "ignore": {
+          "$ref": "#/properties/ignore"
+        },
+        "level": {
+          "$ref": "#/properties/level"
+        },
+        "mode": {
+          "$ref": "#/properties/mode"
+        },
+        "lockfile": {
+          "$ref": "#/definitions/lockfile"
+        },
+        "rootDir": {
+          "$ref": "#/properties/rootDir"
+        }
+      }
+    }
+  },
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Configuration schema URL"
+    },
+    "config": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/definitions/manifest"
+      },
+      "description": "Named configuration entries, one per manifest"
+    },
+    "targets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/target"
+      },
+      "description": "Independent manager configuration entries"
+    },
+    "codependencies": {
+      "description": "Checked in verbose mode; held back in precise mode",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "description": "Package name"
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "minProperties": 1,
+                "maxProperties": 1,
+                "description": "Package name with version constraint"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "permissive": {
+      "type": "boolean",
+      "description": "true means precise; false means verbose"
+    },
+    "language": {
+      "type": "string",
+      "enum": ["nodejs", "python", "go", "rust", "docker", "github-actions"],
+      "description": "Target programming language for dependency management (experimental)"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Glob patterns for manifest files to check"
+    },
+    "ignore": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Glob patterns for files to ignore"
+    },
+    "level": {
+      "type": "string",
+      "enum": ["patch", "minor", "major"],
+      "default": "major",
+      "description": "Update level constraint: patch (same minor), minor (same major), or major (any)"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["verbose", "precise"],
+      "description": "verbose checks listed dependencies; precise checks all others"
+    },
+    "lockfile": {
+      "$ref": "#/definitions/lockfile"
+    },
+    "update": {
+      "type": "boolean",
+      "description": "Update dependencies based on check",
+      "default": false
+    },
+    "debug": {
+      "type": "boolean",
+      "description": "Enable debugging output",
+      "default": false
+    },
+    "silent": {
+      "type": "boolean",
+      "description": "Enable mainly silent logging",
+      "default": false
+    },
+    "verbose": {
+      "type": "boolean",
+      "description": "Enable verbose logging (shows debug info)",
+      "default": false
+    },
+    "quiet": {
+      "type": "boolean",
+      "description": "Suppress all output except errors",
+      "default": false
+    },
+    "yarnConfig": {
+      "type": "boolean",
+      "description": "Enable yarn config support for version lookups",
+      "default": false
+    },
+    "rootDir": {
+      "type": "string",
+      "description": "Root directory to start search",
+      "default": "./"
+    },
+    "dryRun": {
+      "type": "boolean",
+      "description": "Show what would change without modifying files",
+      "default": false
+    },
+    "interactive": {
+      "type": "boolean",
+      "description": "Choose which packages to update interactively",
+      "default": false
+    },
+    "watch": {
+      "type": "boolean",
+      "description": "Watch for changes and re-check continuously",
+      "default": false
+    },
+    "noCache": {
+      "type": "boolean",
+      "description": "Disable version caching for fresh results",
+      "default": false
+    },
+    "format": {
+      "type": "string",
+      "enum": ["json", "markdown", "table"],
+      "description": "Output format type"
+    },
+    "outputFile": {
+      "type": "string",
+      "description": "Write output to file instead of stdout"
+    }
+  },
+  "dependencies": {
+    "config": {
+      "not": {
+        "anyOf": [
+          { "required": ["targets"] },
+          { "required": ["codependencies"] },
+          { "required": ["permissive"] },
+          { "required": ["language"] },
+          { "required": ["files"] },
+          { "required": ["ignore"] },
+          { "required": ["level"] },
+          { "required": ["mode"] },
+          { "required": ["rootDir"] },
+          { "required": ["yarnConfig"] }
+        ]
+      }
+    },
+    "targets": {
+      "not": {
+        "anyOf": [
+          { "required": ["codependencies"] },
+          { "required": ["permissive"] },
+          { "required": ["language"] },
+          { "required": ["files"] },
+          { "required": ["ignore"] },
+          { "required": ["level"] },
+          { "required": ["mode"] },
+          { "required": ["rootDir"] },
+          { "required": ["yarnConfig"] }
+        ]
+      }
+    }
+  },
+  "anyOf": [
+    {
+      "required": ["config"]
+    },
+    {
+      "required": ["targets"]
+    },
+    {
+      "required": ["codependencies"]
+    },
+    {
+      "required": ["permissive"]
+    },
+    {
+      "required": ["mode"]
+    }
+  ]
+}

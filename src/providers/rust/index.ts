@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from "fs";
-import { exec } from "../../utils/exec";
+import { exec } from "../../utils/process";
 import { LANGUAGES } from "../constants";
 import type {
   CargoAssignment,

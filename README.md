@@ -69,7 +69,7 @@ brew install yowainwright/tap/codependence
 
 ## Configuration
 
-<!-- init command behavior from src/program.ts -->
+<!-- init command behavior from src/cli/index.ts -->
 
 Run guided setup from the project directory:
 
@@ -91,7 +91,7 @@ The path is relative to `package.json`. Each entry in `config` represents one ma
 
 Editors can use the published [configuration schema][configuration-schema] for validation and completion.
 
-[configuration-schema]: https://unpkg.com/codependence/src/schema.json
+[configuration-schema]: https://unpkg.com/codependence/src/config/schema.json
 
 ```sh
 codependence
@@ -165,7 +165,7 @@ Commands:
 
 ## Codependence GitHub Action
 
-<!-- generated workflow behavior from src/program.ts -->
+<!-- generated workflow behavior from src/cli/index.ts -->
 
 Generate split workflows from the configured managers:
 

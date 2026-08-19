@@ -3,10 +3,15 @@ import assert from "node:assert/strict";
 import { assertCalledWith, assertThrows } from "../../helpers/assertions";
 import { writeFileSync, readFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
-import { logger } from "../../../src/logger";
-import { configureBinaryHost } from "../../../src/bin/utils";
-import { exec } from "../../../src/utils/exec";
-import { GoProvider, runGoModTidy, updateRequireLine, updateExistingRequireLines } from "../../../src/providers/go";
+import { logger } from "../../../src/observability";
+import { configureBinaryHost } from "../../../src/cli/utils";
+import { exec } from "../../../src/utils/process";
+import {
+  GoProvider,
+  runGoModTidy,
+  updateRequireLine,
+  updateExistingRequireLines,
+} from "../../../src/providers/go";
 
 const execMock = mock.fn<typeof exec>();
 const runExecMock = async (command: string, args: string[]): Promise<string> =>
@@ -14,7 +19,11 @@ const runExecMock = async (command: string, args: string[]): Promise<string> =>
 let restoreBinaryHost: (() => void) | undefined;
 
 const configureExecMock = (): void => {
-  restoreBinaryHost = configureBinaryHost(runExecMock, () => "{}", async () => "");
+  restoreBinaryHost = configureBinaryHost(
+    runExecMock,
+    () => "{}",
+    async () => "",
+  );
 };
 
 describe("GoProvider", () => {
@@ -38,13 +47,8 @@ describe("GoProvider", () => {
 
       const version = await provider.getLatestVersion("github.com/example/pkg");
 
-      assert.strictEqual((version), "v2.0.0");
-      assertCalledWith((execMock), "go", [
-        "list",
-        "-m",
-        "-versions",
-        "github.com/example/pkg",
-      ]);
+      assert.strictEqual(version, "v2.0.0");
+      assertCalledWith(execMock, "go", ["list", "-m", "-versions", "github.com/example/pkg"]);
     });
 
     test("should filter out non-version entries", async () => {
@@ -57,7 +61,7 @@ describe("GoProvider", () => {
 
       const version = await provider.getLatestVersion("github.com/example/pkg");
 
-      assert.strictEqual((version), "v2.0.0");
+      assert.strictEqual(version, "v2.0.0");
     });
 
     test("should return empty string if no versions found", async () => {
@@ -70,7 +74,7 @@ describe("GoProvider", () => {
 
       const version = await provider.getLatestVersion("github.com/example/pkg");
 
-      assert.strictEqual((version), "");
+      assert.strictEqual(version, "");
     });
 
     test("should handle single version", async () => {
@@ -83,7 +87,7 @@ describe("GoProvider", () => {
 
       const version = await provider.getLatestVersion("github.com/example/pkg");
 
-      assert.strictEqual((version), "v1.0.0");
+      assert.strictEqual(version, "v1.0.0");
     });
   });
 
@@ -100,7 +104,7 @@ describe("GoProvider", () => {
 
       const versions = await provider.getAllVersions("github.com/example/pkg");
 
-      assert.deepStrictEqual((versions), ["v1.0.0", "v1.1.0", "v2.0.0"]);
+      assert.deepStrictEqual(versions, ["v1.0.0", "v1.1.0", "v2.0.0"]);
     });
 
     test("should filter non-version strings", async () => {
@@ -113,7 +117,7 @@ describe("GoProvider", () => {
 
       const versions = await provider.getAllVersions("github.com/example/pkg");
 
-      assert.deepStrictEqual((versions), ["v1.0.0", "v2.0.0"]);
+      assert.deepStrictEqual(versions, ["v1.0.0", "v2.0.0"]);
     });
 
     test("should return empty array if no versions", async () => {
@@ -126,7 +130,7 @@ describe("GoProvider", () => {
 
       const versions = await provider.getAllVersions("github.com/example/pkg");
 
-      assert.deepStrictEqual((versions), []);
+      assert.deepStrictEqual(versions, []);
     });
   });
 
@@ -154,14 +158,14 @@ describe("GoProvider", () => {
       const provider = new GoProvider({ isTesting: true });
       const manifest = await provider.readManifest(goModPath);
 
-      assert.strictEqual((manifest.name), "github.com/example/myapp");
-      assert.strictEqual((manifest.version), "1.21");
-      assert.deepStrictEqual((manifest.dependencies), {
+      assert.strictEqual(manifest.name, "github.com/example/myapp");
+      assert.strictEqual(manifest.version, "1.21");
+      assert.deepStrictEqual(manifest.dependencies, {
         "github.com/gin-gonic/gin": "v1.9.1",
         "github.com/lib/pq": "v1.10.9",
         "golang.org/x/crypto": "v0.14.0",
       });
-      assert.strictEqual((manifest.filePath), goModPath);
+      assert.strictEqual(manifest.filePath, goModPath);
     });
 
     test("should read go.mod with single require statements", async () => {
@@ -179,7 +183,7 @@ require github.com/joho/godotenv v1.5.1
       const provider = new GoProvider({ isTesting: true });
       const manifest = await provider.readManifest(goModPath);
 
-      assert.deepStrictEqual((manifest.dependencies), {
+      assert.deepStrictEqual(manifest.dependencies, {
         "github.com/stretchr/testify": "v1.8.4",
         "github.com/joho/godotenv": "v1.5.1",
       });
@@ -201,7 +205,7 @@ require github.com/joho/godotenv v1.5.1
       const provider = new GoProvider({ isTesting: true });
       const manifest = await provider.readManifest(goModPath);
 
-      assert.deepStrictEqual((manifest.dependencies), {
+      assert.deepStrictEqual(manifest.dependencies, {
         "github.com/pkg1": "v1.0.0",
         "github.com/pkg2": "v2.0.0",
         "github.com/pkg3": "v3.0.0",
@@ -228,7 +232,7 @@ require (
       const provider = new GoProvider({ isTesting: true });
       const manifest = await provider.readManifest(goModPath);
 
-      assert.deepStrictEqual((manifest.dependencies), {
+      assert.deepStrictEqual(manifest.dependencies, {
         "github.com/direct/pkg": "v1.0.0",
         "github.com/indirect/pkg": "v2.0.0",
       });
@@ -246,9 +250,9 @@ go 1.21
       const provider = new GoProvider({ isTesting: true });
       const manifest = await provider.readManifest(goModPath);
 
-      assert.strictEqual((manifest.name), "github.com/example/simple");
-      assert.strictEqual((manifest.version), "1.21");
-      assert.deepStrictEqual((manifest.dependencies), {});
+      assert.strictEqual(manifest.name, "github.com/example/simple");
+      assert.strictEqual(manifest.version, "1.21");
+      assert.deepStrictEqual(manifest.dependencies, {});
     });
 
     test("should handle go.mod without go version", async () => {
@@ -263,8 +267,8 @@ require github.com/pkg v1.0.0
       const provider = new GoProvider({ isTesting: true });
       const manifest = await provider.readManifest(goModPath);
 
-      assert.strictEqual((manifest.name), "github.com/example/app");
-      assert.strictEqual((manifest.version), undefined);
+      assert.strictEqual(manifest.name, "github.com/example/app");
+      assert.strictEqual(manifest.version, undefined);
     });
   });
 
@@ -300,12 +304,12 @@ require (
 
       const updated = readFileSync(goModPath, "utf8");
 
-      assert.ok((updated).includes("require ("));
-      assert.ok((updated).includes("github.com/new/pkg v2.0.0"));
-      assert.ok((updated).includes("github.com/another/pkg v1.5.0"));
-      assert.ok(!(updated).includes("github.com/old/pkg"));
-      assert.ok((updated).includes("module github.com/example/app"));
-      assert.ok((updated).includes("go 1.21"));
+      assert.ok(updated.includes("require ("));
+      assert.ok(updated.includes("github.com/new/pkg v2.0.0"));
+      assert.ok(updated.includes("github.com/another/pkg v1.5.0"));
+      assert.ok(!updated.includes("github.com/old/pkg"));
+      assert.ok(updated.includes("module github.com/example/app"));
+      assert.ok(updated.includes("go 1.21"));
     });
 
     test("should replace single requires with block", async () => {
@@ -330,9 +334,9 @@ require github.com/old/pkg v1.0.0
 
       const updated = readFileSync(goModPath, "utf8");
 
-      assert.ok((updated).includes("require ("));
-      assert.ok((updated).includes("github.com/pkg1 v1.0.0"));
-      assert.ok((updated).includes("github.com/pkg2 v2.0.0"));
+      assert.ok(updated.includes("require ("));
+      assert.ok(updated.includes("github.com/pkg1 v1.0.0"));
+      assert.ok(updated.includes("github.com/pkg2 v2.0.0"));
     });
 
     test("should add require block if none exists", async () => {
@@ -354,9 +358,9 @@ go 1.21
 
       const updated = readFileSync(goModPath, "utf8");
 
-      assert.ok((updated).includes("require ("));
-      assert.ok((updated).includes("github.com/new/pkg v1.0.0"));
-      assert.ok((updated).includes("module github.com/example/app"));
+      assert.ok(updated.includes("require ("));
+      assert.ok(updated.includes("github.com/new/pkg v1.0.0"));
+      assert.ok(updated.includes("module github.com/example/app"));
     });
 
     test("should format require block with proper indentation", async () => {
@@ -382,7 +386,7 @@ require (
 
       const updated = readFileSync(goModPath, "utf8");
 
-      assert.ok((updated).includes("\tgithub.com/pkg v1.0.0"));
+      assert.ok(updated.includes("\tgithub.com/pkg v1.0.0"));
     });
 
     test("should end file with newline", async () => {
@@ -396,7 +400,7 @@ require (
       });
 
       const content = readFileSync(goModPath, "utf8");
-      assert.strictEqual((content.endsWith("\n")), true);
+      assert.strictEqual(content.endsWith("\n"), true);
     });
 
     test("should update existing require lines in place", async () => {
@@ -417,9 +421,9 @@ require (
       });
 
       const updated = readFileSync(goModPath, "utf8");
-      assert.ok((updated).includes("\tgithub.com/pkg v1.2.0 // indirect"));
-      assert.ok((updated).includes("module github.com/example/app"));
-      assert.ok((updated).includes("go 1.21"));
+      assert.ok(updated.includes("\tgithub.com/pkg v1.2.0 // indirect"));
+      assert.ok(updated.includes("module github.com/example/app"));
+      assert.ok(updated.includes("go 1.21"));
     });
 
     test("should not modify replace directive source versions", async () => {
@@ -441,8 +445,10 @@ require (
       });
 
       const updated = readFileSync(goModPath, "utf8");
-      assert.ok((updated).includes("github.com/gin-gonic/gin v1.9.1"));
-      assert.ok((updated).includes("replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0"));
+      assert.ok(updated.includes("github.com/gin-gonic/gin v1.9.1"));
+      assert.ok(
+        updated.includes("replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0"),
+      );
     });
 
     test("should preserve // indirect when dep is already at correct version", async () => {
@@ -463,7 +469,7 @@ require (
       });
 
       const updated = readFileSync(goModPath, "utf8");
-      assert.ok((updated).includes("\tgithub.com/pkg v1.0.0 // indirect"));
+      assert.ok(updated.includes("\tgithub.com/pkg v1.0.0 // indirect"));
     });
 
     test("should preserve exclude block contents", async () => {
@@ -487,9 +493,9 @@ require (
       });
 
       const updated = readFileSync(goModPath, "utf8");
-      assert.ok((updated).includes("github.com/gin-gonic/gin v1.9.1"));
-      assert.ok((updated).includes("exclude ("));
-      assert.ok((updated).includes("github.com/bad/module v0.1.0"));
+      assert.ok(updated.includes("github.com/gin-gonic/gin v1.9.1"));
+      assert.ok(updated.includes("exclude ("));
+      assert.ok(updated.includes("github.com/bad/module v0.1.0"));
     });
   });
 
@@ -497,25 +503,25 @@ require (
     const provider = new GoProvider({ isTesting: true });
 
     test("should validate correct Go package names", () => {
-      assert.strictEqual((provider.validatePackageName("github.com/user/repo")), true);
-      assert.strictEqual((provider.validatePackageName("golang.org/x/crypto")), true);
-      assert.strictEqual((provider.validatePackageName("gopkg.in/yaml")), true);
-      assert.strictEqual((provider.validatePackageName("github.com/aws/aws-sdk-go")), true);
-      assert.strictEqual((provider.validatePackageName("example.com/my/package")), true);
+      assert.strictEqual(provider.validatePackageName("github.com/user/repo"), true);
+      assert.strictEqual(provider.validatePackageName("golang.org/x/crypto"), true);
+      assert.strictEqual(provider.validatePackageName("gopkg.in/yaml"), true);
+      assert.strictEqual(provider.validatePackageName("github.com/aws/aws-sdk-go"), true);
+      assert.strictEqual(provider.validatePackageName("example.com/my/package"), true);
     });
 
     test("should reject invalid Go package names", () => {
-      assert.strictEqual((provider.validatePackageName("lodash")), false);
-      assert.strictEqual((provider.validatePackageName("@scope/package")), false);
-      assert.strictEqual((provider.validatePackageName("")), false);
-      assert.strictEqual((provider.validatePackageName("github.com")), false);
-      assert.strictEqual((provider.validatePackageName("not-a-domain/package")), false);
+      assert.strictEqual(provider.validatePackageName("lodash"), false);
+      assert.strictEqual(provider.validatePackageName("@scope/package"), false);
+      assert.strictEqual(provider.validatePackageName(""), false);
+      assert.strictEqual(provider.validatePackageName("github.com"), false);
+      assert.strictEqual(provider.validatePackageName("not-a-domain/package"), false);
     });
 
     test("should handle different domain TLDs", () => {
-      assert.strictEqual((provider.validatePackageName("example.com/org/pkg")), true);
-      assert.strictEqual((provider.validatePackageName("example.io/pkg")), true);
-      assert.strictEqual((provider.validatePackageName("example.dev/pkg")), true);
+      assert.strictEqual(provider.validatePackageName("example.com/org/pkg"), true);
+      assert.strictEqual(provider.validatePackageName("example.io/pkg"), true);
+      assert.strictEqual(provider.validatePackageName("example.dev/pkg"), true);
     });
   });
 
@@ -523,15 +529,15 @@ require (
     test("should update version when dep is found", () => {
       const deps = { "github.com/pkg": "v1.2.0" };
       const result = updateRequireLine("\tgithub.com/pkg v1.0.0", deps);
-      assert.strictEqual((result.updated), true);
-      assert.strictEqual((result.line), "\tgithub.com/pkg v1.2.0");
+      assert.strictEqual(result.updated, true);
+      assert.strictEqual(result.line, "\tgithub.com/pkg v1.2.0");
     });
 
     test("should preserve // indirect comment", () => {
       const deps = { "github.com/pkg": "v1.2.0" };
       const result = updateRequireLine("\tgithub.com/pkg v1.0.0 // indirect", deps);
-      assert.strictEqual((result.updated), true);
-      assert.strictEqual((result.line), "\tgithub.com/pkg v1.2.0 // indirect");
+      assert.strictEqual(result.updated, true);
+      assert.strictEqual(result.line, "\tgithub.com/pkg v1.2.0 // indirect");
     });
 
     test("should skip replace lines", () => {
@@ -540,15 +546,15 @@ require (
         "\treplace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0",
         deps,
       );
-      assert.strictEqual((result.updated), false);
-      assert.ok((result.line).includes("replace github.com/old/module"));
+      assert.strictEqual(result.updated, false);
+      assert.ok(result.line.includes("replace github.com/old/module"));
     });
 
     test("should skip unknown deps", () => {
       const deps = { "github.com/other": "v2.0.0" };
       const result = updateRequireLine("\tgithub.com/pkg v1.0.0", deps);
-      assert.strictEqual((result.updated), false);
-      assert.strictEqual((result.line), "\tgithub.com/pkg v1.0.0");
+      assert.strictEqual(result.updated, false);
+      assert.strictEqual(result.line, "\tgithub.com/pkg v1.0.0");
     });
   });
 
@@ -563,8 +569,10 @@ require (
         "replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0\n";
       const deps = { "github.com/gin-gonic/gin": "v1.9.1" };
       const { content: result } = updateExistingRequireLines(content, deps);
-      assert.ok((result).includes("replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0"));
-      assert.ok((result).includes("github.com/gin-gonic/gin v1.9.1"));
+      assert.ok(
+        result.includes("replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0"),
+      );
+      assert.ok(result.includes("github.com/gin-gonic/gin v1.9.1"));
     });
 
     test("should preserve replace block lines", () => {
@@ -579,8 +587,8 @@ require (
         ")\n";
       const deps = { "github.com/gin-gonic/gin": "v1.9.1" };
       const { content: result } = updateExistingRequireLines(content, deps);
-      assert.ok((result).includes("github.com/old/module v1.0.0 => github.com/fork/module v2.0.0"));
-      assert.ok((result).includes("github.com/gin-gonic/gin v1.9.1"));
+      assert.ok(result.includes("github.com/old/module v1.0.0 => github.com/fork/module v2.0.0"));
+      assert.ok(result.includes("github.com/gin-gonic/gin v1.9.1"));
     });
 
     test("should preserve exclude block contents", () => {
@@ -595,9 +603,9 @@ require (
         ")\n";
       const deps = { "github.com/gin-gonic/gin": "v1.9.1" };
       const { content: result, updatedCount } = updateExistingRequireLines(content, deps);
-      assert.ok((result).includes("exclude ("));
-      assert.ok((result).includes("github.com/bad/module v0.1.0"));
-      assert.strictEqual((updatedCount), 1);
+      assert.ok(result.includes("exclude ("));
+      assert.ok(result.includes("github.com/bad/module v0.1.0"));
+      assert.strictEqual(updatedCount, 1);
     });
 
     test("should update multiple deps", () => {
@@ -610,9 +618,9 @@ require (
         ")\n";
       const deps = { "github.com/gin-gonic/gin": "v1.9.1", "github.com/lib/pq": "v1.10.9" };
       const { content: result, updatedCount } = updateExistingRequireLines(content, deps);
-      assert.ok((result).includes("github.com/gin-gonic/gin v1.9.1"));
-      assert.ok((result).includes("github.com/lib/pq v1.10.9"));
-      assert.strictEqual((updatedCount), 2);
+      assert.ok(result.includes("github.com/gin-gonic/gin v1.9.1"));
+      assert.ok(result.includes("github.com/lib/pq v1.10.9"));
+      assert.strictEqual(updatedCount, 2);
     });
 
     test("should be a no-op when deps unchanged", () => {
@@ -624,32 +632,32 @@ require (
         ")\n";
       const deps = { "github.com/gin-gonic/gin": "v1.9.1" };
       const { content: result, updatedCount } = updateExistingRequireLines(content, deps);
-      assert.strictEqual((updatedCount), 0);
-      assert.strictEqual((result), content);
+      assert.strictEqual(updatedCount, 0);
+      assert.strictEqual(result, content);
     });
   });
 
   describe("language property", () => {
     test("should have correct language identifier", () => {
       const provider = new GoProvider({ isTesting: true });
-      assert.strictEqual((provider.language), "go");
+      assert.strictEqual(provider.language, "go");
     });
   });
 
   describe("constructor options", () => {
     test("should accept empty options", () => {
       const provider = new GoProvider();
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
 
     test("should accept isTesting option", () => {
       const provider = new GoProvider({ isTesting: true });
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
 
     test("should accept debug option", () => {
       const provider = new GoProvider({ debug: true, isTesting: true });
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
   });
 
@@ -664,7 +672,7 @@ require (
       dependencies: { "github.com/example/pkg": "v2.0.0" },
     });
 
-    assert.ok((readFileSync(goModPath, "utf8")).includes("github.com/example/pkg v2.0.0"));
+    assert.ok(readFileSync(goModPath, "utf8").includes("github.com/example/pkg v2.0.0"));
     rmSync(join(import.meta.dirname, ".tmp-write"), { recursive: true, force: true });
   });
 
@@ -674,7 +682,7 @@ require (
 
     runGoModTidy(goModPath, {}, execute as typeof import("child_process").execFileSync);
 
-    assertCalledWith((execute), "go", ["mod", "tidy"], {
+    assertCalledWith(execute, "go", ["mod", "tidy"], {
       cwd: join(import.meta.dirname, "fixture"),
       stdio: "ignore",
     });
@@ -689,7 +697,7 @@ require (
       execute as typeof import("child_process").execFileSync,
     );
 
-    assert.strictEqual((execute).mock.callCount(), 0);
+    assert.strictEqual(execute.mock.callCount(), 0);
   });
 
   test("runGoModTidy reports and propagates failures in debug mode", () => {
@@ -706,7 +714,7 @@ require (
         execute as unknown as typeof import("child_process").execFileSync,
       );
 
-    assertThrows((run), failure);
-    assertCalledWith((error), "Failed to run go mod tidy", failure);
+    assertThrows(run, failure);
+    assertCalledWith(error, "Failed to run go mod tidy", failure);
   });
 });

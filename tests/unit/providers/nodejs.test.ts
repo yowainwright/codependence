@@ -3,14 +3,18 @@ import assert from "node:assert/strict";
 import { assertCalledWith } from "../../helpers/assertions";
 import { writeFileSync, readFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
-import { configureBinaryHost } from "../../../src/bin/utils";
+import { configureBinaryHost } from "../../../src/cli/utils";
 import { NodeJSProvider } from "../../../src/providers/nodejs";
-import { exec } from "../../../src/utils/exec";
+import { exec } from "../../../src/utils/process";
 
 const execMock = mock.fn<typeof exec>();
 const runExecMock = async (command: string, args: string[]): Promise<string> =>
   JSON.stringify(await execMock(command, args));
-const restoreBinaryHost = configureBinaryHost(runExecMock, () => "{}", async () => "");
+const restoreBinaryHost = configureBinaryHost(
+  runExecMock,
+  () => "{}",
+  async () => "",
+);
 
 after(restoreBinaryHost);
 
@@ -31,8 +35,8 @@ describe("NodeJSProvider", () => {
 
       const version = await provider.getLatestVersion("lodash");
 
-      assert.strictEqual((version), "4.17.21");
-      assertCalledWith((execMock), "npm", ["view", "lodash", "version", "latest"]);
+      assert.strictEqual(version, "4.17.21");
+      assertCalledWith(execMock, "npm", ["view", "lodash", "version", "latest"]);
     });
 
     test("should get version using yarn when yarnConfig is true", async () => {
@@ -45,8 +49,8 @@ describe("NodeJSProvider", () => {
 
       const version = await provider.getLatestVersion("lodash");
 
-      assert.strictEqual((version), "4.17.21");
-      assertCalledWith((execMock), "yarn", [
+      assert.strictEqual(version, "4.17.21");
+      assertCalledWith(execMock, "yarn", [
         "npm",
         "info",
         "lodash",
@@ -66,7 +70,7 @@ describe("NodeJSProvider", () => {
 
       const version = await provider.getLatestVersion("nonexistent-package");
 
-      assert.strictEqual((version), "");
+      assert.strictEqual(version, "");
     });
 
     test("should handle yarn JSON without version field", async () => {
@@ -79,7 +83,7 @@ describe("NodeJSProvider", () => {
 
       const version = await provider.getLatestVersion("lodash");
 
-      assert.strictEqual((version), "");
+      assert.strictEqual(version, "");
     });
   });
 
@@ -94,7 +98,7 @@ describe("NodeJSProvider", () => {
 
       const versions = await provider.getAllVersions("lodash");
 
-      assert.deepStrictEqual((versions), ["4.0.0", "4.17.0", "4.17.21"]);
+      assert.deepStrictEqual(versions, ["4.0.0", "4.17.0", "4.17.21"]);
     });
 
     test("should handle empty versions array", async () => {
@@ -107,7 +111,7 @@ describe("NodeJSProvider", () => {
 
       const versions = await provider.getAllVersions("nonexistent");
 
-      assert.deepStrictEqual((versions), []);
+      assert.deepStrictEqual(versions, []);
     });
   });
 
@@ -134,12 +138,12 @@ describe("NodeJSProvider", () => {
       const provider = new NodeJSProvider();
       const manifest = await provider.readManifest(pkgPath);
 
-      assert.strictEqual((manifest.name), "test-package");
-      assert.strictEqual((manifest.version), "1.0.0");
-      assert.deepStrictEqual((manifest.dependencies), { lodash: "^4.17.21" });
-      assert.deepStrictEqual((manifest.devDependencies), { typescript: "^5.0.0" });
-      assert.deepStrictEqual((manifest.peerDependencies), { react: "^18.0.0" });
-      assert.strictEqual((manifest.filePath), pkgPath);
+      assert.strictEqual(manifest.name, "test-package");
+      assert.strictEqual(manifest.version, "1.0.0");
+      assert.deepStrictEqual(manifest.dependencies, { lodash: "^4.17.21" });
+      assert.deepStrictEqual(manifest.devDependencies, { typescript: "^5.0.0" });
+      assert.deepStrictEqual(manifest.peerDependencies, { react: "^18.0.0" });
+      assert.strictEqual(manifest.filePath, pkgPath);
     });
 
     test("should handle package.json without optional fields", async () => {
@@ -154,11 +158,11 @@ describe("NodeJSProvider", () => {
       const provider = new NodeJSProvider();
       const manifest = await provider.readManifest(pkgPath);
 
-      assert.strictEqual((manifest.name), "minimal-package");
-      assert.strictEqual((manifest.version), "0.0.1");
-      assert.deepStrictEqual((manifest.dependencies), {});
-      assert.deepStrictEqual((manifest.devDependencies), {});
-      assert.deepStrictEqual((manifest.peerDependencies), {});
+      assert.strictEqual(manifest.name, "minimal-package");
+      assert.strictEqual(manifest.version, "0.0.1");
+      assert.deepStrictEqual(manifest.dependencies, {});
+      assert.deepStrictEqual(manifest.devDependencies, {});
+      assert.deepStrictEqual(manifest.peerDependencies, {});
     });
 
     test("should handle empty dependencies", async () => {
@@ -175,8 +179,8 @@ describe("NodeJSProvider", () => {
       const provider = new NodeJSProvider();
       const manifest = await provider.readManifest(pkgPath);
 
-      assert.deepStrictEqual((manifest.dependencies), {});
-      assert.deepStrictEqual((manifest.devDependencies), {});
+      assert.deepStrictEqual(manifest.dependencies, {});
+      assert.deepStrictEqual(manifest.devDependencies, {});
     });
   });
 
@@ -210,13 +214,13 @@ describe("NodeJSProvider", () => {
 
       const updated = JSON.parse(readFileSync(pkgPath, "utf8"));
 
-      assert.strictEqual((updated.name), "test-pkg");
-      assert.strictEqual((updated.description), "Test package");
-      assert.deepStrictEqual((updated.dependencies), {
+      assert.strictEqual(updated.name, "test-pkg");
+      assert.strictEqual(updated.description, "Test package");
+      assert.deepStrictEqual(updated.dependencies, {
         lodash: "^4.17.21",
         axios: "^1.0.0",
       });
-      assert.deepStrictEqual((updated.devDependencies), { jest: "^29.0.0" });
+      assert.deepStrictEqual(updated.devDependencies, { jest: "^29.0.0" });
     });
 
     test("should preserve formatting with trailing newline", async () => {
@@ -239,8 +243,8 @@ describe("NodeJSProvider", () => {
 
       const content = readFileSync(pkgPath, "utf8");
 
-      assert.strictEqual((content.endsWith("\n")), true);
-      assert.strictEqual((content.includes("  ")), true); // 2-space indentation
+      assert.strictEqual(content.endsWith("\n"), true);
+      assert.strictEqual(content.includes("  "), true); // 2-space indentation
     });
 
     test("should handle adding peerDependencies", async () => {
@@ -263,7 +267,7 @@ describe("NodeJSProvider", () => {
 
       const updated = JSON.parse(readFileSync(pkgPath, "utf8"));
 
-      assert.deepStrictEqual((updated.peerDependencies), { react: "^18.0.0" });
+      assert.deepStrictEqual(updated.peerDependencies, { react: "^18.0.0" });
     });
   });
 
@@ -271,54 +275,54 @@ describe("NodeJSProvider", () => {
     const provider = new NodeJSProvider();
 
     test("should validate correct package names", () => {
-      assert.strictEqual((provider.validatePackageName("lodash")), true);
-      assert.strictEqual((provider.validatePackageName("@types/node")), true);
-      assert.strictEqual((provider.validatePackageName("react-dom")), true);
-      assert.strictEqual((provider.validatePackageName("some_package")), true);
+      assert.strictEqual(provider.validatePackageName("lodash"), true);
+      assert.strictEqual(provider.validatePackageName("@types/node"), true);
+      assert.strictEqual(provider.validatePackageName("react-dom"), true);
+      assert.strictEqual(provider.validatePackageName("some_package"), true);
     });
 
     test("should reject invalid package names", () => {
-      assert.strictEqual((provider.validatePackageName("")), false);
-      assert.strictEqual((provider.validatePackageName("has spaces")), false);
-      assert.strictEqual((provider.validatePackageName(".starts-with-dot")), false);
-      assert.strictEqual((provider.validatePackageName("_starts-with-underscore")), false);
-      assert.strictEqual((provider.validatePackageName("node_modules")), false);
-      assert.strictEqual((provider.validatePackageName("favicon.ico")), false);
+      assert.strictEqual(provider.validatePackageName(""), false);
+      assert.strictEqual(provider.validatePackageName("has spaces"), false);
+      assert.strictEqual(provider.validatePackageName(".starts-with-dot"), false);
+      assert.strictEqual(provider.validatePackageName("_starts-with-underscore"), false);
+      assert.strictEqual(provider.validatePackageName("node_modules"), false);
+      assert.strictEqual(provider.validatePackageName("favicon.ico"), false);
     });
 
     test("should handle scoped packages", () => {
-      assert.strictEqual((provider.validatePackageName("@scope/package")), true);
-      assert.strictEqual((provider.validatePackageName("@babel/core")), true);
-      assert.strictEqual((provider.validatePackageName("@typescript-eslint/parser")), true);
+      assert.strictEqual(provider.validatePackageName("@scope/package"), true);
+      assert.strictEqual(provider.validatePackageName("@babel/core"), true);
+      assert.strictEqual(provider.validatePackageName("@typescript-eslint/parser"), true);
     });
   });
 
   describe("language property", () => {
     test("should have correct language identifier", () => {
       const provider = new NodeJSProvider();
-      assert.strictEqual((provider.language), "nodejs");
+      assert.strictEqual(provider.language, "nodejs");
     });
   });
 
   describe("constructor options", () => {
     test("should accept empty options", () => {
       const provider = new NodeJSProvider();
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
 
     test("should accept yarnConfig option", () => {
       const provider = new NodeJSProvider({ yarnConfig: true });
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
 
     test("should accept debug option", () => {
       const provider = new NodeJSProvider({ debug: true });
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
 
     test("should accept packageManager option", () => {
       const provider = new NodeJSProvider({ packageManager: "pnpm" });
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
   });
 });

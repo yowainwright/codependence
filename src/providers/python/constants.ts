@@ -1,5 +1,5 @@
 import { CONDA_MANIFEST_FILES, MANIFEST_FILES, PYTHON_PACKAGE_MANAGERS } from "../constants";
-import { VERSION_COMPARISON_PREFIXES, createRegexAlternation } from "../../utils/constants";
+import { VERSION_COMPARISON_PREFIXES, createRegexAlternation } from "../../manifest/constants";
 
 const PYTHON_REQUIREMENT_PREFIXES = VERSION_COMPARISON_PREFIXES.filter((prefix) => prefix !== "=");
 const PYTHON_REQUIREMENT_PREFIX_PATTERN = createRegexAlternation(PYTHON_REQUIREMENT_PREFIXES);

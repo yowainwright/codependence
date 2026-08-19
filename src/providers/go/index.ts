@@ -1,9 +1,9 @@
 import { readFileSync, writeFileSync } from "fs";
 import { execFileSync } from "child_process";
 import { dirname } from "path";
-import { runBinaryExecFileSync } from "../../bin/utils";
-import { exec } from "../../utils/exec";
-import { logger } from "../../logger";
+import { runBinaryExecFileSync } from "../../cli/utils";
+import { exec } from "../../utils/process";
+import { logger } from "../../observability";
 import { LANGUAGES } from "../constants";
 import { GO_PATTERNS } from "./constants";
 import type {

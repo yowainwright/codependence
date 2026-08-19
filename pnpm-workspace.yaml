@@ -3,6 +3,8 @@ packages:
 allowBuilds:
   '@nubjs/nub': true
   esbuild: true
+minimumReleaseAgeExclude:
+  - eslint-plugin-legibility@0.3.3
 nodeLinker: isolated
 overrides:
   ip-address: 10.3.1

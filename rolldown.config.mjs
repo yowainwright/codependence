@@ -8,5 +8,5 @@ const nodeBuild = (input, file, format = "esm") => {
 export default defineConfig([
   nodeBuild("src/index.ts", "dist/index.js"),
   nodeBuild("src/index.ts", "dist/index.cjs", "cjs"),
-  nodeBuild("src/cli.ts", "dist/cli.js"),
+  nodeBuild("src/cli/index.ts", "dist/cli.js"),
 ]);

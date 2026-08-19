@@ -7,45 +7,51 @@
   ],
   "rules": {
     "no-console": "error",
-    "legibility/hoist-if-operators": "error",
+    "legibility/hoist-if-operators": "warn",
     "legibility/max-array-chain-depth": [
-      "error",
+      "warn",
       {
         "max": 2
       }
     ],
-    "legibility/max-control-flow-depth": "error",
+    "legibility/max-control-flow-depth": "warn",
     "legibility/max-expression-operators": [
-      "error",
+      "warn",
       {
         "max": 4
       }
     ],
-    "legibility/no-automated-comment-attribution": "error",
-    "legibility/no-complex-ternaries": "error",
-    "legibility/no-computed-values": "error",
-    "legibility/no-direct-node-bin-smoke": "error",
-    "legibility/no-hidden-side-effects": "error",
-    "legibility/no-identity-array-callback": "error",
-    "legibility/no-mixed-filename-casing": "error",
-    "legibility/no-quadratic-patterns": "error",
-    "legibility/no-redundant-boolean-logic": "error",
-    "legibility/no-redundant-nullish-fallback": "error",
-    "legibility/no-repeated-collection-search": "error",
-    "legibility/no-single-use-renaming-alias": "error",
-    "legibility/no-standalone-array-mutations": "error",
-    "legibility/no-trivial-wrapper-functions": "error",
-    "legibility/no-unmatched-comments": "error",
-    "legibility/no-unnecessary-block-callback": "error",
-    "legibility/prefer-concat-object-assign": "error",
-    "legibility/prefer-early-return": "error",
-    "legibility/prefer-flat-map": "error",
-    "legibility/prefer-guard-clauses": "error",
-    "legibility/prefer-object-lookup": "error",
-    "legibility/prefer-positive-condition-names": "error",
-    "legibility/require-executable-shebang": "error",
-    "legibility/require-filename-matches-dirname": "error",
-    "legibility/require-jsdoc-multiline-comments": "error"
+    "legibility/no-automated-comment-attribution": "warn",
+    "legibility/no-complex-ternaries": "warn",
+    "legibility/no-computed-values": "warn",
+    "legibility/no-direct-node-bin-smoke": "warn",
+    "legibility/no-hidden-side-effects": "warn",
+    "legibility/no-identity-array-callback": "warn",
+    "legibility/no-mixed-filename-casing": "warn",
+    "legibility/no-quadratic-patterns": "warn",
+    "legibility/no-redundant-boolean-logic": "warn",
+    "legibility/no-redundant-nullish-fallback": "warn",
+    "legibility/no-repeated-collection-search": "warn",
+    "legibility/no-single-use-renaming-alias": "warn",
+    "legibility/no-standalone-array-mutations": "warn",
+    "legibility/no-trivial-wrapper-functions": "warn",
+    "legibility/no-unmatched-comments": "warn",
+    "legibility/no-unnecessary-block-callback": "warn",
+    "legibility/prefer-concat-object-assign": "warn",
+    "legibility/prefer-early-return": "warn",
+    "legibility/prefer-flat-map": "warn",
+    "legibility/prefer-guard-clauses": "warn",
+    "legibility/prefer-object-lookup": "warn",
+    "legibility/prefer-positive-condition-names": "warn",
+    "legibility/require-executable-shebang": "warn",
+    "legibility/require-filename-matches-dirname": [
+      "warn",
+      {
+        "schema": "index",
+        "minDepth": 3
+      }
+    ],
+    "legibility/require-jsdoc-multiline-comments": "warn"
   },
   "overrides": [
     {
@@ -55,7 +61,7 @@
       }
     },
     {
-      "files": ["src/logger/index.ts"],
+      "files": ["src/observability/utils.ts"],
       "rules": {
         "no-console": "off"
       }

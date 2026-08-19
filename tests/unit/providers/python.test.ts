@@ -3,14 +3,18 @@ import assert from "node:assert/strict";
 import { assertCalledWith } from "../../helpers/assertions";
 import { writeFileSync, readFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
-import { configureBinaryHost } from "../../../src/bin/utils";
+import { configureBinaryHost } from "../../../src/cli/utils";
 import { PythonProvider } from "../../../src/providers/python";
-import { exec } from "../../../src/utils/exec";
+import { exec } from "../../../src/utils/process";
 
 const execMock = mock.fn<typeof exec>();
 const runExecMock = async (command: string, args: string[]): Promise<string> =>
   JSON.stringify(await execMock(command, args));
-const restoreBinaryHost = configureBinaryHost(runExecMock, () => "{}", async () => "");
+const restoreBinaryHost = configureBinaryHost(
+  runExecMock,
+  () => "{}",
+  async () => "",
+);
 
 after(restoreBinaryHost);
 
@@ -31,8 +35,8 @@ describe("PythonProvider", () => {
 
       const version = await provider.getLatestVersion("requests");
 
-      assert.strictEqual((version), "2.31.0");
-      assertCalledWith((execMock), "pip", ["index", "versions", "requests"]);
+      assert.strictEqual(version, "2.31.0");
+      assertCalledWith(execMock, "pip", ["index", "versions", "requests"]);
     });
 
     test("should handle pip with no versions", async () => {
@@ -45,7 +49,7 @@ describe("PythonProvider", () => {
 
       const version = await provider.getLatestVersion("nonexistent");
 
-      assert.strictEqual((version), "");
+      assert.strictEqual(version, "");
     });
 
     test("should handle pip with malformed output", async () => {
@@ -58,7 +62,7 @@ describe("PythonProvider", () => {
 
       const version = await provider.getLatestVersion("bad-package");
 
-      assert.strictEqual((version), "");
+      assert.strictEqual(version, "");
     });
 
     test("should extract first version from comma-separated list", async () => {
@@ -71,7 +75,7 @@ describe("PythonProvider", () => {
 
       const version = await provider.getLatestVersion("flask");
 
-      assert.strictEqual((version), "1.5.0");
+      assert.strictEqual(version, "1.5.0");
     });
   });
 
@@ -88,8 +92,8 @@ describe("PythonProvider", () => {
 
       const version = await provider.getLatestVersion("numpy");
 
-      assert.strictEqual((version), "1.25.0");
-      assertCalledWith((execMock), "conda", ["search", "numpy", "--json"]);
+      assert.strictEqual(version, "1.25.0");
+      assertCalledWith(execMock, "conda", ["search", "numpy", "--json"]);
     });
 
     test("should handle conda with no packages", async () => {
@@ -102,7 +106,7 @@ describe("PythonProvider", () => {
 
       const version = await provider.getLatestVersion("nonexistent");
 
-      assert.strictEqual((version), "");
+      assert.strictEqual(version, "");
     });
 
     test("should handle conda with malformed JSON", async () => {
@@ -115,7 +119,7 @@ describe("PythonProvider", () => {
 
       const version = await provider.getLatestVersion("pkg");
 
-      assert.strictEqual((version), "");
+      assert.strictEqual(version, "");
     });
   });
 
@@ -130,8 +134,8 @@ describe("PythonProvider", () => {
 
       const version = await provider.getLatestVersion("django");
 
-      assert.strictEqual((version), "3.0.0");
-      assertCalledWith((execMock), "uv", ["pip", "index", "versions", "django"]);
+      assert.strictEqual(version, "3.0.0");
+      assertCalledWith(execMock, "uv", ["pip", "index", "versions", "django"]);
     });
 
     test("should handle uv with malformed output", async () => {
@@ -144,7 +148,7 @@ describe("PythonProvider", () => {
 
       const version = await provider.getLatestVersion("pkg");
 
-      assert.strictEqual((version), "");
+      assert.strictEqual(version, "");
     });
   });
 
@@ -159,7 +163,7 @@ describe("PythonProvider", () => {
 
       const versions = await provider.getAllVersions("requests");
 
-      assert.deepStrictEqual((versions), ["2.31.0", "2.30.0", "2.29.0"]);
+      assert.deepStrictEqual(versions, ["2.31.0", "2.30.0", "2.29.0"]);
     });
 
     test("should return empty array if no versions", async () => {
@@ -172,7 +176,7 @@ describe("PythonProvider", () => {
 
       const versions = await provider.getAllVersions("nonexistent");
 
-      assert.deepStrictEqual((versions), []);
+      assert.deepStrictEqual(versions, []);
     });
 
     test("should get all versions using uv", async () => {
@@ -185,8 +189,8 @@ describe("PythonProvider", () => {
 
       const versions = await provider.getAllVersions("django");
 
-      assert.deepStrictEqual((versions), ["3.0.0", "2.9.0"]);
-      assertCalledWith((execMock), "uv", ["pip", "index", "versions", "django"]);
+      assert.deepStrictEqual(versions, ["3.0.0", "2.9.0"]);
+      assertCalledWith(execMock, "uv", ["pip", "index", "versions", "django"]);
     });
   });
 
@@ -214,7 +218,7 @@ pytest==7.4.0
       const provider = new PythonProvider(reqPath, "pip");
       const manifest = await provider.readManifest(reqPath);
 
-      assert.deepStrictEqual((manifest.dependencies), {
+      assert.deepStrictEqual(manifest.dependencies, {
         requests: "==2.31.0",
         flask: ">=2.0.0",
         django: "~=4.2.0",
@@ -222,7 +226,7 @@ pytest==7.4.0
         pandas: "<2.0.0",
         pytest: "==7.4.0",
       });
-      assert.strictEqual((manifest.filePath), reqPath);
+      assert.strictEqual(manifest.filePath, reqPath);
     });
 
     test("should ignore comments in requirements.txt", async () => {
@@ -238,7 +242,7 @@ pytest==7.4.0
       const provider = new PythonProvider(reqPath, "pip");
       const manifest = await provider.readManifest(reqPath);
 
-      assert.deepStrictEqual((manifest.dependencies), {
+      assert.deepStrictEqual(manifest.dependencies, {
         requests: "==2.31.0",
         pytest: "==7.4.0",
       });
@@ -251,7 +255,7 @@ pytest==7.4.0
       const provider = new PythonProvider(reqPath, "pip");
       const manifest = await provider.readManifest(reqPath);
 
-      assert.deepStrictEqual((manifest.dependencies), {});
+      assert.deepStrictEqual(manifest.dependencies, {});
     });
 
     test("should ignore blank lines", async () => {
@@ -267,7 +271,7 @@ flask>=2.0.0
       const provider = new PythonProvider(reqPath, "pip");
       const manifest = await provider.readManifest(reqPath);
 
-      assert.deepStrictEqual((manifest.dependencies), {
+      assert.deepStrictEqual(manifest.dependencies, {
         requests: "==2.31.0",
         flask: ">=2.0.0",
       });
@@ -300,7 +304,7 @@ django = ">=4.2.0"
       const provider = new PythonProvider(pyprojectPath, "poetry");
       const manifest = await provider.readManifest(pyprojectPath);
 
-      assert.deepStrictEqual((manifest.dependencies), {
+      assert.deepStrictEqual(manifest.dependencies, {
         requests: "^2.31.0",
         flask: "~2.0.0",
         django: ">=4.2.0",
@@ -319,7 +323,7 @@ version = "0.1.0"
       const provider = new PythonProvider(pyprojectPath, "poetry");
       const manifest = await provider.readManifest(pyprojectPath);
 
-      assert.deepStrictEqual((manifest.dependencies), {});
+      assert.deepStrictEqual(manifest.dependencies, {});
     });
 
     test("should read PEP 621 and uv dependency groups", async () => {
@@ -349,14 +353,14 @@ bench = [
       const provider = new PythonProvider(pyprojectPath, "uv");
       const manifest = await provider.readManifest(pyprojectPath);
 
-      assert.deepStrictEqual((manifest.dependencies), {
+      assert.deepStrictEqual(manifest.dependencies, {
         requests: ">=2.31.0",
         flask: "==3.0.0",
       });
-      assert.deepStrictEqual((manifest.devDependencies), {
+      assert.deepStrictEqual(manifest.devDependencies, {
         pytest: ">=8.0.0",
       });
-      assert.deepStrictEqual((manifest.optionalDependencies), {
+      assert.deepStrictEqual(manifest.optionalDependencies, {
         mkdocs: ">=1.5.0",
         "pytest-benchmark": ">=4.0.0",
       });
@@ -376,7 +380,7 @@ dependencies = [
       const provider = new PythonProvider(pyprojectPath, "uv");
       const manifest = await provider.readManifest(pyprojectPath);
 
-      assert.deepStrictEqual((manifest.dependencies), {
+      assert.deepStrictEqual(manifest.dependencies, {
         requests: ">=2.31.0",
         boto3: ">=1.26.0",
       });
@@ -407,7 +411,7 @@ pytest = "==7.4.0"
       const provider = new PythonProvider(pipfilePath, "pipenv");
       const manifest = await provider.readManifest(pipfilePath);
 
-      assert.deepStrictEqual((manifest.dependencies), {
+      assert.deepStrictEqual(manifest.dependencies, {
         requests: "==2.31.0",
         flask: ">=2.0.0",
         django: "*",
@@ -425,7 +429,7 @@ python_version = "3.11"
       const provider = new PythonProvider(pipfilePath, "pipenv");
       const manifest = await provider.readManifest(pipfilePath);
 
-      assert.deepStrictEqual((manifest.dependencies), {});
+      assert.deepStrictEqual(manifest.dependencies, {});
     });
   });
 
@@ -461,7 +465,7 @@ variables:
       const provider = new PythonProvider(envPath, "conda");
       const manifest = await provider.readManifest(envPath);
 
-      assert.deepStrictEqual((manifest.dependencies), {
+      assert.deepStrictEqual(manifest.dependencies, {
         numpy: "=1.24.0",
         pandas: ">=2.0.0",
       });
@@ -497,12 +501,12 @@ flask>=2.0.0 ; python_version >= "3.11"
 
       const content = readFileSync(reqPath, "utf8");
 
-      assert.ok((content).includes("# Generated by uv"));
-      assert.ok((content).includes("requests==2.31.0"));
-      assert.ok((content).includes("--hash=sha256:abc123"));
-      assert.ok((content).includes('flask>=2.1.0 ; python_version >= "3.11"'));
-      assert.ok((content).includes("-r shared-requirements.txt"));
-      assert.strictEqual((content.endsWith("\n")), true);
+      assert.ok(content.includes("# Generated by uv"));
+      assert.ok(content.includes("requests==2.31.0"));
+      assert.ok(content.includes("--hash=sha256:abc123"));
+      assert.ok(content.includes('flask>=2.1.0 ; python_version >= "3.11"'));
+      assert.ok(content.includes("-r shared-requirements.txt"));
+      assert.strictEqual(content.endsWith("\n"), true);
     });
 
     test("should preserve requirements without matching updates", async () => {
@@ -517,7 +521,7 @@ flask>=2.0.0 ; python_version >= "3.11"
 
       const content = readFileSync(reqPath, "utf8");
 
-      assert.strictEqual((content), "old==1.0.0\n");
+      assert.strictEqual(content, "old==1.0.0\n");
     });
   });
 
@@ -555,12 +559,12 @@ pytest = "^7.0.0"
 
       const content = readFileSync(pyprojectPath, "utf8");
 
-      assert.ok((content).includes("[tool.poetry.dependencies]"));
-      assert.ok((content).includes('python = "^3.8"'));
-      assert.ok((content).includes('requests = "^2.31.0"'));
-      assert.ok((content).includes('flask = "~2.0.0"'));
-      assert.ok(!(content).includes("old-package"));
-      assert.ok((content).includes("[tool.poetry.dev-dependencies]"));
+      assert.ok(content.includes("[tool.poetry.dependencies]"));
+      assert.ok(content.includes('python = "^3.8"'));
+      assert.ok(content.includes('requests = "^2.31.0"'));
+      assert.ok(content.includes('flask = "~2.0.0"'));
+      assert.ok(!content.includes("old-package"));
+      assert.ok(content.includes("[tool.poetry.dev-dependencies]"));
     });
 
     test("should update PEP 621 and uv dependency groups", async () => {
@@ -605,11 +609,11 @@ bench = [
 
       const content = readFileSync(pyprojectPath, "utf8");
 
-      assert.ok((content).includes('"requests>=2.32.0"'));
-      assert.ok((content).includes('"flask==3.0.0"'));
-      assert.ok((content).includes('"mkdocs>=1.6.0"'));
-      assert.ok((content).includes('"pytest>=8.1.0"'));
-      assert.ok((content).includes('"pytest-benchmark>=4.1.0"'));
+      assert.ok(content.includes('"requests>=2.32.0"'));
+      assert.ok(content.includes('"flask==3.0.0"'));
+      assert.ok(content.includes('"mkdocs>=1.6.0"'));
+      assert.ok(content.includes('"pytest>=8.1.0"'));
+      assert.ok(content.includes('"pytest-benchmark>=4.1.0"'));
     });
 
     test("should keep updating PEP 621 dependencies after extras", async () => {
@@ -634,8 +638,8 @@ dependencies = [
 
       const content = readFileSync(pyprojectPath, "utf8");
 
-      assert.ok((content).includes('"requests[security]>=2.32.0"'));
-      assert.ok((content).includes('"boto3>=1.34.0"'));
+      assert.ok(content.includes('"requests[security]>=2.32.0"'));
+      assert.ok(content.includes('"boto3>=1.34.0"'));
     });
   });
 
@@ -669,11 +673,11 @@ pytest = "==7.4.0"
 
       const content = readFileSync(pipfilePath, "utf8");
 
-      assert.ok((content).includes("[packages]"));
-      assert.ok((content).includes('requests = "==2.31.0"'));
-      assert.ok((content).includes('flask = ">=2.0.0"'));
-      assert.ok(!(content).includes("old-package"));
-      assert.ok((content).includes("[dev-packages]"));
+      assert.ok(content.includes("[packages]"));
+      assert.ok(content.includes('requests = "==2.31.0"'));
+      assert.ok(content.includes('flask = ">=2.0.0"'));
+      assert.ok(!content.includes("old-package"));
+      assert.ok(content.includes("[dev-packages]"));
     });
   });
 
@@ -713,10 +717,10 @@ dependencies:
 
       const content = readFileSync(envPath, "utf8");
 
-      assert.ok((content).includes("  - python=3.11"));
-      assert.ok((content).includes("  - numpy=1.25.0 # keep comment"));
-      assert.ok((content).includes("  - pandas>=2.1.0"));
-      assert.ok((content).includes("      - requests==2.31.0"));
+      assert.ok(content.includes("  - python=3.11"));
+      assert.ok(content.includes("  - numpy=1.25.0 # keep comment"));
+      assert.ok(content.includes("  - pandas>=2.1.0"));
+      assert.ok(content.includes("      - requests==2.31.0"));
     });
   });
 
@@ -724,79 +728,79 @@ dependencies:
     const provider = new PythonProvider("requirements.txt", "pip");
 
     test("should validate correct Python package names", () => {
-      assert.strictEqual((provider.validatePackageName("requests")), true);
-      assert.strictEqual((provider.validatePackageName("Flask")), true);
-      assert.strictEqual((provider.validatePackageName("django-rest-framework")), true);
-      assert.strictEqual((provider.validatePackageName("beautifulsoup4")), true);
-      assert.strictEqual((provider.validatePackageName("Pillow")), true);
-      assert.strictEqual((provider.validatePackageName("some_package")), true);
-      assert.strictEqual((provider.validatePackageName("zope.interface")), true);
-      assert.strictEqual((provider.validatePackageName("sphinxcontrib.httpdomain")), true);
+      assert.strictEqual(provider.validatePackageName("requests"), true);
+      assert.strictEqual(provider.validatePackageName("Flask"), true);
+      assert.strictEqual(provider.validatePackageName("django-rest-framework"), true);
+      assert.strictEqual(provider.validatePackageName("beautifulsoup4"), true);
+      assert.strictEqual(provider.validatePackageName("Pillow"), true);
+      assert.strictEqual(provider.validatePackageName("some_package"), true);
+      assert.strictEqual(provider.validatePackageName("zope.interface"), true);
+      assert.strictEqual(provider.validatePackageName("sphinxcontrib.httpdomain"), true);
     });
 
     test("should reject invalid Python package names", () => {
-      assert.strictEqual((provider.validatePackageName("@scope/package")), false);
-      assert.strictEqual((provider.validatePackageName("github.com/user/repo")), false);
-      assert.strictEqual((provider.validatePackageName("")), false);
-      assert.strictEqual((provider.validatePackageName("has spaces")), false);
+      assert.strictEqual(provider.validatePackageName("@scope/package"), false);
+      assert.strictEqual(provider.validatePackageName("github.com/user/repo"), false);
+      assert.strictEqual(provider.validatePackageName(""), false);
+      assert.strictEqual(provider.validatePackageName("has spaces"), false);
     });
   });
 
   describe("language property", () => {
     test("should have correct language identifier", () => {
       const provider = new PythonProvider("requirements.txt", "pip");
-      assert.strictEqual((provider.language), "python");
+      assert.strictEqual(provider.language, "python");
     });
   });
 
   describe("manifest type detection", () => {
     test("should detect requirements.txt", () => {
       const provider = new PythonProvider("requirements.txt", "pip");
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
 
     test("should detect pyproject.toml", () => {
       const provider = new PythonProvider("pyproject.toml", "poetry");
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
 
     test("should detect Pipfile", () => {
       const provider = new PythonProvider("Pipfile", "pipenv");
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
 
     test("should detect environment.yml for conda", () => {
       const provider = new PythonProvider("environment.yml", "conda");
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
 
     test("should detect environment.yaml for conda", () => {
       const provider = new PythonProvider("environment.yaml", "conda");
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
 
     test("should default to requirements for unknown types", () => {
       const provider = new PythonProvider("unknown.txt", "pip");
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
   });
 
   describe("constructor options", () => {
     test("should accept default options", () => {
       const provider = new PythonProvider("requirements.txt");
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
 
     test("should accept package manager option", () => {
       const provider = new PythonProvider("requirements.txt", "pip");
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
 
     test("should accept debug option", () => {
       const provider = new PythonProvider("requirements.txt", "pip", {
         debug: true,
       });
-      assert.notStrictEqual((provider), undefined);
+      assert.notStrictEqual(provider, undefined);
     });
   });
 });
