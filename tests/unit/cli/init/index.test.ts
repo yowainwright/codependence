@@ -9,6 +9,7 @@ import {
   parseOnboardingRepository,
   scanOnboardingRepository,
 } from "../../../../src/cli/init";
+import { onboardingFilename } from "../../../../src/cli/init/utils";
 import type { OnboardingFetcher, OnboardingFetchResponse } from "../../../../src/cli/init";
 
 const packageFile = (path: string, value: Record<string, unknown>) => ({
@@ -34,6 +35,7 @@ test("selects supported browser onboarding files", () => {
   assert.strictEqual(onboardingSourceFileNeedsContent("python/pyproject.toml"), true);
   assert.strictEqual(onboardingSourceFileNeedsContent(".github/workflows/update.yml"), true);
   assert.strictEqual(onboardingSourceFileNeedsContent("services/api/go.mod"), false);
+  assert.strictEqual(onboardingFilename(""), "");
 });
 
 const githubTree = {

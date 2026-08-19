@@ -11,9 +11,10 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": ["./src/*"],
-      "@codependence/onboarding": ["../../src/cli/onboarding/index.ts"]
+      "@codependence/onboarding": ["../../src/cli/init/index.ts"]
     }
   },
   "include": ["src", "vite.config.ts"]
