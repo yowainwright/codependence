@@ -12,7 +12,7 @@ import {
   RustProvider,
 } from "../../../src/providers";
 import type { DependencyProvider } from "../../../src/providers";
-import { isWithinLevel } from "../../../src/utils/semver";
+import { isWithinLevel } from "../../../src/manifest";
 
 const providers = (): DependencyProvider[] => [
   new NodeJSProvider({ isTesting: true }),
@@ -33,9 +33,9 @@ describe("provider contracts", () => {
 
   test("all providers declare resolution capabilities", () => {
     providers().forEach((provider) => {
-      assert.strictEqual((typeof provider.capabilities.supportsLatestResolution), "boolean");
-      assert.strictEqual((typeof provider.capabilities.supportsPreciseMode), "boolean");
-      assert.ok((["semver", "exact"]).includes(provider.capabilities.versionStrategy));
+      assert.strictEqual(typeof provider.capabilities.supportsLatestResolution, "boolean");
+      assert.strictEqual(typeof provider.capabilities.supportsPreciseMode, "boolean");
+      assert.ok(["semver", "exact"].includes(provider.capabilities.versionStrategy));
     });
   });
 
@@ -57,7 +57,7 @@ describe("provider contracts", () => {
 
     exactProviders.forEach((provider) => {
       const isAllowed = isWithinLevel("v1", "v9", "patch", provider.capabilities.versionStrategy);
-      assert.strictEqual((isAllowed), true);
+      assert.strictEqual(isAllowed, true);
     });
   });
 
@@ -87,7 +87,7 @@ describe("provider contracts", () => {
       const manifest = provider.readManifest(filePath);
       provider.writeManifest(filePath, manifest);
 
-      assert.strictEqual((readFileSync(filePath, "utf8")), content);
+      assert.strictEqual(readFileSync(filePath, "utf8"), content);
     });
   });
 });

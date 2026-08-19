@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from "fs";
-import { validatePackageName } from "../../utils/validate-package";
-import { exec } from "../../utils/exec";
+import { validatePackageName } from "../../manifest";
+import { exec } from "../../utils/process";
 import { LANGUAGES, NODE_PACKAGE_MANAGERS } from "../constants";
 import type { DependencyProvider, DependencyManifest, ProviderOptions } from "../types";
 

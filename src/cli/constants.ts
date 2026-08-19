@@ -203,3 +203,5 @@ Examples:
 `;
 
 export const ARGS_START_INDEX = 2;
+export const BINARY_SCRIPT_NAME = "codependence";
+export const SCRIPT_PATH_EXTENSIONS = [".cjs", ".js", ".mjs", ".ts", ".tsx"] as const;

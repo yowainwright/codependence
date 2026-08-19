@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from "fs";
-import { exec } from "../../utils/exec";
-import { logger } from "../../logger";
+import { exec } from "../../utils/process";
+import { logger } from "../../observability";
 import { LANGUAGES } from "../constants";
 import {
   CONDA_MANIFEST_FILES,

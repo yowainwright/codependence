@@ -21,18 +21,18 @@ const schemaAllowsRepositoryPath = (path: string): boolean =>
 
 describe("package entry", () => {
   test("exports the public API without running the CLI", () => {
-    assert.deepStrictEqual((Object.keys(entry).sort()), [
+    assert.deepStrictEqual(Object.keys(entry).sort(), [
       "checkFiles",
       "codependence",
       "default",
       "schema",
       "script",
     ]);
-    assert.strictEqual((typeof entry.checkFiles), "function");
-    assert.strictEqual((typeof entry.codependence), "function");
-    assert.strictEqual((entry.schema.$id), "https://unpkg.com/codependence/src/schema.json");
-    assert.strictEqual((typeof entry.script), "function");
-    assert.strictEqual((entry.default), entry.codependence);
+    assert.strictEqual(typeof entry.checkFiles, "function");
+    assert.strictEqual(typeof entry.codependence, "function");
+    assert.strictEqual(entry.schema.$id, "https://unpkg.com/codependence/src/config/schema.json");
+    assert.strictEqual(typeof entry.script, "function");
+    assert.strictEqual(entry.default, entry.codependence);
   });
 
   test("publishes the configuration schema", () => {
@@ -40,28 +40,28 @@ describe("package entry", () => {
     const exports = rootPackage.exports as Record<string, unknown>;
     const files = rootPackage.files as string[];
 
-    assert.strictEqual((exports["./schema.json"]), "./src/schema.json");
-    assert.ok((files).includes("src/schema.json"));
-    assert.strictEqual((entry.schema["x-revision"]), 2);
-    assert.strictEqual((entry.schema["x-created"]), "2025-11-23");
-    assert.strictEqual((entry.schema["x-updated"]), "2026-08-17");
-    assert.ok((entry.schema["x-history"]).includes("/commits/main/src/schema.json"));
-    assert.deepStrictEqual((entry.schema.definitions.target.required), ["manager"]);
-    assert.deepStrictEqual((entry.schema.definitions.manifest.required), ["path", "manager"]);
-    assert.deepStrictEqual((entry.schema.definitions.manifest.properties.ignore), {
+    assert.strictEqual(exports["./schema.json"], "./src/config/schema.json");
+    assert.ok(files.includes("src/config/schema.json"));
+    assert.strictEqual(entry.schema["x-revision"], 2);
+    assert.strictEqual(entry.schema["x-created"], "2025-11-23");
+    assert.strictEqual(entry.schema["x-updated"], "2026-08-17");
+    assert.ok(entry.schema["x-history"].includes("/commits/main/src/config/schema.json"));
+    assert.deepStrictEqual(entry.schema.definitions.target.required, ["manager"]);
+    assert.deepStrictEqual(entry.schema.definitions.manifest.required, ["path", "manager"]);
+    assert.deepStrictEqual(entry.schema.definitions.manifest.properties.ignore, {
       $ref: "#/properties/ignore",
     });
-    assert.deepStrictEqual((entry.schema.definitions.manifest.properties.rootDir), {
+    assert.deepStrictEqual(entry.schema.definitions.manifest.properties.rootDir, {
       $ref: "#/properties/rootDir",
     });
-    assert.deepStrictEqual((entry.schema.definitions.manifest.properties.path), {
+    assert.deepStrictEqual(entry.schema.definitions.manifest.properties.path, {
       $ref: "#/definitions/repositoryPath",
     });
-    assert.deepStrictEqual((entry.schema.definitions.lockfile.oneOf[1]), {
+    assert.deepStrictEqual(entry.schema.definitions.lockfile.oneOf[1], {
       $ref: "#/definitions/repositoryPath",
     });
-    assertContainsEqual((entry.schema.anyOf), { required: ["permissive"] });
-    assertContainsEqual((entry.schema.anyOf), { required: ["mode"] });
+    assertContainsEqual(entry.schema.anyOf, { required: ["permissive"] });
+    assertContainsEqual(entry.schema.anyOf, { required: ["mode"] });
   });
 
   test("keeps runtime dependencies out of the published package", () => {
@@ -69,17 +69,17 @@ describe("package entry", () => {
     const sitePackage = readPackage("../../page/app/package.json");
     const siteDependencies = sitePackage.dependencies as Record<string, string>;
 
-    assert.strictEqual((rootPackage.dependencies), undefined);
-    assert.strictEqual((siteDependencies.react), "^19.2.8");
+    assert.strictEqual(rootPackage.dependencies, undefined);
+    assert.strictEqual(siteDependencies.react, "^19.2.8");
   });
 
   test("restricts manifest and lockfile paths to the repository", () => {
-    assert.strictEqual((schemaAllowsRepositoryPath("packages/web/package.json")), true);
-    assert.strictEqual((schemaAllowsRepositoryPath("C:relative\\package.json")), true);
-    assert.strictEqual((schemaAllowsRepositoryPath("../package.json")), false);
-    assert.strictEqual((schemaAllowsRepositoryPath("packages/../package.json")), false);
-    assert.strictEqual((schemaAllowsRepositoryPath("/repo/package.json")), false);
-    assert.strictEqual((schemaAllowsRepositoryPath("\\repo\\package.json")), false);
-    assert.strictEqual((schemaAllowsRepositoryPath("C:\\repo\\package.json")), false);
+    assert.strictEqual(schemaAllowsRepositoryPath("packages/web/package.json"), true);
+    assert.strictEqual(schemaAllowsRepositoryPath("C:relative\\package.json"), true);
+    assert.strictEqual(schemaAllowsRepositoryPath("../package.json"), false);
+    assert.strictEqual(schemaAllowsRepositoryPath("packages/../package.json"), false);
+    assert.strictEqual(schemaAllowsRepositoryPath("/repo/package.json"), false);
+    assert.strictEqual(schemaAllowsRepositoryPath("\\repo\\package.json"), false);
+    assert.strictEqual(schemaAllowsRepositoryPath("C:\\repo\\package.json"), false);
   });
 });

@@ -1,10 +1,11 @@
-import { afterEach, describe, test } from "node:test";
+import { afterEach, describe, mock, test } from "node:test";
 import assert from "node:assert/strict";
-import { assertRejects, assertThrows } from "../helpers/assertions";
+import { assertRejects } from "../helpers/assertions";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { assertTargetLockfiles, checkFiles } from "../../src/scripts";
+import { checkFiles } from "../../src/manifest";
+import { NodeJSProvider } from "../../src/providers/nodejs";
 
 const workspaces: string[] = [];
 
@@ -22,6 +23,7 @@ const nodeManifest = JSON.stringify({
 });
 
 afterEach(() => {
+  mock.restoreAll();
   workspaces.splice(0).forEach((root) => rmSync(root, { force: true, recursive: true }));
 });
 
@@ -62,18 +64,21 @@ describe("lockfiles", () => {
     await assertRejects(update, "generated/dependencies.lock");
   });
 
-  test("rejects a directory used as a lockfile", () => {
+  test("rejects a directory used as a lockfile", async () => {
     const root = createWorkspace("package.json", nodeManifest);
     mkdirSync(join(root, "bun.lock"));
 
-    assertThrows(() =>
-      assertTargetLockfiles({
-        files: ["package.json"],
-        language: "nodejs",
-        lockfile: true,
-        packageManager: "bun",
-        rootDir: root,
-      }), "Required bun lockfile not found");
+    const update = checkFiles({
+      files: ["package.json"],
+      language: "nodejs",
+      lockfile: true,
+      mode: "precise",
+      packageManager: "bun",
+      rootDir: root,
+      silent: true,
+    });
+
+    await assertRejects(update, "Required bun lockfile not found");
   });
 
   test("rejects absolute custom lockfile paths", async () => {
@@ -124,18 +129,41 @@ describe("lockfiles", () => {
     await assertRejects(update, "No standard lockfile is defined for pip");
   });
 
-  test("preflights a target with its required lockfile", () => {
+  test("accepts a target with its required lockfile", async () => {
     const root = createWorkspace("package.json", nodeManifest);
     writeFileSync(join(root, "bun.lock"), "");
 
-    assert.doesNotThrow(() =>
-      assertTargetLockfiles({
-        files: ["package.json"],
-        language: "nodejs",
-        lockfile: true,
-        packageManager: "bun",
-        rootDir: root,
-      }));
+    await checkFiles({
+      codependencies: [{ lodash: "4.17.20" }],
+      files: ["package.json"],
+      language: "nodejs",
+      lockfile: true,
+      mode: "verbose",
+      packageManager: "bun",
+      rootDir: root,
+      silent: true,
+    });
+  });
+
+  test("reads each manifest once while enforcing lockfiles", async () => {
+    const root = createWorkspace("package.json", nodeManifest);
+    writeFileSync(join(root, "bun.lock"), "");
+    const readSpy = mock.method(NodeJSProvider.prototype, "readManifest");
+    const options = {
+      codependencies: [{ lodash: "4.17.20" }],
+      files: ["package.json"],
+      isTesting: true,
+      language: "nodejs" as const,
+      lockfile: true,
+      mode: "verbose" as const,
+      packageManager: "bun" as const,
+      rootDir: root,
+      silent: true,
+    };
+
+    await checkFiles(options);
+
+    assert.strictEqual(readSpy.mock.callCount(), 1);
   });
 
   test("requires uv.lock for a managed uv project", async () => {
@@ -186,7 +214,7 @@ describe("lockfiles", () => {
     });
 
     await assertRejects(update, "go.sum");
-    assert.strictEqual((readFileSync(join(root, "go.mod"), "utf8")), original);
+    assert.strictEqual(readFileSync(join(root, "go.mod"), "utf8"), original);
   });
 
   test("allows an explicit manifest-only Go update", async () => {
@@ -211,19 +239,22 @@ describe("lockfiles", () => {
       update: true,
     });
 
-    assert.ok((readFileSync(join(root, "go.mod"), "utf8")).includes("github.com/google/uuid v1.6.0"));
+    assert.ok(readFileSync(join(root, "go.mod"), "utf8").includes("github.com/google/uuid v1.6.0"));
   });
 
   test("allows a dependency-free Go module without go.sum", async () => {
     const root = createWorkspace("go.mod", "module example.com/tools\n\ngo 1.26.1\n");
 
-    await assert.deepStrictEqual(await (checkFiles({
+    await assert.deepStrictEqual(
+      await checkFiles({
         files: ["go.mod"],
         language: "go",
         lockfile: true,
         mode: "precise",
         rootDir: root,
         silent: true,
-      })), []);
+      }),
+      [],
+    );
   });
 });

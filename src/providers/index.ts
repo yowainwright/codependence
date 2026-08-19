@@ -7,4 +7,4 @@ export { GitHubActionsProvider } from "./github-actions";
 
 export * from "./constants";
 export * from "./types";
-export * from "./detection";
+export * from "./utils";

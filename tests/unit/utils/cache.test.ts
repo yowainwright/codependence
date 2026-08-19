@@ -1,6 +1,6 @@
 import { describe, test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { ResponseCache, RequestDeduplicator } from "../../../src/utils/cache";
+import { ResponseCache, RequestDeduplicator } from "../../../src/manifest";
 
 describe("ResponseCache", () => {
   let cache: ResponseCache;
@@ -12,12 +12,12 @@ describe("ResponseCache", () => {
   test("should store and retrieve values", () => {
     cache.set("test-key", "test-value");
     const result = cache.get("test-key");
-    assert.strictEqual((result), "test-value");
+    assert.strictEqual(result, "test-value");
   });
 
   test("should return null for missing keys", () => {
     const result = cache.get("nonexistent");
-    assert.strictEqual((result), null);
+    assert.strictEqual(result, null);
   });
 
   test("should expire values after TTL", async () => {
@@ -27,7 +27,7 @@ describe("ResponseCache", () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     const result = shortCache.get("test-key");
-    assert.strictEqual((result), null);
+    assert.strictEqual(result, null);
   });
 
   test("should track hits and misses", () => {
@@ -39,8 +39,8 @@ describe("ResponseCache", () => {
     cache.get("key3");
 
     const stats = cache.getStats();
-    assert.strictEqual((stats.hits), 2);
-    assert.strictEqual((stats.misses), 2);
+    assert.strictEqual(stats.hits, 2);
+    assert.strictEqual(stats.misses, 2);
   });
 
   test("should calculate hit rate", () => {
@@ -52,12 +52,12 @@ describe("ResponseCache", () => {
     cache.get("key3");
 
     const hitRate = cache.getHitRate();
-    assert.strictEqual((hitRate), 50);
+    assert.strictEqual(hitRate, 50);
   });
 
   test("should handle zero total requests", () => {
     const hitRate = cache.getHitRate();
-    assert.strictEqual((hitRate), 0);
+    assert.strictEqual(hitRate, 0);
   });
 
   test("should clear cache", () => {
@@ -70,9 +70,9 @@ describe("ResponseCache", () => {
     cache.clear();
 
     const stats = cache.getStats();
-    assert.strictEqual((stats.size), 0);
-    assert.strictEqual((stats.hits), 0);
-    assert.strictEqual((stats.misses), 0);
+    assert.strictEqual(stats.size, 0);
+    assert.strictEqual(stats.hits, 0);
+    assert.strictEqual(stats.misses, 0);
   });
 
   test("should track cache size", () => {
@@ -81,7 +81,7 @@ describe("ResponseCache", () => {
     cache.set("key3", "value3");
 
     const stats = cache.getStats();
-    assert.strictEqual((stats.size), 3);
+    assert.strictEqual(stats.size, 3);
   });
 });
 
@@ -106,8 +106,8 @@ describe("RequestDeduplicator", () => {
       deduplicator.dedupe("key1", expensiveFn),
     ]);
 
-    assert.strictEqual((callCount), 1);
-    assert.deepStrictEqual((results), ["result", "result", "result"]);
+    assert.strictEqual(callCount, 1);
+    assert.deepStrictEqual(results, ["result", "result", "result"]);
   });
 
   test("should handle different keys separately", async () => {
@@ -123,7 +123,7 @@ describe("RequestDeduplicator", () => {
       deduplicator.dedupe("key3", expensiveFn),
     ]);
 
-    assert.strictEqual((callCount), 3);
+    assert.strictEqual(callCount, 3);
   });
 
   test("should clear pending requests after completion", async () => {
@@ -139,7 +139,7 @@ describe("RequestDeduplicator", () => {
 
     await deduplicator.dedupe("key1", fn2);
 
-    assert.strictEqual((callCount), 1);
+    assert.strictEqual(callCount, 1);
   });
 
   test("should handle errors", async () => {
@@ -151,14 +151,14 @@ describe("RequestDeduplicator", () => {
 
     try {
       await Promise.all(promises);
-      assert.strictEqual((true), false);
+      assert.strictEqual(true, false);
     } catch (error) {
-      assert.strictEqual(((error as Error).message), "Test error");
+      assert.strictEqual((error as Error).message, "Test error");
     }
   });
 
   test("should clear method works", () => {
     deduplicator.clear();
-    assert.strictEqual((true), true);
+    assert.strictEqual(true, true);
   });
 });

@@ -1,3 +1,7 @@
+const ESCAPE_CHARACTER = String.fromCharCode(27);
+
+export const createAnsiPattern = () => new RegExp(`${ESCAPE_CHARACTER}\\[[0-9;]*m`, "g");
+
 export const DEFAULT_WIDTH = 80;
 export const INDENT_SIZE = 2;
 

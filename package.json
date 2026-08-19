@@ -33,7 +33,7 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./schema.json": "./src/schema.json"
+    "./schema.json": "./src/config/schema.json"
   },
   "bin": {
     "codependence": "dist/cli.js",
@@ -44,7 +44,7 @@
   },
   "files": [
     "dist",
-    "src/schema.json",
+    "src/config/schema.json",
     "scripts/install-legibility-skill.js"
   ],
   "keywords": [

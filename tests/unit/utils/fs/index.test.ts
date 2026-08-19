@@ -1,0 +1,170 @@
+import { after, before, describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { glob, sync } from "../../../../src/utils/fs";
+
+let testDir = "";
+
+const writeFile = (path: string): void => {
+  writeFileSync(join(testDir, path), "");
+};
+
+describe("glob", () => {
+  before(() => {
+    testDir = mkdtempSync(join(tmpdir(), "codependence-glob-"));
+    mkdirSync(join(testDir, "src"), { recursive: true });
+    mkdirSync(join(testDir, "dist"), { recursive: true });
+    mkdirSync(join(testDir, "packages", "app"), { recursive: true });
+    mkdirSync(join(testDir, "packages", "api"), { recursive: true });
+    mkdirSync(join(testDir, "packages", "app", "config"), { recursive: true });
+    mkdirSync(join(testDir, "packages", "api", "config"), { recursive: true });
+    mkdirSync(join(testDir, "node_modules", "pkg"), { recursive: true });
+
+    writeFile("file1.ts");
+    writeFile("file2.ts");
+    writeFile("src/index.ts");
+    writeFile("dist/index.js");
+    writeFile("package.json");
+    writeFile("packages/app/package.json");
+    writeFile("packages/api/package.json");
+    writeFile("packages/app/config/deps.json");
+    writeFile("packages/api/config/deps.json");
+    writeFile("node_modules/pkg/package.json");
+    writeFile("README.md");
+  });
+
+  after(() => {
+    rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it("finds files matching a root pattern", () => {
+    const files = sync("*.ts", { cwd: testDir });
+
+    assert.deepStrictEqual(files, ["file1.ts", "file2.ts"]);
+  });
+
+  it("finds recursive matches including root files", () => {
+    const files = sync("**/*.ts", { cwd: testDir });
+
+    assert.deepStrictEqual(files, ["file1.ts", "file2.ts", "src/index.ts"]);
+  });
+
+  it("keeps await glob compatibility", async () => {
+    const files = await glob("**/*.ts", { cwd: testDir });
+
+    assert.deepStrictEqual(files, ["file1.ts", "file2.ts", "src/index.ts"]);
+  });
+
+  it("supports ignore patterns", () => {
+    const files = sync("**/*.ts", {
+      cwd: testDir,
+      ignore: ["src/**"],
+    });
+
+    assert.deepStrictEqual(files, ["file1.ts", "file2.ts"]);
+  });
+
+  it("supports multiple patterns", () => {
+    const files = sync(["*.ts", "*.md"], { cwd: testDir });
+
+    assert.deepStrictEqual(files, ["README.md", "file1.ts", "file2.ts"]);
+  });
+
+  it("supports multiple recursive patterns", () => {
+    const files = sync(["**/*.ts", "**/package.json"], {
+      cwd: testDir,
+      ignore: ["**/node_modules/**"],
+    });
+
+    assert.deepStrictEqual(files, [
+      "file1.ts",
+      "file2.ts",
+      "package.json",
+      "packages/api/package.json",
+      "packages/app/package.json",
+      "src/index.ts",
+    ]);
+  });
+
+  it("returns an empty array when no files match", () => {
+    const files = sync("*.xyz", { cwd: testDir });
+
+    assert.deepStrictEqual(files, []);
+  });
+
+  it("matches root files with recursive package patterns", () => {
+    const files = sync("**/package.json", {
+      cwd: testDir,
+      ignore: ["**/node_modules/**"],
+    });
+
+    assert.deepStrictEqual(files, [
+      "package.json",
+      "packages/api/package.json",
+      "packages/app/package.json",
+    ]);
+  });
+
+  it("does not implicitly ignore dependency directories", () => {
+    const files = sync("**/package.json", { cwd: testDir });
+
+    assert.ok(files.includes("node_modules/pkg/package.json"));
+  });
+
+  it("matches direct workspace patterns", () => {
+    const files = sync("packages/*/package.json", { cwd: testDir });
+
+    assert.deepStrictEqual(files, ["packages/api/package.json", "packages/app/package.json"]);
+  });
+
+  it("matches wildcard directories followed by literal child segments", () => {
+    const files = sync("packages/*/config/deps.json", { cwd: testDir });
+
+    assert.deepStrictEqual(files, [
+      "packages/api/config/deps.json",
+      "packages/app/config/deps.json",
+    ]);
+  });
+
+  it("supports question mark patterns", () => {
+    const files = sync("file?.ts", { cwd: testDir });
+
+    assert.deepStrictEqual(files, ["file1.ts", "file2.ts"]);
+  });
+
+  it("deduplicates overlapping patterns", () => {
+    const files = sync(["package.json", "**/package.json"], {
+      cwd: testDir,
+      ignore: ["**/node_modules/**"],
+    });
+
+    assert.deepStrictEqual(files, [
+      "package.json",
+      "packages/api/package.json",
+      "packages/app/package.json",
+    ]);
+  });
+
+  it("returns absolute paths when requested", () => {
+    const files = sync("package.json", { cwd: testDir, absolute: true });
+
+    assert.deepStrictEqual(files, [resolve(testDir, "package.json")]);
+  });
+
+  it("supports absolute patterns", () => {
+    const files = sync(resolve(testDir, "package.json"), {
+      cwd: testDir,
+      absolute: true,
+    });
+
+    assert.deepStrictEqual(files, [resolve(testDir, "package.json")]);
+  });
+
+  it("returns an empty array for missing directories", () => {
+    const files = sync("*.txt", { cwd: resolve(testDir, "missing") });
+
+    assert.deepStrictEqual(files, []);
+  });
+});

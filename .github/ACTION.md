@@ -20,7 +20,7 @@ jobs:
 
 ## Generate split workflows
 
-<!-- generated workflow behavior from src/program.ts -->
+<!-- generated workflow behavior from src/cli/index.ts -->
 
 After defining manifest entries in `.codependencerc`, generate scheduled pull
 request workflows:
