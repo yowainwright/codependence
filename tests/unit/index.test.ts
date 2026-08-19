@@ -3,14 +3,16 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { assertContainsEqual } from "../helpers/assertions";
 import * as entry from "../../src";
+import type { schema as publicSchema } from "../../src/types";
 
 const readPackage = (path: string): Record<string, unknown> =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")) as Record<string, unknown>;
 
-type RepositoryPathRule = (typeof entry.schema.definitions.repositoryPath.allOf)[number];
+type RepositoryPathRule = (typeof publicSchema.definitions.repositoryPath.allOf)[number];
 
 const matchesRepositoryPathRule = (path: string, rule: RepositoryPathRule): boolean => {
-  if ("pattern" in rule) return new RegExp(rule.pattern).test(path);
+  const hasPattern = "pattern" in rule && typeof rule.pattern === "string";
+  if (hasPattern) return new RegExp(rule.pattern).test(path);
   return !new RegExp(rule.not.pattern).test(path);
 };
 
@@ -38,8 +40,11 @@ describe("package entry", () => {
   test("publishes the configuration schema", () => {
     const rootPackage = readPackage("../../package.json");
     const exports = rootPackage.exports as Record<string, unknown>;
+    const packageEntry = exports["."] as Record<string, unknown>;
     const files = rootPackage.files as string[];
 
+    assert.strictEqual(packageEntry.types, "./src/types.ts");
+    assert.strictEqual(rootPackage.types, "src/types.ts");
     assert.strictEqual(exports["./schema.json"], "./src/config/schema.json");
     assert.ok(files.includes("src"));
     assert.strictEqual(entry.schema["x-revision"], 2);
