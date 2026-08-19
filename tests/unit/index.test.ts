@@ -3,14 +3,16 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { assertContainsEqual } from "../helpers/assertions";
 import * as entry from "../../src";
+import type { schema as publicSchema } from "../../src/types";
 
 const readPackage = (path: string): Record<string, unknown> =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")) as Record<string, unknown>;
 
-type RepositoryPathRule = (typeof entry.schema.definitions.repositoryPath.allOf)[number];
+type RepositoryPathRule = (typeof publicSchema.definitions.repositoryPath.allOf)[number];
 
 const matchesRepositoryPathRule = (path: string, rule: RepositoryPathRule): boolean => {
-  if ("pattern" in rule) return new RegExp(rule.pattern).test(path);
+  const hasPattern = "pattern" in rule && typeof rule.pattern === "string";
+  if (hasPattern) return new RegExp(rule.pattern).test(path);
   return !new RegExp(rule.not.pattern).test(path);
 };
 

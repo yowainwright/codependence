@@ -19,15 +19,6 @@ export interface ValidationOptions {
   requirePolicy?: boolean;
 }
 
-export type ConfigurationSchema = Record<string, unknown> & {
-  $schema: string;
-  $id: string;
-  "x-revision": number;
-  "x-created": string;
-  "x-updated": string;
-  "x-history": string;
-};
-
 export interface ParsedLine {
   indent: number;
   text: string;

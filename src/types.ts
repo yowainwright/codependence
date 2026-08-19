@@ -4,7 +4,7 @@ import type {
   PYTHON_PACKAGE_MANAGERS,
 } from "./providers/constants.js";
 import type { INIT_TYPES } from "./constants.js";
-import type { ConfigurationSchema } from "./config/types.js";
+import configurationSchema from "./config/schema.json" with { type: "json" };
 
 type VersionStrategy = "semver" | "exact";
 
@@ -243,7 +243,7 @@ export type ActionConfigs = {
 
 export declare const checkFiles: (options?: CheckFiles) => Promise<VersionDiff[] | void>;
 export declare const codependence: typeof checkFiles;
-export declare const schema: ConfigurationSchema;
+export declare const schema: typeof configurationSchema;
 export declare const script: (options?: CheckFiles) => Promise<void>;
 
 export default codependence;
