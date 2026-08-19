@@ -4,17 +4,10 @@
 [![npm downloads](https://img.shields.io/npm/dm/codependence.svg)](https://www.npmjs.com/package/codependence)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/yowainwright/codependence/badge)](https://scorecard.dev/viewer/?uri=github.com/yowainwright/codependence)
 [![codecov](https://codecov.io/gh/yowainwright/codependence/branch/main/graph/badge.svg)](https://codecov.io/gh/yowainwright/codependence)
-[![GitHub stars](https://img.shields.io/github/stars/yowainwright/codependence?style=social)](https://github.com/yowainwright/codependence)
 
 #### One configuration for every dependency manager.
 
-**Codependence** checks and updates dependency versions from one repository policy. It supports Node, Python, Go, Rust, Docker, and GitHub Actions locally and in CI.
-
-## Contents
-
-- Start: [Main use case](#main-use-case), [Install](#install), [Configuration](#configuration)
-- Use: [Recipes](#recipes), [CLI](#codependence-cli), [GitHub Action](#codependence-github-action)
-- Reference: [Options](#option-reference), [Node](#codependence-in-node), [Development](#development-environment)
+**Codependence** checks and updates dependency versions using one to many project policies with support for Node, Python, Go, Rust, Docker, and GitHub Actions. This means you control how you update and why you update. Versus other tools, Codependence caters to a project's context vs a dependency's context.
 
 ---
 
@@ -53,7 +46,8 @@ React stays pinned while lodash updates:
  }
 ```
 
-The policy runs the same way locally, in scripts, and in CI. Other update strategies belong in [Recipes](#recipes).
+The policy runs the same! Locally in scripts or in CI; it's the same and you own it. 
+See more [recipes below](#recipes)!
 
 ---
 
@@ -62,24 +56,37 @@ The policy runs the same way locally, in scripts, and in CI. Other update strate
 <!-- installation commands matching package.json name and the Homebrew release workflow -->
 
 ```sh
-npm install --global codependence
+npm install codependence
 # or
 brew install yowainwright/tap/codependence
 ```
+
+You can, of course, install codependence globaly or with bun, pnpm, deno, etc
+You can also install codependence with brew tap
+
+---
 
 ## Configuration
 
 <!-- init command behavior from src/cli/index.ts -->
 
-Run guided setup from the project directory:
+Initialize. That's it!
 
 ```sh
 codependence init
 ```
 
-`init` finds package manifests, asks for the dependency policy and enforcement method, then creates or updates the configuration. Use `init config [directory]` for configuration only and `init actions` to generate GitHub Actions workflows.
+### This will:
 
-For a small Node project, put the configuration object under `codependence` in `package.json`. Larger or mixed-language repositories can point to a separate file:
+- finds package manifests, 
+- asks for the dependency policy and enforcement 
+- creates or update the configuration. 
+
+> [!!NOTE]
+> Use `init config [directory]` for configuration only and `init actions` to generate GitHub Actions workflows.
+>
+> For a JavaScript project, you can use a `codependence` dependency policy object in `package.json`. 
+> For Larger or mixed-language you can create create codependence files that cater to your project's dependency needs:
 
 ```json
 {
@@ -87,20 +94,24 @@ For a small Node project, put the configuration object under `codependence` in `
 }
 ```
 
-The path is relative to `package.json`. Each entry in `config` represents one manifest and requires `path` and `manager`; `name` is optional.
+The config path is relative to `dependency` files, eg `package.json`. 
+Each entry in `config` represents one manifest and requires `path` and `manager`; `name` is optional.
 
-Editors can use the published [configuration schema][configuration-schema] for validation and completion.
-
-[configuration-schema]: https://unpkg.com/codependence/src/config/schema.json
+> Editors can use the published [configuration schema][configuration-schema] for validation and completion.
+> - [configuration-schema]: https://unpkg.com/codependence/src/config/schema.json
 
 ```sh
 codependence
 codependence --update
 ```
 
+---
+
 ## Recipes
 
-### Check without a config
+Read below to see how codependence might help you!
+
+### Check deps _without_ a config
 
 Use CLI policy flags for a temporary check:
 
@@ -118,7 +129,7 @@ codependence --codependencies '@foo/*' --update
 
 ### Pin selected packages and update the rest
 
-List the packages that should stay pinned:
+List the packages that should stay pinned
 
 ```sh
 codependence --permissive --codependencies 'react' 'lodash' --update
@@ -126,7 +137,10 @@ codependence --permissive --codependencies 'react' 'lodash' --update
 
 ### Configure multiple manifests
 
-Use a stable key for each manifest. `name` can distinguish manifests in the same directory.
+You can configure multiple project manifests via a single or multiple codependence policy files.
+
+1. Use a skey for each manifest. 
+2. `name` can distinguish manifests in the same directory.
 
 ```json
 {
@@ -148,9 +162,10 @@ Use a stable key for each manifest. `name` can distinguish manifests in the same
 
 ---
 
-## Codependence CLI
+## CLI
 
-Codependence is a CLI-first policy tool. Run `codependence --help` for every option.
+Codependence, although it can be used with node, is a CLI-first policy tool. 
+Run `codependence --help` for every option.
 
 <!-- CLI command and options from src/cli/constants.ts -->
 
@@ -162,6 +177,213 @@ Commands:
   init config [directory]           Create or update configuration only
   init actions [managers...]        Generate GitHub Actions workflows
 ```
+
+### Option Reference
+
+Configuration can live in `package.json` or a referenced `.codependencerc`. Use CLI flags for execution choices such as checking, updating, and output formatting.
+
+---
+
+#### `config`: manifest dictionary
+
+<!-- manifest config shape from src/types.ts and src/config/index.ts -->
+
+Each key identifies one manifest. Every entry requires a direct `path` and a
+`manager`; `name` is optional. Policy fields apply only to that manifest.
+
+```json
+{
+  "config": {
+    "web": {
+      "name": "@project/web",
+      "path": "packages/web/package.json",
+      "manager": "pnpm",
+      "codependencies": ["typescript"]
+    },
+    "actions": {
+      "path": ".github/workflows/update.yml",
+      "manager": "github-actions",
+      "mode": "precise"
+    }
+  }
+}
+```
+
+Supported managers are `bun`, `npm`, `pnpm`, `yarn`, `conda`, `pip`,
+`pipenv`, `poetry`, `uv`, `go`, `rust`, `docker`, and `github-actions`.
+Execution options such as `update`, `dryRun`, `format`, and `noCache` stay at
+the root. Use `--target pnpm` or `--target go` to run only entries for those
+managers.
+
+---
+
+#### `codependencies`: `Array<string | Record<string, string>>`
+
+`codependencies` is a manifest policy array. String entries track the latest version; object entries pin an exact version or range.
+
+- The default value is `undefined`
+- An array is required!
+
+---
+
+#### Version policy entries
+
+The Codependence `codependencies` array supports `latest` out-of-the-box.
+
+> So having this `["fs-extra", "lodash"]` will return the `latest` versions of the packages within the array. It will also match a specified version, like so `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`. You can also include a `*` **at the end** of a name you would like to match. For example, `@foo/*` will match all packages with `@foo/` in the name and return their latest versions. This will also work with `foo-*`, etc.
+
+**Codependence** is built in to give you more capability to control your dependencies!
+
+---
+
+#### Manifest fields
+
+- `path`: required config-relative path to one manifest
+- `manager`: required dependency manager
+- `name`: optional package or project name, useful when one directory contains multiple manifests
+
+---
+
+#### `update`: `boolean`
+
+An optional root boolean that applies approved dependency updates across every entry.
+
+- The default value is `false`
+
+---
+
+#### `rootDir`: `string`
+
+An **optional** string which can be used to specify the root directory to run checks from;
+
+- The default value is `"./"`
+
+---
+
+#### `ignore`: `Array<string>`
+
+An **optional** array of strings used to specify directories to ignore
+
+- `.git`, `.next`, `.venv`, `node_modules`, and `*.dockerignore` files are ignored by default
+- an explicit `ignore` array replaces these defaults for 0.x compatibility
+- glob patterns are accepted
+
+---
+
+#### `debug`: `boolean`
+
+An **optional** boolean value used to enable debugging output
+
+- The default value is `false`
+
+---
+
+#### `silent`: `boolean`
+
+An **optional** boolean value used to enable a more silent developer experience
+
+- The default value is `false`
+
+---
+
+#### `--config`: `string`
+
+An optional path to a configuration file. Without it, Codependence searches upward, preferring `package.json` and then `.codependencerc` variants in each directory.
+
+- The default is `undefined`
+
+---
+
+#### `searchPath`: `string`
+
+An **optional** string containing a search path for location config files.
+
+- The default value is `undefined`
+
+#### `yarnConfig`: `boolean`
+
+An **optional** boolean value used to enable **yarn config** checking
+
+- The default value is `false`
+
+---
+
+#### `permissive`: `boolean`
+
+Controls whether all dependencies are updated to latest except those listed in `codependencies`.
+
+- The default value is `false` when `codependencies` are provided, for compatibility with 0.x jobs
+- When `true`, all dependencies NOT listed in `codependencies` are updated to latest — your `codependencies` list is what you want to **pin**
+- Use `--mode precise` (CLI) or `mode: "precise"` (config) for the same pin-and-update-everything-else behavior
+
+---
+
+#### `level`: `"patch" | "minor" | "major"`
+
+An **optional** string constraining how far updates are allowed to reach.
+
+- `"patch"` — only update within the same minor version (e.g. `1.2.x`)
+- `"minor"` — only update within the same major version (e.g. `1.x.x`)
+- `"major"` — allow any update (default)
+
+---
+
+#### `mode`: `"verbose" | "precise"`
+
+An **optional** string controlling which packages are checked.
+
+- `"verbose"` — only check/update the packages listed in `codependencies` (0.x compatible behavior)
+- `"precise"` — update all dependencies except those listed in `codependencies` (same as permissive behavior)
+
+---
+
+#### `dryRun`: `boolean`
+
+An **optional** boolean that previews what would change without modifying any files.
+
+- The default value is `false`
+
+---
+
+#### `interactive`: `boolean`
+
+An **optional** boolean that prompts you to select which packages to update when combined with `--update`.
+
+- The default value is `false`
+
+---
+
+#### `watch`: `boolean`
+
+An **optional** boolean that enables continuous checking, re-running every 30 seconds.
+
+- The default value is `false`
+
+---
+
+#### `noCache`: `boolean`
+
+An **optional** boolean that bypasses the version cache for fresh registry results.
+
+- The default value is `false`
+
+---
+
+#### `format`: `"json" | "markdown" | "table"`
+
+An **optional** string specifying the output format. When set, disables the spinner and outputs structured data instead.
+
+- `"json"` — machine-readable JSON
+- `"markdown"` — Markdown table (useful for PR comments)
+- `"table"` — formatted table (default when flag is used)
+
+---
+
+#### `outputFile`: `string`
+
+An **optional** path to write formatted output to a file instead of stdout. Requires `format` to be set.
+
+---
 
 ## Codependence GitHub Action
 
@@ -211,6 +433,8 @@ workflows maintain separate pull requests while repeated runs update the
 existing PR. See the [GitHub Action guide](.github/ACTION.md) for lockfile
 policy and PAT permissions.
 
+---
+
 ## Codependence in Node
 
 Although **Codependence** is built primarily as a CLI utility, it can be used as a Node utility.
@@ -238,214 +462,9 @@ const updateAllExceptSpecific = async () => {
 checkForOutdated();
 ```
 
-## Option Reference
-
-Configuration can live in `package.json` or a referenced `.codependencerc`. Use CLI flags for execution choices such as checking, updating, and output formatting.
-
 ---
 
-### `config`: manifest dictionary
-
-<!-- manifest config shape from src/types.ts and src/config/index.ts -->
-
-Each key identifies one manifest. Every entry requires a direct `path` and a
-`manager`; `name` is optional. Policy fields apply only to that manifest.
-
-```json
-{
-  "config": {
-    "web": {
-      "name": "@project/web",
-      "path": "packages/web/package.json",
-      "manager": "pnpm",
-      "codependencies": ["typescript"]
-    },
-    "actions": {
-      "path": ".github/workflows/update.yml",
-      "manager": "github-actions",
-      "mode": "precise"
-    }
-  }
-}
-```
-
-Supported managers are `bun`, `npm`, `pnpm`, `yarn`, `conda`, `pip`,
-`pipenv`, `poetry`, `uv`, `go`, `rust`, `docker`, and `github-actions`.
-Execution options such as `update`, `dryRun`, `format`, and `noCache` stay at
-the root. Use `--target pnpm` or `--target go` to run only entries for those
-managers.
-
----
-
-### `codependencies`: `Array<string | Record<string, string>>`
-
-`codependencies` is a manifest policy array. String entries track the latest version; object entries pin an exact version or range.
-
-- The default value is `undefined`
-- An array is required!
-
----
-
-### Version policy entries
-
-The Codependence `codependencies` array supports `latest` out-of-the-box.
-
-> So having this `["fs-extra", "lodash"]` will return the `latest` versions of the packages within the array. It will also match a specified version, like so `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`. You can also include a `*` **at the end** of a name you would like to match. For example, `@foo/*` will match all packages with `@foo/` in the name and return their latest versions. This will also work with `foo-*`, etc.
-
-**Codependence** is built in to give you more capability to control your dependencies!
-
----
-
-### Manifest fields
-
-- `path`: required config-relative path to one manifest
-- `manager`: required dependency manager
-- `name`: optional package or project name, useful when one directory contains multiple manifests
-
----
-
-### `update`: `boolean`
-
-An optional root boolean that applies approved dependency updates across every entry.
-
-- The default value is `false`
-
----
-
-### `rootDir`: `string`
-
-An **optional** string which can be used to specify the root directory to run checks from;
-
-- The default value is `"./"`
-
----
-
-### `ignore`: `Array<string>`
-
-An **optional** array of strings used to specify directories to ignore
-
-- `.git`, `.next`, `.venv`, `node_modules`, and `*.dockerignore` files are ignored by default
-- an explicit `ignore` array replaces these defaults for 0.x compatibility
-- glob patterns are accepted
-
----
-
-### `debug`: `boolean`
-
-An **optional** boolean value used to enable debugging output
-
-- The default value is `false`
-
----
-
-### `silent`: `boolean`
-
-An **optional** boolean value used to enable a more silent developer experience
-
-- The default value is `false`
-
----
-
-### `--config`: `string`
-
-An optional path to a configuration file. Without it, Codependence searches upward, preferring `package.json` and then `.codependencerc` variants in each directory.
-
-- The default is `undefined`
-
----
-
-### `searchPath`: `string`
-
-An **optional** string containing a search path for location config files.
-
-- The default value is `undefined`
-
-### `yarnConfig`: `boolean`
-
-An **optional** boolean value used to enable **yarn config** checking
-
-- The default value is `false`
-
----
-
-### `permissive`: `boolean`
-
-Controls whether all dependencies are updated to latest except those listed in `codependencies`.
-
-- The default value is `false` when `codependencies` are provided, for compatibility with 0.x jobs
-- When `true`, all dependencies NOT listed in `codependencies` are updated to latest — your `codependencies` list is what you want to **pin**
-- Use `--mode precise` (CLI) or `mode: "precise"` (config) for the same pin-and-update-everything-else behavior
-
----
-
-### `level`: `"patch" | "minor" | "major"`
-
-An **optional** string constraining how far updates are allowed to reach.
-
-- `"patch"` — only update within the same minor version (e.g. `1.2.x`)
-- `"minor"` — only update within the same major version (e.g. `1.x.x`)
-- `"major"` — allow any update (default)
-
----
-
-### `mode`: `"verbose" | "precise"`
-
-An **optional** string controlling which packages are checked.
-
-- `"verbose"` — only check/update the packages listed in `codependencies` (0.x compatible behavior)
-- `"precise"` — update all dependencies except those listed in `codependencies` (same as permissive behavior)
-
----
-
-### `dryRun`: `boolean`
-
-An **optional** boolean that previews what would change without modifying any files.
-
-- The default value is `false`
-
----
-
-### `interactive`: `boolean`
-
-An **optional** boolean that prompts you to select which packages to update when combined with `--update`.
-
-- The default value is `false`
-
----
-
-### `watch`: `boolean`
-
-An **optional** boolean that enables continuous checking, re-running every 30 seconds.
-
-- The default value is `false`
-
----
-
-### `noCache`: `boolean`
-
-An **optional** boolean that bypasses the version cache for fresh registry results.
-
-- The default value is `false`
-
----
-
-### `format`: `"json" | "markdown" | "table"`
-
-An **optional** string specifying the output format. When set, disables the spinner and outputs structured data instead.
-
-- `"json"` — machine-readable JSON
-- `"markdown"` — Markdown table (useful for PR comments)
-- `"table"` — formatted table (default when flag is used)
-
----
-
-### `outputFile`: `string`
-
-An **optional** path to write formatted output to a file instead of stdout. Requires `format` to be set.
-
----
-
-### Multi-language support (experimental)
+## Multi-language support (experimental)
 
 Declare each ecosystem through a manifest entry in `.codependencerc`. The
 `--language` flag remains available for one-off runs:
@@ -519,7 +538,7 @@ Codependence currently focuses on package manifests and dependency sections. The
 
 ---
 
-#### Codependencies are project dependencies that must stay current or match a specified version.
+### Codependencies are project dependencies that must stay current or match a specified version.
 
 When a manifest cannot use `latest` directly, Codependence writes the resolved version required by its policy. Exact versions and supported ranges remain explicit in `.codependencerc`.
 
@@ -564,8 +583,6 @@ Check out Codependence in Action!
 
 If there is a `.npmrc` file, there is no issue with **Codependence** monitoring private packages. However, if a yarn config is used, Codependence must be instructed to run `version` checks differently.
 
----
-
 ### Fixes
 
 - With the CLI, add the `--yarnConfig` option.
@@ -589,6 +606,16 @@ pnpm test
 Codependence publishes securely to npm with trusted publishing, provenance attestations, and immutable GitHub release assets.
 Stable releases also publish an audited, SHA256-pinned Homebrew formula through a protected environment and reviewed tap pull request.
 
+### 0.3.1 compatibility
+
+The v1 CLI keeps the final pre-1.0 contract from `0.3.1`: the `codependence`
+and `cdp` binaries, pre-1.0 CLI flags, flat and embedded `package.json` policy,
+and listed-only `codependencies` behavior. The named `script` export retains
+the pre-1.0 non-throwing API. Use `checkFiles` or `codependence` when callers
+need v1 errors and version-diff results.
+
+---
+
 ## Contributing
 
 [Contributing](.github/CONTRIBUTING.md) is straightforward.
@@ -606,34 +633,6 @@ Stable releases also publish an audited, SHA256-pinned Homebrew formula through 
 - Hope it's fun!
 
 Thank you!
-
----
-
-## Roadmap
-
-- **Policy Surface:**
-  - scan a directory of local repositories and report version drift
-  - extend policy checks beyond package manifests to toolchain files such as `.nvmrc`, `.node-version`, `.tool-versions`, and `.mise.toml`
-  - extend Docker image version checks beyond `Dockerfile` to `Containerfile` and compose files
-  - extend CI pipeline version checks beyond GitHub Actions to other workflow YAML
-- **Code:**
-  - add better spying/mocking (in progress)
-  - add utils functions to be executed with the cli cmd (monorepo, cadence, all deps)
-- **Demo Repos**
-  - **monorepo:** present how **codependence** can work to support monorepo updates (in progress)
-  - **cadence:** present how cadence can be implemented with **codependence**
-- **Documentation**
-  - write recipes section after the demo repos are complete (in progress)
-
----
-
-### 0.3.1 compatibility
-
-The v1 CLI keeps the final pre-1.0 contract from `0.3.1`: the `codependence`
-and `cdp` binaries, pre-1.0 CLI flags, flat and embedded `package.json` policy,
-and listed-only `codependencies` behavior. The named `script` export retains
-the pre-1.0 non-throwing API. Use `checkFiles` or `codependence` when callers
-need v1 errors and version-diff results.
 
 ---
 
