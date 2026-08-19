@@ -38,8 +38,11 @@ describe("package entry", () => {
   test("publishes the configuration schema", () => {
     const rootPackage = readPackage("../../package.json");
     const exports = rootPackage.exports as Record<string, unknown>;
+    const packageEntry = exports["."] as Record<string, unknown>;
     const files = rootPackage.files as string[];
 
+    assert.strictEqual(packageEntry.types, "./src/types.ts");
+    assert.strictEqual(rootPackage.types, "src/types.ts");
     assert.strictEqual(exports["./schema.json"], "./src/config/schema.json");
     assert.ok(files.includes("src"));
     assert.strictEqual(entry.schema["x-revision"], 2);

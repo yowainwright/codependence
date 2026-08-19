@@ -2,9 +2,11 @@ import type {
   LANGUAGES,
   NODE_PACKAGE_MANAGERS,
   PYTHON_PACKAGE_MANAGERS,
-} from "./providers/constants";
-import type { VersionStrategy } from "./providers/types";
-import type { INIT_TYPES } from "./constants";
+} from "./providers/constants.js";
+import type { INIT_TYPES } from "./constants.js";
+import type { ConfigurationSchema } from "./config/types.js";
+
+type VersionStrategy = "semver" | "exact";
 
 export type CodeDependenciesItem = string | Record<string, string>;
 export type CodeDependencies = Array<CodeDependenciesItem>;
@@ -238,3 +240,10 @@ export type ActionConfigs = {
   baseConfig: Record<string, unknown>;
   pathConfig: Record<string, unknown>;
 };
+
+export declare const checkFiles: (options?: CheckFiles) => Promise<VersionDiff[] | void>;
+export declare const codependence: typeof checkFiles;
+export declare const schema: ConfigurationSchema;
+export declare const script: (options?: CheckFiles) => Promise<void>;
+
+export default codependence;

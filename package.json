@@ -29,7 +29,7 @@
   },
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./src/types.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
@@ -124,7 +124,7 @@
     "precoverage": "mkdir -p coverage"
   },
   "type": "module",
-  "types": "src/index.ts",
+  "types": "src/types.ts",
   "devEngines": {
     "runtime": {
       "name": "node",
