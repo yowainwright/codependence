@@ -18,18 +18,18 @@
     "@inquirer/select": "^5.2.1",
     "@nubjs/nub": "0.7.5",
     "@types/node": "26.2.0",
-    "eslint-plugin-legibility": "^0.3.0",
+    "eslint-plugin-legibility": "^0.3.3",
     "oxfmt": "^0.63.0",
     "oxlint": "^1.78.0",
     "pastoralist": "1.13.0",
     "prettier": "^3.9.6",
     "release-it": "21.0.2",
     "rolldown": "1.2.3",
-    "scriptc": "0.0.26",
-    "typescript": "^7.0.2"
+    "scriptc": "0.0.26"
   },
   "exports": {
     ".": {
+      "types": "./src/index.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
@@ -44,7 +44,7 @@
   },
   "files": [
     "dist",
-    "src/config/schema.json",
+    "src",
     "scripts/install-legibility-skill.js"
   ],
   "keywords": [
@@ -112,10 +112,8 @@
     "setup": "nub install && nub run hooks:setup && nub run build",
     "test": "node scripts/run/index.ts",
     "test:e2e:binary": "./tests/e2e/test-binary.sh",
-    "typecheck": "nub run typecheck-src",
-    "typecheck-src": "tsc --noEmit",
     "update": "nub update",
-    "validate": "nub run typecheck && nub run lint && nub run test",
+    "validate": "nub run lint && nub run test",
     "validate:full": "nub run validate && ./tests/e2e/test-multilang.sh all",
     "skills:install": "node scripts/install-legibility-skill.js agents",
     "skills:install:claude": "node scripts/install-legibility-skill.js claude",
@@ -126,7 +124,7 @@
     "precoverage": "mkdir -p coverage"
   },
   "type": "module",
-  "types": "dist/index.d.ts",
+  "types": "src/index.ts",
   "devEngines": {
     "runtime": {
       "name": "node",

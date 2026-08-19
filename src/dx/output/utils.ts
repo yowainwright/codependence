@@ -67,7 +67,7 @@ export const createTable = (columns: TableColumn[], rows: TableRow[]): string =>
   const middle = tableBorder(columns, "├", "┼", "┤");
   const content = rows.map((row) => tableRow(columns, row));
   const bottom = tableBorder(columns, "└", "┴", "┘");
-  return [top, header, middle, ...content, bottom].join("\n");
+  return [top, header, middle].concat(content, bottom).join("\n");
 };
 
 export const formatVersionTable = (diffs: TableVersionDiff[]): string => {

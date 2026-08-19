@@ -41,7 +41,7 @@ describe("package entry", () => {
     const files = rootPackage.files as string[];
 
     assert.strictEqual(exports["./schema.json"], "./src/config/schema.json");
-    assert.ok(files.includes("src/config/schema.json"));
+    assert.ok(files.includes("src"));
     assert.strictEqual(entry.schema["x-revision"], 2);
     assert.strictEqual(entry.schema["x-created"], "2025-11-23");
     assert.strictEqual(entry.schema["x-updated"], "2026-08-17");

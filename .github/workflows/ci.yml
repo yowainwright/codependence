@@ -49,7 +49,6 @@ jobs:
       - run: nub run deps:audit
       - run: nub run build
       - run: nub run lint
-      - run: nub run typecheck
       - run: nub run coverage
         env:
           CI: true

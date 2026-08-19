@@ -344,7 +344,11 @@ describe("formatEnhancedError", () => {
       const result = formatEnhancedError(context);
 
       assert.ok(result.includes("Package found in npm but not your registry"));
-      assert.ok(result.includes("https://registry.npmjs.org"));
+      assert.ok(
+        result
+          .split("\n")
+          .includes("  - Use public npm: npm config set registry https://registry.npmjs.org"),
+      );
     });
 
     test("should provide registry configuration suggestions", () => {

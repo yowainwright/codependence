@@ -2,12 +2,16 @@ import { bold, cyan, gray, red, yellow } from "../dx/output";
 import { ICONS, LEVELS } from "./constants";
 import type { Log, LogLevel, Logger, LoggerConfig } from "./types";
 
-export const createLoggerConfig = (options: Partial<LoggerConfig>): LoggerConfig => ({
-  level: "info",
-  silent: false,
-  structured: false,
-  ...options,
-});
+export const createLoggerConfig = (options: Partial<LoggerConfig>): LoggerConfig =>
+  Object.assign(
+    {},
+    {
+      level: "info" as const,
+      silent: false,
+      structured: false,
+    },
+    options,
+  );
 
 const shouldLog = (config: LoggerConfig, level: LogLevel): boolean => {
   if (config.silent) return false;

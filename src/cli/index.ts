@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { createLogger, logger } from "../observability";
 import { checkFiles } from "../manifest";
 import { versionCache } from "../manifest";
@@ -1192,9 +1192,8 @@ const runTargets = (
   targets: CheckFiles[],
   onProgress: ProgressHandler,
 ): Promise<TargetRunResult> => {
-  const deferFailure = targets.length > 1;
   return targets.reduce(
-    async (result, target) => runTarget(await result, target, onProgress, deferFailure),
+    async (result, target) => runTarget(await result, target, onProgress, true),
     Promise.resolve<TargetRunResult>({ diffs: [], failed: false }),
   );
 };
@@ -1606,7 +1605,13 @@ export const runBinary = async (argv: BinaryArgv, runProgram: typeof run = run):
 const isDirectExecution = (argv: BinaryArgv): boolean => {
   const scriptPath = argv[1];
   if (!scriptPath) return false;
-  return import.meta.url === pathToFileURL(resolve(scriptPath)).href;
+  try {
+    const modulePath = fs.realpathSync(fileURLToPath(import.meta.url));
+    const executablePath = fs.realpathSync(resolve(scriptPath));
+    return modulePath === executablePath;
+  } catch {
+    return false;
+  }
 };
 
 if (isDirectExecution(process.argv)) await runBinary(process.argv);

@@ -8,13 +8,15 @@ export const sleep: SleepFn = (milliseconds) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 const isRetryableError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") return false;
+  const isErrorObject = Boolean(error) && typeof error === "object";
+  if (!isErrorObject) return false;
   const retryableError = error as RetryableError;
   const hasRetryableCode =
     retryableError.code !== undefined && RETRYABLE_ERROR_CODES.includes(retryableError.code);
   if (hasRetryableCode) return true;
   const message = retryableError.message?.toLowerCase() || "";
-  return message.includes("timeout") || message.includes("network");
+  const retryableMessages = ["timeout", "network"];
+  return retryableMessages.some((value) => message.includes(value));
 };
 
 export const executeWithRetry = async (

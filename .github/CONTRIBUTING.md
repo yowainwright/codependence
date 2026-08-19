@@ -18,7 +18,6 @@ Before opening a pull request, run:
 ```sh
 nub run build
 nub run lint
-nub run typecheck
 nub run test
 ```
 

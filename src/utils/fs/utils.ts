@@ -1,6 +1,5 @@
 import { readdirSync, statSync, type Dirent } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import { GLOB_REGEX_CACHE_MAX_SIZE, GLOB_SPECIAL_CHARS } from "./constants";
 import type {
   DirectMatchContext,
   DirectMatchItem,
@@ -11,75 +10,95 @@ import type {
   PatternPlan,
 } from "./types";
 
-const regexCache = new Map<string, RegExp>();
-
 const normalizePath = (path: string): string => path.replaceAll("\\", "/");
 
-const appendEscapedCharacter = (source: string, char: string): string =>
-  `${source}${char.replace(GLOB_SPECIAL_CHARS, "\\$&")}`;
+const matchPatternAt = (
+  value: string,
+  pattern: string,
+  valueIndex: number,
+  patternIndex: number,
+  cache: Map<number, boolean>,
+): boolean => {
+  const cacheKey = valueIndex * (pattern.length + 1) + patternIndex;
+  const cached = cache.get(cacheKey);
+  if (cached !== undefined) return cached;
 
-const compilePattern = (pattern: string): RegExp => {
-  const normalizedPattern = normalizePath(pattern);
-  let source = "^";
+  const result = calculatePatternMatch(value, pattern, valueIndex, patternIndex, cache);
+  cache.set(cacheKey, result);
+  return result;
+};
 
-  for (let index = 0; index < normalizedPattern.length;) {
-    const char = normalizedPattern[index];
-    const next = normalizedPattern[index + 1];
-    const afterNext = normalizedPattern[index + 2];
+const matchGlobStarDirectory = (
+  value: string,
+  pattern: string,
+  valueIndex: number,
+  patternIndex: number,
+  cache: Map<number, boolean>,
+): boolean => {
+  const matchesWithoutDirectory = matchPatternAt(
+    value,
+    pattern,
+    valueIndex,
+    patternIndex + 3,
+    cache,
+  );
+  if (matchesWithoutDirectory) return true;
 
-    if (char === "*" && next === "*") {
-      if (afterNext === "/") {
-        source += "(?:.*/)?";
-        index += 3;
-        continue;
-      }
+  const slashIndex = value.indexOf("/", valueIndex);
+  if (slashIndex === -1) return false;
+  return matchPatternAt(value, pattern, slashIndex + 1, patternIndex, cache);
+};
 
-      source += ".*";
-      index += 2;
-      continue;
-    }
+const matchGlobStar = (
+  value: string,
+  pattern: string,
+  valueIndex: number,
+  patternIndex: number,
+  cache: Map<number, boolean>,
+): boolean => {
+  const matchesEmpty = matchPatternAt(value, pattern, valueIndex, patternIndex + 2, cache);
+  if (matchesEmpty) return true;
+  if (valueIndex === value.length) return false;
+  return matchPatternAt(value, pattern, valueIndex + 1, patternIndex, cache);
+};
 
-    if (char === "*") {
-      source += "[^/]*";
-      index += 1;
-      continue;
-    }
+const matchStar = (
+  value: string,
+  pattern: string,
+  valueIndex: number,
+  patternIndex: number,
+  cache: Map<number, boolean>,
+): boolean => {
+  const matchesEmpty = matchPatternAt(value, pattern, valueIndex, patternIndex + 1, cache);
+  if (matchesEmpty) return true;
+  if (valueIndex === value.length || value[valueIndex] === "/") return false;
+  return matchPatternAt(value, pattern, valueIndex + 1, patternIndex, cache);
+};
 
-    if (char === "?") {
-      source += "[^/]";
-      index += 1;
-      continue;
-    }
-
-    source = appendEscapedCharacter(source, char);
-    index += 1;
+const calculatePatternMatch = (
+  value: string,
+  pattern: string,
+  valueIndex: number,
+  patternIndex: number,
+  cache: Map<number, boolean>,
+): boolean => {
+  if (patternIndex === pattern.length) return valueIndex === value.length;
+  const character = pattern[patternIndex];
+  const isGlobStar = character === "*" && pattern[patternIndex + 1] === "*";
+  if (isGlobStar && pattern[patternIndex + 2] === "/") {
+    return matchGlobStarDirectory(value, pattern, valueIndex, patternIndex, cache);
   }
-
-  return new RegExp(`${source}$`);
-};
-
-const evictOldestRegex = (): void => {
-  const firstKey = regexCache.keys().next().value;
-  if (firstKey !== undefined) regexCache.delete(firstKey);
-};
-
-const ensureRegexCacheSpace = (): void => {
-  if (regexCache.size < GLOB_REGEX_CACHE_MAX_SIZE) return;
-  evictOldestRegex();
-};
-
-const patternToRegex = (pattern: string): RegExp => {
-  const cached = regexCache.get(pattern);
-  if (cached) return cached;
-
-  ensureRegexCacheSpace();
-  const compiled = compilePattern(pattern);
-  regexCache.set(pattern, compiled);
-  return compiled;
+  if (isGlobStar) return matchGlobStar(value, pattern, valueIndex, patternIndex, cache);
+  if (character === "*") return matchStar(value, pattern, valueIndex, patternIndex, cache);
+  if (valueIndex === value.length || (value[valueIndex] === "/" && character === "?")) return false;
+  const matchesCharacter = character === "?" || character === value[valueIndex];
+  return (
+    matchesCharacter && matchPatternAt(value, pattern, valueIndex + 1, patternIndex + 1, cache)
+  );
 };
 
 const isLiteralPattern = (pattern: string): boolean =>
-  !pattern.includes("*") && !pattern.includes("?");
+  ["*", "?"].every((character) => !pattern.includes(character));
 
 const toProjectPattern = (pattern: string, cwd: string): string => {
   const absolutePattern = isAbsolute(pattern) ? pattern : resolve(cwd, pattern);
@@ -88,14 +107,11 @@ const toProjectPattern = (pattern: string, cwd: string): string => {
 
 const matchesPattern = (filePath: string, pattern: string): boolean => {
   if (isLiteralPattern(pattern)) return filePath === pattern;
-  return filePath.match(patternToRegex(pattern)) !== null;
+  return matchPatternAt(filePath, pattern, 0, 0, new Map());
 };
 
 const matchesAnyIgnore = (filePath: string, ignorePatterns: string[]): boolean =>
   ignorePatterns.some((pattern) => matchesPattern(filePath, pattern));
-
-const shouldIgnorePath = (filePath: string, ignorePatterns: string[]): boolean =>
-  matchesAnyIgnore(filePath, ignorePatterns);
 
 const isExistingDirectory = (path: string): boolean => {
   try {
@@ -131,7 +147,7 @@ const collectDirectoryEntry = (
   const relativePath = normalizePath(relative(baseDir, fullPath));
   const comparablePath = entry.isDirectory() ? `${relativePath}/` : relativePath;
 
-  if (shouldIgnorePath(comparablePath, ignorePatterns)) return [];
+  if (matchesAnyIgnore(comparablePath, ignorePatterns)) return [];
   if (!entry.isDirectory()) return [relativePath];
   return collectAllFiles(fullPath, baseDir, ignorePatterns);
 };
@@ -147,16 +163,14 @@ const splitPattern = (pattern: string): string[] =>
     .split("/")
     .filter((segment) => segment !== "" && segment !== ".");
 
-const isSegmentPattern = (segment: string): boolean =>
-  segment.includes("*") || segment.includes("?");
+const isSegmentPattern = (segment: string): boolean => !isLiteralPattern(segment);
 
 const findLiteralPrefixLength = (segments: string[]): number => {
   const firstPatternIndex = segments.findIndex(isSegmentPattern);
   return firstPatternIndex === -1 ? segments.length : firstPatternIndex;
 };
 
-const matchSegment = (value: string, pattern: string): boolean =>
-  value.match(patternToRegex(pattern)) !== null;
+const matchSegment = (value: string, pattern: string): boolean => matchesPattern(value, pattern);
 
 const resolvePatternRoot = (cwd: string, prefixSegments: string[]): string =>
   prefixSegments.reduce((path, segment) => resolve(path, segment), cwd);
@@ -192,7 +206,7 @@ const toDirectMatchStep = (segment: string, index: number, segments: string[]): 
 const toRelativePath = (cwd: string, path: string): string => normalizePath(relative(cwd, path));
 
 const shouldIncludeRelativePath = (relativePath: string, ignorePatterns: string[]): boolean =>
-  !shouldIgnorePath(relativePath, ignorePatterns);
+  !matchesAnyIgnore(relativePath, ignorePatterns);
 
 const getItemPaths = (items: DirectMatchItem[], type: DirectMatchItem["type"]): string[] =>
   items.filter((item) => item.type === type).map((item) => item.path);
@@ -311,7 +325,7 @@ const collectLiteralMatch = (pattern: string, cwd: string, ignorePatterns: strin
   if (!isExistingFile(absolutePath)) return [];
 
   const relativePath = normalizePath(relative(cwd, absolutePath));
-  if (shouldIgnorePath(relativePath, ignorePatterns)) return [];
+  if (matchesAnyIgnore(relativePath, ignorePatterns)) return [];
   return [relativePath];
 };
 
@@ -331,20 +345,14 @@ const groupGlobStarPatterns = (plans: PatternPlan[], cwd: string): Map<string, s
     return groups;
   }, new Map<string, string[]>());
 
-const combinedPatternRegex = (patterns: string[]): RegExp => {
-  const sources = patterns.map((pattern) => patternToRegex(pattern).source);
-  return new RegExp(sources.join("|"));
-};
-
 const collectGlobStarGroup = (
   root: string,
   patterns: string[],
   cwd: string,
   ignorePatterns: string[],
 ): string[] => {
-  const matcher = combinedPatternRegex(patterns);
   const files = collectAllFiles(root, cwd, ignorePatterns);
-  return files.filter((file) => matcher.test(file));
+  return files.filter((file) => patterns.some((pattern) => matchesPattern(file, pattern)));
 };
 
 const collectGlobStarMatches = (

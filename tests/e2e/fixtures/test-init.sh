@@ -119,15 +119,15 @@ else
   exit 1
 fi
 
-# Test 9: Test non-permissive mode still requires codependencies
-echo "\n9. Testing non-permissive mode requires codependencies..."
+# Test 9: Test minimal configuration remains valid
+echo "\n9. Testing minimal configuration..."
 rm -f .codependencerc
 echo '{ "permissive": false }' > .codependencerc
 if node dist/cli.js --silent 2>&1 | grep -q 'codependencies.*required'; then
-  echo "✓ Non-permissive mode codependencies requirement test passed"
-else
-  echo "✗ Non-permissive mode codependencies requirement test failed"
+  echo "FAIL Minimal configuration should not require codependencies"
   exit 1
+else
+  echo "PASS Minimal configuration test passed"
 fi
 
 # Test 10: Test that init default type creates pin-all config
