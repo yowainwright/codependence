@@ -11,6 +11,7 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": ["./src/*"],
       "@codependence/onboarding": ["../../src/cli/init/index.ts"]

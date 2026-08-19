@@ -1,4 +1,3 @@
-import { basename, dirname, join } from "node:path/posix";
 import {
   ONBOARDING_ACTION_REF,
   ONBOARDING_CHECKOUT_REF,
@@ -39,7 +38,10 @@ import {
   managerFromFiles,
   manifestDependencyEntries,
   normalizeOnboardingPath,
+  onboardingDirectory,
+  onboardingFilename,
   onboardingInstallArgs,
+  onboardingPath,
   packageManagerValue,
   parseOnboardingManifest,
   repositorySecretUrl,
@@ -221,20 +223,20 @@ const pythonManager = (
   file: OnboardingSourceFile,
   files: OnboardingSourceFile[],
 ): DependencyManager | undefined => {
-  const filename = basename(file.path);
+  const filename = onboardingFilename(file.path);
   if (filename === MANIFEST_FILES.REQUIREMENTS) return PYTHON_PACKAGE_MANAGERS.PIP;
   if (filename === MANIFEST_FILES.PIPFILE) return PYTHON_PACKAGE_MANAGERS.PIPENV;
   if (filename.startsWith("environment.")) return PYTHON_PACKAGE_MANAGERS.CONDA;
   if (filename !== MANIFEST_FILES.PYPROJECT) return undefined;
 
-  const uvLockPath = join(dirname(file.path), MANIFEST_FILES.UV_LOCK);
+  const uvLockPath = onboardingPath(onboardingDirectory(file.path), MANIFEST_FILES.UV_LOCK);
   if (files.some(({ path }) => path === uvLockPath)) return PYTHON_PACKAGE_MANAGERS.UV;
   if (file.content.includes("[tool.poetry")) return PYTHON_PACKAGE_MANAGERS.POETRY;
   return PYTHON_PACKAGE_MANAGERS.PIP;
 };
 
 const isWorkflowManifest = (path: string): boolean => {
-  const directory = dirname(path);
+  const directory = onboardingDirectory(path);
   const isWorkflowDirectory =
     directory === ".github/workflows" || directory.endsWith("/.github/workflows");
   const isYaml = path.endsWith(".yml") || path.endsWith(".yaml");
@@ -249,7 +251,7 @@ const manifestManager = (
   files: OnboardingSourceFile[],
 ): DependencyManager | undefined => {
   if (isGeneratedWorkflow(file)) return undefined;
-  const filename = basename(file.path);
+  const filename = onboardingFilename(file.path);
   const python = pythonManager(file, files);
   if (python) return python;
   if (filename === MANIFEST_FILES.GO_MOD) return LANGUAGES.GO;

@@ -34,17 +34,20 @@ export const normalizeOnboardingPath = (path: string): string =>
 
 const pathSegments = (path: string): string[] => normalizeOnboardingPath(path).split("/");
 
+export const onboardingDirectory = (path: string): string =>
+  pathSegments(path).slice(0, -1).join("/");
+
+export const onboardingFilename = (path: string): string => pathSegments(path).at(-1) || "";
+
+export const onboardingPath = (directory: string, filename: string): string =>
+  [directory, filename].filter(Boolean).join("/");
+
 const isIgnoredOnboardingPath = (path: string): boolean =>
   pathSegments(path).some((segment) => ONBOARDING_IGNORED_DIRECTORIES.has(segment));
 
 const isOnboardingPackageFile = (path: string): boolean => {
   const segments = pathSegments(path);
   return segments.at(-1) === ONBOARDING_PACKAGE_FILE;
-};
-
-const onboardingManifestDirectory = (path: string): string => {
-  const segments = pathSegments(path);
-  return segments.slice(0, -1).join("/");
 };
 
 export const parseOnboardingManifest = (file: OnboardingSourceFile): ParsedOnboardingManifest => {
@@ -158,7 +161,7 @@ const workspacePatternRegex = (pattern: string): RegExp => {
 
 const matchesWorkspacePattern = (path: string, pattern: string): boolean => {
   const positivePattern = pattern.replace(/^!/, "");
-  const directory = onboardingManifestDirectory(path);
+  const directory = onboardingDirectory(path);
   return workspacePatternRegex(positivePattern).test(directory);
 };
 
