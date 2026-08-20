@@ -7,13 +7,13 @@
 
 #### One configuration for every dependency manager.
 
-**Codependence** checks and updates dependency versions using one to many project policies with support for Node, Python, Go, Rust, Docker, and GitHub Actions. This means you control how you update and why you update. Versus other tools, Codependence caters to a project's context vs a dependency's context.
+**Codependence** checks and updates dependency versions using one-to-many project policies with support for Node, Python, Go, Rust, Docker, and GitHub Actions. This means you control how you update and why you update. Versus other tools, Codependence caters to a project's context vs a dependency's context.
 
 ---
 
-## _Main Use Case_
+## Main use case
 
-#### Pin what matters and update the rest
+### Pin what matters and update the rest
 
 Suppose a project must stay on React `^19.0.0`, but its other dependencies should keep moving. Add that policy to `.codependencerc`:
 
@@ -46,7 +46,7 @@ React stays pinned while lodash updates:
  }
 ```
 
-The policy runs the same! Locally in scripts or in CI; it's the same and you own it. 
+The policy runs the same thing everywhere!—Locally in scripts or in CI; it's the same and you own it. 
 See more [recipes below](#recipes)!
 
 ---
@@ -61,8 +61,7 @@ npm install codependence
 brew install yowainwright/tap/codependence
 ```
 
-You can, of course, install codependence globaly or with bun, pnpm, deno, etc
-You can also install codependence with brew tap
+You can also install Codependence globally with npm, Bun, pnpm, or Deno.
 
 ---
 
@@ -76,17 +75,17 @@ Initialize. That's it!
 codependence init
 ```
 
-### This will:
+### What it does
 
-- finds package manifests, 
-- asks for the dependency policy and enforcement 
-- creates or update the configuration. 
+- Finds package manifests.
+- Asks for the dependency policy and enforcement.
+- Creates or updates the configuration.
 
-> [!!NOTE]
+> [!NOTE]
 > Use `init config [directory]` for configuration only and `init actions` to generate GitHub Actions workflows.
 >
 > For a JavaScript project, you can use a `codependence` dependency policy object in `package.json`. 
-> For Larger or mixed-language you can create create codependence files that cater to your project's dependency needs:
+> For larger or mixed-language projects, you can create Codependence config files for your project's dependency needs:
 
 ```json
 {
@@ -94,7 +93,7 @@ codependence init
 }
 ```
 
-The config path is relative to `dependency` files, eg `package.json`. 
+The config path is relative to manifest files, e.g. `package.json`.
 Each entry in `config` represents one manifest and requires `path` and `manager`; `name` is optional.
 
 > Editors can use the published [configuration schema][configuration-schema] for validation and completion.
@@ -107,65 +106,11 @@ codependence --update
 
 ---
 
-## Recipes
-
-Read below to see how codependence might help you!
-
-### Check deps _without_ a config
-
-Use CLI policy flags for a temporary check:
-
-```sh
-codependence --codependencies 'lodash' '{ "fs-extra": "10.0.1" }'
-```
-
-### Match packages by name
-
-Use `*` at the end of a package name to match a group:
-
-```sh
-codependence --codependencies '@foo/*' --update
-```
-
-### Pin selected packages and update the rest
-
-List the packages that should stay pinned
-
-```sh
-codependence --permissive --codependencies 'react' 'lodash' --update
-```
-
-### Configure multiple manifests
-
-You can configure multiple project manifests via a single or multiple codependence policy files.
-
-1. Use a skey for each manifest. 
-2. `name` can distinguish manifests in the same directory.
-
-```json
-{
-  "config": {
-    "web": {
-      "name": "@project/web",
-      "path": "packages/web/package.json",
-      "manager": "pnpm",
-      "mode": "precise"
-    },
-    "api": {
-      "path": "services/api/go.mod",
-      "manager": "go",
-      "mode": "precise"
-    }
-  }
-}
-```
-
----
-
 ## CLI
 
-Codependence, although it can be used with node, is a CLI-first policy tool. 
-Run `codependence --help` for every option.
+Codependence, although it can be used with Node.js, is a CLI-first policy tool.
+
+> Run `codependence --help` for every option.
 
 <!-- CLI command and options from src/cli/constants.ts -->
 
@@ -180,7 +125,8 @@ Commands:
 
 ### Option Reference
 
-Configuration can live in `package.json` or a referenced `.codependencerc`. Use CLI flags for execution choices such as checking, updating, and output formatting.
+Configuration can live in `package.json` or a referenced `.codependencerc`. 
+Use CLI flags for execution choices such as checking, updating, and output formatting.
 
 ---
 
@@ -208,12 +154,6 @@ Each key identifies one manifest. Every entry requires a direct `path` and a
   }
 }
 ```
-
-Supported managers are `bun`, `npm`, `pnpm`, `yarn`, `conda`, `pip`,
-`pipenv`, `poetry`, `uv`, `go`, `rust`, `docker`, and `github-actions`.
-Execution options such as `update`, `dryRun`, `format`, and `noCache` stay at
-the root. Use `--target pnpm` or `--target go` to run only entries for those
-managers.
 
 ---
 
@@ -464,7 +404,62 @@ checkForOutdated();
 
 ---
 
-## Multi-language support (experimental)
+## Recipes
+
+Read below to see how codependence might help you!
+
+### Check deps _without_ a config
+
+Use CLI policy flags for a temporary check:
+
+```sh
+codependence --codependencies 'lodash' '{ "fs-extra": "10.0.1" }'
+```
+
+### Match packages by name
+
+Use `*` at the end of a package name to match a group:
+
+```sh
+codependence --codependencies '@foo/*' --update
+```
+
+### Pin selected packages and update the rest
+
+List the packages that should stay pinned
+
+```sh
+codependence --permissive --codependencies 'react' 'lodash' --update
+```
+
+### Configure multiple manifests
+
+You can configure multiple project manifests via a single or multiple codependence policy files.
+
+1. Use a skey for each manifest. 
+2. `name` can distinguish manifests in the same directory.
+
+```json
+{
+  "config": {
+    "web": {
+      "name": "@project/web",
+      "path": "packages/web/package.json",
+      "manager": "pnpm",
+      "mode": "precise"
+    },
+    "api": {
+      "path": "services/api/go.mod",
+      "manager": "go",
+      "mode": "precise"
+    }
+  }
+}
+```
+
+---
+
+## Multi-language, multi-package manager support (experimental)
 
 Declare each ecosystem through a manifest entry in `.codependencerc`. The
 `--language` flag remains available for one-off runs:
@@ -473,58 +468,80 @@ Declare each ecosystem through a manifest entry in `.codependencerc`. The
 codependence --language {uv,go,rust,docker,github-actions}
 ```
 
+### Supported managers
+
+#### Languages
+
+> ##### Language manifest updates
+> 
+> - Non-Node providers remain experimental, but all managers can share one `config` dictionary.
+> - Python requirements updates preserve comments, markers, hashes, and include directives. 
+> - Unversioned and URL-based requirements are left unchanged. After updating manifests, regenerate and commit ecosystem lockfiles with their native package managers.
+
+##### JavaScript
+
+- [bun](https://bun.sh/)
+- [npm](https://www.npmjs.com/)
+- [pnpm](https://pnpm.io/)
+- [yarn](https://yarnpkg.com/)
+
+##### Python
+
+- [conda](https://conda.org/)
+- [pip](https://pip.pypa.io/)
+- [pipenv](https://pipenv.pypa.io/)
+- [poetry](https://python-poetry.org/)
+- [uv](https://docs.astral.sh/uv/)
+
+##### Go
+
+- [golang](https://go.dev/)
+
+##### Rust
+
+- [cargo](https://doc.rust-lang.org/cargo/)
+
+#### Containers
+
+- [docker](https://www.docker.com/)
+
+> #### Docker Notes
+> 
+> - The Docker provider supports explicit pins, latest tag resolution, and `mode: "precise"` for Docker Hub and GHCR images.
+> - It selects the highest stable numeric tag that is at least as specific as the current tag and has its exact prefix and suffix, so `20-slim` remains in the `-slim` family and `3.19` does not switch to a date tag. 
+> - Repeated images with different tag families resolve independently. 
+> - `FROM` tags assembled from one Docker `ARG` are resolved and updated without changing the composition. 
+> - Digest-pinned images, scratch stages, unresolved variables, and unsupported registries remain unchanged.
+> - Mutable tags such as `latest` fail rather than guessing a version.
+> - The CLI reads Docker Hub credentials from `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`. 
+> - GHCR uses `GHCR_USERNAME` and `GHCR_TOKEN`. Both values are required for authenticated registry access
+
+#### CI
+
+- [github-actions](https://github.com/features/actions)
+
+> #### GitHub Action Notes
+> 
+> - The GitHub Action falls back to its workflow token for private GHCR packages and retries anonymously when GHCR rejects that token for a public package. Docker Hub PATs should be read-only; private GHCR packages require `read:packages` access.
+> - The GitHub Actions provider supports explicit pins, latest release resolution, and `mode: "precise"`. 
+> - Latest versions resolve to immutable commit SHAs, and existing version comments are refreshed with the release tag. 
+> - Local and Docker actions remain unchanged. 
+> - Authenticated lookups use `GITHUB_TOKEN` or `GH_TOKEN` when available.
+
+
+> [!NOTE]
+> Execution options such as `update`, `dryRun`, `format`, and `noCache` stay at the root. 
+>
+> Use `--target pnpm` or `--target go` to run only entries for those managers.
+
 <!-- provider capabilities from src/providers/*/index.ts -->
 
-The Docker provider supports explicit pins, latest tag resolution, and
-`mode: "precise"` for Docker Hub and GHCR images. It selects the highest stable
-numeric tag that is at least as specific as the current tag and has its exact
-prefix and suffix, so `20-slim` remains in the `-slim` family and `3.19` does
-not switch to a date tag. Repeated images with different tag families resolve
-independently. `FROM` tags assembled from one Docker `ARG` are resolved and
-updated without changing the composition. Digest-pinned images, scratch
-stages, unresolved variables, and unsupported registries remain unchanged.
-Mutable tags such as `latest` fail rather than guessing a version.
-
-The CLI reads Docker Hub credentials from `DOCKERHUB_USERNAME` and
-`DOCKERHUB_TOKEN`. GHCR uses `GHCR_USERNAME` and `GHCR_TOKEN`. Both values are
-required for authenticated registry access. The GitHub Action falls back to its
-workflow token for private GHCR packages and retries anonymously when GHCR
-rejects that token for a public package. Docker Hub PATs should be read-only;
-private GHCR packages require `read:packages` access.
-
-The GitHub Actions provider supports explicit pins, latest release resolution,
-and `mode: "precise"`. Latest versions resolve to immutable commit SHAs, and
-existing version comments are refreshed with the release tag. Local and Docker
-actions remain unchanged. Authenticated lookups use `GITHUB_TOKEN` or `GH_TOKEN`
-when available.
-
-Non-Node providers remain experimental, but all managers can share one `config`
-dictionary.
-
-Python requirements updates preserve comments, markers, hashes, and include
-directives. Unversioned and URL-based requirements are left unchanged. After
-updating manifests, regenerate and commit ecosystem lockfiles with their native
-package managers.
-
----
-
-## Synopsis
-
-Codependence is a dependency-policy CLI that loads one `.codependencerc` and checks each configured manager against its manifests, images, or workflow references.
-
-For each dependency included in the `codependencies` array, Codependence will either **a)** check that versions are at `latest` or **b)** check that a specified version is matched within manifest files. Codependence can either **a)** return a pass/fail result _or_ **b)** update dependency versions in manifest file(s).
-
----
-
-Codependence is useful for ensuring important dependency versions are intentional: up-to-date where they should move, pinned where they should not, and consistent across a repo or monorepo.
-
-This utility is built to work alongside dependency automation tools like [Dependabot](https://dependabot.com/) and [Renovate](https://docs.renovatebot.com/). Use those tools for hosted dependency PR automation. Use Codependence for local checks, CI gates, scripted updates, and repo-specific version policy.
-
----
+--- 
 
 ## Policy Surface
 
-Codependence currently focuses on package manifests and dependency sections. The same policy model can expand to other version surfaces over time.
+Codependence currently focuses on package manifests and dependency sections. 
+The same policy model can expand to other version surfaces over time.
 
 | Surface                        | Status       | Purpose                                                                    |
 | ------------------------------ | ------------ | -------------------------------------------------------------------------- |
@@ -538,15 +555,59 @@ Codependence currently focuses on package manifests and dependency sections. The
 
 ---
 
-### Codependencies are project dependencies that must stay current or match a specified version.
-
-When a manifest cannot use `latest` directly, Codependence writes the resolved version required by its policy. Exact versions and supported ranges remain explicit in `.codependencerc`.
+> [!NOTE]
+> ### Codependencies are project dependencies that must stay current or match a specified version.
+> 
+> When a manifest cannot use `latest` directly, Codependence writes the resolved version required by its policy. Exact versions and supported ranges remain explicit in `.codependencerc`.
 
 ---
 
-## Why use Codependence?
+## Tool comparison
+
+### Why use Codependence?
 
 **Codependence** is focused on one job: enforcing dependency version policy where your code actually runs.
+
+#### Typical hosted dependency PR flow
+
+When updates arrive independently, engineers can receive a stream of small PRs
+to triage and review.
+
+```mermaid
+sequenceDiagram
+    participant Registry
+    participant Bot as Dependency bot
+    participant Repo as Repository
+    participant Engineer
+    Registry-->>Bot: New version available
+    Bot->>Repo: Open dependency PR
+    Registry-->>Bot: Another version available
+    Bot->>Repo: Open another dependency PR
+    Repo-->>Engineer: Multiple PRs to triage
+    Engineer->>Engineer: Review, defer, merge, or close
+```
+
+#### Codependence cadence-controlled flow
+
+The team chooses the cadence and policy, then reviews a larger, intentional
+diff when Codependence runs.
+
+```mermaid
+sequenceDiagram
+    participant Engineer
+    participant Repo as Repository
+    participant Scheduler as Team cadence
+    participant Codependence
+    participant Registry
+    Engineer->>Repo: Define policy and schedule
+    Scheduler->>Codependence: Run on chosen cadence
+    Codependence->>Repo: Read policy and selected manifests
+    Codependence->>Registry: Resolve versions
+    Registry-->>Codependence: Return allowed updates
+    Codependence->>Repo: Create one policy-driven diff or PR
+    Repo-->>Engineer: Review larger intentional diff
+    Engineer->>Repo: Approve or request changes
+```
 
 - It gives teams a small, explicit policy for versions that must stay current or pinned.
 - It can fail CI when dependency versions drift.
@@ -557,7 +618,7 @@ When a manifest cannot use `latest` directly, Codependence writes the resolved v
 
 ---
 
-## Why _not_ use Codependence?
+### Why _not_ use Codependence?
 
 **Codependence** isn't for everybody or every repository. Here are some reasons why it _might not_ be for you!
 
@@ -570,14 +631,14 @@ When a manifest cannot use `latest` directly, Codependence writes the resolved v
 
 ## Demos
 
-Check out Codependence in Action!
+In Action!
 
 - **[Codependence Cron](https://github.com/yowainwright/codependence-cron):** Codependence running off a GitHub Action cron job.
 - **[Codependence Monorepo](https://github.com/yowainwright/codependence-monorepo):** Codependence monorepo example.
 
 ---
 
-## Codependence Debugging
+## Debugging
 
 ### `private packages`
 
@@ -586,12 +647,12 @@ If there is a `.npmrc` file, there is no issue with **Codependence** monitoring 
 ### Fixes
 
 - With the CLI, add the `--yarnConfig` option.
-- With node, add `yarnConfig: true` to your options or your config.
+- With Node.js, add `yarnConfig: true` to your options or your config.
 - For other private package issues, submit an [issue](https://github.com/yowainwright/codependence/issues) or [pull request](https://github.com/yowainwright/codependence/pulls).
 
 ---
 
-## Development Environment
+## Development
 
 The repository uses Node.js 26 and pnpm 11. [mise](https://mise.jdx.dev/) installs the pinned development tools.
 
@@ -601,7 +662,7 @@ pnpm install
 pnpm test
 ```
 
-## Release Strategy
+### Release Strategy
 
 Codependence publishes securely to npm with trusted publishing, provenance attestations, and immutable GitHub release assets.
 Stable releases also publish an audited, SHA256-pinned Homebrew formula through a protected environment and reviewed tap pull request.
@@ -616,21 +677,20 @@ need v1 errors and version-diff results.
 
 ---
 
-## Contributing
+### Contributing
 
 [Contributing](.github/CONTRIBUTING.md) is straightforward.
 
 ### Issues
 
-- Sprinkle some context
-- Can you submit a pull request if needed?
+- Include context and reproduction steps.
+- Submit a pull request when appropriate.
 
 ### Pull Requests
 
-- Add a test (or a description of the test) that should be added
-- Update the readme (if needed)
-- Sprinkle some context in the [pull request](.github/PULL_REQUEST_TEMPLATE.md).
-- Hope it's fun!
+- Add a test or explain why one is not needed.
+- Update the README when behavior or documentation changes.
+- Use the [pull request template](.github/PULL_REQUEST_TEMPLATE.md).
 
 Thank you!
 
@@ -638,7 +698,7 @@ Thank you!
 
 ## Shoutouts
 
-Thanks to [Dev Wells](https://github.com/devdumpling) and [Steve Cox](https://github.com/stevejcox) for the aligned code leading to this project. Thanks [Navid](https://github.com/NavidK0) for some great insights to improve the api!
+Thanks to [Dev Wells](https://github.com/devdumpling) and [Steve Cox](https://github.com/stevejcox) for the aligned code leading to this project. Thanks [Navid](https://github.com/NavidK0) for some great insights to improve the API!
 
 ---
 
