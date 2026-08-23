@@ -35,7 +35,7 @@ Suppose a project must stay on React `^19.0.0`, but its other dependencies shoul
 Update:
 
 ```sh
-codependence --update
+npm run update
 ```
 
 React stays pinned while lodash updates:
@@ -57,9 +57,13 @@ See more [recipes below](#recipes)!
 
 <!-- installation commands matching package.json name and the Homebrew release workflow -->
 
-via a JavaScript package managers
+via npm in the project
 ```sh
 npm install codependence
+```
+For direct CLI use:
+```sh
+npm install --global codependence
 ```
 or via brew
 ```sh
@@ -73,8 +77,17 @@ It is a top priority to make this official to brew as quickly as possible for yo
 
 <!-- init command behavior from src/cli/index.ts -->
 
+```json
+{
+  "scripts": {
+    "init": "codependence init",
+    "update": "codependence --update"
+  }
+}
+```
+
 ```sh
-codependence init
+npm run init
 ```
 
 That's it!
@@ -100,17 +113,17 @@ That's it!
 The config path is relative to manifest files, e.g. `package.json`.
 Each entry in `config` represents one manifest and requires `path` and `manager`; `name` is optional.
 
-> [!INFORMATION]
+> [!NOTE]
 > Editors can use the published [configuration schema][configuration-schema] for validation and completion.
-> - [configuration-schema]: https://unpkg.com/codependence/src/config/schema.json
+
+[configuration-schema]: https://unpkg.com/codependence/src/config/schema.json
 
 ## Seemless Maintenance
 
 Once you're dependency policy is as you desire, all that's left is maintenance. AKA
 
 ```sh
-codependence
-codependence --update
+npm run update
 ```
 
 That's it but readme below for how you can be more nuanced about maintenance below!
@@ -120,6 +133,8 @@ That's it but readme below for how you can be more nuanced about maintenance bel
 ## CLI
 
 Codependence, although it can be used with Node.js, or only ci, is a CLI-first policy tool.
+
+The direct commands below assume the global npm or Homebrew install shown above.
 
 > Run `codependence --help` for every option.
 
@@ -292,7 +307,7 @@ Each key identifies one manifest. Every entry requires a direct `path` and a
 
 ---
 
-> [!INFORMATION]
+> [!NOTE]
 > #### Version policy entries
 > The Codependence `codependencies` array supports `latest` out-of-the-box.
 > So having this:
@@ -581,7 +596,7 @@ In order to use it, you do need to setup your configration first.
 Generate split workflows from the configured managers:
 
 ```sh
-codependence init actions
+npm run init -- actions
 ```
 
 - This creates up to six stable workflow files for Node, Python, Go, Rust,
@@ -724,8 +739,11 @@ Declare each ecosystem through a manifest entry in `.codependencerc`. The
 `--language` flag remains available for one-off runs:
 
 ```sh
-codependence --language {uv,go,rust,docker,github-actions}
+codependence --language python
 ```
+
+Use one supported language per run: `nodejs`, `python`, `go`, `rust`,
+`docker`, or `github-actions`.
 
 ### Supported managers
 
