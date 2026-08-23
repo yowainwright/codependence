@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -36,6 +36,25 @@ const runActionScript = (name: string, environment: Record<string, string>): str
 };
 
 describe("composite action", () => {
+  test("infers a Node package manager version from package.json", () => {
+    const workDir = mkdtempSync(join(tmpdir(), "codependence-action-pnpm-"));
+    writeFileSync(
+      join(workDir, "package.json"),
+      JSON.stringify({ packageManager: "pnpm@9.15.0+sha512.example" }),
+    );
+
+    try {
+      const targetOutput = runActionScript("Prepare targets", {
+        GITHUB_WORKSPACE: workDir,
+        INPUT_TARGETS: "pnpm",
+        INPUT_VERSION: "",
+      });
+      assert.match(targetOutput, /pnpm-version=9\.15\.0/);
+    } finally {
+      rmSync(workDir, { recursive: true, force: true });
+    }
+  });
+
   test("prepares a stable Docker-only pull-request branch", () => {
     const targetOutput = runActionScript("Prepare targets", {
       INPUT_TARGETS: "docker",

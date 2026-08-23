@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
 import { appendFileSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { isDirectCliExecution, runCliEntrypoint } from "./cli-entrypoint.js";
 import { TOOL_OUTPUT_KEYS } from "./constants.js";
 
 const DOCKERFILE_ARG_PATTERN = /^\s*ARG\s+([A-Za-z_][A-Za-z0-9_]*)=([^\s#]+)\s*$/gm;
 const DOCKERFILE_ARG_REFERENCE_PATTERN = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
+const NODE_PACKAGE_MANAGERS = new Set(["bun", "npm", "pnpm", "yarn"]);
 
 function nodeMajor(nodeVersion) {
   const match = nodeVersion.match(/^\d+/);
@@ -92,6 +94,31 @@ export function readToolVersionInputs({
   };
 }
 
+function readNodePackageManagerVersion(packageJsonPath, manager) {
+  try {
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+    const packageManager = packageJson.packageManager;
+    const prefix = `${manager}@`;
+    const hasMatchingManager =
+      typeof packageManager === "string" && packageManager.startsWith(prefix);
+    if (!hasMatchingManager) return "";
+    return packageManager.slice(prefix.length).split("+", 1)[0];
+  } catch {
+    return "";
+  }
+}
+
+export function resolveNodePackageManagerVersion({
+  manager,
+  workspace = process.env.GITHUB_WORKSPACE || process.cwd(),
+  rootDir = ".",
+}) {
+  if (!NODE_PACKAGE_MANAGERS.has(manager)) return "";
+
+  const projectRoot = resolve(workspace, rootDir || ".");
+  return readNodePackageManagerVersion(join(projectRoot, "package.json"), manager);
+}
+
 export function resolveToolVersionValue(key, versions) {
   if (key === "node-version") return versions.nodeVersion;
   if (key === "node-slim-image") return versions.nodeSlimImage;
@@ -107,6 +134,18 @@ export function runToolVersionsCli({
   writeGitHubOutput = appendFileSync,
 } = {}) {
   const mode = argv[0] ?? "github-output";
+
+  if (mode === "package-manager-version") {
+    const manager = argv[1];
+    if (!manager) throw new Error("A package manager is required");
+    output(resolveNodePackageManagerVersion({
+      manager,
+      rootDir: argv[2],
+      workspace: env.GITHUB_WORKSPACE || process.cwd(),
+    }));
+    return 0;
+  }
+
   const versions = resolveToolVersions(readToolVersionInputs({ env }));
 
   if (mode === "github-output") {
