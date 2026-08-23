@@ -51,7 +51,7 @@ function Spinner({ frame, text }: SpinnerProps) {
 }
 
 function TypingContent({ step, charIndex }: TypingContentProps) {
-  const elements: React.ReactNode[] = [];
+  let elements: React.ReactNode[] = [];
   let remaining = charIndex;
 
   step.lines.forEach((segment, i) => {
@@ -61,7 +61,7 @@ function TypingContent({ step, charIndex }: TypingContentProps) {
     const visibleText = segment.text.slice(0, visibleLength);
     remaining -= segment.text.length;
 
-    elements.push(
+    elements = elements.concat(
       <span
         key={`typing-${i}`}
         className={segment.color || "text-base-content"}

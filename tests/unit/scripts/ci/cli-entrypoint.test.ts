@@ -24,7 +24,7 @@ describe("scripts/ci/cli-entrypoint", () => {
   });
 
   test("runCliEntrypoint writes a clean error and sets exit code 1", () => {
-    const errors: string[] = [];
+    let errors: string[] = [];
     const processRef = { exitCode: undefined as number | undefined };
 
     runCliEntrypoint(
@@ -33,7 +33,9 @@ describe("scripts/ci/cli-entrypoint", () => {
       },
       {
         processRef,
-        writeError: (message) => errors.push(message),
+        writeError: (message) => {
+          errors = errors.concat(message);
+        },
       },
     );
 

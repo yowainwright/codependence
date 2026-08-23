@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +10,7 @@ import {
   formatGitHubOutput,
   parseDockerfileArg,
   parseMiseTool,
+  resolveNodePackageManagerVersion,
   resolveToolVersionValue,
   resolveToolVersions,
 } from "../../../../scripts/ci/tool-versions.js";
@@ -80,6 +81,14 @@ function createDockerFixture(): DockerFixture {
   return { fixturePath, logPath };
 }
 
+function createPackageManagerFixture(packageManager: string, rootDir = "."): string {
+  const workspace = mkdtempSync(join(tmpdir(), "codependence-tool-version-"));
+  const packageRoot = rootDir === "." ? workspace : join(workspace, rootDir);
+  mkdirSync(packageRoot, { recursive: true });
+  writeFileSync(join(packageRoot, "package.json"), JSON.stringify({ packageManager }));
+  return workspace;
+}
+
 function runE2eWithFakeDocker(runner: E2eRunner, overrides: NodeJS.ProcessEnv = {}): E2eRunResult {
   const { fixturePath, logPath } = createDockerFixture();
   const path = `${fixturePath}:${process.env.PATH ?? ""}`;
@@ -124,6 +133,43 @@ describe("scripts/ci/tool-versions", () => {
         `ARG NODE_SLIM_IMAGE=${nodeSlimImage}\nFROM \${NODE_SLIM_IMAGE}`,
         "NODE_SLIM_IMAGE",
       ), nodeSlimImage);
+  });
+
+  test("resolves Node package manager versions from package.json", () => {
+    const workspace = createPackageManagerFixture("pnpm@9.15.0+sha512.example");
+
+    try {
+      assert.strictEqual(
+        resolveNodePackageManagerVersion({ manager: "pnpm", workspace }),
+        "9.15.0",
+      );
+    } finally {
+      rmSync(workspace, REMOVE_FIXTURE_OPTIONS);
+    }
+  });
+
+  test("resolves package managers from a relative root directory", () => {
+    const workspace = createPackageManagerFixture("yarn@1.22.22", "services/api");
+
+    try {
+      assert.strictEqual(
+        resolveNodePackageManagerVersion({ manager: "yarn", workspace, rootDir: "services/api" }),
+        "1.22.22",
+      );
+    } finally {
+      rmSync(workspace, REMOVE_FIXTURE_OPTIONS);
+    }
+  });
+
+  test("returns no version for unsupported or mismatched managers", () => {
+    const workspace = createPackageManagerFixture("pnpm@9.15.0");
+
+    try {
+      assert.strictEqual(resolveNodePackageManagerVersion({ manager: "go", workspace }), "");
+      assert.strictEqual(resolveNodePackageManagerVersion({ manager: "yarn", workspace }), "");
+    } finally {
+      rmSync(workspace, REMOVE_FIXTURE_OPTIONS);
+    }
   });
 
   test("e2e Dockerfiles share the same pinned Node slim image", () => {
@@ -273,5 +319,27 @@ nub = "0.7.5"
     assert.strictEqual((result.status), 0);
     assert.strictEqual((result.stderr), "");
     assert.strictEqual((result.stdout.trim()), nodeSlimImage);
+  });
+
+  test("package manager CLI prints the package.json version", () => {
+    const workspace = createPackageManagerFixture("pnpm@9.15.0+sha512.example");
+
+    try {
+      const result = spawnSync(
+        "node",
+        ["scripts/ci/tool-versions.js", "package-manager-version", "pnpm"],
+        {
+          cwd: REPOSITORY_ROOT,
+          encoding: "utf8",
+          env: { ...process.env, GITHUB_WORKSPACE: workspace },
+        },
+      );
+
+      assert.strictEqual((result.status), 0);
+      assert.strictEqual((result.stderr), "");
+      assert.strictEqual((result.stdout.trim()), "9.15.0");
+    } finally {
+      rmSync(workspace, REMOVE_FIXTURE_OPTIONS);
+    }
   });
 });

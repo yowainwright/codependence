@@ -192,6 +192,25 @@ describe("PythonProvider", () => {
       assert.deepStrictEqual(versions, ["3.0.0", "2.9.0"]);
       assertCalledWith(execMock, "uv", ["pip", "index", "versions", "django"]);
     });
+
+    test("should return no conda versions when the package is missing", async () => {
+      execMock.mock.mockImplementation(() => ({ stdout: "{}", stderr: "" }));
+
+      const provider = new PythonProvider("environment.yml", "conda");
+
+      assert.deepStrictEqual(await provider.getAllVersions("missing"), []);
+    });
+
+    test("should deduplicate conda versions", async () => {
+      execMock.mock.mockImplementation(() => ({
+        stdout: JSON.stringify({ package: [{ version: "1.0.0" }, { version: "1.0.0" }] }),
+        stderr: "",
+      }));
+
+      const provider = new PythonProvider("environment.yml", "conda");
+
+      assert.deepStrictEqual(await provider.getAllVersions("package"), ["1.0.0"]);
+    });
   });
 
   describe("readManifest - requirements.txt", () => {
@@ -700,8 +719,11 @@ dependencies:
   - python=3.11
   - numpy=1.24.0 # keep comment
   - pandas>=2.0.0
+  - scipy=1.10.0
   - pip:
       - requests==2.31.0
+variables:
+  EXAMPLE: true
 `;
 
       writeFileSync(envPath, original);
@@ -720,7 +742,9 @@ dependencies:
       assert.ok(content.includes("  - python=3.11"));
       assert.ok(content.includes("  - numpy=1.25.0 # keep comment"));
       assert.ok(content.includes("  - pandas>=2.1.0"));
+      assert.ok(content.includes("  - scipy=1.10.0"));
       assert.ok(content.includes("      - requests==2.31.0"));
+      assert.ok(content.includes("variables:\n  EXAMPLE: true"));
     });
   });
 

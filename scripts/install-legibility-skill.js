@@ -41,9 +41,9 @@ if (!existsSync(installer)) {
   process.exit(1);
 }
 
-const args = [installer, "--target", target, "--force"];
+let args = [installer, "--target", target, "--force"];
 if (isLocal) {
-  args.push("--path", LOCAL_PATHS[target]);
+  args = args.concat("--path", LOCAL_PATHS[target]);
 }
 
 const result = spawnSync(process.execPath, args, { stdio: "inherit" });

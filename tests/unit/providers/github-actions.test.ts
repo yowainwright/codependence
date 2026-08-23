@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { assertRejects } from "../../helpers/assertions";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
-import { GitHubActionsProvider } from "../../../src/providers/github-actions";
+import {
+  GitHubActionsProvider,
+  updateGitHubActionsUsesLine,
+} from "../../../src/providers/github-actions";
 
 const jsonResponse = (value: unknown, status = 200): Response =>
   new Response(JSON.stringify(value), {
@@ -97,6 +100,21 @@ describe("GitHubActionsProvider", () => {
 
     assert.strictEqual(version, latestSha);
     assert.strictEqual(fetch.mock.callCount(), 3);
+  });
+
+  test("should reject a release without a stable fallback tag", async () => {
+    let requestCount = 0;
+    const fetch = mock.fn(async () => {
+      requestCount += 1;
+      if (requestCount === 1) return jsonResponse({}, 200);
+      return jsonResponse([{ name: "nightly" }]);
+    });
+    const provider = new GitHubActionsProvider({ fetch });
+
+    await assertRejects(
+      provider.getLatestVersion("actions/checkout"),
+      "No stable GitHub Action tag found",
+    );
   });
 
   test("should list repository tags", async () => {
@@ -214,5 +232,21 @@ jobs:
     assert.ok(updated.includes(`uses: actions/cache@${sha1Ref}`));
     assert.ok(updated.includes(`uses: actions/upload-artifact@${sha256Ref}`));
     assert.ok(updated.includes("uses: ./local-action"));
+  });
+
+  test("should refresh safe release labels in action refs", () => {
+    const unlabeled = updateGitHubActionsUsesLine(
+      "      - uses: actions/checkout@v4",
+      { "actions/checkout": "v5" },
+      { "actions/checkout": "v5.0.0" },
+    );
+    const invalidComment = updateGitHubActionsUsesLine(
+      "      - uses: actions/checkout@v4 # pinned",
+      { "actions/checkout": "v5" },
+      { "actions/checkout": "v5.0.0" },
+    );
+
+    assert.strictEqual(unlabeled, "      - uses: actions/checkout@v5 # v5.0.0");
+    assert.strictEqual(invalidComment, "      - uses: actions/checkout@v5 # pinned");
   });
 });

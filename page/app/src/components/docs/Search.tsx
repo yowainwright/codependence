@@ -33,7 +33,8 @@ export default function Search() {
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      const isSearchShortcut = (e.metaKey || e.ctrlKey) && e.key === "k";
+      if (isSearchShortcut) {
         e.preventDefault();
         setIsOpen(true);
         setTimeout(() => inputRef.current?.focus(), 100);
@@ -51,7 +52,8 @@ export default function Search() {
   // Handle click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+      const isOutsideSearch = searchRef.current && !searchRef.current.contains(e.target as Node);
+      if (isOutsideSearch) {
         setIsOpen(false);
       }
     };

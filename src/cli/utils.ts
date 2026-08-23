@@ -36,10 +36,10 @@ export const configureBinaryHost = (
   execSync: BinaryHostExecSync,
   question: BinaryHostQuestion,
 ): BinaryHostRestore => {
-  const previousHost = binaryHost;
+  const previousState = { host: binaryHost };
   binaryHost = { exec, execSync, question };
   return () => {
-    binaryHost = previousHost;
+    binaryHost = previousState.host;
   };
 };
 
@@ -47,9 +47,9 @@ export const hasBinaryHost = (): boolean => binaryHost !== undefined;
 
 export const binaryExecFile = (): ExecFileFn | undefined => {
   if (!binaryHost) return undefined;
-  const host = binaryHost;
+  const executeBinaryCommand = binaryHost.exec.bind(binaryHost);
   return async (command, args, options) => {
-    const result = await host.exec(command, args, options.cwd || "");
+    const result = await executeBinaryCommand(command, args, options.cwd || "");
     return parseHostResult(result);
   };
 };
@@ -63,25 +63,24 @@ export const runBinaryExecFileSync = (command: string, args: string[], cwd: stri
 export const askBinaryHost = (message: string): Promise<string> | undefined =>
   binaryHost?.question(message);
 
-const hasPathSegment = (value: string): boolean => value.includes("/") || value.includes("\\");
-
 const hasScriptExtension = (value: string): boolean =>
   SCRIPT_PATH_EXTENSIONS.some((extension) => value.endsWith(extension));
 
 const isScriptPathArg = (value: string | undefined): boolean => {
   if (!value) return false;
-  return hasPathSegment(value) || hasScriptExtension(value);
+  const hasPathSegment = /[\\/]/.test(value);
+  return hasPathSegment || hasScriptExtension(value);
 };
 
 export const normalizeBinaryArgv = (argv: BinaryArgv): string[] => {
   const firstArg = argv[0] || BINARY_SCRIPT_NAME;
   const secondArg = argv[1];
   const hasDuplicateExecutable = secondArg === firstArg;
-  if (hasDuplicateExecutable) return [firstArg, BINARY_SCRIPT_NAME, ...argv.slice(2)];
+  if (hasDuplicateExecutable) return [firstArg, BINARY_SCRIPT_NAME].concat(argv.slice(2));
 
   const needsScriptArg = secondArg === undefined || !isScriptPathArg(secondArg);
-  if (needsScriptArg) return [firstArg, BINARY_SCRIPT_NAME, ...argv.slice(1)];
-  return [...argv];
+  if (needsScriptArg) return [firstArg, BINARY_SCRIPT_NAME].concat(argv.slice(1));
+  return argv.slice();
 };
 
 const findOptionDef = (flag: string): OptionDefinition | undefined =>
@@ -122,16 +121,11 @@ const parseFlag = (arg: string): ParsedFlag => {
 const isFlag = (arg: string): boolean => arg.startsWith("-");
 
 const collectArrayValue = (args: string[], startIndex: number): CollectedValue => {
-  const values: string[] = [];
-  let currentIndex = startIndex + 1;
-
-  while (currentIndex < args.length && !isFlag(args[currentIndex])) {
-    values.push(args[currentIndex]);
-    currentIndex++;
-  }
-
+  const availableValues = args.slice(startIndex + 1);
+  const firstFlagIndex = availableValues.findIndex(isFlag);
+  const consumed = firstFlagIndex === -1 ? availableValues.length : firstFlagIndex;
+  const values = availableValues.slice(0, consumed);
   const hasValues = values.length > 0;
-  const consumed = currentIndex - startIndex - 1;
 
   return { value: hasValues ? values : undefined, consumed };
 };
@@ -152,20 +146,20 @@ const applyDefaults = (options: Record<string, unknown>): Record<string, unknown
     const hasValue = acc[key] !== undefined;
     const shouldApplyDefault = !hasValue && def.defaultValue !== undefined;
 
-    return shouldApplyDefault ? { ...acc, [key]: def.defaultValue } : acc;
+    return shouldApplyDefault ? Object.assign({}, acc, { [key]: def.defaultValue }) : acc;
   }, options);
 
 const normalizeLockfile = (options: Record<string, unknown>): Record<string, unknown> => {
-  if (options.lockfile === "true") return { ...options, lockfile: true };
-  if (options.lockfile === "false") return { ...options, lockfile: false };
+  if (options.lockfile === "true") return Object.assign({}, options, { lockfile: true });
+  if (options.lockfile === "false") return Object.assign({}, options, { lockfile: false });
   return options;
 };
 
 const processArgument = (args: string[], index: number, state: ArgumentState): ArgumentResult => {
   const arg = args[index];
-  const isNotFlag = !isFlag(arg);
+  const isPositionalArg = !isFlag(arg);
 
-  if (isNotFlag) {
+  if (isPositionalArg) {
     return { nextIndex: index + 1, options: state.options, command: arg };
   }
 
@@ -185,7 +179,7 @@ const processArgument = (args: string[], index: number, state: ArgumentState): A
   const hasInlineValue = inlineValue !== undefined;
 
   if (hasInlineValue) {
-    const updatedOptions = { ...state.options, [key]: inlineValue };
+    const updatedOptions = Object.assign({}, state.options, { [key]: inlineValue });
     return {
       nextIndex: index + 1,
       options: updatedOptions,
@@ -196,7 +190,7 @@ const processArgument = (args: string[], index: number, state: ArgumentState): A
   const isBooleanFlag = !def.hasValue;
 
   if (isBooleanFlag) {
-    const updatedOptions = { ...state.options, [key]: true };
+    const updatedOptions = Object.assign({}, state.options, { [key]: true });
     return {
       nextIndex: index + 1,
       options: updatedOptions,
@@ -205,10 +199,11 @@ const processArgument = (args: string[], index: number, state: ArgumentState): A
   }
 
   const { value, consumed } = collectValue(args, index, def);
-  const updatedOptions = { ...state.options, [key]: value };
+  const updatedOptions = Object.assign({}, state.options, { [key]: value });
+  const nextIndex = index + consumed + 1;
 
   return {
-    nextIndex: index + consumed + 1,
+    nextIndex,
     options: updatedOptions,
     command: state.command,
   };

@@ -27,8 +27,7 @@ import type {
   Output,
 } from "./types";
 
-export const radio: RadioPrompt = inquirerSelect;
-export const select: SelectPrompt = inquirerCheckbox;
+export { inquirerSelect as radio, inquirerCheckbox as select };
 
 const hasInteractiveTerminal = (): boolean => {
   const hasInputTerminal = Boolean(process.stdin.isTTY);
@@ -69,8 +68,8 @@ export class Prompt {
   private readonly interactive: boolean;
 
   constructor(dependencies: PromptDependencies = {}) {
-    this.radioPrompt = dependencies.radioPrompt ?? radio;
-    this.selectPrompt = dependencies.selectPrompt ?? select;
+    this.radioPrompt = dependencies.radioPrompt ?? inquirerSelect;
+    this.selectPrompt = dependencies.selectPrompt ?? inquirerCheckbox;
     this.interactive = dependencies.interactive ?? hasInteractiveTerminal();
     this.openReadline();
   }
@@ -201,7 +200,7 @@ export const createPrompt = async <T>(callback: (prompt: Prompt) => Promise<T>):
 };
 
 export const createOutput = (stream: NodeJS.WriteStream = process.stdout): Output => ({
-  write: (text) => stream.write(text),
+  write: stream.write.bind(stream),
   writeLine: (text) => stream.write(`${text}\n`),
   clearLine: () => stream.write(ANSI.CLEAR_LINE),
   hideCursor: () => stream.write(ANSI.HIDE_CURSOR),
@@ -265,5 +264,5 @@ export const box = (lines: string[], options: BoxOptions = {}): string[] => {
   const bottomLine = BOX_CHARS.horizontal.repeat(width - 2);
   const bottom = `${BOX_CHARS.bottomLeft}${bottomLine}${BOX_CHARS.bottomRight}`;
   const content = lines.map((value) => boxLine(value, innerWidth, padding));
-  return [top, ...content, bottom];
+  return [top].concat(content, bottom);
 };

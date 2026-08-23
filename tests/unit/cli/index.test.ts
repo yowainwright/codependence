@@ -105,10 +105,10 @@ describe("Action Function Tests (Fast)", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.permissive, true);
-      assert.strictEqual(result.isCLI, true);
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.permissive, true);
+    assert.strictEqual(result.isCLI, true);
   });
 
   test("processes multiple CLI flags", async () => {
@@ -151,10 +151,10 @@ describe("Action Function Tests (Fast)", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.isCLI, true);
-      assert.deepStrictEqual(result.codependencies, ["test"]);
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.isCLI, true);
+    assert.deepStrictEqual(result.codependencies, ["test"]);
   });
 
   test("handles verbose mode", async () => {
@@ -202,10 +202,10 @@ describe("Action Function Tests (Fast)", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.isCLI, true);
-      assert.notStrictEqual(result.codependencies, undefined);
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.isCLI, true);
+    assert.notStrictEqual(result.codependencies, undefined);
   });
 
   test("runs each named manifest config independently", async () => {
@@ -1382,6 +1382,30 @@ describe("onboardAction", () => {
     }
   });
 
+  test("accepts a single unassigned manager version in non-interactive GitHub mode", async () => {
+    const rootDir = createOnboardingProject({}, { "package-lock.json": "" });
+    const closeSpy = mock.method(Prompt.prototype, "close");
+    const printSpy = mock.method(logger, "print", () => {});
+
+    try {
+      await onboardAction({
+        rootDir,
+        mode: "precise",
+        enforcement: "github",
+        repository: "acme/web",
+        version: ["10.9.2"],
+        nonInteractive: true,
+      });
+
+      const workflowPath = join(rootDir, ".github/workflows/codependence-node.yml");
+      assert.ok(fs.readFileSync(workflowPath, "utf8").includes("version: 10.9.2"));
+    } finally {
+      printSpy.mock.restore();
+      closeSpy.mock.restore();
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
   test("reports missing non-interactive answers", async () => {
     const versionedPackage = { packageManager: "npm@10.9.2" };
     const rootDir = createOnboardingProject(versionedPackage, { "package-lock.json": "" });
@@ -1692,9 +1716,9 @@ describe("Format and Output File Tests", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.format, "json");
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.format, "json");
   });
 
   test("should accept outputFile option in action", async () => {
@@ -1705,9 +1729,9 @@ describe("Format and Output File Tests", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.outputFile, "/tmp/output.json");
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.outputFile, "/tmp/output.json");
   });
 
   test("should accept both format and outputFile options", async () => {
@@ -1719,10 +1743,10 @@ describe("Format and Output File Tests", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.format, "markdown");
-      assert.strictEqual(result.outputFile, "/tmp/output.md");
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.format, "markdown");
+    assert.strictEqual(result.outputFile, "/tmp/output.md");
   });
 
   test("should accept table format option", async () => {
@@ -1733,9 +1757,9 @@ describe("Format and Output File Tests", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.format, "table");
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.format, "table");
   });
 
   test("should merge format option with other options", async () => {
@@ -1748,11 +1772,11 @@ describe("Format and Output File Tests", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.format, "json");
-      assert.strictEqual(result.debug, true);
-      assert.strictEqual(result.verbose, true);
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.format, "json");
+    assert.strictEqual(result.debug, true);
+    assert.strictEqual(result.verbose, true);
   });
 });
 
@@ -1849,7 +1873,8 @@ describe("Format Integration Tests", () => {
     );
     assert.notStrictEqual(jsonOutput, undefined);
 
-    if (jsonOutput && jsonOutput.arguments[0]) {
+    const hasJsonOutput = Boolean(jsonOutput && jsonOutput.arguments[0]);
+    if (hasJsonOutput) {
       const parsed = JSON.parse(jsonOutput.arguments[0]);
       assertProperty(parsed.dependencies[0], "package", "react");
       assertProperty(parsed.dependencies[0], "current", "17.0.0");
@@ -2070,6 +2095,22 @@ describe("GitHub Actions initializer", () => {
         fs.existsSync(join(rootDir, ".github/workflows/codependence-node.yml")),
         false,
       );
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("uses an infrastructure post-update override", () => {
+    const rootDir = createActionsProject();
+
+    try {
+      initGitHubActions({
+        rootDir,
+        postUpdateCommands: ["infrastructure=echo ready"],
+      });
+
+      const workflow = readWorkflow(rootDir, "infrastructure");
+      assert.ok(workflow.includes("post-update-command: 'echo ready'"));
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }

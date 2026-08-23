@@ -26,14 +26,13 @@ export const VALID_LANGUAGES = [
   LANGUAGES.DOCKER,
   LANGUAGES.GITHUB_ACTIONS,
 ] as const;
-export const VALID_MANAGERS = [
-  ...Object.values(NODE_PACKAGE_MANAGERS),
-  ...Object.values(PYTHON_PACKAGE_MANAGERS),
+export const VALID_MANAGERS = Object.values(NODE_PACKAGE_MANAGERS).concat(
+  Object.values(PYTHON_PACKAGE_MANAGERS),
   LANGUAGES.GO,
   LANGUAGES.RUST,
   LANGUAGES.DOCKER,
   LANGUAGES.GITHUB_ACTIONS,
-] as const;
+);
 export const VALID_LEVELS = ["patch", "minor", "major"] as const;
 export const VALID_MODES = ["verbose", "precise"] as const;
 export const VALID_FORMATS = ["json", "markdown", "table"] as const;
@@ -46,7 +45,7 @@ export const TARGET_POLICY_FIELDS = [
   "mode",
   "rootDir",
 ] as const;
-export const TARGET_FIELDS = ["manager", "lockfile", ...TARGET_POLICY_FIELDS] as const;
+export const TARGET_FIELDS = ["manager", "lockfile"].concat(TARGET_POLICY_FIELDS);
 export const BOOLEAN_OPTION_FIELDS = [
   "update",
   "debug",
@@ -70,12 +69,12 @@ export const KNOWN_FIELDS = [
   "mode",
   "rootDir",
   "lockfile",
-  ...BOOLEAN_OPTION_FIELDS,
+].concat(BOOLEAN_OPTION_FIELDS, [
   "format",
   "outputFile",
   "config",
   "targets",
-] as const;
+]);
 
 export const NODE_MANAGERS = new Set<string>(Object.values(NODE_PACKAGE_MANAGERS));
 export const PYTHON_MANAGERS = new Set<string>(Object.values(PYTHON_PACKAGE_MANAGERS));

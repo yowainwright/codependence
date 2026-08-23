@@ -298,7 +298,8 @@ const analyzeNodeProject = (files: OnboardingSourceFile[]): OnboardingProject | 
 const analyzeOnboardingProjectSync = (files: OnboardingSourceFile[]): OnboardingProject => {
   const normalizedFiles = normalizeSourceFiles(files);
   const nodeProject = analyzeNodeProject(normalizedFiles);
-  const manifests = [...(nodeProject?.manifests || []), ...nonNodeManifests(normalizedFiles)];
+  const nodeManifests = nodeProject?.manifests ?? [];
+  const manifests = nodeManifests.concat(nonNodeManifests(normalizedFiles));
   if (manifests.length === 0) throw new Error("No supported package manifests found");
 
   const workspace = nodeProject?.workspace || false;

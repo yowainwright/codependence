@@ -3,14 +3,18 @@ import { SPLIT_INITIAL } from "./constants";
 import type { ParsedBlock, ParsedField, ParsedLine, SplitState } from "./types";
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
-  if (typeof value !== "object" || value === null) return false;
+  const isObjectValue = typeof value === "object";
+  const isNullValue = value === null;
+  const isInvalidRecord = !isObjectValue || isNullValue;
+  if (isInvalidRecord) return false;
   return !Array.isArray(value);
 };
 
 const isQuoteCharacter = (value: string): boolean => value === '"' || value === "'";
 
 const togglesQuote = (character: string, previous?: string): boolean => {
-  return isQuoteCharacter(character) && previous !== "\\";
+  const isUnescapedQuote = isQuoteCharacter(character) && previous !== "\\";
+  return isUnescapedQuote;
 };
 
 export class ConfigLoadError extends Error {
@@ -36,11 +40,17 @@ const stripComment = (line: string): string => {
     const char = line[index];
     const previous = line[index - 1];
 
-    if (togglesQuote(char, previous)) {
-      quote = quote === char ? null : quote || char;
+    const isQuoteToggle = togglesQuote(char, previous);
+    if (isQuoteToggle) {
+      if (quote === char) {
+        quote = null;
+      } else if (!quote) {
+        quote = char;
+      }
     }
 
-    if (char === "#" && quote === null) {
+    const isCommentStart = char === "#" && quote === null;
+    if (isCommentStart) {
       const isSeparated = index === 0 || /\s/.test(previous);
       if (isSeparated) return line.slice(0, index).trimEnd();
     }
@@ -86,18 +96,24 @@ const findSeparator = (value: string): number => {
     const char = value[index];
     const previous = value[index - 1];
 
-    if (togglesQuote(char, previous)) {
-      quote = quote === char ? null : quote || char;
+    const isQuoteToggle = togglesQuote(char, previous);
+    if (isQuoteToggle) {
+      if (quote === char) {
+        quote = null;
+      } else if (!quote) {
+        quote = char;
+      }
     }
 
-    if (char === ":" && quote === null) return index;
+    const isSeparator = char === ":" && quote === null;
+    if (isSeparator) return index;
   }
 
   return -1;
 };
 
 const splitInlineArray = (value: string): string[] => {
-  const chars = [...value];
+  const chars = Array.from(value);
 
   const reduceChar = (state: SplitState, char: string, index: number): SplitState => {
     const isQuoteChar = char === '"' || char === "'";
@@ -115,12 +131,13 @@ const splitInlineArray = (value: string): string[] => {
     const isBalanced = braceDepth === 0 && bracketDepth === 0;
     const isSeparator = char === "," && isOpen && isBalanced;
 
+    const current = isSeparator ? "" : state.current + char;
     return {
       items: isSeparator ? state.items.concat(state.current.trim()) : state.items,
       quote,
       braceDepth,
       bracketDepth,
-      current: isSeparator ? "" : state.current + char,
+      current,
     };
   };
 
@@ -163,7 +180,8 @@ const parseInlineObject = (value: string): Record<string, unknown> | null => {
 const parseValue = (value: string): unknown => {
   const trimmed = value.trim();
 
-  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+  const isArrayValue = trimmed.startsWith("[") && trimmed.endsWith("]");
+  if (isArrayValue) {
     const body = trimmed.slice(1, -1).trim();
     return body ? splitInlineArray(body).map(parseArrayItem) : [];
   }
@@ -195,7 +213,8 @@ const parseNestedBlock = (
   if (!line) return null;
 
   const isUnindentedArray = isArrayLine(line) && line.indent === parentIndent;
-  if (line.indent <= parentIndent && !isUnindentedArray) return null;
+  const isNestedBlock = line.indent > parentIndent || isUnindentedArray;
+  if (!isNestedBlock) return null;
   if (isArrayLine(line)) return parseBlockArray(lines, startIndex, parentIndent);
 
   return parseBlockObject(lines, startIndex);
@@ -235,7 +254,10 @@ const parseBlockObject = (lines: ParsedLine[], startIndex: number): ParsedBlock 
   let index = startIndex;
   while (index < lines.length) {
     const line = lines[index];
-    if (line.indent !== firstLine.indent || isArrayLine(line)) break;
+    const isDifferentIndent = line.indent !== firstLine.indent;
+    const isUnexpectedArray = isArrayLine(line);
+    const shouldStop = isDifferentIndent || isUnexpectedArray;
+    if (shouldStop) break;
 
     const field = parseObjectField(lines, index);
     if (!field) return null;
@@ -264,11 +286,12 @@ const parseArrayObject = (
   }
 
   const remaining = parseBlockObject(lines, parsedValue.nextIndex);
-  if (!remaining || !isRecord(remaining.value)) {
+  const hasInvalidRemainingBlock = !remaining || !isRecord(remaining.value);
+  if (hasInvalidRemainingBlock) {
     return { value, nextIndex: parsedValue.nextIndex };
   }
   return {
-    value: { ...value, ...remaining.value },
+    value: Object.assign({}, value, remaining.value),
     nextIndex: remaining.nextIndex,
   };
 };
@@ -279,11 +302,12 @@ const parseBlockArray = (
   parentIndent: number,
 ): ParsedBlock | null => {
   const firstLine = lines[startIndex];
-  if (!firstLine || !isArrayLine(firstLine)) return null;
+  const hasInvalidFirstLine = !firstLine || !isArrayLine(firstLine);
+  if (hasInvalidFirstLine) return null;
   if (firstLine.indent < parentIndent) return null;
 
   const itemIndent = firstLine.indent;
-  const value: unknown[] = [];
+  let value: unknown[] = [];
   let index = startIndex;
 
   while (index < lines.length) {
@@ -295,20 +319,20 @@ const parseBlockArray = (
     const itemText = line.text.slice(1).trimStart();
     if (findSeparator(itemText) > -1) {
       const objectItem = parseArrayObject(lines, index, itemIndent, itemText);
-      value.push(objectItem.value);
+      value = value.concat(objectItem.value);
       index = objectItem.nextIndex;
       continue;
     }
 
     if (itemText) {
-      value.push(parseArrayItem(itemText));
+      value = value.concat(parseArrayItem(itemText));
       index++;
       continue;
     }
 
     const block = parseNestedBlock(lines, index + 1, itemIndent);
     if (!block) return null;
-    value.push(block.value);
+    value = value.concat(block.value);
     index = block.nextIndex;
   }
 
@@ -350,7 +374,8 @@ export const parseYAML = (content: string): Record<string, unknown> | null => {
     index = block.nextIndex;
   }
 
-  return Object.keys(config).length > 0 ? config : null;
+  const hasConfig = Object.keys(config).length > 0;
+  return hasConfig ? config : null;
 };
 
 export const loadPackageJson = (filepath: string): Record<string, unknown> | string | null => {
@@ -360,7 +385,9 @@ export const loadPackageJson = (filepath: string): Record<string, unknown> | str
   }
 
   const codependenceConfig = json.codependence;
-  if (typeof codependenceConfig === "string" && codependenceConfig.length > 0) {
+  const hasConfigPath =
+    typeof codependenceConfig === "string" && codependenceConfig.length > 0;
+  if (hasConfigPath) {
     return codependenceConfig;
   }
   return isRecord(codependenceConfig) ? codependenceConfig : null;

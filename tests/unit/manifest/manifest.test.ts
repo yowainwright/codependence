@@ -1301,6 +1301,23 @@ test("constructPermissiveDepsToUpdateList => with mixed dependency types", () =>
   ]);
 });
 
+test("constructPermissiveDepsToUpdateList => compares explicit latest specs", () => {
+  const result = manifest.constructPermissiveDepsToUpdateList(
+    { lodash: "4.17.0" },
+    [],
+    { lodash: "=4.17.21" },
+  );
+
+  assert.deepStrictEqual(result, [
+    {
+      name: "lodash",
+      actual: "4.17.0",
+      exact: "4.17.21",
+      expected: "=4.17.21",
+    },
+  ]);
+});
+
 test("filterSelectedDeps => no packages selected", () => {
   const result = filterSelectedDeps([], ["lodash", "react"], { lodash: "4.18.0", react: "18.0.0" });
   assert.strictEqual(result.shouldUpdate, false);
@@ -1330,6 +1347,26 @@ test("checkFiles => throws when no codependencies and not precise mode", async (
       return true;
     },
   );
+});
+
+test("checkFiles => defaults to precise mode without codependencies", async () => {
+  const latestVersionSpy = mock.method(
+    NodeJSProvider.prototype,
+    "getLatestVersion",
+    async (name) => (name === "lodash" ? "4.17.21" : "10.1.0"),
+  );
+
+  try {
+    const result = await checkFiles({
+      rootDir: "./tests/unit/fixtures/",
+      files: ["test-pass-package.json"],
+      silent: true,
+    });
+
+    assert.deepStrictEqual(result, []);
+  } finally {
+    latestVersionSpy.mock.restore();
+  }
 });
 
 test("checkFiles => interactive mode invokes prompt selection", async () => {

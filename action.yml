@@ -19,7 +19,7 @@ inputs:
     description: 'Configured manager targets to run (space-separated)'
     required: false
   version:
-    description: 'Exact tool version, or manager=version pairs for multiple tools'
+    description: 'Exact tool version override; Node package manager versions can be inferred from package.json when omitted'
     required: false
   lockfile:
     description: 'Require lockfiles for selected targets (true/false)'
@@ -131,8 +131,16 @@ runs:
       env:
         INPUT_TARGETS: ${{ inputs.targets }}
         INPUT_VERSION: ${{ inputs.version }}
+        INPUT_ROOT_DIR: ${{ inputs.rootDir }}
       run: |
         set -eo pipefail
+
+        action_path="${GITHUB_ACTION_PATH:-$PWD}"
+
+        package_manager_version() {
+          local manager="$1"
+          node "$action_path/scripts/ci/tool-versions.js" package-manager-version "$manager" "$INPUT_ROOT_DIR"
+        }
 
         for manager in bun go npm pnpm rust uv yarn; do
           echo "$manager-version=" >> "$GITHUB_OUTPUT"
@@ -171,7 +179,7 @@ runs:
 
         version_for() {
           local manager="$1"
-          if [ "${#versioned[@]}" -eq 1 ] && [[ "$INPUT_VERSION" != *"="* ]]; then
+          if [ "${#versioned[@]}" -eq 1 ] && [ -n "$INPUT_VERSION" ] && [[ "$INPUT_VERSION" != *"="* ]]; then
             printf '%s' "$INPUT_VERSION"
             return
           fi
@@ -183,6 +191,10 @@ runs:
               return
             fi
           done
+
+          if [[ "$manager" == bun || "$manager" == npm || "$manager" == pnpm || "$manager" == yarn ]]; then
+            package_manager_version "$manager"
+          fi
         }
 
         if [ "${#versioned[@]}" -eq 0 ] && [ -n "$INPUT_VERSION" ]; then

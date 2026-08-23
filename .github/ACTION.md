@@ -76,7 +76,7 @@ The default secret name is `CODEPENDENCE_TOKEN`; change it with
 | `config` | Path to an alternate config file; root `.codependencerc` is auto-discovered | No | - |
 | `files` | File glob patterns (space-separated) | No | - |
 | `targets` | Configured manager targets to run | No | - |
-| `version` | Exact tool version; use `manager=version` pairs when combining versioned managers | With a versioned target | - |
+| `version` | Exact tool version override; Node package manager versions can be inferred from `package.json#packageManager` when omitted | No for discoverable Node targets; otherwise required for versioned targets | - |
 | `lockfile` | Require lockfiles for selected targets | No | `true` |
 | `pull-request` | Create or update a pull request | No | `false` |
 | `token` | Fine-grained PAT used for pull requests | In PR mode | - |

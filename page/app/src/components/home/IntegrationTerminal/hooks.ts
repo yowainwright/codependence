@@ -17,7 +17,8 @@ export function useIntersectionObserver() {
     const observer = new IntersectionObserver(
       (entries) => {
         const isIntersecting = entries[0]?.isIntersecting ?? false;
-        if (isIntersecting && !hasStarted.current) {
+        const shouldStart = isIntersecting && !hasStarted.current;
+        if (shouldStart) {
           hasStarted.current = true;
           setIsVisible(true);
         }
@@ -29,7 +30,9 @@ export function useIntersectionObserver() {
       observer.observe(containerRef.current);
     }
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+    };
   }, []);
 
   return { containerRef, isVisible };

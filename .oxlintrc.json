@@ -35,22 +35,12 @@
     "legibility/no-single-use-renaming-alias": "warn",
     "legibility/no-standalone-array-mutations": "warn",
     "legibility/no-trivial-wrapper-functions": "warn",
-    "legibility/no-unmatched-comments": "warn",
     "legibility/no-unnecessary-block-callback": "warn",
-    "legibility/prefer-concat-object-assign": "warn",
     "legibility/prefer-early-return": "warn",
     "legibility/prefer-flat-map": "warn",
     "legibility/prefer-guard-clauses": "warn",
     "legibility/prefer-object-lookup": "warn",
     "legibility/prefer-positive-condition-names": "warn",
-    "legibility/require-executable-shebang": "warn",
-    "legibility/require-filename-matches-dirname": [
-      "warn",
-      {
-        "schema": "index",
-        "minDepth": 3
-      }
-    ],
     "legibility/require-jsdoc-multiline-comments": "warn"
   },
   "overrides": [
@@ -64,6 +54,14 @@
       "files": ["src/observability/utils.ts"],
       "rules": {
         "no-console": "off"
+      }
+    },
+    {
+      "files": ["tests/**/*.{js,ts}", "page/app/**/*.{js,ts,tsx}"],
+      "rules": {
+        "legibility/no-mixed-filename-casing": "off",
+        "legibility/no-single-use-renaming-alias": "off",
+        "legibility/no-repeated-collection-search": "off"
       }
     }
   ]

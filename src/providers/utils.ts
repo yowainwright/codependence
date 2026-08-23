@@ -47,14 +47,9 @@ const hasGithubWorkflow = (rootDir: string): boolean => {
 };
 
 const cargoManifestFiles = (rootDir: string): string[] => {
-  const manifestFiles: string[] = [MANIFEST_FILES.CARGO_TOML];
   const hasCargoLock = existsSync(join(rootDir, MANIFEST_FILES.CARGO_LOCK));
-
-  if (hasCargoLock) {
-    manifestFiles.push(MANIFEST_FILES.CARGO_LOCK);
-  }
-
-  return manifestFiles;
+  const manifestFiles = [MANIFEST_FILES.CARGO_TOML];
+  return hasCargoLock ? manifestFiles.concat(MANIFEST_FILES.CARGO_LOCK) : manifestFiles;
 };
 
 const readNodePackageManagerField = (rootDir: string): string | null => {
@@ -64,7 +59,9 @@ const readNodePackageManagerField = (rootDir: string): string | null => {
   try {
     const content = JSON.parse(readFileSync(packageJsonPath, "utf8")) as PackageManagerManifest;
     const packageManager = content.packageManager;
-    if (typeof packageManager !== "string" || packageManager.length === 0) {
+    const hasInvalidPackageManager =
+      typeof packageManager !== "string" || packageManager.length === 0;
+    if (hasInvalidPackageManager) {
       return null;
     }
 
@@ -123,7 +120,9 @@ export const detectPythonPackageManagerForManifest = (manifestPath: string): str
   if (existsSync(join(dirname(manifestPath), MANIFEST_FILES.UV_LOCK))) {
     return PYTHON_PACKAGE_MANAGERS.UV;
   }
-  if (manifestName === MANIFEST_FILES.PYPROJECT && isPoetryPyproject(manifestPath)) {
+  const isPoetryProject =
+    manifestName === MANIFEST_FILES.PYPROJECT && isPoetryPyproject(manifestPath);
+  if (isPoetryProject) {
     return PYTHON_PACKAGE_MANAGERS.POETRY;
   }
 
@@ -140,80 +139,95 @@ export const detectPythonPackageManager = (rootDir: string): string => {
   if (hasEnvironmentYml) return PYTHON_PACKAGE_MANAGERS.CONDA;
   if (hasUvLock) return PYTHON_PACKAGE_MANAGERS.UV;
   if (hasPipfile) return PYTHON_PACKAGE_MANAGERS.PIPENV;
-  if (hasPyprojectToml && isPoetryPyproject(pyprojectPath)) {
+  const isPoetryProject = hasPyprojectToml && isPoetryPyproject(pyprojectPath);
+  if (isPoetryProject) {
     return PYTHON_PACKAGE_MANAGERS.POETRY;
   }
   return PYTHON_PACKAGE_MANAGERS.PIP;
 };
 
 export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
-  const detections: LanguageDetectionResult[] = [];
-
   const hasPackageJson = existsSync(join(rootDir, MANIFEST_FILES.PACKAGE_JSON));
-  if (hasPackageJson) {
-    detections.push({
-      language: LANGUAGES.NODEJS,
-      manifestFiles: [MANIFEST_FILES.PACKAGE_JSON],
-      packageManager: detectNodePackageManager(rootDir),
-    });
-  }
+  const nodeDetections: LanguageDetectionResult[] = hasPackageJson
+    ? [
+        {
+          language: LANGUAGES.NODEJS,
+          manifestFiles: [MANIFEST_FILES.PACKAGE_JSON],
+          packageManager: detectNodePackageManager(rootDir),
+        },
+      ]
+    : [];
 
   const hasGoMod = existsSync(join(rootDir, MANIFEST_FILES.GO_MOD));
-  if (hasGoMod) {
-    const manifestFiles: string[] = [MANIFEST_FILES.GO_MOD];
-    const hasGoSum = existsSync(join(rootDir, MANIFEST_FILES.GO_SUM));
-    if (hasGoSum) {
-      manifestFiles.push(MANIFEST_FILES.GO_SUM);
-    }
-    detections.push({
-      language: LANGUAGES.GO,
-      manifestFiles,
-      packageManager: LANGUAGES.GO,
-    });
-  }
+  const hasGoSum = existsSync(join(rootDir, MANIFEST_FILES.GO_SUM));
+  const goManifestFiles = [MANIFEST_FILES.GO_MOD].concat(
+    hasGoSum ? [MANIFEST_FILES.GO_SUM] : [],
+  );
+  const goDetections: LanguageDetectionResult[] = hasGoMod
+    ? [
+        {
+          language: LANGUAGES.GO,
+          manifestFiles: goManifestFiles,
+          packageManager: LANGUAGES.GO,
+        },
+      ]
+    : [];
 
   const hasCargoToml = existsSync(join(rootDir, MANIFEST_FILES.CARGO_TOML));
-  if (hasCargoToml) {
-    detections.push({
-      language: LANGUAGES.RUST,
-      manifestFiles: cargoManifestFiles(rootDir),
-      packageManager: LANGUAGES.RUST,
-    });
-  }
+  const rustDetections: LanguageDetectionResult[] = hasCargoToml
+    ? [
+        {
+          language: LANGUAGES.RUST,
+          manifestFiles: cargoManifestFiles(rootDir),
+          packageManager: LANGUAGES.RUST,
+        },
+      ]
+    : [];
 
   const hasDockerfile = existsSync(join(rootDir, MANIFEST_FILES.DOCKERFILE));
-  if (hasDockerfile) {
-    detections.push({
-      language: LANGUAGES.DOCKER,
-      manifestFiles: [MANIFEST_FILES.DOCKERFILE],
-      packageManager: LANGUAGES.DOCKER,
-    });
-  }
+  const dockerDetections: LanguageDetectionResult[] = hasDockerfile
+    ? [
+        {
+          language: LANGUAGES.DOCKER,
+          manifestFiles: [MANIFEST_FILES.DOCKERFILE],
+          packageManager: LANGUAGES.DOCKER,
+        },
+      ]
+    : [];
 
-  if (hasGithubWorkflow(rootDir)) {
-    detections.push({
-      language: LANGUAGES.GITHUB_ACTIONS,
-      manifestFiles: [MANIFEST_FILES.GITHUB_WORKFLOW_YML, MANIFEST_FILES.GITHUB_WORKFLOW_YAML],
-      packageManager: LANGUAGES.GITHUB_ACTIONS,
-    });
-  }
+  const githubActionsDetections: LanguageDetectionResult[] = hasGithubWorkflow(rootDir)
+    ? [
+        {
+          language: LANGUAGES.GITHUB_ACTIONS,
+          manifestFiles: [
+            MANIFEST_FILES.GITHUB_WORKFLOW_YML,
+            MANIFEST_FILES.GITHUB_WORKFLOW_YAML,
+          ],
+          packageManager: LANGUAGES.GITHUB_ACTIONS,
+        },
+      ]
+    : [];
 
   const foundPythonManifests = PYTHON_MANIFEST_FILES.filter((f) => existsSync(join(rootDir, f)));
   const hasPythonManifests = foundPythonManifests.length > 0;
-  if (hasPythonManifests) {
-    detections.push({
-      language: LANGUAGES.PYTHON,
-      manifestFiles: foundPythonManifests,
-      packageManager: detectPythonPackageManager(rootDir),
-    });
-  }
+  const pythonDetections: LanguageDetectionResult[] = hasPythonManifests
+    ? [
+        {
+          language: LANGUAGES.PYTHON,
+          manifestFiles: foundPythonManifests,
+          packageManager: detectPythonPackageManager(rootDir),
+        },
+      ]
+    : [];
 
-  return detections;
+  return nodeDetections
+    .concat(goDetections, rustDetections, dockerDetections)
+    .concat(githubActionsDetections, pythonDetections);
 };
 
 export const detectPrimaryLanguage = (rootDir: string): LanguageDetectionResult | null => {
   const detections = detectLanguage(rootDir);
-  return detections.length > 0 ? detections[0] : null;
+  return detections[0] ?? null;
 };
 
 export const getLanguageProvider = (language: Language): LanguageProvider => {

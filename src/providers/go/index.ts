@@ -19,14 +19,14 @@ import type {
 } from "../types";
 
 export const isReplaceBlockStart = (line: string): boolean =>
-  GO_PATTERNS.REPLACE_BLOCK_START.test(line);
+  GO_PATTERNS.REPLACE_BLOCK_START.exec(line) !== null;
 
 export const isExcludeBlockStart = (line: string): boolean =>
-  GO_PATTERNS.EXCLUDE_BLOCK_START.test(line);
+  GO_PATTERNS.EXCLUDE_BLOCK_START.exec(line) !== null;
 
-export const isBlockClose = (line: string): boolean => GO_PATTERNS.BLOCK_CLOSE.test(line);
+export const isBlockClose = (line: string): boolean => GO_PATTERNS.BLOCK_CLOSE.exec(line) !== null;
 
-export const isReplaceLine = (line: string): boolean => GO_PATTERNS.REPLACE_LINE.test(line);
+export const isReplaceLine = (line: string): boolean => GO_PATTERNS.REPLACE_LINE.exec(line) !== null;
 
 export const preserveFinalNewline = (content: string): string =>
   content.endsWith("\n") ? content : content + "\n";
@@ -57,24 +57,44 @@ export const processLine = (
 ): GoProcessedLine => {
   if (state.inReplaceBlock) {
     if (isBlockClose(line)) {
-      return { line, state: { ...state, inReplaceBlock: false }, updated: false, found: false };
+      return {
+        line,
+        state: Object.assign({}, state, { inReplaceBlock: false }),
+        updated: false,
+        found: false,
+      };
     }
     return { line, state, updated: false, found: false };
   }
 
   if (state.inExcludeBlock) {
     if (isBlockClose(line)) {
-      return { line, state: { ...state, inExcludeBlock: false }, updated: false, found: false };
+      return {
+        line,
+        state: Object.assign({}, state, { inExcludeBlock: false }),
+        updated: false,
+        found: false,
+      };
     }
     return { line, state, updated: false, found: false };
   }
 
   if (isReplaceBlockStart(line)) {
-    return { line, state: { ...state, inReplaceBlock: true }, updated: false, found: false };
+    return {
+      line,
+      state: Object.assign({}, state, { inReplaceBlock: true }),
+      updated: false,
+      found: false,
+    };
   }
 
   if (isExcludeBlockStart(line)) {
-    return { line, state: { ...state, inExcludeBlock: true }, updated: false, found: false };
+    return {
+      line,
+      state: Object.assign({}, state, { inExcludeBlock: true }),
+      updated: false,
+      found: false,
+    };
   }
 
   if (isReplaceLine(line)) {
@@ -98,11 +118,13 @@ const processLines = (
 
   return lines.reduce((acc, line) => {
     const result = processLine(line, acc.state, dependencies);
+    const updatedCount = acc.updatedCount + (result.updated ? 1 : 0);
+    const foundCount = acc.foundCount + (result.found ? 1 : 0);
     return {
-      lines: [...acc.lines, result.line],
+      lines: acc.lines.concat(result.line),
       state: result.state,
-      updatedCount: acc.updatedCount + (result.updated ? 1 : 0),
-      foundCount: acc.foundCount + (result.found ? 1 : 0),
+      updatedCount,
+      foundCount,
     };
   }, initial);
 };
@@ -157,7 +179,9 @@ export const runGoModTidy = (
   options: ProviderOptions,
   execute: typeof execFileSync = execFileSync,
 ): void => {
-  if (options.isTesting || options.regenerateLockfile === false) return;
+  const shouldRegenerateLockfile = options.regenerateLockfile ?? true;
+  const shouldSkip = options.isTesting || !shouldRegenerateLockfile;
+  if (shouldSkip) return;
 
   try {
     const ranWithBinaryHost = runBinaryExecFileSync(
@@ -199,7 +223,7 @@ export class GoProvider implements DependencyProvider {
   async getLatestVersion(packageName: string): Promise<string> {
     const { stdout } = await exec(LANGUAGES.GO, ["list", "-m", "-versions", packageName]);
     const versions = stdout.split(" ").filter((v) => GO_PATTERNS.VERSION_PREFIX.test(v));
-    return versions[versions.length - 1] || "";
+    return versions.at(-1) ?? "";
   }
 
   async getAllVersions(packageName: string): Promise<string[]> {
@@ -218,7 +242,7 @@ export class GoProvider implements DependencyProvider {
 
     const blockDeps = parseRequireBlock(content);
     const singleDeps = parseSingleRequires(content);
-    const dependencies = { ...blockDeps, ...singleDeps };
+    const dependencies = Object.assign({}, blockDeps, singleDeps);
 
     return {
       filePath,
@@ -237,7 +261,8 @@ export class GoProvider implements DependencyProvider {
       foundCount,
     } = updateExistingRequireLines(content, manifest.dependencies);
 
-    if (updatedCount > 0 || foundCount > 0) {
+    const hasExistingDependencies = updatedCount > 0 || foundCount > 0;
+    if (hasExistingDependencies) {
       writeGoMod(filePath, preserveFinalNewline(inPlaceContent), this.options);
       return;
     }
@@ -262,6 +287,6 @@ export class GoProvider implements DependencyProvider {
   }
 
   validatePackageName(packageName: string): boolean {
-    return GO_PATTERNS.PACKAGE_NAME.test(packageName);
+    return GO_PATTERNS.PACKAGE_NAME.exec(packageName) !== null;
   }
 }

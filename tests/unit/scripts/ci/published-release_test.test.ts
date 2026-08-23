@@ -142,11 +142,13 @@ describe("scripts/ci/published-release_test", () => {
   });
 
   test("wait-for-npm skips sleeping after the last failed attempt", () => {
-    const calls: string[] = [];
+    let calls: string[] = [];
     const logSpy = mock.method(console, "log", () => {});
     const runner = (command: string, args: string[]) => {
-      calls.push([command, ...args].join(" "));
-      return { status: command === "sleep" ? 0 : 1, stdout: "", stderr: "" };
+      const call = [command, ...args].join(" ");
+      calls = calls.concat(call);
+      const status = command === "sleep" ? 0 : 1;
+      return { status, stdout: "", stderr: "" };
     };
 
     try {

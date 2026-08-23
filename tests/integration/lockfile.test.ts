@@ -7,11 +7,11 @@ import { join } from "node:path";
 import { checkFiles } from "../../src/manifest";
 import { NodeJSProvider } from "../../src/providers/nodejs";
 
-const workspaces: string[] = [];
+let workspaces: string[] = [];
 
 const createWorkspace = (file: string, content: string): string => {
   const root = mkdtempSync(join(tmpdir(), "codependence-lockfile-"));
-  workspaces.push(root);
+  workspaces = workspaces.concat(root);
   writeFileSync(join(root, file), content);
   return root;
 };
@@ -24,7 +24,9 @@ const nodeManifest = JSON.stringify({
 
 afterEach(() => {
   mock.restoreAll();
-  workspaces.splice(0).forEach((root) => rmSync(root, { force: true, recursive: true }));
+  const staleWorkspaces = workspaces.slice();
+  workspaces = [];
+  staleWorkspaces.forEach((root) => rmSync(root, { force: true, recursive: true }));
 });
 
 describe("lockfiles", () => {
@@ -164,6 +166,25 @@ describe("lockfiles", () => {
     await checkFiles(options);
 
     assert.strictEqual(readSpy.mock.callCount(), 1);
+  });
+
+  test("checks a lockfile beside a nested manifest", async () => {
+    const root = createWorkspace("package.json", nodeManifest);
+    const nestedRoot = join(root, "apps/web");
+    mkdirSync(nestedRoot, { recursive: true });
+    writeFileSync(join(nestedRoot, "package.json"), nodeManifest);
+    writeFileSync(join(nestedRoot, "bun.lock"), "");
+
+    await checkFiles({
+      codependencies: [{ lodash: "4.17.20" }],
+      files: ["apps/web/package.json"],
+      language: "nodejs",
+      lockfile: true,
+      mode: "verbose",
+      packageManager: "bun",
+      rootDir: root,
+      silent: true,
+    });
   });
 
   test("requires uv.lock for a managed uv project", async () => {

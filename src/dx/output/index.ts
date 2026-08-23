@@ -56,12 +56,12 @@ const stopInterval = (state: SpinnerState): SpinnerState => {
   if (hasInterval) {
     clearInterval(interval);
   }
-  return { ...state, interval: null, isSpinning: false };
+  return Object.assign({}, state, { interval: null, isSpinning: false });
 };
 
 const incrementFrame = (state: SpinnerState): SpinnerState => {
   const nextIndex = (state.frameIndex + 1) % SPINNER_FRAMES.length;
-  return { ...state, frameIndex: nextIndex };
+  return Object.assign({}, state, { frameIndex: nextIndex });
 };
 
 const startInterval = (state: SpinnerState): SpinnerState => {
@@ -71,7 +71,7 @@ const startInterval = (state: SpinnerState): SpinnerState => {
   }, SPINNER_INTERVAL_MS);
   interval.unref();
 
-  return { ...state, interval, isSpinning: true };
+  return Object.assign({}, state, { interval, isSpinning: true });
 };
 
 const writeSymbol = (symbol: string, text: string, interactive: boolean): void => {
@@ -83,8 +83,7 @@ const writeSymbol = (symbol: string, text: string, interactive: boolean): void =
 const start = (state: SpinnerState): Spinner => {
   if (!state.interactive) return createSpinnerMethods(state);
 
-  const isAlreadySpinning = state.isSpinning;
-  if (isAlreadySpinning) {
+  if (state.isSpinning) {
     return createSpinnerMethods(state);
   }
 
@@ -95,8 +94,7 @@ const start = (state: SpinnerState): Spinner => {
 };
 
 const stop = (state: SpinnerState): Spinner => {
-  const isNotSpinning = !state.isSpinning;
-  if (isNotSpinning) {
+  if (!state.isSpinning) {
     return createSpinnerMethods(state);
   }
 

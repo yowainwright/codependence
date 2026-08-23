@@ -24,20 +24,20 @@ export const TOOL_VERSIONS_VERSION_PATTERN = `^${MANAGER_PLACEHOLDER}\\s+(\\S+)`
 export const ENVIRONMENT_VERSION_PATTERN = `^${MANAGER_PLACEHOLDER}=(\\S+)\\s*$`;
 
 export const NODE_MANAGERS = new Set<DependencyManager>(Object.values(NODE_PACKAGE_MANAGERS));
-export const ACTION_MANAGERS = new Set<DependencyManager>([
-  ...NODE_MANAGERS,
+const ACTION_MANAGER_NAMES = Array.from(NODE_MANAGERS).concat([
   PYTHON_PACKAGE_MANAGERS.UV,
   LANGUAGES.GO,
   LANGUAGES.RUST,
   LANGUAGES.DOCKER,
   LANGUAGES.GITHUB_ACTIONS,
 ]);
-export const VERSIONED_MANAGERS = new Set<DependencyManager>([
-  ...NODE_MANAGERS,
+export const ACTION_MANAGERS = new Set<DependencyManager>(ACTION_MANAGER_NAMES);
+const VERSIONED_MANAGER_NAMES = Array.from(NODE_MANAGERS).concat([
   PYTHON_PACKAGE_MANAGERS.UV,
   LANGUAGES.GO,
   LANGUAGES.RUST,
 ]);
+export const VERSIONED_MANAGERS = new Set<DependencyManager>(VERSIONED_MANAGER_NAMES);
 
 export const WORKFLOW_AREAS: WorkflowArea[] = [
   "node",
