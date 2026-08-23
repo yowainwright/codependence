@@ -7,7 +7,9 @@
 
 #### One configuration for every dependency manager.
 
-**Codependence** checks and updates dependency versions using one-to-many project policies with support for Node, Python, Go, Rust, Docker, and GitHub Actions. This means you control how you update and why you update. Versus other tools, Codependence caters to a project's context vs a dependency's context.
+**Codependence** checks and updates dependency versions using [one-to-many](https://en.wikipedia.org/wiki/One-to-many_%28data_model%29) project policies with support for Node, Python, Go, Rust, Docker, and GitHub Actions. 
+
+This means you control how you update and why you update. Versus other tools, Codependence caters to a project's context vs a dependency's context.
 
 ---
 
@@ -30,7 +32,7 @@ Suppose a project must stay on React `^19.0.0`, but its other dependencies shoul
 }
 ```
 
-Run the update:
+Update:
 
 ```sh
 codependence --update
@@ -55,13 +57,15 @@ See more [recipes below](#recipes)!
 
 <!-- installation commands matching package.json name and the Homebrew release workflow -->
 
+via a JavaScript package managers
 ```sh
 npm install codependence
-# or
+```
+or via brew
+```sh
 brew install yowainwright/tap/codependence
 ```
-
-You can also install Codependence globally with npm, Bun, pnpm, or Deno.
+It is a top priority to make this official to brew as quickly as possible for your security benefit!
 
 ---
 
@@ -69,17 +73,17 @@ You can also install Codependence globally with npm, Bun, pnpm, or Deno.
 
 <!-- init command behavior from src/cli/index.ts -->
 
-Initialize. That's it!
-
 ```sh
 codependence init
 ```
 
-### What it does
+That's it!
 
-- Finds package manifests.
-- Asks for the dependency policy and enforcement.
-- Creates or updates the configuration.
+### What `init` does
+
+1. Finds package manifests.
+2. Prompts you to seemlessly setup dependency policy and enforcement.
+3. Creates or updates the configuration.
 
 > [!NOTE]
 > Use `init config [directory]` for configuration only and `init actions` to generate GitHub Actions workflows.
@@ -96,23 +100,34 @@ codependence init
 The config path is relative to manifest files, e.g. `package.json`.
 Each entry in `config` represents one manifest and requires `path` and `manager`; `name` is optional.
 
+> [!INFORMATION]
 > Editors can use the published [configuration schema][configuration-schema] for validation and completion.
 > - [configuration-schema]: https://unpkg.com/codependence/src/config/schema.json
+
+## Seemless Maintenance
+
+Once you're dependency policy is as you desire, all that's left is maintenance. AKA
 
 ```sh
 codependence
 codependence --update
 ```
 
+That's it but readme below for how you can be more nuanced about maintenance below!
+
 ---
 
 ## CLI
 
-Codependence, although it can be used with Node.js, is a CLI-first policy tool.
+Codependence, although it can be used with Node.js, or only ci, is a CLI-first policy tool.
 
 > Run `codependence --help` for every option.
 
 <!-- CLI command and options from src/cli/constants.ts -->
+
+### Init
+
+Codependence consists of just 1 commands, `init`.
 
 ```sh
 Usage: codependence [command] [options]
@@ -123,10 +138,115 @@ Commands:
   init actions [managers...]        Generate GitHub Actions workflows
 ```
 
+Init has sub commands and there are options but that's it. 
+This also hopefully feels pretty simple and understantable. 
+
 ### Option Reference
 
 Configuration can live in `package.json` or a referenced `.codependencerc`. 
 Use CLI flags for execution choices such as checking, updating, and output formatting.
+
+### From policy to result
+
+The config defines the manifest and dependency policy. The CLI decides whether to
+check, preview, or write the result.
+
+`.codependencerc`:
+
+```jsonc
+{
+  "config": {
+    "web": {
+      "path": "package.json",
+      "manager": "pnpm",
+      "codependencies": [{ "lodash": "4.17.21" }]
+    }
+  }
+}
+```
+
+Check the policy and save a machine-readable report. The manifest is unchanged:
+
+```sh
+codependence --format json --outputFile dependency-report.json
+```
+
+The report describes the result and exit status:
+
+```json
+{
+  "status": "outdated",
+  "exitCode": 1,
+  "dependencies": [
+    {
+      "package": "lodash",
+      "current": "4.17.20",
+      "latest": "4.17.21",
+      "isPinned": true,
+      "severity": "patch",
+      "canAutoUpdate": true
+    }
+  ],
+  "summary": {
+    "totalPackages": 1,
+    "outdated": 1,
+    "upToDate": 0
+  }
+}
+```
+
+The actual report also includes a runtime-dependent `duration` value.
+
+Apply the same policy with `--update`:
+
+```sh
+codependence --update
+```
+
+The approved manifest entry changes as follows:
+
+```diff
+-  "lodash": "4.17.20"
++  "lodash": "4.17.21"
+```
+
+Use `--dryRun` with `--update` to show that change without writing it:
+
+```sh
+codependence --update --dryRun
+```
+
+```jsonc
+{
+  "update": true,
+  "dryRun": true
+}
+```
+
+The same policy can run in GitHub Actions. The workflow reads `.codependencerc`
+and turns the update result into a pull request:
+
+```yaml
+name: Update dependencies
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+jobs:
+  dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: yowainwright/codependence@v1
+        with:
+          targets: pnpm
+          version: 11.21.0
+          pull-request: true
+          token: ${{ secrets.CODEPENDENCE_TOKEN }}
+          post-update-command: pnpm install
+```
 
 ---
 
@@ -137,7 +257,7 @@ Use CLI flags for execution choices such as checking, updating, and output forma
 Each key identifies one manifest. Every entry requires a direct `path` and a
 `manager`; `name` is optional. Policy fields apply only to that manifest.
 
-```json
+```jsonc
 {
   "config": {
     "web": {
@@ -164,13 +284,24 @@ Each key identifies one manifest. Every entry requires a direct `path` and a
 - The default value is `undefined`
 - An array is required!
 
+```jsonc
+{
+  "codependencies": ["lodash", { "react": "19.0.0" }]
+}
+```
+
 ---
 
-#### Version policy entries
-
-The Codependence `codependencies` array supports `latest` out-of-the-box.
-
-> So having this `["fs-extra", "lodash"]` will return the `latest` versions of the packages within the array. It will also match a specified version, like so `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`. You can also include a `*` **at the end** of a name you would like to match. For example, `@foo/*` will match all packages with `@foo/` in the name and return their latest versions. This will also work with `foo-*`, etc.
+> [!INFORMATION]
+> #### Version policy entries
+> The Codependence `codependencies` array supports `latest` out-of-the-box.
+> So having this:
+> - `["fs-extra", "lodash"]` will return the latest semver versions of the packages within the array. 
+> - Codepence will also match a specified version, like  `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`. 
+> - You can also include a `*` **at the end** of a name you would like to match. 
+>   ##### For example: 
+>   - `@foo/*` will match all packages with `@foo/` in the name and return their latest versions. 
+>   - This will also work with `foo-*`, etc.
 
 **Codependence** is built in to give you more capability to control your dependencies!
 
@@ -178,83 +309,126 @@ The Codependence `codependencies` array supports `latest` out-of-the-box.
 
 #### Manifest fields
 
-- `path`: required config-relative path to one manifest
-- `manager`: required dependency manager
-- `name`: optional package or project name, useful when one directory contains multiple manifests
+Define the manifest file, dependency manager, and optional `name`.
+
+```jsonc
+{
+  "config": {
+    "web": {
+      "path": "packages/web/package.json",
+      "manager": "pnpm",
+      "name": "@project/web"
+    }
+  }
+}
+```
 
 ---
 
 #### `update`: `boolean`
 
-An optional root boolean that applies approved dependency updates across every entry.
+When `true`, apply updates across all configured entries. The default is
+`false`.
 
-- The default value is `false`
+```jsonc
+{
+  "update": true
+}
+```
 
 ---
 
 #### `rootDir`: `string`
 
-An **optional** string which can be used to specify the root directory to run checks from;
+Set the manifest search directory. The default is `"./"`.
 
-- The default value is `"./"`
+```jsonc
+{
+  "rootDir": "packages/web"
+}
+```
 
 ---
 
 #### `ignore`: `Array<string>`
 
-An **optional** array of strings used to specify directories to ignore
+Provide glob patterns to skip. An explicit array replaces the default ignores.
 
-- `.git`, `.next`, `.venv`, `node_modules`, and `*.dockerignore` files are ignored by default
-- an explicit `ignore` array replaces these defaults for 0.x compatibility
-- glob patterns are accepted
+```jsonc
+{
+  // Replaces the default ignore patterns.
+  "ignore": ["examples/**", "fixtures/**"]
+}
+```
 
 ---
 
 #### `debug`: `boolean`
 
-An **optional** boolean value used to enable debugging output
+Enable diagnostic logging. The default is `false`.
 
-- The default value is `false`
+```jsonc
+{
+  "debug": true
+}
+```
 
 ---
 
 #### `silent`: `boolean`
 
-An **optional** boolean value used to enable a more silent developer experience
+Suppress normal output while preserving errors. The default is `false`.
 
-- The default value is `false`
+```jsonc
+{
+  "silent": true
+}
+```
 
 ---
 
 #### `--config`: `string`
 
-An optional path to a configuration file. Without it, Codependence searches upward, preferring `package.json` and then `.codependencerc` variants in each directory.
+Use a specific configuration file instead of auto-discovery.
 
-- The default is `undefined`
+```sh
+codependence --config ./config/.codependencerc
+```
 
 ---
 
 #### `searchPath`: `string`
 
-An **optional** string containing a search path for location config files.
+Set where configuration discovery starts.
 
-- The default value is `undefined`
+```sh
+codependence --searchPath ./services/api
+```
+
+---
 
 #### `yarnConfig`: `boolean`
 
-An **optional** boolean value used to enable **yarn config** checking
+Enable Yarn configuration support. The default is `false`.
 
-- The default value is `false`
+```sh
+codependence --yarnConfig
+```
 
 ---
 
 #### `permissive`: `boolean`
 
-Controls whether all dependencies are updated to latest except those listed in `codependencies`.
+When `true`, update everything except the dependencies listed in
+`codependencies`.
 
-- The default value is `false` when `codependencies` are provided, for compatibility with 0.x jobs
-- When `true`, all dependencies NOT listed in `codependencies` are updated to latest — your `codependencies` list is what you want to **pin**
-- Use `--mode precise` (CLI) or `mode: "precise"` (config) for the same pin-and-update-everything-else behavior
+```jsonc
+{
+  // Pin these dependencies; update the rest.
+  "permissive": true,
+  "codependencies": ["react", "typescript"]
+}
+```
 
 ---
 
@@ -266,6 +440,15 @@ An **optional** string constraining how far updates are allowed to reach.
 - `"minor"` — only update within the same major version (e.g. `1.x.x`)
 - `"major"` — allow any update (default)
 
+`codependence --level minor --update` applies the limit for one run.
+
+```jsonc
+{
+  "level": "minor",
+  "update": true
+}
+```
+
 ---
 
 #### `mode`: `"verbose" | "precise"`
@@ -275,6 +458,17 @@ An **optional** string controlling which packages are checked.
 - `"verbose"` — only check/update the packages listed in `codependencies` (0.x compatible behavior)
 - `"precise"` — update all dependencies except those listed in `codependencies` (same as permissive behavior)
 
+```jsonc
+{
+  "mode": "precise",
+  "codependencies": ["react"],
+  "update": true
+}
+```
+
+This keeps `react` pinned while allowing unlisted dependencies to update. The
+one-off equivalent is `codependence --mode precise --codependencies react --update`.
+
 ---
 
 #### `dryRun`: `boolean`
@@ -282,6 +476,15 @@ An **optional** string controlling which packages are checked.
 An **optional** boolean that previews what would change without modifying any files.
 
 - The default value is `false`
+
+```jsonc
+{
+  "update": true,
+  "dryRun": true
+}
+```
+
+This reports the update candidates and leaves manifests and lockfiles unchanged.
 
 ---
 
@@ -291,6 +494,15 @@ An **optional** boolean that prompts you to select which packages to update when
 
 - The default value is `false`
 
+```jsonc
+{
+  "update": true,
+  "interactive": true
+}
+```
+
+The one-off equivalent is `codependence --update --interactive`.
+
 ---
 
 #### `watch`: `boolean`
@@ -299,6 +511,14 @@ An **optional** boolean that enables continuous checking, re-running every 30 se
 
 - The default value is `false`
 
+```jsonc
+{
+  "watch": true
+}
+```
+
+The CLI re-checks the configured manifests every 30 seconds.
+
 ---
 
 #### `noCache`: `boolean`
@@ -306,6 +526,14 @@ An **optional** boolean that enables continuous checking, re-running every 30 se
 An **optional** boolean that bypasses the version cache for fresh registry results.
 
 - The default value is `false`
+
+```jsonc
+{
+  "noCache": true
+}
+```
+
+The one-off equivalent is `codependence --noCache`.
 
 ---
 
@@ -317,17 +545,38 @@ An **optional** string specifying the output format. When set, disables the spin
 - `"markdown"` — Markdown table (useful for PR comments)
 - `"table"` — formatted table (default when flag is used)
 
+```jsonc
+{
+  "format": "markdown",
+  "outputFile": "dependency-report.md"
+}
+```
+
+The one-off equivalent is `codependence --format markdown --outputFile dependency-report.md`.
+
 ---
 
 #### `outputFile`: `string`
 
 An **optional** path to write formatted output to a file instead of stdout. Requires `format` to be set.
 
+```jsonc
+{
+  "format": "json",
+  "outputFile": "dependency-report.json"
+}
+```
+
 ---
 
-## Codependence GitHub Action
+## CI
 
 <!-- generated workflow behavior from src/cli/index.ts -->
+
+### Github Actions
+
+Codependece currently has a Github action.
+In order to use it, you do need to setup your configration first.
 
 Generate split workflows from the configured managers:
 
@@ -335,14 +584,16 @@ Generate split workflows from the configured managers:
 codependence init actions
 ```
 
-This creates up to six stable workflow files for Node, Python, Go, Rust,
-Docker, and GitHub Actions. Docker runs alone so its updates stay on the
-`update-dependencies/docker` pull-request branch. Existing files are preserved
+- This creates up to six stable workflow files for Node, Python, Go, Rust,
+Docker, and GitHub Actions. 
+- Docker runs alone so its updates stay on the
+`update-dependencies/docker` pull-request branch. 
+- Existing files are preserved
 unless `--force` is provided.
 
 <!-- partial update and pull request inputs from action.yml -->
 
-Run one configured manager with an exact tool version:
+To run one configured manager with an exact tool version, do this:
 
 ```yaml
 - uses: yowainwright/codependence@v1
@@ -351,8 +602,12 @@ Run one configured manager with an exact tool version:
     version: 1.3.14
 ```
 
+### Actions with Rust
+
 Rust accepts exact stable `x.y.z` toolchains and normalizes an optional leading
 `v` before invoking rustup.
+
+### Actions with Docker
 
 Public Docker Hub and GHCR images need no registry inputs. Private images use
 repository secrets without placing credentials in `.codependencerc`:
@@ -367,17 +622,21 @@ repository secrets without placing credentials in `.codependencerc`:
     ghcr-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-PR mode requires a fine-grained PAT and `post-update-command`. Each manager set
-uses a stable branch, so scheduled Bun, Go, Rust, uv, Docker, and GitHub Actions
-workflows maintain separate pull requests while repeated runs update the
-existing PR. See the [GitHub Action guide](.github/ACTION.md) for lockfile
+### Pull Request (PR) Mode
+
+PR mode requires a fine-grained PAT and `post-update-command`. 
+
+- Each manager set uses a stable branch, so scheduled Bun, Go, Rust, uv, Docker, and GitHub Actions workflows maintain separate pull requests while repeated runs update the
+existing PR. 
+
+See the [GitHub Action guide](.github/ACTION.md) for lockfile
 policy and PAT permissions.
 
 ---
 
-## Codependence in Node
+## JavaScrpt Server Side API
 
-Although **Codependence** is built primarily as a CLI utility, it can be used as a Node utility.
+Although **Codependence** is built primarily as a CLI utility, it can be used as a JavaScript Server Side utility.
 
 ```ts
 import { checkFiles, codependence } from "codependence";
@@ -406,7 +665,7 @@ checkForOutdated();
 
 ## Recipes
 
-Read below to see how codependence might help you!
+Read below to see different ways Codependence might help you!
 
 ### Check deps _without_ a config
 
@@ -439,7 +698,7 @@ You can configure multiple project manifests via a single or multiple codependen
 1. Use a skey for each manifest. 
 2. `name` can distinguish manifests in the same directory.
 
-```json
+```jsonc
 {
   "config": {
     "web": {
@@ -478,55 +737,48 @@ codependence --language {uv,go,rust,docker,github-actions}
 > - Python requirements updates preserve comments, markers, hashes, and include directives. 
 > - Unversioned and URL-based requirements are left unchanged. After updating manifests, regenerate and commit ecosystem lockfiles with their native package managers.
 
-##### JavaScript
+| Language | Package managers | Status | Manifest files |
+| --- | --- | --- | --- |
+| JavaScript | <ul><li>[bun](https://bun.sh/)</li><li>[npm](https://www.npmjs.com/)</li><li>[pnpm](https://pnpm.io/)</li><li>[yarn](https://yarnpkg.com/)</li></ul> | Supported | `package.json` |
+| Python | <ul><li>[conda](https://conda.org/)</li><li>[pip](https://pip.pypa.io/)</li><li>[pipenv](https://pipenv.pypa.io/)</li><li>[poetry](https://python-poetry.org/)</li><li>[uv](https://docs.astral.sh/uv/)</li></ul> | Experimental | `requirements.txt`, `pyproject.toml`, `Pipfile`, `environment.yml` |
+| Go | [golang](https://go.dev/) | Experimental | `go.mod` |
+| Rust | [cargo](https://doc.rust-lang.org/cargo/) | Experimental | `Cargo.toml` |
 
-- [bun](https://bun.sh/)
-- [npm](https://www.npmjs.com/)
-- [pnpm](https://pnpm.io/)
-- [yarn](https://yarnpkg.com/)
+#### Operations
 
-##### Python
+| Containers | CI |
+| --- | --- |
+| [docker](https://www.docker.com/)<br>Experimental<br>`Dockerfile` | [github-actions](https://github.com/features/actions)<br>Experimental<br>`.github/workflows/*.yml`, `.github/workflows/*.yaml` |
 
-- [conda](https://conda.org/)
-- [pip](https://pip.pypa.io/)
-- [pipenv](https://pipenv.pypa.io/)
-- [poetry](https://python-poetry.org/)
-- [uv](https://docs.astral.sh/uv/)
+> [!NOTE]
+> Docker support is experimental.
 
-##### Go
+The Docker provider supports explicit pins, latest tag resolution, and
+`mode: "precise"` for Docker Hub and GHCR images.
 
-- [golang](https://go.dev/)
+Tag resolution:
 
-##### Rust
+- Selects the highest stable numeric tag that is at least as specific as the current tag and preserves its exact prefix and suffix. For example, `20-slim` remains in the `-slim` family, and `3.19` does not switch to a date tag.
+- Resolves repeated images with different tag families independently.
+- Resolves `FROM` tags assembled from one Docker `ARG` without changing the composition.
+- Leaves digest-pinned images, scratch stages, unresolved variables, and unsupported registries unchanged.
+- Fails on mutable tags such as `latest` instead of guessing a version.
 
-- [cargo](https://doc.rust-lang.org/cargo/)
+For authenticated registry access, set `DOCKERHUB_USERNAME` and
+`DOCKERHUB_TOKEN` for Docker Hub, or `GHCR_USERNAME` and `GHCR_TOKEN` for GHCR.
+Both GHCR values are required. Docker Hub PATs should be read-only; private
+GHCR packages require `read:packages` access.
 
-#### Containers
+> [!NOTE]
+> GitHub Actions support is experimental.
 
-- [docker](https://www.docker.com/)
+The GitHub Actions provider supports explicit pins, latest release resolution,
+and `mode: "precise"`.
 
-> #### Docker Notes
-> 
-> - The Docker provider supports explicit pins, latest tag resolution, and `mode: "precise"` for Docker Hub and GHCR images.
-> - It selects the highest stable numeric tag that is at least as specific as the current tag and has its exact prefix and suffix, so `20-slim` remains in the `-slim` family and `3.19` does not switch to a date tag. 
-> - Repeated images with different tag families resolve independently. 
-> - `FROM` tags assembled from one Docker `ARG` are resolved and updated without changing the composition. 
-> - Digest-pinned images, scratch stages, unresolved variables, and unsupported registries remain unchanged.
-> - Mutable tags such as `latest` fail rather than guessing a version.
-> - The CLI reads Docker Hub credentials from `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`. 
-> - GHCR uses `GHCR_USERNAME` and `GHCR_TOKEN`. Both values are required for authenticated registry access
-
-#### CI
-
-- [github-actions](https://github.com/features/actions)
-
-> #### GitHub Action Notes
-> 
-> - The GitHub Action falls back to its workflow token for private GHCR packages and retries anonymously when GHCR rejects that token for a public package. Docker Hub PATs should be read-only; private GHCR packages require `read:packages` access.
-> - The GitHub Actions provider supports explicit pins, latest release resolution, and `mode: "precise"`. 
-> - Latest versions resolve to immutable commit SHAs, and existing version comments are refreshed with the release tag. 
-> - Local and Docker actions remain unchanged. 
-> - Authenticated lookups use `GITHUB_TOKEN` or `GH_TOKEN` when available.
+- Latest versions resolve to immutable commit SHAs, and existing version comments are refreshed with the release tag.
+- Local and Docker actions remain unchanged.
+- Authenticated lookups use `GITHUB_TOKEN` or `GH_TOKEN` when available.
+- For private GHCR packages, the action falls back to its workflow token and retries anonymously when GHCR rejects that token for a public package.
 
 
 > [!NOTE]
@@ -562,52 +814,62 @@ The same policy model can expand to other version surfaces over time.
 
 ---
 
-## Tool comparison
-
-### Why use Codependence?
+## Why use Codependence?
 
 **Codependence** is focused on one job: enforcing dependency version policy where your code actually runs.
 
-#### Typical hosted dependency PR flow
+#### Traditional dependency PRs vs. Codependence
 
-When updates arrive independently, engineers can receive a stream of small PRs
-to triage and review.
+Traditional providers create an update stream for engineers to triage.
+Codependence lets the team choose the cadence and review one batched diff.
+
+---
+
+Traditional providers open PRs as versions appear, leaving engineers to triage
+the stream. Codependence runs on the team's cadence and opens one policy-driven
+PR for review.
+
+<details>
+<summary>View Mermaid source</summary>
+
+##### Traditional dependency PR flow
 
 ```mermaid
 sequenceDiagram
+    autonumber
     participant Registry
-    participant Bot as Dependency bot
+    participant Bot as Provider bot
     participant Repo as Repository
     participant Engineer
-    Registry-->>Bot: New version available
-    Bot->>Repo: Open dependency PR
-    Registry-->>Bot: Another version available
-    Bot->>Repo: Open another dependency PR
-    Repo-->>Engineer: Multiple PRs to triage
-    Engineer->>Engineer: Review, defer, merge, or close
+    Note over Registry,Bot: Updates arrive independently
+    Registry-->>Bot: v1 available
+    Bot->>Repo: Open PR #1
+    Registry-->>Bot: v2 available
+    Bot->>Repo: Open PR #2
+    Registry-->>Bot: v3 available
+    Bot->>Repo: Open PR #3
+    Repo-->>Engineer: Triage the PR stream
 ```
 
-#### Codependence cadence-controlled flow
-
-The team chooses the cadence and policy, then reviews a larger, intentional
-diff when Codependence runs.
+##### Codependence cadence-controlled flow
 
 ```mermaid
 sequenceDiagram
+    autonumber
     participant Engineer
     participant Repo as Repository
-    participant Scheduler as Team cadence
     participant Codependence
     participant Registry
-    Engineer->>Repo: Define policy and schedule
-    Scheduler->>Codependence: Run on chosen cadence
-    Codependence->>Repo: Read policy and selected manifests
-    Codependence->>Registry: Resolve versions
-    Registry-->>Codependence: Return allowed updates
-    Codependence->>Repo: Create one policy-driven diff or PR
-    Repo-->>Engineer: Review larger intentional diff
-    Engineer->>Repo: Approve or request changes
+    Engineer->>Repo: Set policy and cadence
+    Note over Codependence,Registry: Team chooses when to run
+    Codependence->>Repo: Read policy and manifests
+    Codependence->>Registry: Resolve allowed updates
+    Registry-->>Codependence: Return matching versions
+    Codependence->>Repo: Open one batched PR
+    Repo-->>Engineer: Review one intentional diff
 ```
+
+</details>
 
 - It gives teams a small, explicit policy for versions that must stay current or pinned.
 - It can fail CI when dependency versions drift.
