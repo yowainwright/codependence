@@ -126,6 +126,20 @@ describe("buildVersionDiff", () => {
     assert.strictEqual(diffs[0].latest, latestVersion);
   });
 
+  test("should keep the latest non-matching repeated dependency version", () => {
+    const diffs = buildVersionDiff(
+      { action: "2.0.0" },
+      {
+        dependencies: { action: "1.0.0" },
+        dependencyVersions: { action: ["1.0.0", "1.5.0", "2.0.0"] },
+      },
+      ["action"],
+      false,
+    );
+
+    assert.strictEqual(diffs[0].current, "1.5.0");
+  });
+
   test("should compare each resolved Docker tag family", () => {
     const diffs = buildVersionDiff(
       { node: "24-slim" },

@@ -178,6 +178,13 @@ describe("DockerProvider", () => {
     await assert.strictEqual(await provider.getLatestVersion("alpine", "3.19"), "3.21.1");
   });
 
+  test("should compare Docker tags with different specificities", async () => {
+    const tagBody = { name: "library/node", tags: ["20", "20.1"] };
+    const provider = new DockerProvider({ fetch: mockFetch([Response.json(tagBody)]).fetch });
+
+    await assert.strictEqual(await provider.getLatestVersion("node", "20"), "20.1");
+  });
+
   test("should fail safely for unsupported or ambiguous tag resolution", async () => {
     const provider = new DockerProvider({ fetch: mockFetch([]).fetch });
 
@@ -229,6 +236,15 @@ describe("DockerProvider", () => {
     );
   });
 
+  test("should reject repeated Docker pagination URLs", async () => {
+    const currentUrl = "https://registry-1.docker.io/v2/library/node/tags/list?n=100";
+    const headers = { Link: `<${currentUrl}>; rel="next"` };
+    const response = Response.json({ name: "library/node", tags: ["20"] }, { headers });
+    const provider = new DockerProvider({ fetch: mockFetch([response]).fetch });
+
+    await assertRejects(provider.getAllVersions("node"), "pagination limit exceeded");
+  });
+
   test("should report invalid registry responses without exposing credentials", async () => {
     const errorWithText = new Response(null, { status: 500, statusText: "Registry unavailable" });
     const errorWithoutText = responseWithStatus(500);
@@ -268,6 +284,22 @@ describe("DockerProvider", () => {
       dockerHubCredentials: incompleteCredentials,
     });
     const invalid = new DockerProvider({ fetch: mockFetch(invalidFetchResponses).fetch });
+    const invalidChallenge = new DockerProvider({
+      fetch: mockFetch([
+        new Response(null, {
+          status: 401,
+          headers: { "WWW-Authenticate": "Basic realm=registry" },
+        }),
+      ]).fetch,
+    });
+    const incompleteChallenge = new DockerProvider({
+      fetch: mockFetch([
+        new Response(null, {
+          status: 401,
+          headers: { "WWW-Authenticate": 'Bearer realm="https://auth.docker.io/token"' },
+        }),
+      ]).fetch,
+    });
 
     await assertRejects(
       incomplete.getAllVersions("node"),
@@ -276,6 +308,14 @@ describe("DockerProvider", () => {
     await assertRejects(
       invalid.getAllVersions("node"),
       "authentication response did not include a token",
+    );
+    await assertRejects(
+      invalidChallenge.getAllVersions("node"),
+      "did not provide a Bearer authentication challenge",
+    );
+    await assertRejects(
+      incompleteChallenge.getAllVersions("node"),
+      "authentication challenge is incomplete",
     );
   });
 
@@ -356,5 +396,27 @@ FROM node:\${NODE_VERSION}-slim AS build
     const updated = readFileSync(dockerfilePath, "utf8");
     assert.ok(updated.includes('ARG NODE_VERSION = "24.0.0" # shared runtime'));
     assert.ok(updated.includes("FROM node:${NODE_VERSION}-slim AS build"));
+  });
+
+  test("should leave conflicting Docker ARG families unchanged", () => {
+    const content = `ARG NODE_VERSION=20
+FROM node:\${NODE_VERSION}-slim
+FROM node:\${NODE_VERSION}-alpine
+`;
+    writeFileSync(dockerfilePath, content);
+
+    const provider = new DockerProvider();
+    provider.writeManifest(dockerfilePath, {
+      filePath: dockerfilePath,
+      dependencies: { node: "24-slim" },
+      resolvedDependencyVersions: {
+        node: {
+          "20-slim": "24-slim",
+          "20-alpine": "25-alpine",
+        },
+      },
+    });
+
+    assert.strictEqual(readFileSync(dockerfilePath, "utf8"), content);
   });
 });

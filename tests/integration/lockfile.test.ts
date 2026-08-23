@@ -168,6 +168,25 @@ describe("lockfiles", () => {
     assert.strictEqual(readSpy.mock.callCount(), 1);
   });
 
+  test("checks a lockfile beside a nested manifest", async () => {
+    const root = createWorkspace("package.json", nodeManifest);
+    const nestedRoot = join(root, "apps/web");
+    mkdirSync(nestedRoot, { recursive: true });
+    writeFileSync(join(nestedRoot, "package.json"), nodeManifest);
+    writeFileSync(join(nestedRoot, "bun.lock"), "");
+
+    await checkFiles({
+      codependencies: [{ lodash: "4.17.20" }],
+      files: ["apps/web/package.json"],
+      language: "nodejs",
+      lockfile: true,
+      mode: "verbose",
+      packageManager: "bun",
+      rootDir: root,
+      silent: true,
+    });
+  });
+
   test("requires uv.lock for a managed uv project", async () => {
     const content = [
       "[project]",

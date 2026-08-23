@@ -115,6 +115,8 @@ describe("createSpinner", () => {
   });
 
   it("keeps spinner methods stable when start is called twice", () => {
+    setInteractiveOutput(true);
+    mock.timers.enable({ apis: ["setInterval"] });
     const spinner = createSpinner("Loading...");
 
     const started = spinner.start();

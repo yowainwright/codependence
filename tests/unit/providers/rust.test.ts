@@ -94,6 +94,7 @@ name = "demo"
 serde = "1.0.190"
 tokio = { version = "1.32.0", features = ["full"] }
 serde_json_renamed = { package = "serde_json", version = "1.0.100" }
+broken = { version = "1.0.0, features = ["full"] }
 local = { path = "../local" }
 
 [dev-dependencies]

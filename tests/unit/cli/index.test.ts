@@ -1382,6 +1382,30 @@ describe("onboardAction", () => {
     }
   });
 
+  test("accepts a single unassigned manager version in non-interactive GitHub mode", async () => {
+    const rootDir = createOnboardingProject({}, { "package-lock.json": "" });
+    const closeSpy = mock.method(Prompt.prototype, "close");
+    const printSpy = mock.method(logger, "print", () => {});
+
+    try {
+      await onboardAction({
+        rootDir,
+        mode: "precise",
+        enforcement: "github",
+        repository: "acme/web",
+        version: ["10.9.2"],
+        nonInteractive: true,
+      });
+
+      const workflowPath = join(rootDir, ".github/workflows/codependence-node.yml");
+      assert.ok(fs.readFileSync(workflowPath, "utf8").includes("version: 10.9.2"));
+    } finally {
+      printSpy.mock.restore();
+      closeSpy.mock.restore();
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
   test("reports missing non-interactive answers", async () => {
     const versionedPackage = { packageManager: "npm@10.9.2" };
     const rootDir = createOnboardingProject(versionedPackage, { "package-lock.json": "" });
@@ -2071,6 +2095,22 @@ describe("GitHub Actions initializer", () => {
         fs.existsSync(join(rootDir, ".github/workflows/codependence-node.yml")),
         false,
       );
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("uses an infrastructure post-update override", () => {
+    const rootDir = createActionsProject();
+
+    try {
+      initGitHubActions({
+        rootDir,
+        postUpdateCommands: ["infrastructure=echo ready"],
+      });
+
+      const workflow = readWorkflow(rootDir, "infrastructure");
+      assert.ok(workflow.includes("post-update-command: 'echo ready'"));
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
