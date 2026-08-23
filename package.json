@@ -87,7 +87,7 @@
     "format": "nub run format-src && nub run format-test && nub run format-app",
     "lint": "nub run lint-src",
     "lint-fix": "oxlint . --fix",
-    "lint-src": "node --preserve-symlinks-main node_modules/.bin/lint-changed",
+    "lint-src": "node node_modules/eslint-plugin-legibility/bin/lint-changed.js",
     "lint:strict": "oxlint . --deny-warnings",
     "lint:fix": "oxlint src --fix",
     "hooks:setup": "sh scripts/setup-hooks.sh",
