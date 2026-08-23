@@ -32,7 +32,8 @@ Suppose a project must stay on React `^19.0.0`, but its other dependencies shoul
 }
 ```
 
-Update:
+After adding `"update": "codependence --update"` to `package.json` as shown in
+[Configuration](#configuration), run:
 
 ```sh
 npm run update
