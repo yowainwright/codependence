@@ -17,14 +17,15 @@ const isString = (value: unknown): value is string => typeof value === "string";
 
 const isBoolean = (value: unknown): value is boolean => typeof value === "boolean";
 
-const isArray = (value: unknown): value is unknown[] => Array.isArray(value);
-
 const isObject = (value: unknown): value is Record<string, unknown> => {
-  if (typeof value !== "object" || value === null) return false;
+  const isObjectValue = typeof value === "object";
+  const isNullValue = value === null;
+  const isInvalidObject = !isObjectValue || isNullValue;
+  if (isInvalidObject) return false;
   return !Array.isArray(value);
 };
 
-const concat = <T>(...arrays: T[][]): T[] => arrays.reduce((acc, arr) => [...acc, ...arr], []);
+const concat = <T>(...arrays: T[][]): T[] => arrays.reduce((acc, arr) => acc.concat(arr), []);
 
 const validateStringItem = (item: string): ValidationError | null => {
   const hasLength = item.length > 0;
@@ -97,16 +98,15 @@ const validateRequiredFields = (config: Record<string, unknown>): ValidationErro
   const hasMode = "mode" in config;
   const hasRequiredField = hasCodependencies || hasPermissive || hasMode;
 
-  return !hasRequiredField
-    ? [
-        {
-          field: "root",
-          message: 'Configuration must have either "codependencies", "permissive", or "mode" field',
-          suggestion:
-            'Add {"codependencies": ["package-name"]}, {"permissive": true}, or {"mode": "precise"}',
-        },
-      ]
-    : [];
+  if (hasRequiredField) return [];
+  return [
+    {
+      field: "root",
+      message: 'Configuration must have either "codependencies", "permissive", or "mode" field',
+      suggestion:
+        'Add {"codependencies": ["package-name"]}, {"permissive": true}, or {"mode": "precise"}',
+    },
+  ];
 };
 
 const validateCodependencies = (config: Record<string, unknown>): ValidationError[] => {
@@ -114,7 +114,7 @@ const validateCodependencies = (config: Record<string, unknown>): ValidationErro
 
   const codependencies = config.codependencies;
 
-  if (!isArray(codependencies)) {
+  if (!Array.isArray(codependencies)) {
     return [
       {
         field: "codependencies",
@@ -127,7 +127,9 @@ const validateCodependencies = (config: Record<string, unknown>): ValidationErro
   return codependencies
     .map((item, index) => {
       const itemError = validateCodeDependenciesItem(item);
-      return itemError ? { ...itemError, field: `codependencies[${index}]` } : null;
+      return itemError
+        ? Object.assign({}, itemError, { field: `codependencies[${index}]` })
+        : null;
     })
     .filter((itemError): itemError is ValidationError => itemError !== null);
 };
@@ -185,7 +187,7 @@ export const createArrayValidator =
 
     const value = config[field];
 
-    if (!isArray(value)) {
+    if (!Array.isArray(value)) {
       return [
         {
           field,
@@ -261,8 +263,9 @@ const isSafeLockfilePath = (path: string): boolean => {
   const segments = path.split(/[\\/]/);
   const hasValue = path.length > 0;
   const isRepositoryRelative = !isAbsolute(path) && !win32.isAbsolute(path);
-  const hasNoParentTraversal = !segments.includes("..");
-  return hasValue && isRepositoryRelative && hasNoParentTraversal;
+  const hasParentTraversal = segments.includes("..");
+  const isSafePath = hasValue && isRepositoryRelative && !hasParentTraversal;
+  return isSafePath;
 };
 
 const validateLockfile = (config: Record<string, unknown>): ValidationError[] => {
@@ -272,11 +275,10 @@ const validateLockfile = (config: Record<string, unknown>): ValidationError[] =>
   if (isBoolean(lockfile)) return [];
 
   const paths = isString(lockfile) ? [lockfile] : lockfile;
-  const isStringArray = isArray(paths) && paths.every(isString);
+  const isStringArray = Array.isArray(paths) && paths.every(isString);
   const hasPaths = isStringArray && paths.length > 0;
   const hasSafePaths = hasPaths && paths.every(isSafeLockfilePath);
-  const isValid = hasSafePaths;
-  if (isValid) return [];
+  if (hasSafePaths) return [];
 
   return [
     {
@@ -292,8 +294,9 @@ const validateUnknownFields = (
   knownFields: readonly string[] = KNOWN_FIELDS,
 ): ValidationError[] => {
   const unknownFields = Object.keys(config).filter((key) => !knownFields.includes(key));
+  const hasUnknownFields = unknownFields.length > 0;
 
-  return unknownFields.length > 0
+  return hasUnknownFields
     ? [
         {
           field: "root",
@@ -307,7 +310,7 @@ const validateUnknownFields = (
 const prefixTargetError = (validationError: ValidationError, index: number): ValidationError => {
   const prefix = `targets[${index}]`;
   const field = validationError.field === "root" ? prefix : `${prefix}.${validationError.field}`;
-  return { ...validationError, field };
+  return Object.assign({}, validationError, { field });
 };
 
 const targetFieldErrors = (target: Record<string, unknown>): ValidationError[] =>
@@ -337,7 +340,7 @@ const missingManagerErrors = (target: Record<string, unknown>): ValidationError[
 };
 
 const validateTarget = (target: Record<string, unknown>, index: number): ValidationError[] => {
-  const errors = [...missingManagerErrors(target), ...targetFieldErrors(target)];
+  const errors = missingManagerErrors(target).concat(targetFieldErrors(target));
   return errors.map((validationError) => prefixTargetError(validationError, index));
 };
 
@@ -371,14 +374,14 @@ const validateTargetEntry = (target: unknown, index: number): ValidationError[] 
 
 const validateTargets = (config: Record<string, unknown>): ValidationError[] => {
   const targets = config.targets;
-  if (!isArray(targets)) return invalidTargetsError(targets);
+  if (!Array.isArray(targets)) return invalidTargetsError(targets);
   if (targets.length === 0) return emptyTargetsError();
 
   return targets.flatMap(validateTargetEntry);
 };
 
 const mixedTargetFieldErrors = (config: Record<string, unknown>): ValidationError[] => {
-  const scopedFields = [...TARGET_POLICY_FIELDS, "language", "yarnConfig"];
+  const scopedFields = TARGET_POLICY_FIELDS.concat("language", "yarnConfig");
   const mixedFields = scopedFields.filter((field) => field in config);
   if (mixedFields.length === 0) return [];
 
@@ -498,8 +501,8 @@ export const formatValidationErrors = (errors: ValidationError[]): string => {
     const suggestionLines = validationError.suggestion
       ? [`   > ${validationError.suggestion}`]
       : [];
-    return [mainLine, ...suggestionLines, ""];
+    return [mainLine].concat(suggestionLines, "");
   });
 
-  return [`${error("x")} Invalid configuration:\n`, ...errorLines].join("\n");
+  return [`${error("x")} Invalid configuration:\n`].concat(errorLines).join("\n");
 };

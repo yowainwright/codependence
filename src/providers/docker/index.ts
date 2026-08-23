@@ -34,7 +34,7 @@ import {
 
 export type { DockerProviderOptions } from "../types";
 
-const defaultFetch: DockerFetch = (url, init) => globalThis.fetch(url, init);
+const defaultFetch: DockerFetch = globalThis.fetch.bind(globalThis);
 
 const emptyManifest = (filePath: string): DependencyManifest => {
   const manifest = {
@@ -96,7 +96,8 @@ const environmentCredentials = (
 
 const ghcrEnvironmentCredentials = (): DockerRegistryCredentials => {
   const explicit = environmentCredentials("GHCR_USERNAME", "GHCR_TOKEN");
-  if (explicit.username || explicit.token) return explicit;
+  const hasExplicitCredentials = Boolean(explicit.username || explicit.token);
+  if (hasExplicitCredentials) return explicit;
 
   return environmentCredentials("GITHUB_ACTOR", "GITHUB_TOKEN");
 };
@@ -118,14 +119,16 @@ const ghcrImage = (displayName: string, name: string): DockerRegistryImage => ({
   registry: "ghcr",
 });
 
-const isRegistryHost = (value: string): boolean =>
-  value.includes(".") || value.includes(":") || value === "localhost";
+const isRegistryHost = (value: string): boolean => /[.:]/.test(value) || value === "localhost";
 
 const resolveRegistryImage = (packageName: string): DockerRegistryImage => {
   const [first, ...remaining] = packageName.split("/");
-  if (first === GHCR_HOST && remaining.length > 0)
+  const hasRepository = remaining.length > 0;
+  const isGhcrImage = first === GHCR_HOST && hasRepository;
+  if (isGhcrImage)
     return ghcrImage(packageName, remaining.join("/"));
-  if (DOCKER_HUB_NAMES.has(first) && remaining.length > 0) {
+  const isDockerHubImage = DOCKER_HUB_NAMES.has(first) && hasRepository;
+  if (isDockerHubImage) {
     return dockerHubImage(packageName, remaining.join("/"));
   }
   if (isRegistryHost(first)) {
@@ -147,13 +150,14 @@ const registryHeaders = (authorization?: string): Record<string, string> => {
   const headers = { Accept: "application/json", "User-Agent": DOCKER_USER_AGENT };
   if (!authorization) return headers;
 
-  return { ...headers, Authorization: authorization };
+  return Object.assign({}, headers, { Authorization: authorization });
 };
 
 const basicAuthorization = (credentials: DockerRegistryCredentials): string | undefined => {
   const hasCredentials = credentials.username || credentials.token;
   if (!hasCredentials) return undefined;
-  if (!credentials.username || !credentials.token) {
+  const hasCompleteCredentials = Boolean(credentials.username && credentials.token);
+  if (!hasCompleteCredentials) {
     throw new Error("Docker registry credentials require both username and token");
   }
 
@@ -171,20 +175,25 @@ const authAttributes = (value: string): Record<string, string> =>
     const name = item.slice(0, separator).trim();
     const rawValue = item.slice(separator + 1).trim();
     const hasQuotes = rawValue.startsWith('"') && rawValue.endsWith('"');
-    if (name && hasQuotes) attributes[name] = rawValue.slice(1, -1);
+    const isNamedQuotedValue = Boolean(name && hasQuotes);
+    if (isNamedQuotedValue) attributes[name] = rawValue.slice(1, -1);
     return attributes;
   }, {});
 
 const parseAuthChallenge = (header: string | null): DockerAuthChallenge => {
   const scheme = header?.slice(0, DOCKER_BEARER_PREFIX.length).toLowerCase();
-  if (!header || scheme !== DOCKER_BEARER_PREFIX) {
+  const hasValidChallenge = Boolean(header) && scheme === DOCKER_BEARER_PREFIX;
+  if (!hasValidChallenge) {
     throw new Error("Docker registry did not provide a Bearer authentication challenge");
   }
 
   const attributes = authAttributes(header.slice(DOCKER_BEARER_PREFIX.length));
   const realm = attributes.realm;
   const service = attributes.service;
-  if (!realm || !service) throw new Error("Docker registry authentication challenge is incomplete");
+  const hasChallengeCredentials = Boolean(realm && service);
+  if (!hasChallengeCredentials) {
+    throw new Error("Docker registry authentication challenge is incomplete");
+  }
 
   return { realm, service };
 };
@@ -261,7 +270,8 @@ const readRegistryToken = async (
   const errorMessage = `Docker registry returned invalid authentication JSON for ${image.displayName}`;
   const body = (await readRegistryJson(response, errorMessage)) as DockerTokenResponse;
   const token = typeof body.token === "string" ? body.token : body.access_token;
-  if (typeof token !== "string" || !token) {
+  const hasValidToken = typeof token === "string" && Boolean(token);
+  if (!hasValidToken) {
     throw new Error(
       `Docker authentication response did not include a token for ${image.displayName}`,
     );
@@ -328,7 +338,9 @@ const compareVersionTags = (left: DockerVersionTag, right: DockerVersionTag): nu
   const index = left.parts.findIndex((part, partIndex) => part !== right.parts[partIndex]);
   if (index === -1) return right.specificity - left.specificity;
 
-  return (right.parts[index] || 0) - (left.parts[index] || 0);
+  const rightPart = right.parts[index] || 0;
+  const leftPart = left.parts[index] || 0;
+  return rightPart - leftPart;
 };
 
 const matchingVersionTag = (
@@ -357,7 +369,7 @@ const latestCompatibleTag = (
     throw new Error(`Docker cannot safely resolve tag ${packageName}:${currentVersion}`);
 
   const candidates = tags.map(parseVersionTag).filter((tag) => matchingVersionTag(tag, current));
-  const latest = candidates.sort(compareVersionTags)[0];
+  const latest = candidates.concat().sort(compareVersionTags)[0];
   if (latest) return latest.name;
 
   throw new Error(`No compatible Docker tags found for ${packageName}:${currentVersion}`);
@@ -387,7 +399,8 @@ const argumentValueForVersion = (
 ): string | null => {
   const hasPrefix = version.startsWith(reference.prefix);
   const hasSuffix = version.endsWith(reference.suffix);
-  if (!hasPrefix || !hasSuffix) return null;
+  const hasValidVersionFormat = hasPrefix && hasSuffix;
+  if (!hasValidVersionFormat) return null;
 
   const suffixStart = reference.suffix ? -reference.suffix.length : undefined;
   return version.slice(reference.prefix.length, suffixStart) || null;
@@ -429,17 +442,21 @@ const requestedArgumentUpdate = (
   resolvedDependencyVersions?: ResolvedDependencyVersions,
 ): readonly [string, string] | null => {
   const match = line.match(DOCKER_PATTERNS.FROM_LINE);
-  if (!match || match[3].trimStart().startsWith("@")) return null;
+  const isDigestReference = match?.[3].trimStart().startsWith("@");
+  const hasUnsupportedReference = !match || isDigestReference;
+  if (hasUnsupportedReference) return null;
 
   const imageSpec = splitDockerImage(match[2]);
-  if (hasDockerVariable(imageSpec.name) || isScratchImage(imageSpec)) return null;
+  const isUnsupportedImage = hasDockerVariable(imageSpec.name) || isScratchImage(imageSpec);
+  if (isUnsupportedImage) return null;
 
   const reference = dockerArgumentReference(imageSpec.version);
   if (!reference) return null;
 
   const argumentDefault = args[reference.name];
   const currentVersion = resolveDockerVersion(imageSpec.version, args);
-  if (!argumentDefault || !currentVersion) return null;
+  const hasArgumentVersion = Boolean(argumentDefault && currentVersion);
+  if (!hasArgumentVersion) return null;
 
   const image = { name: imageSpec.name, version: currentVersion };
   const version = targetVersionFor(image, dependencies, resolvedDependencyVersions);
@@ -463,7 +480,8 @@ const collectArgumentUpdates = (
     if (!update) return;
 
     const [name, version] = update;
-    if (updates[name] && updates[name] !== version) conflicts.add(name);
+    const hasConflict = updates[name] && updates[name] !== version;
+    if (hasConflict) conflicts.add(name);
     updates[name] = version;
   });
 
@@ -575,7 +593,8 @@ export class DockerProvider implements DependencyProvider {
 
   private assertUnvisited(image: DockerRegistryImage, url: string, visited: Set<string>): void {
     const reachedLimit = visited.size >= DOCKER_TAG_PAGE_LIMIT;
-    if (!visited.has(url) && !reachedLimit) return;
+    const canVisit = !visited.has(url) && !reachedLimit;
+    if (canVisit) return;
 
     throw new Error(`Docker registry pagination limit exceeded for ${image.displayName}`);
   }

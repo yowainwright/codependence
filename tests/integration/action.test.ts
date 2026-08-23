@@ -18,7 +18,8 @@ const actionScript = (name: string): string => {
   const runIndex = stepLines.findIndex((line) => line.trim() === "run: |");
   const scriptLines = stepLines.slice(runIndex + 1);
   const script = scriptLines.map((line) => line.replace(/^ {8}/, "")).join("\n");
-  if (stepIndex !== -1 && runIndex !== -1) return script;
+  const hasScript = stepIndex !== -1 && runIndex !== -1;
+  if (hasScript) return script;
 
   throw new Error(`Action step not found: ${name}`);
 };

@@ -64,7 +64,9 @@ const createNodeArgs = (options: TestRunnerOptions, loaderUrl: string): string[]
 const createTestEnvironment = (coverageEnabled: boolean): NodeJS.ProcessEnv => {
   const nodeOptions = process.env.NODE_OPTIONS;
   const usesNativeTypeScript = Boolean(process.features.typescript);
-  if (!coverageEnabled || !nodeOptions || !usesNativeTypeScript) return process.env;
+  const hasNodeOptions = Boolean(nodeOptions);
+  const canFilterNodeOptions = coverageEnabled && hasNodeOptions && usesNativeTypeScript;
+  if (!canFilterNodeOptions) return process.env;
 
   const filteredOptions = nodeOptions.replace(NUB_PRELOAD_OPTION_PATTERN, "").trim();
   return { ...process.env, NODE_OPTIONS: filteredOptions };

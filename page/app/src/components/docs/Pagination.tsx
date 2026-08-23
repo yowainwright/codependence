@@ -19,9 +19,11 @@ function getPagination(slug: string): PaginationResult {
 
   if (index === -1) return {};
 
+  const prevItem = index > 0 ? allItems[index - 1] : undefined;
+  const nextItem = index < allItems.length - 1 ? allItems[index + 1] : undefined;
   return {
-    prevItem: index > 0 ? allItems[index - 1] : undefined,
-    nextItem: index < allItems.length - 1 ? allItems[index + 1] : undefined,
+    prevItem,
+    nextItem,
   };
 }
 

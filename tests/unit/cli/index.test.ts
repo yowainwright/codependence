@@ -105,10 +105,10 @@ describe("Action Function Tests (Fast)", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.permissive, true);
-      assert.strictEqual(result.isCLI, true);
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.permissive, true);
+    assert.strictEqual(result.isCLI, true);
   });
 
   test("processes multiple CLI flags", async () => {
@@ -151,10 +151,10 @@ describe("Action Function Tests (Fast)", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.isCLI, true);
-      assert.deepStrictEqual(result.codependencies, ["test"]);
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.isCLI, true);
+    assert.deepStrictEqual(result.codependencies, ["test"]);
   });
 
   test("handles verbose mode", async () => {
@@ -202,10 +202,10 @@ describe("Action Function Tests (Fast)", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.isCLI, true);
-      assert.notStrictEqual(result.codependencies, undefined);
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.isCLI, true);
+    assert.notStrictEqual(result.codependencies, undefined);
   });
 
   test("runs each named manifest config independently", async () => {
@@ -1692,9 +1692,9 @@ describe("Format and Output File Tests", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.format, "json");
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.format, "json");
   });
 
   test("should accept outputFile option in action", async () => {
@@ -1705,9 +1705,9 @@ describe("Format and Output File Tests", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.outputFile, "/tmp/output.json");
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.outputFile, "/tmp/output.json");
   });
 
   test("should accept both format and outputFile options", async () => {
@@ -1719,10 +1719,10 @@ describe("Format and Output File Tests", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.format, "markdown");
-      assert.strictEqual(result.outputFile, "/tmp/output.md");
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.format, "markdown");
+    assert.strictEqual(result.outputFile, "/tmp/output.md");
   });
 
   test("should accept table format option", async () => {
@@ -1733,9 +1733,9 @@ describe("Format and Output File Tests", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.format, "table");
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.format, "table");
   });
 
   test("should merge format option with other options", async () => {
@@ -1748,11 +1748,11 @@ describe("Format and Output File Tests", () => {
     });
 
     assert.notStrictEqual(result, undefined);
-    if (result && typeof result === "object") {
-      assert.strictEqual(result.format, "json");
-      assert.strictEqual(result.debug, true);
-      assert.strictEqual(result.verbose, true);
-    }
+    if (result === undefined) return;
+    if (typeof result !== "object") return;
+    assert.strictEqual(result.format, "json");
+    assert.strictEqual(result.debug, true);
+    assert.strictEqual(result.verbose, true);
   });
 });
 
@@ -1849,7 +1849,8 @@ describe("Format Integration Tests", () => {
     );
     assert.notStrictEqual(jsonOutput, undefined);
 
-    if (jsonOutput && jsonOutput.arguments[0]) {
+    const hasJsonOutput = Boolean(jsonOutput && jsonOutput.arguments[0]);
+    if (hasJsonOutput) {
       const parsed = JSON.parse(jsonOutput.arguments[0]);
       assertProperty(parsed.dependencies[0], "package", "react");
       assertProperty(parsed.dependencies[0], "current", "17.0.0");

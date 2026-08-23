@@ -20,7 +20,9 @@ export default function SpotlightCode() {
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && !hasStarted.current) {
+        const isIntersecting = entries[0]?.isIntersecting ?? false;
+        const shouldStart = isIntersecting && !hasStarted.current;
+        if (shouldStart) {
           hasStarted.current = true;
           setIsTyping(true);
         }
@@ -32,7 +34,9 @@ export default function SpotlightCode() {
       observer.observe(containerRef.current);
     }
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+    };
   }, []);
 
   // Typing animation
@@ -85,7 +89,7 @@ export default function SpotlightCode() {
   // Build displayed content with proper coloring
   const buildDisplayedContent = () => {
     let charCount = 0;
-    const elements: React.ReactNode[] = [];
+    let elements: React.ReactNode[] = [];
 
     for (let i = 0; i < activeSnippet.lines.length; i++) {
       const line = activeSnippet.lines[i];
@@ -100,7 +104,7 @@ export default function SpotlightCode() {
       );
       const visibleText = line.text.slice(0, visibleLength);
 
-      elements.push(
+      elements = elements.concat(
         <span key={i} className={line.color || "text-base-content"}>
           {visibleText}
         </span>,

@@ -459,7 +459,7 @@ describe("Config Loading", () => {
 
       const result = loadConfig(rcPath);
 
-      assert.strictEqual((result?.config.codependencies).length, 1000);
+      assert.strictEqual(result?.config?.codependencies?.length, 1000);
     });
 
     test("should handle config with special characters", () => {

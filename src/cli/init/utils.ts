@@ -393,7 +393,8 @@ const isWorkflowSourcePath = (path: string): boolean => {
   const filename = segments.at(-1) || "";
   const directory = segments.slice(-3, -1).join("/");
   const isYaml = filename.endsWith(".yml") || filename.endsWith(".yaml");
-  return directory === ".github/workflows" && isYaml;
+  const isWorkflowPath = directory === ".github/workflows" && isYaml;
+  return isWorkflowPath;
 };
 
 export const isOnboardingSourcePath = (path: string): boolean => {
@@ -401,7 +402,8 @@ export const isOnboardingSourcePath = (path: string): boolean => {
   if (isOnboardingPackageFile(path)) return true;
   const filename = pathSegments(path).at(-1) || "";
   if (recursiveSourceFiles.has(filename)) return true;
-  if (filename === "Dockerfile" || filename.startsWith("Dockerfile.")) return true;
+  const isDockerfile = filename === "Dockerfile" || filename.startsWith("Dockerfile.");
+  if (isDockerfile) return true;
   if (isWorkflowSourcePath(path)) return true;
   const isRootFile = !path.includes("/");
   return isRootFile && managerFiles.has(path);
@@ -411,7 +413,8 @@ export const onboardingSourceFileNeedsContent = (path: string): boolean => {
   const isPackageFile = isOnboardingPackageFile(path);
   const isWorkspaceFile = path === ONBOARDING_PNPM_WORKSPACE_FILE;
   const isPyproject = pathSegments(path).at(-1) === "pyproject.toml";
-  return isPackageFile || isWorkspaceFile || isPyproject || isWorkflowSourcePath(path);
+  const needsContent = isPackageFile || isWorkspaceFile || isPyproject || isWorkflowSourcePath(path);
+  return needsContent;
 };
 
 const mapConcurrentBatch = async <Input, Output>(

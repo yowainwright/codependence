@@ -51,15 +51,14 @@ export const findSimilarPackages = (
 
 export const getSuggestionForPackage = (packageName: string): string | null => {
   const suggestions = findSimilarPackages(packageName, COMMON_PACKAGES, 2);
-  return suggestions.length > 0 ? suggestions[0] : null;
+  return suggestions[0] ?? null;
 };
 
 export const isPrivatePackage = (err: Error | string): boolean => {
   const errorStr = typeof err === "string" ? err : err.message;
   const lower = errorStr.toLowerCase();
-  return (
-    lower.includes("e401") || lower.includes("unauthorized") || lower.includes("private package")
-  );
+  const privatePackagePattern = /e401|unauthorized|private package/;
+  return privatePackagePattern.test(lower);
 };
 
 export const hasRegistryInError = (err: Error | string): boolean => {
@@ -70,11 +69,8 @@ export const hasRegistryInError = (err: Error | string): boolean => {
 export const isTimeout = (err: Error | string): boolean => {
   const errorStr = typeof err === "string" ? err : err.message;
   const lowerError = errorStr.toLowerCase();
-  return (
-    lowerError.includes("timeout") ||
-    lowerError.includes("timed out") ||
-    lowerError.includes("etimedout")
-  );
+  const timeoutPattern = /timeout|timed out|etimedout/;
+  return timeoutPattern.test(lowerError);
 };
 
 export const formatValidationError = (packageName: string): string => {
@@ -139,11 +135,8 @@ export const formatTimeoutError = (packageName: string, retryCount: number): str
     "  - Retry with: npm cache clean && codependence",
   ];
 
-  if (retryCount === 0) {
-    lines.push("", "Retrying automatically...");
-  }
-
-  return lines.join("\n");
+  const retryLines = retryCount === 0 ? ["", "Retrying automatically..."] : [];
+  return lines.concat(retryLines).join("\n");
 };
 
 export const formatNetworkError = (packageName: string): string => {
@@ -162,30 +155,26 @@ export const formatNetworkError = (packageName: string): string => {
 
 export const formatGenericError = (packageName: string, errorStr: string): string => {
   const suggestion = getSuggestionForPackage(packageName);
-  const lines = [`[x] Failed to fetch version for "${packageName}"`, ""];
-
-  if (suggestion) {
-    lines.push(
+  const issueLines = suggestion
+    ? [
       "Possible issues:",
       `  - Package name typo? Did you mean "${suggestion}"?`,
       "  - Private package? (see suggestions above)",
       "  - Package doesn't exist on npm registry",
-    );
-  } else {
-    lines.push(
+    ]
+    : [
       "Possible issues:",
       "  - Private package? (configure .npmrc)",
       "  - Package doesn't exist on npm registry",
       "  - Network issue? Check your connection",
-    );
-  }
+    ];
 
-  lines.push("", `> Suggestion: Run \`npm view ${packageName}\` to verify package exists`);
-
-  const isNotSpecialCase = errorStr && !hasRegistryInError(errorStr);
-  if (isNotSpecialCase) {
-    lines.push("", `Error: ${errorStr}`);
-  }
+  const hasNonRegistryError = !hasRegistryInError(errorStr);
+  const errorLines = hasNonRegistryError ? ["", `Error: ${errorStr}`] : [];
+  const lines = [`[x] Failed to fetch version for "${packageName}"`, ""]
+    .concat(issueLines)
+    .concat("", `> Suggestion: Run \`npm view ${packageName}\` to verify package exists`)
+    .concat(errorLines);
 
   return lines.join("\n");
 };

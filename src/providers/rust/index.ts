@@ -50,7 +50,8 @@ const isCargoNameCharacter = (char: string): boolean => {
   const isDigit = char >= "0" && char <= "9";
   const isLetter = isLowercase || isUppercase;
   const isSeparator = char === "_" || char === "-";
-  return isLetter || isDigit || isSeparator;
+  const isValidCharacter = isLetter || isDigit || isSeparator;
+  return isValidCharacter;
 };
 
 const isCargoPackageName = (packageName: string): boolean =>
@@ -137,8 +138,10 @@ const parseInlineField = (part: string): CargoInlineField | null => {
   if (quoteStartOffset === -1) return null;
 
   const quoteStart = equalsIndex + 1 + quoteStartOffset;
-  const quoteEnd = part.indexOf('"', quoteStart + 1);
-  if (quoteEnd === -1) return null;
+  const remainingPart = part.slice(quoteStart + 1);
+  const quoteEndOffset = remainingPart.indexOf('"');
+  if (quoteEndOffset === -1) return null;
+  const quoteEnd = quoteStart + 1 + quoteEndOffset;
 
   return {
     name,
@@ -320,7 +323,7 @@ export class RustProvider implements DependencyProvider {
   constructor(_options: ProviderOptions = {}) {}
 
   normalizePackageName(packageName: string): string {
-    return normalizeCargoPackageName(packageName);
+    return packageName.replaceAll("_", "-");
   }
 
   async getLatestVersion(packageName: string): Promise<string> {
@@ -348,18 +351,19 @@ export class RustProvider implements DependencyProvider {
   }
 
   writeManifest(filePath: string, manifest: DependencyManifest): void {
-    let currentSection: CargoSectionTarget | null = null;
     const content = readFileSync(filePath, "utf8");
-    const updatedLines: string[] = [];
+    const updated = content.split("\n").reduce(
+      (state, line) => {
+        const result = updateCargoManifestLine(line, state.currentSection, manifest);
+        return {
+          currentSection: result.currentSection,
+          lines: state.lines.concat(result.line),
+        };
+      },
+      { currentSection: null as CargoSectionTarget | null, lines: [] as string[] },
+    );
 
-    content.split("\n").forEach((line) => {
-      const result = updateCargoManifestLine(line, currentSection, manifest);
-      currentSection = result.currentSection;
-      updatedLines.push(result.line);
-    });
-
-    const updated = updatedLines.join("\n");
-    writeFileSync(filePath, updated);
+    writeFileSync(filePath, updated.lines.join("\n"));
   }
 
   validatePackageName(packageName: string): boolean {

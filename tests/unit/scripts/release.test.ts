@@ -41,7 +41,7 @@ function createRunner(overrides: Record<string, GitResult> = {}) {
   const calls: string[][] = [];
   const runner = mock.fn<ReleaseRunner>((command, args) => {
     const call = [command, ...Array.from(args)];
-    calls.push(call);
+    calls[calls.length] = call;
     return overrides[call.join(" ")] ?? ok();
   });
   return { calls, runner };
@@ -172,7 +172,7 @@ function createReleaseFlowRunner(prUrl: string, state: ReleaseFlowState = {}) {
   const calls: string[][] = [];
   const runner = mock.fn<ReleaseRunner>((command, args) => {
     const call = [command, ...Array.from(args)];
-    calls.push(call);
+    calls[calls.length] = call;
     return releaseFlowResult(call.join(" "), prUrl, state);
   });
   return { calls, runner };

@@ -121,14 +121,15 @@ const resolveInitDeps = (optionDeps: unknown, positionalDeps: string[]): string[
 
 const stringListOption = (value: unknown): string[] => {
   if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string");
-  return typeof value === "string" ? [value] : [];
+  if (typeof value === "string") return [value];
+  return [];
 };
 
 const stringOption = (value: unknown): string | undefined =>
   typeof value === "string" ? value : undefined;
 
 const suppressOutput = (options: { quiet?: unknown; silent?: unknown }): boolean =>
-  options.quiet === true || options.silent === true;
+  Boolean(options.quiet) || Boolean(options.silent);
 
 const isOnboardingMode = (value: string | undefined): value is OnboardingMode =>
   value === "verbose" || value === "precise";
@@ -156,16 +157,15 @@ const onboardingRootFiles = (rootDir: string): OnboardingSourceFile[] =>
 const onboardingManifestFiles = (rootDir: string): OnboardingSourceFile[] => {
   const paths = glob(ONBOARDING_SOURCE_PATTERNS, {
     cwd: rootDir,
-    ignore: [...DEFAULT_IGNORE_PATTERNS, ...ONBOARDING_SCAN_IGNORE_PATTERNS],
+    ignore: DEFAULT_IGNORE_PATTERNS.concat(ONBOARDING_SCAN_IGNORE_PATTERNS),
   });
   return paths.map((path) => readOnboardingFile(rootDir, path));
 };
 
 const collectOnboardingFiles = (rootDir: string): OnboardingSourceFile[] => {
-  const entries = onboardingRootFiles(rootDir).map((file) => [file.path, file] as const);
-  const files = new Map(entries);
-  onboardingManifestFiles(rootDir).forEach((file) => files.set(file.path, file));
-  return [...files.values()];
+  const rootEntries = onboardingRootFiles(rootDir).map((file) => [file.path, file] as const);
+  const manifestEntries = onboardingManifestFiles(rootDir).map((file) => [file.path, file] as const);
+  return Array.from(new Map(rootEntries.concat(manifestEntries)).values());
 };
 
 const selectOnboardingMode = async (
@@ -174,7 +174,8 @@ const selectOnboardingMode = async (
 ): Promise<OnboardingMode> => {
   const configured = stringOption(options.mode);
   if (isOnboardingMode(configured)) return configured;
-  if (options.nonInteractive === true) throw new Error("Onboarding requires --mode");
+  const isNonInteractive = Boolean(options.nonInteractive);
+  if (isNonInteractive) throw new Error("Onboarding requires --mode");
   const selected = await prompt.radio("How should Codependence manage dependencies?", [
     { name: "Update everything except selected pinned dependencies", value: "precise" },
     { name: "Update only selected dependencies", value: "verbose" },
@@ -196,7 +197,8 @@ const selectOnboardingDependencies = (
     return Promise.resolve(stringListOption(options.codependencies));
   }
   if (project.dependencies.length === 0) return Promise.resolve([]);
-  if (options.nonInteractive === true) return Promise.resolve([]);
+  const isNonInteractive = Boolean(options.nonInteractive);
+  if (isNonInteractive) return Promise.resolve([]);
   const choices = project.dependencies.map(dependencyChoice);
   return prompt.select("Select dependencies for this policy", choices);
 };
@@ -207,7 +209,8 @@ const selectOnboardingEnforcement = async (
 ): Promise<OnboardingEnforcement> => {
   const configured = stringOption(options.enforcement);
   if (isOnboardingEnforcement(configured)) return configured;
-  if (options.nonInteractive === true) throw new Error("Onboarding requires --enforcement");
+  const isNonInteractive = Boolean(options.nonInteractive);
+  if (isNonInteractive) throw new Error("Onboarding requires --enforcement");
   const selected = await prompt.radio("Where should Codependence run?", [
     { name: "Locally and in GitHub Actions", value: "both" },
     { name: "GitHub Actions", value: "github" },
@@ -224,7 +227,8 @@ const selectOnboardingRepository = async (
   if (enforcement === "local") return undefined;
   const configured = stringOption(options.repository);
   if (configured) return parseOnboardingRepository(configured);
-  if (options.nonInteractive === true) throw new Error("GitHub onboarding requires --repository");
+  const isNonInteractive = Boolean(options.nonInteractive);
+  if (isNonInteractive) throw new Error("GitHub onboarding requires --repository");
   const answer = await prompt.input("GitHub repository (owner/name)");
   return parseOnboardingRepository(answer);
 };
@@ -236,7 +240,9 @@ const onboardingVersionOption = (
   const values = stringListOption(value);
   const assignment = values.find((item) => item.startsWith(`${manager}=`));
   if (assignment) return assignment.slice(manager.length + 1);
-  return values.length === 1 && !values[0].includes("=") ? values[0] : undefined;
+  const hasSingleUnassignedValue = values.length === 1 && !values[0].includes("=");
+  if (hasSingleUnassignedValue) return values[0];
+  return undefined;
 };
 
 const ensureOnboardingVersion = async (
@@ -245,12 +251,14 @@ const ensureOnboardingVersion = async (
   enforcement: OnboardingEnforcement,
   options: Record<string, unknown>,
 ): Promise<OnboardingProject> => {
-  if (!project.manager || project.managerVersion || enforcement === "local") return project;
+  const shouldKeepProject = !project.manager || Boolean(project.managerVersion) || enforcement === "local";
+  if (shouldKeepProject) return project;
   const configured = onboardingVersionOption(project.manager, options.version);
-  if (configured) return { ...project, managerVersion: configured };
-  if (options.nonInteractive === true) throw new Error("GitHub onboarding requires --version");
+  if (configured) return Object.assign({}, project, { managerVersion: configured });
+  const isNonInteractive = Boolean(options.nonInteractive);
+  if (isNonInteractive) throw new Error("GitHub onboarding requires --version");
   const managerVersion = await prompt.input(`Exact ${project.manager} version`);
-  return { ...project, managerVersion };
+  return Object.assign({}, project, { managerVersion });
 };
 
 const collectOnboardingAnswers = async (
@@ -277,13 +285,15 @@ const packageConfigArtifact = (
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
-  if (typeof value !== "object" || value === null) return false;
+  const isObject = typeof value === "object" && value !== null;
+  if (!isObject) return false;
   return !Array.isArray(value);
 };
 
 const manifestPath = (value: unknown): string | undefined => {
   if (!isRecord(value)) return undefined;
-  return typeof value.path === "string" ? value.path : undefined;
+  if (typeof value.path === "string") return value.path;
+  return undefined;
 };
 
 const mergeManifest = (existing: unknown, generated: unknown): Record<string, unknown> => {
@@ -322,7 +332,8 @@ const mergeOnboardingConfig = (
   const existingEntries = existing.config;
   const generatedEntries = generated.config;
   if (!isRecord(generatedEntries)) throw new Error("Generated configuration is invalid");
-  if (existingEntries === undefined && !hasFlatPolicy(existing)) {
+  const canMergeFlatConfig = existingEntries === undefined && !hasFlatPolicy(existing);
+  if (canMergeFlatConfig) {
     return Object.assign({}, existing, generated);
   }
   if (!isRecord(existingEntries)) {
@@ -425,7 +436,8 @@ const restoreOnboardingArtifacts = (
 ): void => {
   snapshots.forEach(({ path, content }) => {
     const destination = join(rootDir, path);
-    if (content === undefined && fs.existsSync(destination)) return fs.unlinkSync(destination);
+    const shouldRemove = content === undefined && fs.existsSync(destination);
+    if (shouldRemove) return fs.unlinkSync(destination);
     if (content === undefined) return;
     fs.writeFileSync(destination, content);
   });
@@ -618,7 +630,7 @@ const selectManagers = (
   targets: CodependenceTarget[],
   requested: DependencyManager[] = [],
 ): DependencyManager[] => {
-  const configured = [...new Set(targets.map(({ manager }) => manager))];
+  const configured = Array.from(new Set(targets.map(({ manager }) => manager)));
   const configuredSet = new Set(configured);
   const requestedSet = new Set(requested);
   const selected =
@@ -740,13 +752,14 @@ const detectedVersion = (
   const targetMetadataVersion = metadataVersion(targetDir, manager);
   const rootMetadataVersion = targetDir === rootDir ? "" : metadataVersion(rootDir, manager);
 
-  return (
-    packageManagerVersion ||
-    goVersion ||
-    rustVersion ||
-    targetMetadataVersion ||
-    rootMetadataVersion
-  );
+  const versions = [
+    packageManagerVersion,
+    goVersion,
+    rustVersion,
+    targetMetadataVersion,
+    rootMetadataVersion,
+  ];
+  return versions.find(Boolean) ?? "";
 };
 
 const exactVersion = (manager: DependencyManager, version: string): string => {
@@ -754,7 +767,8 @@ const exactVersion = (manager: DependencyManager, version: string): string => {
   const normalizedVersion = isRust && version.startsWith("v") ? version.slice(1) : version;
   const isExactVersion = EXACT_TOOL_VERSION_PATTERN.test(normalizedVersion);
   const isExactRustVersion = !isRust || RUST_TOOLCHAIN_VERSION_PATTERN.test(normalizedVersion);
-  if (isExactVersion && isExactRustVersion) return normalizedVersion;
+  const isValidVersion = isExactVersion && isExactRustVersion;
+  if (isValidVersion) return normalizedVersion;
 
   throw new Error(`${manager} requires an exact tool version, received: ${version}`);
 };
@@ -848,7 +862,7 @@ const managerCommands = (
     .filter((target) => target.manager === manager)
     .map((target) => target.rootDir || ".");
 
-  return [...new Set(roots.map((rootDir) => commandForRoot(command, rootDir)))];
+  return Array.from(new Set(roots.map((rootDir) => commandForRoot(command, rootDir))));
 };
 
 const postUpdateCommand = (
@@ -858,12 +872,13 @@ const postUpdateCommand = (
 ): string => {
   const areaOverride = overrides.get(definition.area);
   const areaIsManager = definition.managers.includes(definition.area as DependencyManager);
-  if (areaOverride && !areaIsManager) return areaOverride;
+  const shouldUseAreaOverride = Boolean(areaOverride) && !areaIsManager;
+  if (shouldUseAreaOverride) return areaOverride;
 
   const commands = definition.managers.flatMap((manager) =>
     managerCommands(manager, targets, overrides),
   );
-  return [...new Set(commands)].join(" && ");
+  return Array.from(new Set(commands)).join(" && ");
 };
 
 const yamlString = (value: string): string => `'${value.replaceAll("'", "''")}'`;
@@ -958,7 +973,8 @@ const legacyInfrastructureWorkflowPath = (
   const content = fs.readFileSync(path, "utf8");
   const isGenerated = content.startsWith(GENERATED_ACTION_HEADER);
   const targetsDocker = workflowTargetsManager(content, LANGUAGES.DOCKER);
-  return isGenerated && targetsDocker ? path : undefined;
+  const isDockerWorkflow = isGenerated && targetsDocker;
+  return isDockerWorkflow ? path : undefined;
 };
 
 const migrateLegacyInfrastructureWorkflow = (path: string): void => {
@@ -999,14 +1015,14 @@ const assertAssignmentKeys = (
   allowed: Set<string>,
   label: string,
 ): void => {
-  const unknown = [...assignments.keys()].filter((key) => !allowed.has(key));
+  const unknown = Array.from(assignments.keys()).filter((key) => !allowed.has(key));
   if (unknown.length === 0) return;
 
   throw new Error(`Unknown ${label}: ${unknown.join(", ")}`);
 };
 
 const assertSchedules = (schedules: Map<string, string>): void => {
-  const invalid = [...schedules.entries()]
+  const invalid = Array.from(schedules.entries())
     .filter(([, value]) => !CRON_SCHEDULE_PATTERN.test(value))
     .map(([area]) => area);
   if (invalid.length === 0) return;
@@ -1024,12 +1040,11 @@ const writeWorkflows = (
 ): void => {
   fs.mkdirSync(join(rootDir, ".github", "workflows"), { recursive: true });
   definitions.forEach((definition) => {
-    const workflow = renderWorkflow({
-      ...definition,
+    const workflow = renderWorkflow(Object.assign({}, definition, {
       postUpdateCommand: postUpdateCommand(definition, targets, commands),
       tokenSecret: secretName,
       versions,
-    });
+    }));
     fs.writeFileSync(workflowPath(rootDir, definition.area), workflow);
   });
 };
@@ -1043,7 +1058,7 @@ export const initGitHubActions = (options: InitGitHubActionsOptions = {}): strin
   const schedules = parseAssignments(options.schedules, "Schedules");
   const areas = new Set(managers.map(areaForManager));
   const managerNames = new Set<string>(managers);
-  const commandKeys = new Set<string>([...managerNames, ...areas]);
+  const commandKeys = new Set<string>(Array.from(managerNames).concat(Array.from(areas)));
 
   assertAssignmentKeys(versionsInput, managerNames, "version manager(s)");
   assertAssignmentKeys(commands, commandKeys, "post-update command target(s)");
@@ -1053,12 +1068,12 @@ export const initGitHubActions = (options: InitGitHubActionsOptions = {}): strin
   const versions = resolveVersions(rootDir, targets, managers, versionsInput);
   const definitions = workflowDefinitions(managers, schedules);
   const paths = definitions.map(({ area }) => workflowPath(rootDir, area));
-  const force = options.force === true;
+  const force = Boolean(options.force);
   const writesInfrastructure = areas.has("infrastructure");
   const legacyPath = writesInfrastructure
     ? undefined
     : legacyInfrastructureWorkflowPath(rootDir, managers);
-  const protectedPaths = legacyPath ? [...paths, legacyPath] : paths;
+  const protectedPaths = legacyPath ? paths.concat(legacyPath) : paths;
   assertSafeWrites(rootDir, protectedPaths, force);
   writeWorkflows(
     rootDir,
@@ -1068,7 +1083,9 @@ export const initGitHubActions = (options: InitGitHubActionsOptions = {}): strin
     commands,
     tokenSecret(options.tokenSecret),
   );
-  if (force && legacyPath) migrateLegacyInfrastructureWorkflow(legacyPath);
+  const migrationPath = force ? legacyPath : undefined;
+  if (!migrationPath) return paths;
+  migrateLegacyInfrastructureWorkflow(migrationPath);
   return paths;
 };
 
@@ -1076,7 +1093,7 @@ const initActions = (options: Record<string, unknown>, positionalTargets: string
   const requestedTargets = stringListOption(options.target);
   const targets = requestedTargets.length > 0 ? requestedTargets : positionalTargets;
   const paths = initGitHubActions({
-    force: options.force === true,
+    force: Boolean(options.force),
     postUpdateCommands: stringListOption(options.postUpdateCommand),
     rootDir: stringOption(options.rootDir),
     schedules: stringListOption(options.schedule),
@@ -1129,12 +1146,9 @@ export const mergeConfigs = (
   const effectiveBaseConfig = omitOverriddenTargets(selectedBaseConfig, options);
   const effectivePathConfig = omitOverriddenTargets(normalizedPathConfig, options);
 
-  const updatedConfig = {
-    ...effectiveBaseConfig,
-    ...effectivePathConfig,
-    ...options,
+  const updatedConfig = Object.assign({}, effectiveBaseConfig, effectivePathConfig, options, {
     isCLI: true,
-  };
+  });
 
   const {
     config: _usedConfig,
@@ -1155,15 +1169,18 @@ const validateEffectiveConfig = (options: Options): void => {
 };
 
 const withDefaultMode = (options: Options): Options => {
-  if (options.targets || options.mode) return options;
+  const hasConfiguredMode = Boolean(options.targets || options.mode);
+  if (hasConfiguredMode) return options;
 
   const hasCodependencies = Boolean(options.codependencies?.length);
-  if (options.permissive === true) return { ...options, mode: "precise" };
-  if (options.permissive === false || hasCodependencies) {
-    return { ...options, mode: "verbose" };
+  if (options.permissive) return Object.assign({}, options, { mode: "precise" });
+  const hasExplicitPermissive = options.permissive !== undefined;
+  const shouldUseVerboseMode = hasExplicitPermissive || hasCodependencies;
+  if (shouldUseVerboseMode) {
+    return Object.assign({}, options, { mode: "verbose" });
   }
 
-  return { ...options, mode: "precise" };
+  return Object.assign({}, options, { mode: "precise" });
 };
 
 const runTarget = async (
@@ -1176,14 +1193,13 @@ const runTarget = async (
   const onDeferredFailure = () => {
     targetFailed = true;
   };
-  const checkOptions = {
-    ...options,
+  const checkOptions = Object.assign({}, options, {
     onProgress,
     deferFailure,
     onDeferredFailure,
-  };
+  });
   const diffs = await programDependencies.checkFiles(checkOptions);
-  const allDiffs = diffs ? [...result.diffs, ...diffs] : result.diffs;
+  const allDiffs = diffs ? result.diffs.concat(diffs) : result.diffs;
   const failed = result.failed || targetFailed;
   return { diffs: allDiffs, failed };
 };
@@ -1233,8 +1249,8 @@ export async function action(options: Options = {}): Promise<void | Options> {
   };
   const actionLogger = createLogger(loggerConfig);
 
-  const isTestingCLI = (options as Record<string, unknown>).isTestingCLI === true;
-  const isTestingAction = (options as Record<string, unknown>).isTestingAction === true;
+  const isTestingCLI = Boolean((options as Record<string, unknown>).isTestingCLI);
+  const isTestingAction = Boolean((options as Record<string, unknown>).isTestingAction);
 
   if (isTestingCLI) {
     logger.print({ updatedOptions: mergedOptions });
@@ -1250,8 +1266,8 @@ export async function action(options: Options = {}): Promise<void | Options> {
     validateEffectiveConfig(updatedOptions);
     const targets = expandTargets(updatedOptions);
 
-    const isDryRun = updatedOptions.dryRun === true;
-    const isWatchMode = updatedOptions.watch === true;
+    const isDryRun = Boolean(updatedOptions.dryRun);
+    const isWatchMode = Boolean(updatedOptions.watch);
 
     if (isDryRun) {
       actionLogger.print(cyan(`\n${SYMBOLS.info} Dry run - no files will be modified\n`));
@@ -1271,14 +1287,13 @@ export async function action(options: Options = {}): Promise<void | Options> {
       ? createSpinner(`🤼‍♀️ ${gradient(`codependence`)} wrestling...\n`).start()
       : null;
 
-    const optionsWithProgress = {
-      ...updatedOptions,
+    const optionsWithProgress = Object.assign({}, updatedOptions, {
       onProgress: (current: number, total: number, packageName: string) => {
         if (spinner) {
           spinner.text = `🤼‍♀️ ${gradient(`codependence`)} checking ${packageName} (${current}/${total})`;
         }
       },
-    };
+    });
 
     const { diffs, failed } = await runTargets(targets, optionsWithProgress.onProgress);
     const duration = Date.now() - startTime;
@@ -1310,7 +1325,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
         else spinner.succeed(successMessage);
       }
 
-      const shouldShowMetrics = updatedOptions.verbose === true;
+      const shouldShowMetrics = Boolean(updatedOptions.verbose);
       if (shouldShowMetrics) {
         showPerformanceMetrics(duration);
       }
@@ -1327,21 +1342,16 @@ export const formatPerformanceMetrics = (
   stats: { hits: number; misses: number; size: number },
   hitRate: number,
 ): string[] => {
-  const lines: string[] = [];
-  lines.push(`\n${SYMBOLS.arrow} Performance:`);
-  lines.push(`  ${SYMBOLS.dot} Completed in ${duration}ms`);
-
   const hasCache = stats.size > 0;
-  if (hasCache) {
-    lines.push(
-      `  ${SYMBOLS.info} Cache: ${stats.hits} hits, ${stats.misses} misses (${hitRate.toFixed(1)}% hit rate)`,
-    );
-    lines.push(`  ${SYMBOLS.info} ${stats.size} packages cached\n`);
-  } else {
-    lines.push(`  ${SYMBOLS.info} No cache hits (first run)\n`);
-  }
-
-  return lines;
+  const cacheLines = hasCache
+    ? [
+        `  ${SYMBOLS.info} Cache: ${stats.hits} hits, ${stats.misses} misses (${hitRate.toFixed(1)}% hit rate)`,
+        `  ${SYMBOLS.info} ${stats.size} packages cached\n`,
+      ]
+    : [`  ${SYMBOLS.info} No cache hits (first run)\n`];
+  return [`\n${SYMBOLS.arrow} Performance:`, `  ${SYMBOLS.dot} Completed in ${duration}ms`].concat(
+    cacheLines,
+  );
 };
 
 const showPerformanceMetrics = (duration: number): void => {
@@ -1398,13 +1408,14 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
       try {
         const content = fs.readFileSync(packageJsonPath, "utf8");
         const packageJson = JSON.parse(content);
-        return !!packageJson.codependence;
+        return Boolean(packageJson.codependence);
       } catch {
         return false;
       }
     })();
 
-    if (hasConfig || hasPackageJsonConfig) {
+    const hasExistingConfig = hasConfig || hasPackageJsonConfig;
+    if (hasExistingConfig) {
       logger.warn("Codependence configuration already exists. Skipping initialization.");
       return;
     }
@@ -1422,15 +1433,17 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
       throw new Error(`Invalid JSON in package.json: ${parseError}`);
     }
 
-    const allDeps = {
-      ...packageJson.dependencies,
-      ...packageJson.devDependencies,
-      ...packageJson.peerDependencies,
-    };
+    const allDeps = Object.assign(
+      {},
+      packageJson.dependencies,
+      packageJson.devDependencies,
+      packageJson.peerDependencies,
+    );
 
     const hasPackageDeps = Object.keys(allDeps).length > 0;
     const shouldRequirePackageDeps = requestedDeps.length === 0;
-    if (!hasPackageDeps && shouldRequirePackageDeps) {
+    const shouldRejectEmptyPackage = !hasPackageDeps && shouldRequirePackageDeps;
+    if (shouldRejectEmptyPackage) {
       throw new Error("No dependencies found in package.json");
     }
 
@@ -1444,7 +1457,8 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
     let usePermissive = true;
     const hasRequestedDeps = requestedDeps.length > 0;
 
-    if (type || hasRequestedDeps) {
+    const shouldUseRequestedDeps = Boolean(type) || hasRequestedDeps;
+    if (shouldUseRequestedDeps) {
       pinnedDeps = hasRequestedDeps ? requestedDeps : Object.keys(allDeps);
       outputType = type === "package" ? "package" : "rc";
       usePermissive = false;
@@ -1515,16 +1529,12 @@ export async function initAction(input?: InitInput, codependencies: string[] = [
     const codependenciesConfig = hasPinnedDeps ? { codependencies: pinnedDeps } : {};
     const permissiveConfig = usePermissive ? { permissive: true } : {};
 
-    const config: CodependenceConfig = {
-      ...codependenciesConfig,
-      ...permissiveConfig,
-    };
+    const config: CodependenceConfig = Object.assign({}, codependenciesConfig, permissiveConfig);
 
     if (outputType === "package") {
-      const updatedPackageJson = {
-        ...packageJson,
+      const updatedPackageJson = Object.assign({}, packageJson, {
         codependence: config,
-      };
+      });
       fs.writeFileSync(packageJsonPath, JSON.stringify(updatedPackageJson, null, 2));
       logger.print("Added codependence configuration to package.json");
     } else {

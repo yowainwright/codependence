@@ -24,7 +24,8 @@ import type {
 export const parseRequirementLine = (line: string): [string, string] | null => {
   const trimmed = line.trim();
 
-  if (!trimmed || PYTHON_PATTERNS.COMMENT.test(trimmed)) {
+  const isBlankOrComment = !trimmed || PYTHON_PATTERNS.COMMENT.test(trimmed);
+  if (isBlankOrComment) {
     return null;
   }
 
@@ -38,17 +39,23 @@ export const parsePoetryLine = (line: string): [string, string] | null => {
   const trimmed = line.trim();
   const match = trimmed.match(PYTHON_PATTERNS.POETRY_LINE);
 
-  if (!match || match[1] === PYTHON_RUNTIME_DEPENDENCY_NAME) return null;
+  if (!match) return null;
+  const isRuntimeDependency = match[1] === PYTHON_RUNTIME_DEPENDENCY_NAME;
+  if (isRuntimeDependency) return null;
 
   return [match[1], match[2]];
 };
 
 const parseCondaDependencySpec = (spec: string): ParsedCondaDependencyLine | null => {
   const trimmed = spec.trim();
-  if (!trimmed || trimmed.endsWith(":")) return null;
+  const isSectionHeader = trimmed.endsWith(":");
+  const isBlankOrSectionHeader = !trimmed || isSectionHeader;
+  if (isBlankOrSectionHeader) return null;
 
   const match = trimmed.match(PYTHON_PATTERNS.CONDA_DEPENDENCY_LINE);
-  if (!match || match[1] === PYTHON_RUNTIME_DEPENDENCY_NAME) return null;
+  if (!match) return null;
+  const isRuntimeDependency = match[1] === PYTHON_RUNTIME_DEPENDENCY_NAME;
+  if (isRuntimeDependency) return null;
 
   return {
     name: match[1],
@@ -71,13 +78,15 @@ const pyprojectTargetForKey = (
   section: string | null,
   key: string,
 ): PyprojectDependencySection | null => {
-  if (section === "project" && key === "dependencies") {
+  const isProjectDependencies = section === "project" && key === "dependencies";
+  if (isProjectDependencies) {
     return "dependencies";
   }
   if (section === "project.optional-dependencies") {
     return "optionalDependencies";
   }
-  if (section === "dependency-groups" && key === "dev") {
+  const isDevDependencyGroup = section === "dependency-groups" && key === "dev";
+  if (isDevDependencyGroup) {
     return "devDependencies";
   }
   if (section === "dependency-groups") {
@@ -129,17 +138,11 @@ const assignPyprojectDependencies = (
 };
 
 const readQuotedPyprojectDependencies = (line: string): Array<readonly [string, string]> => {
-  const dependencies: Array<readonly [string, string]> = [];
   const matches = line.matchAll(PYTHON_PATTERNS.PYPROJECT_QUOTED_DEPENDENCY);
-
-  for (const match of matches) {
+  return Array.from(matches).flatMap((match) => {
     const parsed = parseRequirementLine(match[1]);
-    if (!parsed) continue;
-
-    dependencies.push(parsed);
-  }
-
-  return dependencies;
+    return parsed ? [parsed] : [];
+  });
 };
 
 const updatePyprojectDependencySpec = (
@@ -255,7 +258,8 @@ export class PythonProvider implements DependencyProvider {
       ]);
       const results = JSON.parse(stdout);
       const packages = results[packageName];
-      if (!packages || packages.length === 0) return "";
+      const hasPackages = Boolean(packages?.length);
+      if (!hasPackages) return "";
 
       const latestPackage = packages[packages.length - 1];
       return latestPackage?.version || "";
@@ -298,8 +302,9 @@ export class PythonProvider implements DependencyProvider {
         ]);
         const results = JSON.parse(stdout);
         const packages = results[packageName];
-        if (!packages || packages.length === 0) return [];
-        return [...new Set<string>(packages.map((p: { version: string }) => p.version))];
+        const hasPackages = Boolean(packages?.length);
+        if (!hasPackages) return [];
+        return Array.from(new Set<string>(packages.map((p: { version: string }) => p.version)));
       }
       const command =
         this.packageManager === PYTHON_PACKAGE_MANAGERS.UV
@@ -506,14 +511,14 @@ export class PythonProvider implements DependencyProvider {
   ): void {
     let currentSection: string | null = null;
     let currentArray: PyprojectArrayContext | null = null;
-    const updatedLines: string[] = [];
+    let updatedLines: string[] = [];
 
     for (const line of content.split("\n")) {
       const sectionMatch = line.match(PYTHON_PATTERNS.PYPROJECT_SECTION);
       if (sectionMatch) {
         currentSection = sectionMatch[1];
         currentArray = null;
-        updatedLines.push(line);
+        updatedLines = updatedLines.concat(line);
         continue;
       }
 
@@ -522,13 +527,13 @@ export class PythonProvider implements DependencyProvider {
         currentArray = nextArray;
       }
       if (!currentArray) {
-        updatedLines.push(line);
+        updatedLines = updatedLines.concat(line);
         continue;
       }
 
       const dependencies = manifest[currentArray.target] || {};
       const updatedLine = updatePyprojectDependencyLine(line, dependencies);
-      updatedLines.push(updatedLine);
+      updatedLines = updatedLines.concat(updatedLine);
 
       if (lineClosesPyprojectArray(line)) {
         currentArray = null;
@@ -553,45 +558,60 @@ export class PythonProvider implements DependencyProvider {
 
   private writeCondaEnvironment(filePath: string, manifest: DependencyManifest): void {
     const content = readFileSync(filePath, "utf8");
-    let inDependencies = false;
-    let dependencyItemIndent: number | null = null;
+    const initialState = {
+      lines: [] as string[],
+      inDependencies: false,
+      dependencyItemIndent: null as number | null,
+    };
+    const state = content.split("\n").reduce((current, line) => {
+      if (!current.inDependencies) {
+        const inDependencies = PYTHON_PATTERNS.CONDA_DEPENDENCIES_SECTION.test(line);
+        return Object.assign({}, current, {
+          lines: current.lines.concat(line),
+          inDependencies,
+        });
+      }
 
-    const updated = content
-      .split("\n")
-      .map((line) => {
-        if (!inDependencies) {
-          inDependencies = PYTHON_PATTERNS.CONDA_DEPENDENCIES_SECTION.test(line);
-          return line;
-        }
+      const isTopLevelSection = PYTHON_PATTERNS.CONDA_TOP_LEVEL_SECTION.test(line);
+      if (isTopLevelSection) {
+        return Object.assign({}, current, {
+          lines: current.lines.concat(line),
+          inDependencies: false,
+        });
+      }
 
-        if (PYTHON_PATTERNS.CONDA_TOP_LEVEL_SECTION.test(line)) {
-          inDependencies = false;
-          return line;
-        }
+      const itemMatch = line.match(PYTHON_PATTERNS.CONDA_DEPENDENCY_ITEM);
+      if (!itemMatch) return Object.assign({}, current, { lines: current.lines.concat(line) });
 
-        const itemMatch = line.match(PYTHON_PATTERNS.CONDA_DEPENDENCY_ITEM);
-        if (!itemMatch) return line;
+      const itemIndent = itemMatch[1].length;
+      const dependencyItemIndent = current.dependencyItemIndent ?? itemIndent;
+      if (itemIndent !== dependencyItemIndent) {
+        return Object.assign({}, current, { lines: current.lines.concat(line) });
+      }
 
-        const itemIndent = itemMatch[1].length;
-        if (dependencyItemIndent === null) {
-          dependencyItemIndent = itemIndent;
-        }
-        if (itemIndent !== dependencyItemIndent) return line;
+      const parsed = parseCondaDependencySpec(itemMatch[2]);
+      if (!parsed) {
+        return Object.assign({}, current, {
+          lines: current.lines.concat(line),
+          dependencyItemIndent,
+        });
+      }
 
-        const parsed = parseCondaDependencySpec(itemMatch[2]);
-        if (!parsed) return line;
-
-        const version = manifest.dependencies[parsed.name];
-        if (!version) return line;
-
-        return `${itemMatch[1]}- ${parsed.name}${version}${parsed.suffix}`;
-      })
-      .join("\n");
+      const version = manifest.dependencies[parsed.name];
+      const updatedLine = version
+        ? `${itemMatch[1]}- ${parsed.name}${version}${parsed.suffix}`
+        : line;
+      return Object.assign({}, current, {
+        lines: current.lines.concat(updatedLine),
+        dependencyItemIndent,
+      });
+    }, initialState);
+    const updated = state.lines.join("\n");
 
     writeFileSync(filePath, updated);
   }
 
   validatePackageName(packageName: string): boolean {
-    return PYTHON_PATTERNS.PACKAGE_NAME.test(packageName);
+    return PYTHON_PATTERNS.PACKAGE_NAME.exec(packageName) !== null;
   }
 }

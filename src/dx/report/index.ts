@@ -28,9 +28,33 @@ const getSeverity = (current: string, latest: string): "major" | "minor" | "patc
   return "unknown";
 };
 
+const getSeverityIcon = (severity: "major" | "minor" | "patch" | "unknown"): string => {
+  if (severity === "major") return RAW_SYMBOLS.severityMajor;
+  if (severity === "minor") return RAW_SYMBOLS.severityMinor;
+  return RAW_SYMBOLS.severityPatch;
+};
+
+const partitionDependencies = (
+  dependencies: DependencyInfo[],
+): [DependencyInfo[], DependencyInfo[]] =>
+  dependencies.reduce<[DependencyInfo[], DependencyInfo[]]>((groups, dependency) => {
+    const [outdated, upToDate] = groups;
+    const isUpToDate = dependency.current === dependency.latest;
+    return isUpToDate ? [outdated, upToDate.concat(dependency)] : [outdated.concat(dependency), upToDate];
+  }, [[], []]);
+
 export const formatAsJSON = (dependencies: DependencyInfo[], duration?: number): string => {
-  const outdatedDeps = dependencies.filter((dep) => dep.current !== dep.latest);
+  const [outdatedDeps] = partitionDependencies(dependencies);
   const hasOutdated = outdatedDeps.length > 0;
+  const durationSummary = duration ? { duration } : {};
+  const summary = Object.assign(
+    {
+      totalPackages: dependencies.length,
+      outdated: outdatedDeps.length,
+      upToDate: dependencies.length - outdatedDeps.length,
+    },
+    durationSummary,
+  );
 
   const formatted: FormattedOutput = {
     status: hasOutdated ? "outdated" : "up-to-date",
@@ -43,98 +67,77 @@ export const formatAsJSON = (dependencies: DependencyInfo[], duration?: number):
       severity: getSeverity(dep.current, dep.latest),
       canAutoUpdate: dep.current !== dep.latest,
     })),
-    summary: {
-      totalPackages: dependencies.length,
-      outdated: outdatedDeps.length,
-      upToDate: dependencies.length - outdatedDeps.length,
-      ...(duration ? { duration } : {}),
-    },
+    summary,
   };
 
   return JSON.stringify(formatted, null, 2);
 };
 
 export const formatAsMarkdown = (dependencies: DependencyInfo[], duration?: number): string => {
-  const outdatedDeps = dependencies.filter((dep) => dep.current !== dep.latest);
+  const [outdatedDeps, upToDateDeps] = partitionDependencies(dependencies);
   const hasOutdated = outdatedDeps.length > 0;
 
-  const lines: string[] = [];
-  lines.push("# Dependency Status\n");
+  const outdatedLines = hasOutdated
+    ? [
+        `## ${RAW_SYMBOLS.warning} Outdated Dependencies (${outdatedDeps.length})\n`,
+        "| Package | Current | Latest | Severity |",
+        "|---------|---------|--------|----------|",
+      ].concat(
+        outdatedDeps.map((dep) => {
+          const severity = getSeverity(dep.current, dep.latest);
+          const severityIcon = getSeverityIcon(severity);
+          return `| ${dep.name} | ${dep.current} | ${dep.latest} | ${severityIcon} ${severity} |`;
+        }),
+        "",
+      )
+    : [];
 
-  if (hasOutdated) {
-    lines.push(`## ${RAW_SYMBOLS.warning} Outdated Dependencies (${outdatedDeps.length})\n`);
-    lines.push("| Package | Current | Latest | Severity |");
-    lines.push("|---------|---------|--------|----------|");
-
-    outdatedDeps.forEach((dep) => {
-      const severity = getSeverity(dep.current, dep.latest);
-      const severityIcon =
-        severity === "major"
-          ? RAW_SYMBOLS.severityMajor
-          : severity === "minor"
-            ? RAW_SYMBOLS.severityMinor
-            : RAW_SYMBOLS.severityPatch;
-      lines.push(`| ${dep.name} | ${dep.current} | ${dep.latest} | ${severityIcon} ${severity} |`);
-    });
-
-    lines.push("");
-  }
-
-  const upToDateDeps = dependencies.filter((dep) => dep.current === dep.latest);
   const hasUpToDate = upToDateDeps.length > 0;
 
-  if (hasUpToDate) {
-    lines.push(`## ${RAW_SYMBOLS.success} Up-to-date Dependencies (${upToDateDeps.length})\n`);
-    upToDateDeps.forEach((dep) => {
-      lines.push(`- ${dep.name} @ ${dep.current}`);
-    });
-    lines.push("");
-  }
-
-  lines.push("## Summary\n");
-  lines.push(`- Total packages: ${dependencies.length}`);
-  lines.push(`- Outdated: ${outdatedDeps.length}`);
-  lines.push(`- Up-to-date: ${upToDateDeps.length}`);
-  if (duration) {
-    lines.push(`- Duration: ${duration}ms`);
-  }
+  const upToDateLines = hasUpToDate
+    ? [
+        `## ${RAW_SYMBOLS.success} Up-to-date Dependencies (${upToDateDeps.length})\n`,
+      ].concat(
+        upToDateDeps.map((dep) => `- ${dep.name} @ ${dep.current}`),
+        "",
+      )
+    : [];
+  const durationLines = duration ? [`- Duration: ${duration}ms`] : [];
+  const lines = ["# Dependency Status\n"]
+    .concat(outdatedLines, upToDateLines)
+    .concat(
+      "## Summary\n",
+      `- Total packages: ${dependencies.length}`,
+      `- Outdated: ${outdatedDeps.length}`,
+      `- Up-to-date: ${upToDateDeps.length}`,
+      durationLines,
+    )
+    .flat();
 
   return lines.join("\n");
 };
 
 export const formatAsTable = (dependencies: DependencyInfo[]): string => {
-  const outdatedDeps = dependencies.filter((dep) => dep.current !== dep.latest);
+  const [outdatedDeps] = partitionDependencies(dependencies);
   const hasOutdated = outdatedDeps.length > 0;
 
   if (!hasOutdated) {
     return `${SYMBOLS.success} All dependencies are up-to-date!\n`;
   }
 
-  const lines: string[] = [];
-  lines.push(`\n${SYMBOLS.warning}  Outdated Dependencies:\n`);
-
   const maxNameLength = Math.max(...outdatedDeps.map((dep) => dep.name.length), 10);
   const maxCurrentLength = Math.max(...outdatedDeps.map((dep) => dep.current.length), 7);
   const maxLatestLength = Math.max(...outdatedDeps.map((dep) => dep.latest.length), 6);
 
   const header = `  ${"Package".padEnd(maxNameLength)}  ${"Current".padEnd(maxCurrentLength)}  ${"Latest".padEnd(maxLatestLength)}  Severity`;
-  lines.push(header);
-  lines.push("  " + "─".repeat(header.length - 2));
-
-  outdatedDeps.forEach((dep) => {
+  const dependencyLines = outdatedDeps.map((dep) => {
     const severity = getSeverity(dep.current, dep.latest);
-    const severityDisplay =
-      severity === "major"
-        ? `${SYMBOLS.severityMajor} major`
-        : severity === "minor"
-          ? `${SYMBOLS.severityMinor} minor`
-          : `${SYMBOLS.severityPatch} patch`;
-    lines.push(
-      `  ${dep.name.padEnd(maxNameLength)}  ${dep.current.padEnd(maxCurrentLength)}  ${dep.latest.padEnd(maxLatestLength)}  ${severityDisplay}`,
-    );
+    const severityDisplay = `${getSeverityIcon(severity)} ${severity}`;
+    return `  ${dep.name.padEnd(maxNameLength)}  ${dep.current.padEnd(maxCurrentLength)}  ${dep.latest.padEnd(maxLatestLength)}  ${severityDisplay}`;
   });
-
-  lines.push(`\n  ${outdatedDeps.length} outdated of ${dependencies.length} total\n`);
+  const lines = [`\n${SYMBOLS.warning}  Outdated Dependencies:\n`, header, "  " + "─".repeat(header.length - 2)]
+    .concat(dependencyLines)
+    .concat(`\n  ${outdatedDeps.length} outdated of ${dependencies.length} total\n`);
 
   return lines.join("\n");
 };

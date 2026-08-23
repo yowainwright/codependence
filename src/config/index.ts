@@ -61,16 +61,14 @@ const sharedOptions = (options: Options): CheckFiles => ({
 const targetOptions = (target: CodependenceTarget, options: Options): CheckFiles => {
   const { manager, files: configuredFiles, ...policy } = target;
   const language = languageForManager(manager);
-  const files = configuredFiles ?? [...DEFAULT_MANAGER_FILES[manager]];
+  const files = configuredFiles ?? DEFAULT_MANAGER_FILES[manager].slice();
 
-  return {
-    ...sharedOptions(options),
-    ...policy,
+  return Object.assign({}, sharedOptions(options), policy, {
     files,
     language,
     lockfile: target.lockfile ?? options.lockfile,
     packageManager: manager,
-  };
+  });
 };
 
 const selectedTargets = (options: Options): CodependenceTarget[] => {

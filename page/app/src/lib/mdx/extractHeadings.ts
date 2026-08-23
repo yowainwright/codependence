@@ -10,7 +10,7 @@ function slugify(text: string): string {
 }
 
 function buildTree(flat: Heading[]): Heading[] {
-  const tree: Heading[] = [];
+  let tree: Heading[] = [];
   const parentMap = new Map<number, Heading>();
 
   flat.forEach((heading) => {
@@ -20,7 +20,7 @@ function buildTree(flat: Heading[]): Heading[] {
       for (const key of parentMap.keys()) {
         if (key > 2) parentMap.delete(key);
       }
-      tree.push(node);
+      tree = tree.concat(node);
       parentMap.set(node.depth, node);
       return;
     }
@@ -33,7 +33,9 @@ function buildTree(flat: Heading[]): Heading[] {
     }
 
     const parent = parentMap.get(parentDepth);
-    if (parent) parent.subheadings!.push(node);
+    if (parent) {
+      parent.subheadings = (parent.subheadings ?? []).concat(node);
+    }
   });
 
   return tree;
@@ -41,15 +43,18 @@ function buildTree(flat: Heading[]): Heading[] {
 
 export function extractHeadings(source: string): Heading[] {
   const regex = new RegExp(HEADING_REGEX.source, HEADING_REGEX.flags);
-  const flat: Heading[] = [];
+  let flat: Heading[] = [];
   let match: RegExpExecArray | null;
 
-  while ((match = regex.exec(source)) !== null) {
-    flat.push({
+  match = regex.exec(source);
+  while (match !== null) {
+    const heading = {
       depth: match[1].length,
       slug: slugify(match[2]),
       text: match[2],
-    });
+    };
+    flat = flat.concat(heading);
+    match = regex.exec(source);
   }
 
   return buildTree(flat);

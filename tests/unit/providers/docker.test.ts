@@ -14,8 +14,9 @@ const bearerChallenge = (realm: string, service: string, scope: string): string 
 const mockFetch = (responses: Response[]) => {
   const requests: DockerRequest[] = [];
   const fetch: DockerFetch = async (url, init) => {
-    requests.push({ url, init });
-    const response = responses.shift();
+    requests[requests.length] = { url, init };
+    const response = responses[0];
+    responses = responses.slice(1);
     if (!response) throw new Error(`Unexpected request: ${url}`);
     return response;
   };

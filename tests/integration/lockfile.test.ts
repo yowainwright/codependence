@@ -7,11 +7,11 @@ import { join } from "node:path";
 import { checkFiles } from "../../src/manifest";
 import { NodeJSProvider } from "../../src/providers/nodejs";
 
-const workspaces: string[] = [];
+let workspaces: string[] = [];
 
 const createWorkspace = (file: string, content: string): string => {
   const root = mkdtempSync(join(tmpdir(), "codependence-lockfile-"));
-  workspaces.push(root);
+  workspaces = workspaces.concat(root);
   writeFileSync(join(root, file), content);
   return root;
 };
@@ -24,7 +24,9 @@ const nodeManifest = JSON.stringify({
 
 afterEach(() => {
   mock.restoreAll();
-  workspaces.splice(0).forEach((root) => rmSync(root, { force: true, recursive: true }));
+  const staleWorkspaces = workspaces.slice();
+  workspaces = [];
+  staleWorkspaces.forEach((root) => rmSync(root, { force: true, recursive: true }));
 });
 
 describe("lockfiles", () => {

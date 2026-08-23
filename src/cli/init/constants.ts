@@ -22,8 +22,11 @@ export const ONBOARDING_RECURSIVE_SOURCE_FILES = [
   "uv.lock",
 ];
 
-export const ONBOARDING_SOURCE_PATTERNS = [
-  ...ONBOARDING_RECURSIVE_SOURCE_FILES.flatMap((file) => [file, `**/${file}`]),
+const ONBOARDING_RECURSIVE_PATTERNS = ONBOARDING_RECURSIVE_SOURCE_FILES.flatMap((file) => [
+  file,
+  `**/${file}`,
+]);
+export const ONBOARDING_SOURCE_PATTERNS = ONBOARDING_RECURSIVE_PATTERNS.concat([
   "Dockerfile",
   "Dockerfile.*",
   "**/Dockerfile",
@@ -32,7 +35,7 @@ export const ONBOARDING_SOURCE_PATTERNS = [
   ".github/workflows/*.yaml",
   "**/.github/workflows/*.yml",
   "**/.github/workflows/*.yaml",
-];
+]);
 
 export const ONBOARDING_DEPENDENCY_SECTIONS: OnboardingDependencySection[] = [
   "dependencies",

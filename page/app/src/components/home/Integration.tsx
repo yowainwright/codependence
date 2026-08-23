@@ -97,16 +97,16 @@ const scanDirectory = async (
   directory: FileSystemDirectoryHandle,
   prefix = "",
 ): Promise<OnboardingSourceFile[]> => {
-  const files: OnboardingSourceFile[] = [];
+  let files: OnboardingSourceFile[] = [];
   for await (const [name, handle] of directory.entries()) {
     const path = prefix ? `${prefix}/${name}` : name;
     const isFile = handle.kind === "file" && isOnboardingSourcePath(path);
     const fileHandle = handle as FileSystemFileHandle;
-    if (isFile) files.push(await sourceFile(fileHandle, path));
+    if (isFile) files = files.concat(await sourceFile(fileHandle, path));
     const isDirectory = handle.kind === "directory";
     const shouldScan = isDirectory && !IGNORED_DIRECTORIES.has(name);
     const directoryHandle = handle as FileSystemDirectoryHandle;
-    if (shouldScan) files.push(...(await scanDirectory(directoryHandle, path)));
+    if (shouldScan) files = files.concat(await scanDirectory(directoryHandle, path));
   }
   return files;
 };
@@ -247,9 +247,9 @@ const assertArtifactsMissing = async (
 ): Promise<void> => {
   for (const artifact of artifacts) {
     const segments = artifact.path.split("/");
-    const name = segments.pop();
+    const name = segments.at(-1);
     if (!name) throw new Error("Generated artifact path is empty");
-    const directory = await artifactDirectory(root, segments);
+    const directory = await artifactDirectory(root, segments.slice(0, -1));
     if (await artifactExists(directory, name)) {
       throw new Error(`${artifact.path} already exists`);
     }
@@ -261,9 +261,9 @@ const writeArtifact = async (
   artifact: OnboardingArtifact,
 ): Promise<void> => {
   const segments = artifact.path.split("/");
-  const name = segments.pop();
+  const name = segments.at(-1);
   if (!name) throw new Error("Generated artifact path is empty");
-  const directory = await artifactDirectory(root, segments);
+  const directory = await artifactDirectory(root, segments.slice(0, -1));
   if (await artifactExists(directory, name)) {
     throw new Error(`${artifact.path} already exists`);
   }
@@ -277,12 +277,15 @@ const writeSetup = async (
   session: OnboardingSession,
   setSession: SessionSetter,
 ): Promise<void> => {
-  if (!session.handle || !session.setup) return;
+  const handle = session.handle;
+  const setup = session.setup;
+  if (!handle) return;
+  if (!setup) return;
   updateSession(setSession, { busy: true, error: "", message: "" });
   try {
-    await assertArtifactsMissing(session.handle, session.setup.artifacts);
-    for (const artifact of session.setup.artifacts) {
-      await writeArtifact(session.handle, artifact);
+    await assertArtifactsMissing(handle, setup.artifacts);
+    for (const artifact of setup.artifacts) {
+      await writeArtifact(handle, artifact);
     }
     const message = "Onboarding files were written to the project.";
     updateSession(setSession, { message });

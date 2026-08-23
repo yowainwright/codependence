@@ -71,7 +71,10 @@ const matchStar = (
 ): boolean => {
   const matchesEmpty = matchPatternAt(value, pattern, valueIndex, patternIndex + 1, cache);
   if (matchesEmpty) return true;
-  if (valueIndex === value.length || value[valueIndex] === "/") return false;
+  const isAtEnd = valueIndex === value.length;
+  const isAtSeparator = value[valueIndex] === "/";
+  const cannotConsumeCharacter = isAtEnd || isAtSeparator;
+  if (cannotConsumeCharacter) return false;
   return matchPatternAt(value, pattern, valueIndex + 1, patternIndex, cache);
 };
 
@@ -85,12 +88,16 @@ const calculatePatternMatch = (
   if (patternIndex === pattern.length) return valueIndex === value.length;
   const character = pattern[patternIndex];
   const isGlobStar = character === "*" && pattern[patternIndex + 1] === "*";
-  if (isGlobStar && pattern[patternIndex + 2] === "/") {
+  const isGlobStarDirectory = isGlobStar && pattern[patternIndex + 2] === "/";
+  if (isGlobStarDirectory) {
     return matchGlobStarDirectory(value, pattern, valueIndex, patternIndex, cache);
   }
   if (isGlobStar) return matchGlobStar(value, pattern, valueIndex, patternIndex, cache);
   if (character === "*") return matchStar(value, pattern, valueIndex, patternIndex, cache);
-  if (valueIndex === value.length || (value[valueIndex] === "/" && character === "?")) return false;
+  const isAtEnd = valueIndex === value.length;
+  const isQuestionAtSeparator = value[valueIndex] === "/" && character === "?";
+  const cannotMatchCharacter = isAtEnd || isQuestionAtSeparator;
+  if (cannotMatchCharacter) return false;
   const matchesCharacter = character === "?" || character === value[valueIndex];
   return (
     matchesCharacter && matchPatternAt(value, pattern, valueIndex + 1, patternIndex + 1, cache)
@@ -167,10 +174,9 @@ const isSegmentPattern = (segment: string): boolean => !isLiteralPattern(segment
 
 const findLiteralPrefixLength = (segments: string[]): number => {
   const firstPatternIndex = segments.findIndex(isSegmentPattern);
-  return firstPatternIndex === -1 ? segments.length : firstPatternIndex;
+  const hasPattern = firstPatternIndex !== -1;
+  return hasPattern ? firstPatternIndex : segments.length;
 };
-
-const matchSegment = (value: string, pattern: string): boolean => matchesPattern(value, pattern);
 
 const resolvePatternRoot = (cwd: string, prefixSegments: string[]): string =>
   prefixSegments.reduce((path, segment) => resolve(path, segment), cwd);
@@ -228,11 +234,13 @@ const collectLiteralSegmentMatches = (
   const relativePath = toRelativePath(context.cwd, nextPath);
 
   if (!shouldIncludeRelativePath(relativePath, context.ignorePatterns)) return [];
-  if (step.isLast && isExistingFile(nextPath)) {
+  const isLastFile = step.isLast && isExistingFile(nextPath);
+  if (isLastFile) {
     return [{ type: "result", path: relativePath }];
   }
 
-  if (!step.isLast && isExistingDirectory(nextPath)) {
+  const isIntermediateDirectory = !step.isLast && isExistingDirectory(nextPath);
+  if (isIntermediateDirectory) {
     return [{ type: "candidate", path: nextPath }];
   }
 
@@ -251,7 +259,7 @@ const collectPatternEntryMatches = (
   step: DirectMatchStep,
   context: DirectMatchContext,
 ): DirectMatchItem[] => {
-  if (!matchSegment(entry.name, step.segment)) return [];
+  if (!matchesPattern(entry.name, step.segment)) return [];
 
   const fullPath = join(candidate, entry.name);
   const relativePath = toRelativePath(context.cwd, fullPath);
@@ -352,7 +360,9 @@ const collectGlobStarGroup = (
   ignorePatterns: string[],
 ): string[] => {
   const files = collectAllFiles(root, cwd, ignorePatterns);
-  return files.filter((file) => patterns.some((pattern) => matchesPattern(file, pattern)));
+  const matchesAnyPattern = (file: string): boolean =>
+    patterns.some((pattern) => matchesPattern(file, pattern));
+  return files.filter(matchesAnyPattern);
 };
 
 const collectGlobStarMatches = (

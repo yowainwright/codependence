@@ -23,7 +23,7 @@ export type { GitHubActionsProviderOptions } from "../types";
 
 const resolvedVersionLabels = new Map<string, string>();
 
-const defaultFetch: GitHubFetch = (url, init) => globalThis.fetch(url, init);
+const defaultFetch: GitHubFetch = globalThis.fetch.bind(globalThis);
 
 const actionRepository = (packageName: string): string =>
   packageName.split("/").slice(0, 2).map(encodeURIComponent).join("/");
@@ -69,7 +69,7 @@ const compareVersionTags = (left: ParsedVersionTag, right: ParsedVersionTag): nu
 const latestStableTag = (tags: string[]): string | null => {
   const candidates = tags.map(parseVersionTag);
   const stableTags = candidates.filter((tag): tag is ParsedVersionTag => tag !== null);
-  const sortedTags = stableTags.sort(compareVersionTags);
+  const sortedTags = stableTags.concat().sort(compareVersionTags);
   return sortedTags[0]?.name || null;
 };
 
@@ -81,7 +81,7 @@ const apiHeaders = (token?: string): Record<string, string> => {
   if (!token) return headers;
 
   const authorization = `Bearer ${token}`;
-  return { ...headers, Authorization: authorization };
+  return Object.assign({}, headers, { Authorization: authorization });
 };
 
 const assertApiResponse = (response: Response, repository: string): void => {
@@ -95,7 +95,9 @@ const assertApiResponse = (response: Response, repository: string): void => {
 
 const readReleaseTag = async (response: Response): Promise<string | null> => {
   const release = (await response.json()) as GitHubRelease;
-  return typeof release.tag_name === "string" ? release.tag_name : null;
+  const tagName = release.tag_name;
+  if (typeof tagName !== "string") return null;
+  return tagName;
 };
 
 const readTagNames = async (response: Response): Promise<string[]> => {
@@ -116,8 +118,8 @@ const updateVersionComment = (suffix: string, label?: string): string => {
   const hasSafeLabel = label && SAFE_VERSION_LABEL.test(label);
   if (!hasSafeLabel) return suffix;
 
-  const hasNoComment = suffix.trim().length === 0;
-  if (hasNoComment) return ` # ${label}`;
+  const hasComment = suffix.trim().length > 0;
+  if (!hasComment) return ` # ${label}`;
   if (!VERSION_COMMENT.test(suffix)) return suffix;
 
   return ` # ${label}`;
@@ -174,7 +176,8 @@ export const updateGitHubActionsUsesLine = (
 
   const isCurrentSha = isShaPinnedRef(match[4]);
   const isTargetSha = isShaPinnedRef(version);
-  if (isCurrentSha && !isTargetSha) return line;
+  const shouldPreserveCurrentSha = isCurrentSha && !isTargetSha;
+  if (shouldPreserveCurrentSha) return line;
 
   const suffix = updateVersionComment(match[6], versionLabels[name]);
   const updatedLine = `${match[1]}${match[2]}${name}@${version}${match[5]}${suffix}`;

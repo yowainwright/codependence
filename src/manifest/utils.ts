@@ -32,7 +32,10 @@ const stripVersionPrefix = (version: string): string => {
 export const parseSemver = (version: string): [number, number, number] => {
   const cleaned = stripVersionPrefix(version);
   const parts = cleaned.split(".").map(Number);
-  return [parts[0] || 0, parts[1] || 0, parts[2] || 0];
+  const major = parts[0] || 0;
+  const minor = parts[1] || 0;
+  const patch = parts[2] || 0;
+  return [major, minor, patch];
 };
 
 export const isWithinLevel = (
@@ -46,8 +49,10 @@ export const isWithinLevel = (
 
   const [currentMajor, currentMinor] = parseSemver(current);
   const [latestMajor, latestMinor] = parseSemver(latest);
-  if (level === "minor") return currentMajor === latestMajor;
-  return currentMajor === latestMajor && currentMinor === latestMinor;
+  const sameMajor = currentMajor === latestMajor;
+  const sameMinor = currentMinor === latestMinor;
+  if (level === "minor") return sameMajor;
+  return sameMajor && sameMinor;
 };
 
 const extractDepsFromSection = (
@@ -82,7 +87,8 @@ const versionForComparison = (
   const versions = packageJson.dependencyVersions?.[packageName] || [];
   return versions.reduce((comparedVersion, version) => {
     if (comparedVersion !== currentVersion) return comparedVersion;
-    return version !== latestVersion ? version : currentVersion;
+    const isDifferentVersion = version !== latestVersion;
+    return isDifferentVersion ? version : currentVersion;
   }, currentVersion);
 };
 
@@ -212,12 +218,12 @@ export const deduplicateVersionDiffs = (
   resolvedPackages: ReadonlySet<string> = new Set(),
 ): VersionDiff[] => {
   const seen = new Set<string>();
-  return diffs.filter((diff) => {
+  return diffs.reduce<VersionDiff[]>((uniqueDiffs, diff) => {
     const key = versionDiffKey(diff, resolvedPackages);
-    const isDuplicate = seen.has(key);
+    if (seen.has(key)) return uniqueDiffs;
     seen.add(key);
-    return !isDuplicate;
-  });
+    return uniqueDiffs.concat(diff);
+  }, []);
 };
 
 export const collectDiffsFromManifests = (
@@ -248,10 +254,12 @@ export const collectAllDiffs = (
 };
 
 const buildValidationResult = (warnings: string[], errors: string[]): ValidationResult => {
-  const hasNoErrors = errors.length === 0;
+  const hasErrors = errors.length > 0;
+  const hasWarnings = warnings.length > 0;
+  const validForNewPackages = !hasErrors && !hasWarnings;
   const result: ValidationResult = {
-    validForNewPackages: hasNoErrors && warnings.length === 0,
-    validForOldPackages: hasNoErrors,
+    validForNewPackages,
+    validForOldPackages: !hasErrors,
   };
   if (warnings.length > 0) result.warnings = warnings;
   if (errors.length > 0) result.errors = errors;
@@ -350,7 +358,9 @@ export class ResponseCache {
 
   getHitRate(): number {
     const total = this.hits + this.misses;
-    return total === 0 ? 0 : (this.hits / total) * 100;
+    if (total === 0) return 0;
+    const hitRate = (this.hits / total) * 100;
+    return hitRate;
   }
 }
 
