@@ -19,14 +19,14 @@ This means you control how you update and why you update. Versus other tools, Co
 
 Suppose a project must stay on React `^19.0.0`, but its other dependencies should keep moving. Add that policy to `.codependencerc`:
 
-```json
+```diff
 {
   "config": {
     "app": {
       "path": "package.json",
       "manager": "pnpm",
-      "mode": "precise",
-      "codependencies": [{ "react": "^19.0.0" }]
++      "mode": "precise",
++      "codependencies": [{ "react": "^19.0.0" }]
     }
   }
 }
@@ -78,12 +78,12 @@ It is a top priority to make this official to brew as quickly as possible for yo
 
 <!-- init command behavior from src/cli/index.ts -->
 
-```json
+```diff
 {
-  "scripts": {
-    "init": "codependence init",
-    "update": "codependence --update"
-  }
++  "scripts": {
++    "init": "codependence init",
++    "update": "codependence --update"
++  }
 }
 ```
 
@@ -105,9 +105,9 @@ That's it!
 > For a JavaScript project, you can use a `codependence` dependency policy object in `package.json`. 
 > For larger or mixed-language projects, you can create Codependence config files for your project's dependency needs:
 
-```json
+```diff
 {
-  "codependence": "./.codependencerc"
++  "codependence": "./.codependencerc"
 }
 ```
 
@@ -171,13 +171,13 @@ check, preview, or write the result.
 
 ```diff
 {
-+  "config": {
-+    "web": {
-+      "path": "package.json",
-+      "manager": "pnpm",
+  "config": {
+    "web": {
+      "path": "package.json",
+      "manager": "pnpm",
 +      "codependencies": [{ "lodash": "4.17.21" }]
-+    }
-+  }
+    }
+  }
 }
 ```
 
@@ -1225,7 +1225,7 @@ You can configure multiple project manifests via a single or multiple codependen
 1. Use a skey for each manifest. 
 2. `name` can distinguish manifests in the same directory.
 
-```jsonc
+```diff
 {
   "config": {
     "web": {
@@ -1233,12 +1233,13 @@ You can configure multiple project manifests via a single or multiple codependen
       "path": "packages/web/package.json",
       "manager": "pnpm",
       "mode": "precise"
-    },
-    "api": {
-      "path": "services/api/go.mod",
-      "manager": "go",
-      "mode": "precise"
-    }
+-    }
++    },
++    "api": {
++      "path": "services/api/go.mod",
++      "manager": "go",
++      "mode": "precise"
++    }
   }
 }
 ```
