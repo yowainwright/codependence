@@ -169,15 +169,15 @@ check, preview, or write the result.
 
 `.codependencerc`:
 
-```jsonc
+```diff
 {
-  "config": {
-    "web": {
-      "path": "package.json",
-      "manager": "pnpm",
-      "codependencies": [{ "lodash": "4.17.21" }]
-    }
-  }
++  "config": {
++    "web": {
++      "path": "package.json",
++      "manager": "pnpm",
++      "codependencies": [{ "lodash": "4.17.21" }]
++    }
++  }
 }
 ```
 
@@ -232,10 +232,10 @@ Use `--dryRun` with `--update` to show that change without writing it:
 codependence --update --dryRun
 ```
 
-```jsonc
+```diff
 {
-  "update": true,
-  "dryRun": true
++  "update": true,
++  "dryRun": true
 }
 ```
 
@@ -266,60 +266,94 @@ jobs:
 
 ---
 
-#### `config`: manifest dictionary
+#### `config`
+
+> Type: **`Record<string, CodependenceManifest>`**
 
 <!-- manifest config shape from src/types.ts and src/config/index.ts -->
 
 Each key identifies one manifest. Every entry requires a direct `path` and a
 `manager`; `name` is optional. Policy fields apply only to that manifest.
 
-```jsonc
+```diff
 {
-  "config": {
-    "web": {
-      "name": "@project/web",
-      "path": "packages/web/package.json",
-      "manager": "pnpm",
-      "codependencies": ["typescript"]
-    },
-    "actions": {
-      "path": ".github/workflows/update.yml",
-      "manager": "github-actions",
-      "mode": "precise"
-    }
-  }
++  "config": {
++    "web": {
++      "name": "@project/web",
++      "path": "packages/web/package.json",
++      "manager": "pnpm",
++      "codependencies": ["typescript"]
++    },
++    "actions": {
++      "path": ".github/workflows/update.yml",
++      "manager": "github-actions",
++      "mode": "precise"
++    }
++  }
 }
 ```
 
 ---
 
-#### `codependencies`: `Array<string | Record<string, string>>`
+#### `codependencies`
 
-`codependencies` is a manifest policy array. String entries track the latest version; object entries pin an exact version or range.
+> Type: **`Array<string | Record<string, string>>`**
+> Default: `undefined`
 
-- The default value is `undefined`
-- An array is required!
+Defines the packages controlled by policy. String entries name a package; object entries name a package with an exact version or range. In `verbose` mode, listed packages are checked or updated. In `precise` mode, listed packages are held back while the rest can update.
 
-```jsonc
+```diff
 {
-  "codependencies": ["lodash", { "react": "19.0.0" }]
++  "codependencies": ["lodash", { "react": "^19.0.0" }]
 }
 ```
 
----
+Check or update only listed packages:
+
+```diff
+{
++  "mode": "verbose",
++  "codependencies": ["lodash"],
++  "update": true
+}
+```
+
+```sh
+codependence --mode verbose --codependencies lodash --update
+```
+
+```diff
+ "dependencies": {
+-  "lodash": "^4.17.20",
++  "lodash": "^4.17.21",
+   "react": "^19.0.0"
+ }
+```
+
+Pin listed packages and update the rest:
+
+```diff
+{
++  "mode": "precise",
++  "codependencies": [{ "react": "^19.0.0" }],
++  "update": true
+}
+```
+
+```sh
+codependence --mode precise --codependencies react --update
+```
+
+```diff
+ "dependencies": {
+   "react": "^19.0.0",
+-  "lodash": "^4.17.20"
++  "lodash": "^4.17.21"
+ }
+```
 
 > [!NOTE]
-> #### Version policy entries
-> The Codependence `codependencies` array supports `latest` out-of-the-box.
-> So having this:
-> - `["fs-extra", "lodash"]` will return the latest semver versions of the packages within the array. 
-> - Codepence will also match a specified version, like  `[{ "foo": "1.0.0" }]` and `[{ "foo": "^1.0.0" }]` or `[{ "foo": "~1.0.0" }]`. 
-> - You can also include a `*` **at the end** of a name you would like to match. 
->   ##### For example: 
->   - `@foo/*` will match all packages with `@foo/` in the name and return their latest versions. 
->   - This will also work with `foo-*`, etc.
-
-**Codependence** is built in to give you more capability to control your dependencies!
+> `--codependencies` accepts package names. Use config when a package needs an exact version or range.
 
 ---
 
@@ -327,83 +361,126 @@ Each key identifies one manifest. Every entry requires a direct `path` and a
 
 Define the manifest file, dependency manager, and optional `name`.
 
-```jsonc
+```diff
 {
-  "config": {
-    "web": {
-      "path": "packages/web/package.json",
-      "manager": "pnpm",
-      "name": "@project/web"
-    }
-  }
++  "config": {
++    "web": {
++      "path": "packages/web/package.json",
++      "manager": "pnpm",
++      "name": "@project/web"
++    }
++  }
 }
 ```
 
 ---
 
-#### `update`: `boolean`
+#### `update`
 
-When `true`, apply updates across all configured entries. The default is
-`false`.
+> Type: **`boolean`**
+> Default: `false`
 
-```jsonc
+Applies approved dependency changes to manifest files. When `false`, Codependence only checks and reports.
+
+```diff
 {
-  "update": true
++  "update": true
 }
 ```
 
+Run the same behavior from the CLI:
+
+```sh
+codependence --update
+```
+
+With `mode: "precise"`, listed packages stay pinned and unlisted packages can update.
+
+```diff
+{
++  "mode": "precise",
++  "codependencies": [{ "react": "^19.0.0" }],
++  "update": true
+}
+```
+
+```diff
+ "dependencies": {
+   "react": "^19.0.0",
+-  "lodash": "^4.17.20"
++  "lodash": "^4.17.21"
+ }
+```
+
+> [!NOTE]
+> Use `dryRun: true` or `--dryRun` to preview the same update without writing files.
+
 ---
 
-#### `rootDir`: `string`
+#### `rootDir`
+
+> Type: **`string`**
+> Default: `"./"`
 
 Set the manifest search directory. The default is `"./"`.
 
-```jsonc
+```diff
 {
-  "rootDir": "packages/web"
++  "rootDir": "packages/web"
 }
 ```
 
 ---
 
-#### `ignore`: `Array<string>`
+#### `ignore`
+
+> Type: **`Array<string>`**
 
 Provide glob patterns to skip. An explicit array replaces the default ignores.
 
-```jsonc
+```diff
 {
-  // Replaces the default ignore patterns.
-  "ignore": ["examples/**", "fixtures/**"]
++  // Replaces the default ignore patterns.
++  "ignore": ["examples/**", "fixtures/**"]
 }
 ```
 
 ---
 
-#### `debug`: `boolean`
+#### `debug`
+
+> Type: **`boolean`**
+> Default: `false`
 
 Enable diagnostic logging. The default is `false`.
 
-```jsonc
+```diff
 {
-  "debug": true
++  "debug": true
 }
 ```
 
 ---
 
-#### `silent`: `boolean`
+#### `silent`
+
+> Type: **`boolean`**
+> Default: `false`
 
 Suppress normal output while preserving errors. The default is `false`.
 
-```jsonc
+```diff
 {
-  "silent": true
++  "silent": true
 }
 ```
 
 ---
 
-#### `--config`: `string`
+#### `--config`
+
+> Type: **`string`**
+> Default: `undefined`
 
 Use a specific configuration file instead of auto-discovery.
 
@@ -413,7 +490,10 @@ codependence --config ./config/.codependencerc
 
 ---
 
-#### `searchPath`: `string`
+#### `searchPath`
+
+> Type: **`string`**
+> Default: `undefined`
 
 Set where configuration discovery starts.
 
@@ -423,7 +503,10 @@ codependence --searchPath ./services/api
 
 ---
 
-#### `yarnConfig`: `boolean`
+#### `yarnConfig`
+
+> Type: **`boolean`**
+> Default: `false`
 
 Enable Yarn configuration support. The default is `false`.
 
@@ -433,154 +516,347 @@ codependence --yarnConfig
 
 ---
 
-#### `permissive`: `boolean`
+#### `permissive`
 
-When `true`, update everything except the dependencies listed in
-`codependencies`.
+> Type: **`boolean`**
+> Default: `undefined`
 
-```jsonc
+Treats listed `codependencies` as pins. When `true`, Codependence holds those packages back and updates everything else. This is equivalent to `mode: "precise"`.
+
+```diff
 {
-  // Pin these dependencies; update the rest.
-  "permissive": true,
-  "codependencies": ["react", "typescript"]
++  "permissive": true,
++  "codependencies": ["react"],
++  "update": true
 }
+```
+
+Run the same behavior from the CLI:
+
+```sh
+codependence --permissive --codependencies react --update
+```
+
+The listed package stays unchanged while unlisted packages can update:
+
+```diff
+ "dependencies": {
+   "react": "^19.0.0",
+-  "lodash": "^4.17.20"
++  "lodash": "^4.17.21"
+ }
+```
+
+> [!NOTE]
+> Prefer `mode: "precise"` in new config. `permissive` remains supported for compatibility.
+
+---
+
+#### `level`
+
+> Type: **`"patch" | "minor" | "major"`**
+> Default: `"major"`
+
+Limits how far an approved update can move. `patch` stays within the same minor version, `minor` stays within the same major version, and `major` allows any version change.
+
+```diff
+{
++  "level": "minor",
++  "update": true
+}
+```
+
+Run the same behavior from the CLI:
+
+```sh
+codependence --level minor --update
+```
+
+With `level: "minor"`, a minor update can apply:
+
+```diff
+ "dependencies": {
+-  "example-lib": "^1.2.0"
++  "example-lib": "^1.3.0"
+ }
+```
+
+A major update is skipped by the same policy:
+
+```diff
+ "dependencies": {
+   "example-lib": "^1.2.0"
+ }
+```
+
+> [!NOTE]
+> Exact-version providers can ignore semver level gates when their versions do not follow semver.
+
+---
+
+#### `mode`
+
+> Type: **`"verbose" | "precise"`**
+> Default: inferred from `codependencies` and `permissive`
+
+Controls how `codependencies` is interpreted. `verbose` means "only work on the listed packages." `precise` means "hold back the listed packages and work on everything else."
+
+```diff
+{
++  "mode": "verbose"
+}
+```
+
+Use `verbose` to update only the listed package:
+
+```diff
+{
++  "mode": "verbose",
++  "codependencies": ["lodash"],
++  "update": true
+}
+```
+
+```sh
+codependence --mode verbose --codependencies lodash --update
+```
+
+```diff
+ "dependencies": {
+-  "lodash": "^4.17.20",
++  "lodash": "^4.17.21",
+   "react": "^19.0.0"
+ }
+```
+
+Use `precise` to pin the listed package and update the rest:
+
+```diff
+{
++  "mode": "precise",
++  "codependencies": ["react"],
++  "update": true
+}
+```
+
+```sh
+codependence --mode precise --codependencies react --update
+```
+
+```diff
+ "dependencies": {
+   "react": "^19.0.0",
+-  "lodash": "^4.17.20"
++  "lodash": "^4.17.21"
+ }
+```
+
+> [!NOTE]
+> If `mode` is omitted, Codependence defaults to `verbose` when `codependencies` are listed and `precise` when no `codependencies` are listed.
+
+---
+
+#### `dryRun`
+
+> Type: **`boolean`**
+> Default: `false`
+
+Shows what `update` would change without writing manifest or lockfile changes.
+
+```diff
+{
++  "update": true,
++  "dryRun": true
+}
+```
+
+Run the same behavior from the CLI:
+
+```sh
+codependence --update --dryRun
+```
+
+Previewing an update reports the same candidate change without applying it:
+
+```diff
+ "dependencies": {
+   "react": "^19.0.0",
+-  "lodash": "^4.17.20"
++  "lodash": "^4.17.21"
+ }
 ```
 
 ---
 
-#### `level`: `"patch" | "minor" | "major"`
+#### `interactive`
 
-An **optional** string constraining how far updates are allowed to reach.
+> Type: **`boolean`**
+> Default: `false`
 
-- `"patch"` — only update within the same minor version (e.g. `1.2.x`)
-- `"minor"` — only update within the same major version (e.g. `1.x.x`)
-- `"major"` — allow any update (default)
+Prompts you to choose which update candidates to apply. It only runs with `update: true`; `dryRun` skips the prompt because no files are written.
 
-`codependence --level minor --update` applies the limit for one run.
-
-```jsonc
+```diff
 {
-  "level": "minor",
-  "update": true
++  "update": true,
++  "interactive": true
 }
+```
+
+Run the same behavior from the CLI:
+
+```sh
+codependence --update --interactive
+```
+
+The CLI prompts for the packages to update:
+
+```txt
+Select packages to update:
+```
+
+Selected packages update; unselected packages stay unchanged.
+
+```diff
+ "dependencies": {
+-  "lodash": "^4.17.20",
++  "lodash": "^4.17.21",
+   "react": "^19.0.0"
+ }
 ```
 
 ---
 
-#### `mode`: `"verbose" | "precise"`
+#### `watch`
 
-An **optional** string controlling which packages are checked.
+> Type: **`boolean`**
+> Default: `false`
 
-- `"verbose"` — only check/update the packages listed in `codependencies` (0.x compatible behavior)
-- `"precise"` — update all dependencies except those listed in `codependencies` (same as permissive behavior)
+Runs Codependence continuously from the CLI. It checks immediately, then re-checks the configured targets every 30 seconds until stopped.
 
-```jsonc
+```diff
 {
-  "mode": "precise",
-  "codependencies": ["react"],
-  "update": true
++  "watch": true
 }
 ```
 
-This keeps `react` pinned while allowing unlisted dependencies to update. The
-one-off equivalent is `codependence --mode precise --codependencies react --update`.
+Run the same behavior from the CLI:
+
+```sh
+codependence --watch
+```
+
+Watch mode prints the active loop and each check result:
+
+```txt
+Watch mode enabled - checking every 30 seconds...
+Press Ctrl+C to stop
+
+[10:15:30 AM] Checking dependencies...
+All dependencies checked (10:15:30 AM)
+```
+
+If a check is still running when the next interval starts, Codependence skips that interval.
 
 ---
 
-#### `dryRun`: `boolean`
+#### `noCache`
 
-An **optional** boolean that previews what would change without modifying any files.
+> Type: **`boolean`**
+> Default: `false`
 
-- The default value is `false`
+Bypasses the in-memory version cache for registry lookups. Use it when you need fresh dependency metadata during a run.
 
-```jsonc
+```diff
 {
-  "update": true,
-  "dryRun": true
++  "noCache": true
 }
 ```
 
-This reports the update candidates and leaves manifests and lockfiles unchanged.
+Run the same behavior from the CLI:
+
+```sh
+codependence --noCache
+```
+
+The check resolves versions from the provider instead of reusing cached results:
+
+```txt
+No cache hits (first run)
+```
 
 ---
 
-#### `interactive`: `boolean`
+#### `format`
 
-An **optional** boolean that prompts you to select which packages to update when combined with `--update`.
+> Type: **`"json" | "markdown" | "table"`**
+> Default: `undefined`
 
-- The default value is `false`
+Controls structured CLI output. When set, Codependence prints the selected format instead of the normal spinner output.
 
-```jsonc
+```diff
 {
-  "update": true,
-  "interactive": true
++  "format": "json"
 }
 ```
 
-The one-off equivalent is `codependence --update --interactive`.
+Run the same behavior from the CLI:
 
----
+```sh
+codependence --format json
+```
 
-#### `watch`: `boolean`
+JSON output includes the status, exit code, dependency list, and summary:
 
-An **optional** boolean that enables continuous checking, re-running every 30 seconds.
-
-- The default value is `false`
-
-```jsonc
+```json
 {
-  "watch": true
+  "status": "outdated",
+  "exitCode": 1,
+  "dependencies": [
+    {
+      "package": "lodash",
+      "current": "4.17.20",
+      "latest": "4.17.21",
+      "isPinned": true,
+      "severity": "patch",
+      "canAutoUpdate": true
+    }
+  ],
+  "summary": {
+    "totalPackages": 1,
+    "outdated": 1,
+    "upToDate": 0
+  }
 }
 ```
 
-The CLI re-checks the configured manifests every 30 seconds.
+Use `markdown` for PR comments and `table` for terminal-readable output.
 
 ---
 
-#### `noCache`: `boolean`
+#### `outputFile`
 
-An **optional** boolean that bypasses the version cache for fresh registry results.
+> Type: **`string`**
+> Default: `undefined`
 
-- The default value is `false`
+Writes formatted output to a file instead of stdout. Use it with `format`.
 
-```jsonc
+```diff
 {
-  "noCache": true
++  "format": "json",
++  "outputFile": "dependency-report.json"
 }
 ```
 
-The one-off equivalent is `codependence --noCache`.
+Run the same behavior from the CLI:
 
----
-
-#### `format`: `"json" | "markdown" | "table"`
-
-An **optional** string specifying the output format. When set, disables the spinner and outputs structured data instead.
-
-- `"json"` — machine-readable JSON
-- `"markdown"` — Markdown table (useful for PR comments)
-- `"table"` — formatted table (default when flag is used)
-
-```jsonc
-{
-  "format": "markdown",
-  "outputFile": "dependency-report.md"
-}
+```sh
+codependence --format json --outputFile dependency-report.json
 ```
 
-The one-off equivalent is `codependence --format markdown --outputFile dependency-report.md`.
+The CLI writes the report and prints the destination:
 
----
-
-#### `outputFile`: `string`
-
-An **optional** path to write formatted output to a file instead of stdout. Requires `format` to be set.
-
-```jsonc
-{
-  "format": "json",
-  "outputFile": "dependency-report.json"
-}
+```txt
+Output written to dependency-report.json
 ```
 
 ---
@@ -589,92 +865,327 @@ An **optional** path to write formatted output to a file instead of stdout. Requ
 
 <!-- generated workflow behavior from src/cli/index.ts -->
 
-### Github Actions
+### GitHub Actions
 
-Codependece currently has a Github action.
-In order to use it, you do need to setup your configration first.
+The GitHub Action runs the same policy as the CLI from a workflow.
 
-Generate split workflows from the configured managers:
+#### `init actions [managers...]`
+
+> Type: **`command`**
+> Default: all configured manager areas
+
+Generates scheduled workflow files from the configured manifests. Existing generated files are preserved unless `--force` is provided.
 
 ```sh
-npm run init -- actions
+codependence init actions
 ```
 
-- This creates up to six stable workflow files for Node, Python, Go, Rust,
-Docker, and GitHub Actions. 
-- Docker runs alone so its updates stay on the
-`update-dependencies/docker` pull-request branch. 
-- Existing files are preserved
-unless `--force` is provided.
+The command creates stable workflow files for Node, Python, Go, Rust, Docker, and GitHub Actions. Docker gets its own `update-dependencies/docker` pull-request branch.
+
+#### `uses: yowainwright/codependence@v1`
+
+> Type: **`GitHub Action`**
+> Default: check mode
+
+Runs the configured policy without repeating it in workflow YAML.
+
+```yaml
+- uses: actions/checkout@v4
+- uses: yowainwright/codependence@v1
+```
+
+If dependencies are outdated, the action fails by default and sets `outdated`.
+
+```yaml
+outdated: "true"
+```
 
 <!-- partial update and pull request inputs from action.yml -->
 
-To run one configured manager with an exact tool version, do this:
+#### `targets`
 
-```yaml
-- uses: yowainwright/codependence@v1
-  with:
-    targets: bun
-    version: 1.3.14
+> Type: **`Array<"bun" | "npm" | "pnpm" | "yarn" | "go" | "rust" | "uv" | "docker" | "github-actions">`**
+> Default: `undefined`
+
+Limits the action to configured manager targets. Versioned targets need an exact tool version unless a Node package-manager version can be inferred from `package.json`.
+
+```diff
+ - uses: yowainwright/codependence@v1
+   with:
++    targets: pnpm
++    version: 11.21.0
 ```
 
-### Actions with Rust
+#### `version`
 
-Rust accepts exact stable `x.y.z` toolchains and normalizes an optional leading
-`v` before invoking rustup.
+> Type: **`string | Record<"bun" | "npm" | "pnpm" | "yarn" | "go" | "rust" | "uv", string>`**
+> Default: inferred for Node package managers when possible
 
-### Actions with Docker
+Pins the tool version installed before Codependence runs. Use one exact version for one versioned target, or `manager=version` entries for multiple targets.
 
-Public Docker Hub and GHCR images need no registry inputs. Private images use
-repository secrets without placing credentials in `.codependencerc`:
-
-```yaml
-- uses: yowainwright/codependence@v1
-  with:
-    targets: docker
-    dockerhub-username: ${{ vars.DOCKERHUB_USERNAME }}
-    dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-    ghcr-username: ${{ github.actor }}
-    ghcr-token: ${{ secrets.GITHUB_TOKEN }}
+```diff
+ - uses: yowainwright/codependence@v1
+   with:
++    targets: |
++      bun
++      go
++    version: |
++      bun=1.3.14
++      go=1.24.5
 ```
 
-### Pull Request (PR) Mode
+Invalid or missing versions fail before dependency checks run.
 
-PR mode requires a fine-grained PAT and `post-update-command`. 
+```txt
+::error::pnpm requires an exact version
+```
 
-- Each manager set uses a stable branch, so scheduled Bun, Go, Rust, uv, Docker, and GitHub Actions workflows maintain separate pull requests while repeated runs update the
-existing PR. 
+#### `with: Partial<Options>`
 
-See the [GitHub Action guide](.github/ACTION.md) for lockfile
-policy and PAT permissions.
+> Type: **`Partial<Options>`**
+> Default: CLI defaults
+
+The action forwards policy inputs to the CLI, including `codependencies`, `config`, `files`, `update`, `dryRun`, `permissive`, `mode`, `level`, `language`, `rootDir`, `ignore`, `silent`, `debug`, `yarnConfig`, `noCache`, `format`, `outputFile`, and `lockfile`.
+
+```diff
+ - uses: yowainwright/codependence@v1
+   with:
++    mode: precise
++    codependencies: react
++    update: true
+```
+
+This holds `react` back and updates the rest:
+
+```diff
+ "dependencies": {
+   "react": "^19.0.0",
+-  "lodash": "^4.17.20"
++  "lodash": "^4.17.21"
+ }
+```
+
+#### `pull-request`
+
+> Type: **`"true" | "false"`**
+> Default: `"false"`
+
+Creates or updates a stable pull request for the selected targets. PR mode requires `schedule` or `workflow_dispatch`, `targets`, `token`, `post-update-command`, and a clean checkout.
+
+```diff
+ - uses: yowainwright/codependence@v1
+   with:
++    targets: go
++    version: 1.24.5
++    pull-request: true
++    token: ${{ secrets.CODEPENDENCE_TOKEN }}
++    post-update-command: go mod tidy
+```
+
+The action exposes the created or updated pull request URL:
+
+```yaml
+pull-request-url: "https://github.com/org/repo/pull/123"
+```
+
+#### `token` / `branch-prefix` / `draft`
+
+> Type: **`{ token?: string; "branch-prefix"?: string; draft?: "true" | "false" }`**
+> Default: `undefined` for `token`, `"update-dependencies"` for `branch-prefix`, `"false"` for `draft`
+
+Configures pull-request creation. `token` must be a fine-grained PAT; `branch-prefix` controls the stable update branch; `draft` creates the pull request as a draft.
+
+```diff
+ - uses: yowainwright/codependence@v1
+   with:
++    token: ${{ secrets.CODEPENDENCE_TOKEN }}
++    branch-prefix: update-dependencies
++    draft: true
+```
+
+#### `post-update-command`
+
+> Type: **`string`**
+> Default: `undefined`
+
+Runs after dependency files are edited in PR mode. Use it to regenerate lockfiles and any committed derived files.
+
+```diff
+ - uses: yowainwright/codependence@v1
+   with:
++    post-update-command: pnpm install
+```
+
+#### `dockerhub-*` / `ghcr-*`
+
+> Type: **`Partial<Record<"dockerhub-username" | "dockerhub-token" | "ghcr-username" | "ghcr-token", string>>`**
+> Default: `undefined`
+
+Private Docker Hub images use `dockerhub-username` and `dockerhub-token`. Private GHCR images use `ghcr-username` and `ghcr-token`.
+
+```diff
+ - uses: yowainwright/codependence@v1
+   with:
++    targets: docker
++    dockerhub-username: ${{ vars.DOCKERHUB_USERNAME }}
++    dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
++    ghcr-username: ${{ github.actor }}
++    ghcr-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+#### `fail-on-outdated`
+
+> Type: **`"true" | "false"`**
+> Default: `"true"`
+
+Controls whether outdated dependencies fail the workflow. Set it to `false` when a later workflow step reads the `outdated` output.
+
+```diff
+ - uses: yowainwright/codependence@v1
++  id: deps
+   with:
++    fail-on-outdated: false
+```
+
+The action can report outdated dependencies without failing the job:
+
+```yaml
+outdated: "true"
+```
+
+#### `outdated` / `pull-request-url`
+
+> Type: **`{ outdated: "true" | "false"; "pull-request-url"?: string }`**
+> Default: `undefined`
+
+The action exposes `outdated` for dependency status and `pull-request-url` when PR mode creates or updates a pull request.
+
+```yaml
+steps.deps.outputs.outdated: "true"
+steps.deps.outputs.pull-request-url: "https://github.com/org/repo/pull/123"
+```
+
+See the [GitHub Action guide](.github/ACTION.md) for lockfile policy and PAT permissions.
 
 ---
 
-## JavaScrpt Server Side API
+## JavaScript server-side API
 
-Although **Codependence** is built primarily as a CLI utility, it can be used as a JavaScript Server Side utility.
+The Node API runs the same dependency policy from JavaScript or TypeScript.
+
+#### `checkFiles(options?: CheckFiles)`
+
+> Type: **`(options?: CheckFiles) => Promise<VersionDiff[] | void>`**
+> Default: `{}`
+
+Checks the selected manifests. It throws when dependencies are out of date unless `format` or `deferFailure` is set.
+
+```diff
+ import { checkFiles } from "codependence";
+
+ const diffs = await checkFiles({
++  mode: "verbose",
++  codependencies: ["lodash"],
++  format: "json",
+ });
+```
+
+When diffs are collected, the call returns `VersionDiff[]`.
 
 ```ts
-import { checkFiles, codependence } from "codependence";
+[
+  {
+    package: "lodash",
+    current: "4.17.20",
+    latest: "4.17.21",
+    isPinned: true,
+    willUpdate: false,
+  },
+];
+```
 
-const checkForOutdated = async () => {
-  try {
-    await checkFiles({ codependencies: ["fs-extra", "lodash"] });
-    console.log("All dependencies are up-to-date");
-  } catch (err) {
-    console.error("Dependencies are out of date:", (err as Error).message);
-  }
-};
+#### `codependence(options?: CheckFiles)`
 
-const updateAllExceptSpecific = async () => {
-  await codependence({
-    codependencies: ["react", "lodash"],
-    permissive: true,
-    update: true,
-  });
-};
+> Type: **`typeof checkFiles`**
+> Default: `{}`
 
-checkForOutdated();
+Alias for `checkFiles`. Use it when the call is intended to run a full Codependence policy rather than only inspect files.
+
+```diff
+ import { codependence } from "codependence";
+
+ await codependence({
++  mode: "precise",
++  codependencies: ["react"],
++  update: true,
+ });
+```
+
+This holds `react` back and writes the allowed update:
+
+```diff
+ "dependencies": {
+   "react": "^19.0.0",
+-  "lodash": "^4.17.20"
++  "lodash": "^4.17.21"
+ }
+```
+
+#### `script(options?: CheckFiles)`
+
+> Type: **`(options?: CheckFiles) => Promise<void>`**
+> Default: `{}`
+
+Runs `checkFiles` and resolves without rethrowing `checkFiles` failures. Use `checkFiles` directly when the caller needs to handle failures.
+
+```diff
+ import { script } from "codependence";
+
+ await script({
++  codependencies: ["lodash"],
+ });
+```
+
+#### `schema`
+
+> Type: **`object`**
+> Default: Codependence JSON schema
+
+Exports the configuration schema used by Codependence.
+
+```ts
+import { schema } from "codependence";
+```
+
+#### `onProgress`
+
+> Type: **`(current: number, total: number, packageName: string) => void`**
+> Default: `undefined`
+
+Receives version-resolution progress while package metadata is fetched.
+
+```diff
+ await checkFiles({
++  codependencies: ["lodash", "react"],
++  onProgress: (current, total, packageName) => {
++    process.stdout.write(`${current}/${total} ${packageName}\n`);
++  },
+ });
+```
+
+#### `deferFailure`
+
+> Type: **`boolean`**
+> Default: `false`
+
+Returns outdated diff data without throwing immediately. Pair it with `format` when the caller needs machine-readable results.
+
+```diff
+ const diffs = await checkFiles({
++  codependencies: ["lodash"],
++  format: "json",
++  deferFailure: true,
+ });
 ```
 
 ---
