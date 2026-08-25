@@ -27,7 +27,6 @@ concurrency:
 jobs:
   homebrew:
     runs-on: macos-latest
-    environment: homebrew-publish
     permissions:
       contents: write
       id-token: write
@@ -55,6 +54,21 @@ jobs:
           test "$(git rev-parse HEAD)" = "$TAG_COMMIT"
           test "$(gh release view "$RELEASE_REF" --json tagName --jq .tagName)" = "$RELEASE_REF"
           echo "VERSION=$PACKAGE_VERSION" >> "$GITHUB_ENV"
+
+      - name: Validate Homebrew tap token
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN is required for Homebrew publishing"
+            exit 1
+          fi
+
+          CAN_PUSH="$(gh api repos/yowainwright/homebrew-tap --jq '.permissions.push')"
+          if [ "$CAN_PUSH" != "true" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN must have write access to yowainwright/homebrew-tap"
+            exit 1
+          fi
 
       - name: Checkout release tooling
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -145,18 +159,32 @@ jobs:
           TAP_BRANCH: "codependence-${{ inputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}"
         run: |
           test -n "$GH_TOKEN"
-          gh auth setup-git --hostname github.com --force
-          gh repo clone yowainwright/homebrew-tap tap
-          if cmp -s "$FORMULA_PATH" tap/Formula/codependence.rb; then
+          gh api repos/yowainwright/homebrew-tap/contents/Formula/codependence.rb \
+            -H "Accept: application/vnd.github.raw" > current-codependence.rb
+          if cmp -s "$FORMULA_PATH" current-codependence.rb; then
             exit 0
           fi
-          cd tap
-          git switch -c "$TAP_BRANCH"
-          cp "../$FORMULA_PATH" Formula/codependence.rb
-          git add Formula/codependence.rb
-          git -c user.name=github-actions -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -m "codependence $VERSION"
-          git push --set-upstream origin "$TAP_BRANCH"
-          gh pr create --base main --head "$TAP_BRANCH" --title "codependence $VERSION" --body "Automated formula update for codependence $VERSION."
+
+          BASE_SHA="$(gh api repos/yowainwright/homebrew-tap/git/ref/heads/main --jq '.object.sha')"
+          gh api --method POST repos/yowainwright/homebrew-tap/git/refs \
+            -f ref="refs/heads/$TAP_BRANCH" \
+            -f sha="$BASE_SHA" \
+            --silent
+
+          FILE_SHA="$(gh api "repos/yowainwright/homebrew-tap/contents/Formula/codependence.rb?ref=$TAP_BRANCH" --jq '.sha')"
+          FORMULA_CONTENT="$(base64 < "$FORMULA_PATH" | tr -d '\n')"
+          gh api --method PUT repos/yowainwright/homebrew-tap/contents/Formula/codependence.rb \
+            -f message="codependence $VERSION" \
+            -f content="$FORMULA_CONTENT" \
+            -f branch="$TAP_BRANCH" \
+            -f sha="$FILE_SHA" \
+            --silent
+
+          gh api --method POST repos/yowainwright/homebrew-tap/pulls \
+            -f base=main \
+            -f head="$TAP_BRANCH" \
+            -f title="codependence $VERSION" \
+            -f body="Automated formula update for codependence $VERSION."
 
       - name: Publish GitHub release
         env:

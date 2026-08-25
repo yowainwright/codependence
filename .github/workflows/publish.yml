@@ -58,6 +58,22 @@ jobs:
             echo "tag=latest" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Validate Homebrew tap token
+        if: ${{ !contains(github.ref_name, '-') }}
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN is required for stable releases"
+            exit 1
+          fi
+
+          CAN_PUSH="$(gh api repos/yowainwright/homebrew-tap --jq '.permissions.push')"
+          if [ "$CAN_PUSH" != "true" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN must have write access to yowainwright/homebrew-tap"
+            exit 1
+          fi
+
       - name: Pack npm tarball
         id: pack
         run: |

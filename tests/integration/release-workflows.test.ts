@@ -13,8 +13,33 @@ describe("release workflows", () => {
     const homebrew = readWorkflow("homebrew.yml");
     const publish = readWorkflow("publish.yml");
     assert.ok((homebrew).includes("Stable release tag to publish to Homebrew"));
+    assert.ok(!(homebrew).includes("environment: homebrew-publish"));
     assert.ok((publish).includes('uses: "./.github/workflows/homebrew.yml"'));
     assert.ok((publish).includes("version: ${{ github.ref_name }}"));
+  });
+
+  test("validates Homebrew tap access before npm publication", () => {
+    const publish = readWorkflow("publish.yml");
+    const token = publish.indexOf("- name: Validate Homebrew tap token");
+    const npm = publish.indexOf("- name: Publish npm package");
+    assert.ok((token) > -1);
+    assert.ok((npm) > token);
+    assert.ok((publish).includes("HOMEBREW_TAP_TOKEN is required for stable releases"));
+    assert.ok((publish).includes("gh api repos/yowainwright/homebrew-tap"));
+    assert.ok((publish).includes("must have write access to yowainwright/homebrew-tap"));
+  });
+
+  test("validates Homebrew tap access before Homebrew release work", () => {
+    const homebrew = readWorkflow("homebrew.yml");
+    const verify = homebrew.indexOf("- name: Verify release tag");
+    const token = homebrew.indexOf("- name: Validate Homebrew tap token");
+    const build = homebrew.indexOf("- name: Build and test binary");
+    const attach = homebrew.indexOf("- name: Attach formula to GitHub release");
+    assert.ok((token) > verify);
+    assert.ok((build) > token);
+    assert.ok((attach) > token);
+    assert.ok((homebrew).includes("HOMEBREW_TAP_TOKEN is required for Homebrew publishing"));
+    assert.ok((homebrew).includes("gh api repos/yowainwright/homebrew-tap"));
   });
 
   test("keeps stable releases draft until Homebrew succeeds", () => {
@@ -69,11 +94,21 @@ describe("release workflows", () => {
     assert.ok((files.at(-1)).includes("Release asset digest mismatch"));
   });
 
-  test("configures tap push authentication before cloning", () => {
+  test("updates the Homebrew tap through the REST API", () => {
     const homebrew = readWorkflow("homebrew.yml");
-    const auth = homebrew.indexOf("gh auth setup-git --hostname github.com --force");
-    const clone = homebrew.indexOf("gh repo clone yowainwright/homebrew-tap tap");
-    assert.ok((auth) > -1);
-    assert.ok((clone) > auth);
+    const current = homebrew.indexOf("current-codependence.rb");
+    const branch = homebrew.indexOf("repos/yowainwright/homebrew-tap/git/refs");
+    const update = homebrew.indexOf(
+      "--method PUT repos/yowainwright/homebrew-tap/contents/Formula/codependence.rb",
+    );
+    const pr = homebrew.indexOf("gh api --method POST repos/yowainwright/homebrew-tap/pulls");
+    assert.ok((current) > -1);
+    assert.ok((branch) > current);
+    assert.ok((update) > branch);
+    assert.ok((pr) > update);
+    assert.ok(!(homebrew).includes("gh auth setup-git"));
+    assert.ok(!(homebrew).includes("gh repo clone"));
+    assert.ok(!(homebrew).includes("gh pr create"));
+    assert.ok(!(homebrew).includes("git push"));
   });
 });
