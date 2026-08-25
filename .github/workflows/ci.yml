@@ -48,6 +48,11 @@ jobs:
       - run: nub run deps:security
       - run: nub run deps:audit
       - run: nub run build
+      - name: Upload CLI build
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/
       - run: nub run lint
       - run: nub run coverage
         env:
@@ -106,12 +111,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup toolchain
+      - name: Download CLI build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+
+      - name: Setup legacy Node.js
         uses: ./.github/actions/setup-toolchain
         with:
+          install: "false"
           node-version: ${{ matrix.node-version }}
-
-      - run: nub run build
 
       - name: Smoke test with legacy Node.js
         run: node dist/cli.js --help
