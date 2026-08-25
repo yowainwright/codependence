@@ -262,9 +262,9 @@ install_agent_config() {
 
 main() {
   ensure_git_repo
+  reset_hooks_path
   set_hooks_dir
   log "Setting up git hooks..."
-  reset_hooks_path
   install_git_hooks
   install_agent_config
   log "Setup complete!"
