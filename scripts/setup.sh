@@ -16,7 +16,7 @@ skip_existing() {
   path="$1"
   label="$2"
 
-  if [ -f "$path" ]; then
+  if [ -f "$path" ] || [ -L "$path" ]; then
     log "$label already exists, skipping..."
     return 0
   fi
