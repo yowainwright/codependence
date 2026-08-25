@@ -21,6 +21,11 @@ skip_existing() {
     return 0
   fi
 
+  if [ -L "$path" ]; then
+    log "$label symlink does not point to a file, replacing..."
+    rm "$path"
+  fi
+
   return 1
 }
 
