@@ -94,11 +94,21 @@ describe("release workflows", () => {
     assert.ok((files.at(-1)).includes("Release asset digest mismatch"));
   });
 
-  test("configures tap push authentication before cloning", () => {
+  test("updates the Homebrew tap through the REST API", () => {
     const homebrew = readWorkflow("homebrew.yml");
-    const auth = homebrew.indexOf("gh auth setup-git --hostname github.com --force");
-    const clone = homebrew.indexOf("gh repo clone yowainwright/homebrew-tap tap");
-    assert.ok((auth) > -1);
-    assert.ok((clone) > auth);
+    const current = homebrew.indexOf("current-codependence.rb");
+    const branch = homebrew.indexOf("repos/yowainwright/homebrew-tap/git/refs");
+    const update = homebrew.indexOf(
+      "--method PUT repos/yowainwright/homebrew-tap/contents/Formula/codependence.rb",
+    );
+    const pr = homebrew.indexOf("gh api --method POST repos/yowainwright/homebrew-tap/pulls");
+    assert.ok((current) > -1);
+    assert.ok((branch) > current);
+    assert.ok((update) > branch);
+    assert.ok((pr) > update);
+    assert.ok(!(homebrew).includes("gh auth setup-git"));
+    assert.ok(!(homebrew).includes("gh repo clone"));
+    assert.ok(!(homebrew).includes("gh pr create"));
+    assert.ok(!(homebrew).includes("git push"));
   });
 });
