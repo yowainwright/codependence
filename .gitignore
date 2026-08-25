@@ -114,12 +114,16 @@ artifacts/
 .DS_Store
 page/app/dist
 .kiro
-.claude/settings.json
 tmp
 tests/unit/providers/.tmp-*/
 .husky/
-.claude
 
-# Local agent skill installs
+# Local agent config
+AGENTS.md
+CLAUDE.md
+.claude/
+.codex/config.toml
+.codex/hooks.json
+.codex/agents/
 .agents/skills/
 .codex/skills/

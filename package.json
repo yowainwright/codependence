@@ -90,7 +90,7 @@
     "lint-src": "node node_modules/eslint-plugin-legibility/bin/lint-changed.js",
     "lint:strict": "oxlint . --deny-warnings",
     "lint:fix": "oxlint src --fix",
-    "hooks:setup": "sh scripts/setup-hooks.sh",
+    "hooks:setup": "sh scripts/setup.sh",
     "prepare": "nub run hooks:setup",
     "prepublishOnly": "nub run clean-dist && nub run build-dist",
     "preview": "nub run docs:preview",
