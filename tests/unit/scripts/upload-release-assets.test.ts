@@ -16,6 +16,10 @@ if [ "$1" = "api" ] && [ "$2" = "--paginate" ]; then
   printf '%s' "$FAKE_RELEASE_JSON"
   exit 0
 fi
+if [ "$1" = "api" ] && [ "$2" = "--header" ]; then
+  printf '%s' "$FAKE_ASSET_BODY"
+  exit 0
+fi
 `;
 const RELEASE_ID = 123;
 const UPLOAD_URL =
@@ -23,6 +27,13 @@ const UPLOAD_URL =
 const tempDirectories = new Set<string>();
 
 type Fixture = { assetPath: string; env: NodeJS.ProcessEnv; logPath: string };
+type FixtureOptions = {
+  assetContent?: string;
+  assetName?: string;
+  existingAssetBody?: string;
+  publishedDigest?: string | null;
+  releaseExists?: boolean;
+};
 
 function createReleaseJson(
   assets: Array<{ digest: string | null; name: string }>,
@@ -30,7 +41,10 @@ function createReleaseJson(
 ) {
   if (!exists) return JSON.stringify([[]]);
   const release = {
-    assets,
+    assets: assets.map((asset, index) => ({
+      ...asset,
+      url: `https://api.github.com/repos/yowainwright/codependence/releases/assets/${index + 1}`,
+    })),
     draft: true,
     id: RELEASE_ID,
     tag_name: "v1.2.3",
@@ -39,9 +53,15 @@ function createReleaseJson(
   return JSON.stringify([[release]]);
 }
 
-function createEnvironment(binPath: string, logPath: string, releaseJson: string) {
+function createEnvironment(
+  binPath: string,
+  logPath: string,
+  releaseJson: string,
+  assetBody = "",
+) {
   const path = `${binPath}:${process.env.PATH ?? ""}`;
   return Object.assign({}, process.env, {
+    FAKE_ASSET_BODY: assetBody,
     FAKE_GH_LOG: logPath,
     FAKE_RELEASE_JSON: releaseJson,
     GITHUB_REPOSITORY: "yowainwright/codependence",
@@ -49,22 +69,41 @@ function createEnvironment(binPath: string, logPath: string, releaseJson: string
   });
 }
 
-function createFixture(publishedDigest?: string | null, releaseExists = true): Fixture {
+function createSigstoreBundle(subjectDigest: string, marker: string) {
+  const statement = {
+    predicate: { marker },
+    subject: [{ digest: { sha256: subjectDigest }, name: "codependence-darwin-arm64" }],
+  };
+  const payload = Buffer.from(JSON.stringify(statement)).toString("base64");
+  return JSON.stringify({ dsseEnvelope: { payload }, verificationMaterial: { marker } });
+}
+
+function createFixtureWithOptions({
+  assetContent = "release asset",
+  assetName = "codependence.tgz",
+  existingAssetBody = "",
+  publishedDigest,
+  releaseExists = true,
+}: FixtureOptions = {}): Fixture {
   const root = mkdtempSync(join(tmpdir(), "codependence-release-assets-"));
   const binPath = join(root, "bin");
-  const assetPath = join(root, "codependence.tgz");
+  const assetPath = join(root, assetName);
   const logPath = join(root, "gh.log");
   const assets =
-    publishedDigest === undefined ? [] : [{ name: "codependence.tgz", digest: publishedDigest }];
+    publishedDigest === undefined ? [] : [{ name: assetName, digest: publishedDigest }];
   tempDirectories.add(root);
   mkdirSync(binPath);
-  writeFileSync(assetPath, "release asset");
+  writeFileSync(assetPath, assetContent);
   writeFileSync(logPath, "");
   writeFileSync(join(binPath, "gh"), FAKE_GH);
   chmodSync(join(binPath, "gh"), 0o755);
   const releaseJson = createReleaseJson(assets, releaseExists);
-  const env = createEnvironment(binPath, logPath, releaseJson);
+  const env = createEnvironment(binPath, logPath, releaseJson, existingAssetBody);
   return { assetPath, env, logPath };
+}
+
+function createFixture(publishedDigest?: string | null, releaseExists = true): Fixture {
+  return createFixtureWithOptions({ publishedDigest, releaseExists });
 }
 
 const runUpload = ({ assetPath, env }: Fixture) =>
@@ -104,6 +143,36 @@ describe("scripts/upload-release-assets", () => {
     assert.strictEqual((result.status), 1);
     assert.ok((result.stderr).includes("Release asset digest mismatch: codependence.tgz"));
     assert.ok(!(log).includes("api --method POST"));
+  });
+
+  test("skips an existing Sigstore bundle with the same subject digest", () => {
+    const subjectDigest = "a".repeat(64);
+    const fixture = createFixtureWithOptions({
+      assetContent: createSigstoreBundle(subjectDigest, "retry"),
+      assetName: "codependence-darwin-arm64.sigstore.json",
+      existingAssetBody: createSigstoreBundle(subjectDigest, "published"),
+      publishedDigest: "sha256:unexpected",
+    });
+    const result = runUpload(fixture);
+    const log = readFileSync(fixture.logPath, "utf8");
+    assert.strictEqual((result.status), 0);
+    assert.strictEqual((result.stdout), "123\n");
+    assert.ok((log).includes("api --header Accept: application/octet-stream"));
+    assert.ok(!(log).includes("api --method POST"));
+  });
+
+  test("rejects an existing Sigstore bundle with a different subject digest", () => {
+    const fixture = createFixtureWithOptions({
+      assetContent: createSigstoreBundle("a".repeat(64), "retry"),
+      assetName: "codependence-darwin-arm64.sigstore.json",
+      existingAssetBody: createSigstoreBundle("b".repeat(64), "published"),
+      publishedDigest: "sha256:unexpected",
+    });
+    const result = runUpload(fixture);
+    assert.strictEqual((result.status), 1);
+    assert.ok((result.stderr).includes(
+      "Release attestation subject digest mismatch: codependence-darwin-arm64.sigstore.json",
+    ));
   });
 
   test("rejects an existing asset without a published digest", () => {

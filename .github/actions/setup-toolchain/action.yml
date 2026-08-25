@@ -9,7 +9,7 @@ inputs:
   cache:
     description: Restore the Nub package cache.
     required: false
-    default: "true"
+    default: "false"
   install:
     description: Install project dependencies after setting up the runtime.
     required: false

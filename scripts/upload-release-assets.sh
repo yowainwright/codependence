@@ -27,13 +27,42 @@ if [ "$upload_url" != "$expected_upload_url" ]; then
   exit 1
 fi
 
+is_attestation_bundle() {
+  case "$1" in
+    *.sigstore.json) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+attestation_subject_digests() {
+  jq -r 'try ((.dsseEnvelope.payload // .payload // "") | @base64d | fromjson | .subject[]?.digest.sha256 // empty) catch empty' "$1" | \
+    sort | \
+    paste -sd "," -
+}
+
+attestation_subject_matches() {
+  asset_url=$1
+  asset_path=$2
+  published_path=$(mktemp)
+  gh api --header "Accept: application/octet-stream" "$asset_url" > "$published_path"
+  expected_subjects=$(attestation_subject_digests "$asset_path")
+  published_subjects=$(attestation_subject_digests "$published_path")
+  rm -f "$published_path"
+
+  if [ -n "$expected_subjects" ] && [ "$expected_subjects" = "$published_subjects" ]; then
+    return 0
+  fi
+
+  return 1
+}
+
 for asset_path in "$@"; do
   asset_name=$(basename "$asset_path")
   expected_digest="sha256:$(shasum -a 256 "$asset_path" | awk '{print $1}')"
-  published_digest=$(printf '%s' "$release_json" | jq -r --arg name "$asset_name" \
-    '[.assets[] | select(.name == $name)] | if length == 0 then "missing" else .[0].digest // "unavailable" end')
+  published_asset=$(printf '%s' "$release_json" | jq -c --arg name "$asset_name" \
+    '[.assets[] | select(.name == $name)] | first // empty')
 
-  if [ "$published_digest" = "missing" ]; then
+  if [ -z "$published_asset" ]; then
     encoded_name=$(jq -nr --arg name "$asset_name" '$name | @uri')
     asset_url="${upload_url}?name=${encoded_name}"
     gh api --method POST \
@@ -43,12 +72,22 @@ for asset_path in "$@"; do
     continue
   fi
 
+  published_digest=$(printf '%s' "$published_asset" | jq -r '.digest // "unavailable"')
   if [ "$published_digest" = "$expected_digest" ]; then
     continue
   fi
 
   if [ "$published_digest" = "unavailable" ]; then
     printf 'Release asset digest unavailable: %s\n' "$asset_name" >&2
+    exit 1
+  fi
+
+  if is_attestation_bundle "$asset_name"; then
+    published_url=$(printf '%s' "$published_asset" | jq -r '.url // empty')
+    if [ -n "$published_url" ] && attestation_subject_matches "$published_url" "$asset_path"; then
+      continue
+    fi
+    printf 'Release attestation subject digest mismatch: %s\n' "$asset_name" >&2
     exit 1
   fi
 
