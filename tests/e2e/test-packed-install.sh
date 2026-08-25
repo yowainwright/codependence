@@ -6,6 +6,7 @@ WORK_DIR="$(mktemp -d)"
 PACK_DIR="$WORK_DIR/pack"
 PROJECT_DIR="$WORK_DIR/project"
 NPM_CACHE_DIR="$WORK_DIR/npm-cache"
+BUN_PROJECT_DIR="$WORK_DIR/bun-project"
 PLUGIN_PACKAGE_DIR="$WORK_DIR/eslint-plugin-legibility"
 
 pass() { printf '[PASS] %s\n' "$1"; }
@@ -184,6 +185,23 @@ NODE
 
   "$PROJECT_DIR/node_modules/.bin/cdp" --help >/dev/null
   pass "packed package preserves 0.3.1 compatibility"
+}
+
+test_installed_bunx_smoke() {
+  command -v bunx >/dev/null 2>&1 || fail "bunx executable is available"
+  mkdir -p "$BUN_PROJECT_DIR"
+  cat > "$BUN_PROJECT_DIR/package.json" <<JSON
+{"private":true,"type":"module","dependencies":{"codependence":"file:$PACK_FILE"}}
+JSON
+
+  (
+    cd "$BUN_PROJECT_DIR"
+    bun install >/dev/null
+    bunx codependence --help >/dev/null
+    bunx cdp --help >/dev/null
+  )
+
+  pass "packed package runs through bunx"
 }
 
 test_installed_target_selection() {
@@ -412,6 +430,7 @@ main() {
   install_package
   test_installed_cli_updates_providers
   test_installed_legacy_compatibility
+  test_installed_bunx_smoke
   test_installed_target_selection
   test_installed_init_actions
   test_installed_docker_action_workflow

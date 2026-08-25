@@ -2230,6 +2230,32 @@ describe("GitHub Actions initializer", () => {
     }
   });
 
+  test("detects commented Go version directives", () => {
+    const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
+    const targets = [{ manager: "go" }];
+    fs.writeFileSync(join(rootDir, ".codependencerc"), JSON.stringify({ targets }));
+    fs.writeFileSync(
+      join(rootDir, "go.mod"),
+      "module example.com/version\n\n  go 1.24 // minimum language version\n",
+    );
+
+    try {
+      initGitHubActions({ rootDir });
+
+      assert.ok(readWorkflow(rootDir, "go").includes("version: 1.24.0"));
+
+      fs.writeFileSync(
+        join(rootDir, "go.mod"),
+        "module example.com/toolchain\n\n  go 1.24.0 // minimum language version\n  toolchain go1.25.4 // CI version\n",
+      );
+      initGitHubActions({ force: true, rootDir });
+
+      assert.ok(readWorkflow(rootDir, "go").includes("version: 1.25.4"));
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
   test("groups multiple Node managers into one workflow", () => {
     const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
     const targets = [{ manager: "bun" }, { manager: "npm" }];

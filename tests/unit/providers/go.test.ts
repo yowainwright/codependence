@@ -255,6 +255,21 @@ go 1.21
       assert.deepStrictEqual(manifest.dependencies, {});
     });
 
+    test("should read commented go version directives", async () => {
+      const goModPath = join(tmpDir, "commented-version.mod");
+      const goModContent = `module github.com/example/simple
+
+  go 1.24 // minimum language version
+`;
+
+      writeFileSync(goModPath, goModContent);
+
+      const provider = new GoProvider({ isTesting: true });
+      const manifest = await provider.readManifest(goModPath);
+
+      assert.strictEqual(manifest.version, "1.24");
+    });
+
     test("should handle go.mod without go version", async () => {
       const goModPath = join(tmpDir, "no-version.mod");
       const goModContent = `module github.com/example/app
