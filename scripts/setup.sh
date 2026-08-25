@@ -16,9 +16,14 @@ skip_existing() {
   path="$1"
   label="$2"
 
-  if [ -f "$path" ] || [ -L "$path" ]; then
+  if [ -f "$path" ]; then
     log "$label already exists, skipping..."
     return 0
+  fi
+
+  if [ -L "$path" ]; then
+    log "$label symlink does not point to a file, replacing..."
+    rm "$path"
   fi
 
   return 1
