@@ -27,7 +27,6 @@ concurrency:
 jobs:
   homebrew:
     runs-on: macos-latest
-    environment: homebrew-publish
     permissions:
       contents: write
       id-token: write
@@ -55,6 +54,21 @@ jobs:
           test "$(git rev-parse HEAD)" = "$TAG_COMMIT"
           test "$(gh release view "$RELEASE_REF" --json tagName --jq .tagName)" = "$RELEASE_REF"
           echo "VERSION=$PACKAGE_VERSION" >> "$GITHUB_ENV"
+
+      - name: Validate Homebrew tap token
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN is required for Homebrew publishing"
+            exit 1
+          fi
+
+          CAN_PUSH="$(gh api repos/yowainwright/homebrew-tap --jq '.permissions.push')"
+          if [ "$CAN_PUSH" != "true" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN must have write access to yowainwright/homebrew-tap"
+            exit 1
+          fi
 
       - name: Checkout release tooling
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
