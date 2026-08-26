@@ -140,19 +140,6 @@ jobs:
           codependence --help
           cdp --help
 
-      - name: Attach formula to GitHub release
-        env:
-          BINARY: ${{ steps.binary.outputs.binary }}
-          GITHUB_TOKEN: "${{ github.token }}"
-          SIGSTORE_BUNDLE: ${{ steps.binary-attestation.outputs.sigstore_bundle }}
-        run: |
-          RELEASE_SCRIPT="release-tools/scripts/upload-release-assets.sh"
-          RELEASE_TAG="v${VERSION}"
-          RELEASE_ASSETS=("$FORMULA_PATH" "$BINARY" "$SIGSTORE_BUNDLE")
-          RELEASE_ID="$(sh "$RELEASE_SCRIPT" "$RELEASE_TAG" "${RELEASE_ASSETS[@]}")"
-          test -n "$RELEASE_ID"
-          echo "RELEASE_ID=$RELEASE_ID" >> "$GITHUB_ENV"
-
       - name: Update Homebrew tap
         env:
           GH_TOKEN: "${{ secrets.HOMEBREW_TAP_TOKEN }}"
@@ -185,6 +172,19 @@ jobs:
             -f head="$TAP_BRANCH" \
             -f title="codependence $VERSION" \
             -f body="Automated formula update for codependence $VERSION."
+
+      - name: Attach Homebrew assets to GitHub release
+        env:
+          BINARY: ${{ steps.binary.outputs.binary }}
+          GITHUB_TOKEN: "${{ github.token }}"
+          SIGSTORE_BUNDLE: ${{ steps.binary-attestation.outputs.sigstore_bundle }}
+        run: |
+          RELEASE_SCRIPT="release-tools/scripts/upload-release-assets.sh"
+          RELEASE_TAG="v${VERSION}"
+          RELEASE_ASSETS=("$FORMULA_PATH" "$BINARY" "$SIGSTORE_BUNDLE")
+          RELEASE_ID="$(sh "$RELEASE_SCRIPT" "$RELEASE_TAG" "${RELEASE_ASSETS[@]}")"
+          test -n "$RELEASE_ID"
+          echo "RELEASE_ID=$RELEASE_ID" >> "$GITHUB_ENV"
 
       - name: Publish GitHub release
         env:

@@ -26,6 +26,7 @@ import {
   DOCKER_HUB_LIBRARY,
   DOCKER_HUB_NAMES,
   DOCKER_PATTERNS,
+  DOCKER_REGISTRY_REQUEST_ATTEMPTS,
   DOCKER_TAG_PAGE_LIMIT,
   DOCKER_TAG_PAGE_SIZE,
   DOCKER_USER_AGENT,
@@ -236,6 +237,9 @@ const responseStatus = (response: Response): string => {
 
 const isAuthenticationFailure = (response: Response): boolean =>
   response.status === 401 || response.status === 403;
+
+const isTransientRegistryFailure = (response: Response): boolean =>
+  response.status === 502 || response.status === 503 || response.status === 504;
 
 const readRegistryJson = async (response: Response, message: string): Promise<unknown> => {
   try {
@@ -547,12 +551,20 @@ export class DockerProvider implements DependencyProvider {
     image: DockerRegistryImage,
     url: string,
     headers: Record<string, string>,
+    attempt = 1,
   ) {
     try {
-      return await this.fetch(url, { headers });
+      const response = await this.fetch(url, { headers });
+      const shouldRetry =
+        isTransientRegistryFailure(response) && attempt < DOCKER_REGISTRY_REQUEST_ATTEMPTS;
+      if (!shouldRetry) return response;
     } catch {
-      throw new Error(`Docker registry network request failed for ${image.displayName}`);
+      if (attempt >= DOCKER_REGISTRY_REQUEST_ATTEMPTS) {
+        throw new Error(`Docker registry network request failed for ${image.displayName}`);
+      }
     }
+
+    return this.fetchResponse(image, url, headers, attempt + 1);
   }
 
   private async requestToken(image: DockerRegistryImage, response: Response): Promise<string> {

@@ -251,10 +251,10 @@ nub = "0.7.5"
   });
 
   test("resolveToolVersions keeps project Docker pins for runtime Node overrides", () => {
-    assertMatchObject((resolveVersions({ env: { INPUT_NODE_VERSION: "20" } })), {
+    assertMatchObject((resolveVersions({ env: { INPUT_NODE_VERSION: "24" } })), {
       nodeAlpineImage,
       nodeSlimImage,
-      nodeVersion: "20",
+      nodeVersion: "24",
     });
   });
 
@@ -286,6 +286,48 @@ nub = "0.7.5"
     );
 
     assert.strictEqual((nubPins).length, 2);
+  });
+
+  test("setup action disables setup-nub cache by default", () => {
+    const action = readFileSync(
+      new URL("../../../../.github/actions/setup-toolchain/action.yml", import.meta.url),
+      "utf8",
+    );
+
+    const cacheDefaultPattern =
+      /cache:\n\s+description: Restore the Nub package cache\.\n\s+required: false\n\s+default: "false"/;
+    assert.match(action, cacheDefaultPattern);
+  });
+
+  test("CI separates supported and legacy Node compatibility", () => {
+    const workflow = readFileSync(
+      new URL("../../../../.github/workflows/ci.yml", import.meta.url),
+      "utf8",
+    );
+    const supportedJob = workflow.split("  legacy-node-smoke:")[0];
+    const legacyJob = workflow.split("  legacy-node-smoke:")[1] ?? "";
+    const supportedMatrix = supportedJob.match(/node-version: \[([^\]]+)\]/);
+    const legacyMatrix = legacyJob.match(/node-version: \[([^\]]+)\]/);
+    const supportedVersions = supportedMatrix?.[1].split(",").map((version) => version.trim());
+    const legacyVersions = legacyMatrix?.[1].split(",").map((version) => version.trim());
+
+    assert.deepStrictEqual(supportedVersions, ["24", "26"]);
+    assert.deepStrictEqual(legacyVersions, ["20", "22"]);
+    assert.ok((legacyJob).includes("continue-on-error: true"));
+    assert.ok((legacyJob).includes("name: node ${{ matrix.node-version }}"));
+    assert.ok((workflow).includes("uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"));
+    assert.ok((legacyJob).includes("uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"));
+    assert.ok((legacyJob).includes('install: "false"'));
+    assert.ok(!(legacyJob).includes("nub run build"));
+    assert.ok((legacyJob).includes("node dist/cli.js --help"));
+  });
+
+  test("published package requires Node 24 or newer", () => {
+    const manifest = JSON.parse(
+      readFileSync(new URL("../../../../package.json", import.meta.url), "utf8"),
+    ) as { engines?: { node?: string } };
+
+    assert.strictEqual(manifest.engines?.node, ">=24");
   });
 
   test("contributor setup names the official scoped Nub package", () => {

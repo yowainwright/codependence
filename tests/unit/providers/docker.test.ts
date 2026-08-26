@@ -185,6 +185,16 @@ describe("DockerProvider", () => {
     await assert.strictEqual(await provider.getLatestVersion("node", "20"), "20.1");
   });
 
+  test("should retry transient Docker registry failures", async () => {
+    const tagBody = { name: "library/node", tags: ["24-slim"] };
+    const responses = [responseWithStatus(502), Response.json(tagBody)];
+    const { fetch, requests } = mockFetch(responses);
+    const provider = new DockerProvider({ fetch });
+
+    await assert.deepStrictEqual(await provider.getAllVersions("node"), ["24-slim"]);
+    assert.strictEqual(requests.length, 2);
+  });
+
   test("should fail safely for unsupported or ambiguous tag resolution", async () => {
     const provider = new DockerProvider({ fetch: mockFetch([]).fetch });
 

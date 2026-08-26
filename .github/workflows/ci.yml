@@ -48,6 +48,11 @@ jobs:
       - run: nub run deps:security
       - run: nub run deps:audit
       - run: nub run build
+      - name: Upload CLI build
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/
       - run: nub run lint
       - run: nub run coverage
         env:
@@ -69,7 +74,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [20, 22, 24, 26]
+        # Supported runtime matrix. Node 20 and 22 may work, but are not supported.
+        node-version: [24, 26]
 
     name: node ${{ matrix.node-version }}
 
@@ -86,4 +92,36 @@ jobs:
       - run: nub run build
 
       - name: Test with Node.js
+        run: node dist/cli.js --help
+
+  legacy-node-smoke:
+    runs-on: ubuntu-latest
+    needs: build
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        # Best-effort legacy smoke only. Passing does not extend support below Node 24.
+        node-version: [20, 22]
+
+    name: node ${{ matrix.node-version }}
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Download CLI build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+
+      - name: Setup legacy Node.js
+        uses: ./.github/actions/setup-toolchain
+        with:
+          install: "false"
+          node-version: ${{ matrix.node-version }}
+
+      - name: Smoke test with legacy Node.js
         run: node dist/cli.js --help

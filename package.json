@@ -40,7 +40,7 @@
     "cdp": "dist/cli.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "files": [
     "dist",

@@ -34,7 +34,7 @@ describe("release workflows", () => {
     const verify = homebrew.indexOf("- name: Verify release tag");
     const token = homebrew.indexOf("- name: Validate Homebrew tap token");
     const build = homebrew.indexOf("- name: Build and test binary");
-    const attach = homebrew.indexOf("- name: Attach formula to GitHub release");
+    const attach = homebrew.indexOf("- name: Attach Homebrew assets to GitHub release");
     assert.ok((token) > verify);
     assert.ok((build) > token);
     assert.ok((attach) > token);
@@ -45,13 +45,13 @@ describe("release workflows", () => {
   test("keeps stable releases draft until Homebrew succeeds", () => {
     const publish = readWorkflow("publish.yml");
     const homebrew = readWorkflow("homebrew.yml");
-    const attach = homebrew.indexOf("- name: Attach formula to GitHub release");
     const tap = homebrew.indexOf("- name: Update Homebrew tap");
+    const attach = homebrew.indexOf("- name: Attach Homebrew assets to GitHub release");
     const release = homebrew.indexOf("- name: Publish GitHub release");
     assert.ok((publish).includes("RELEASE_ARGS+=(--draft)"));
-    assert.ok((attach) > -1);
-    assert.ok((tap) > attach);
-    assert.ok((release) > tap);
+    assert.ok((tap) > -1);
+    assert.ok((attach) > tap);
+    assert.ok((release) > attach);
   });
 
   test("uses current release tooling when retrying old tags", () => {
@@ -92,6 +92,7 @@ describe("release workflows", () => {
     ];
     files.forEach((file) => assert.ok(!(file).includes("--clobber")));
     assert.ok((files.at(-1)).includes("Release asset digest mismatch"));
+    assert.ok((files.at(-1)).includes("Release attestation subject digest mismatch"));
   });
 
   test("updates the Homebrew tap through the REST API", () => {
