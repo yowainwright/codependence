@@ -58,6 +58,13 @@ See more [recipes below](#recipes)!
 
 <!-- installation commands matching package.json name and the Homebrew release workflow -->
 
+### Runtime support
+
+Codependence officially supports Node.js 24 and newer.
+
+Node.js 20 and 22 are best-effort compatible: the CLI may work there, and CI runs
+non-blocking smoke checks, but failures below Node.js 24 do not block releases.
+
 via npm in the project
 ```sh
 npm install codependence

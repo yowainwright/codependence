@@ -322,12 +322,12 @@ nub = "0.7.5"
     assert.ok((legacyJob).includes("node dist/cli.js --help"));
   });
 
-  test("published package requires Node 24 or newer", () => {
+  test("published package allows best-effort Node 20 compatibility", () => {
     const manifest = JSON.parse(
       readFileSync(new URL("../../../../package.json", import.meta.url), "utf8"),
     ) as { engines?: { node?: string } };
 
-    assert.strictEqual(manifest.engines?.node, ">=24");
+    assert.strictEqual(manifest.engines?.node, ">=20");
   });
 
   test("contributor setup names the official scoped Nub package", () => {

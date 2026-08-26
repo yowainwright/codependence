@@ -74,7 +74,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Supported runtime matrix. Node 20 and 22 may work, but are not supported.
+        # Official runtime matrix.
         node-version: [24, 26]
 
     name: node ${{ matrix.node-version }}
@@ -101,7 +101,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Best-effort legacy smoke only. Passing does not extend support below Node 24.
+        # Best-effort compatibility smoke. These jobs do not define official support.
         node-version: [20, 22]
 
     name: node ${{ matrix.node-version }}
