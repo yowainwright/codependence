@@ -104,7 +104,7 @@ jobs:
         # Best-effort legacy smoke only. Passing does not extend support below Node 24.
         node-version: [20, 22]
 
-    name: legacy node ${{ matrix.node-version }}
+    name: node ${{ matrix.node-version }}
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

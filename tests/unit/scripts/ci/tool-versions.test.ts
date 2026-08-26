@@ -314,6 +314,7 @@ nub = "0.7.5"
     assert.deepStrictEqual(supportedVersions, ["24", "26"]);
     assert.deepStrictEqual(legacyVersions, ["20", "22"]);
     assert.ok((legacyJob).includes("continue-on-error: true"));
+    assert.ok((legacyJob).includes("name: node ${{ matrix.node-version }}"));
     assert.ok((workflow).includes("uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"));
     assert.ok((legacyJob).includes("uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"));
     assert.ok((legacyJob).includes('install: "false"'));
