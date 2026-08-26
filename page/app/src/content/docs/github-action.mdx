@@ -13,8 +13,8 @@ After configuring manager targets, generate the recommended split workflows:
 codependence init actions
 ```
 
-Codependence creates up to six stable files for Node, Python, Go, Rust, Docker,
-and GitHub Actions. It reads exact versions from common project metadata and
+Codependence creates stable files for Node, Python, Go, Rust, Docker, and
+infrastructure targets. It reads exact versions from common project metadata and
 reports any missing version:
 
 ```bash
@@ -39,10 +39,10 @@ an exact tool version.
     version: 1.3.14
 ```
 
-Use separate scheduled workflows for `bun`, `go`, `uv`, `docker`, and
-`github-actions`. Each manager set has a stable branch, so reruns update one
-existing pull request instead of opening duplicates. Docker updates use
-`update-dependencies/docker`.
+Use separate scheduled workflows for `bun`, `go`, `uv`, `docker`,
+`github-actions`, and `helm`. Each manager set has a stable branch, so reruns
+update one existing pull request instead of opening duplicates. Docker updates
+use `update-dependencies/docker`.
 
 ## Pull request mode
 
@@ -100,8 +100,8 @@ named `CODEPENDENCE_TOKEN`, and paste the token value.
 
 Lockfile enforcement defaults to `true`. Codependence fails before editing any
 selected target when a required lockfile is missing. Set `lockfile: false` to
-explicitly allow a manifest-only pull request. Docker and GitHub Actions targets
-do not require lockfiles or tool versions.
+explicitly allow a manifest-only pull request. Docker, GitHub Actions, and Helm
+targets do not require lockfiles or tool versions.
 
 ## Combined updates
 

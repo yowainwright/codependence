@@ -144,6 +144,73 @@ describe("expandTargets", () => {
     );
   });
 
+  test("uses manager-scoped Helm manifest defaults", () => {
+    const targets = expandTargets({
+      targets: [{ manager: "helm", mode: "verbose", codependencies: [{ redis: "20.6.3" }] }],
+    });
+
+    assertMatches(targets, [
+      match.objectContaining({
+        language: "helm",
+        packageManager: "helm",
+        files: [
+          "Chart.yaml",
+          "**/Chart.yaml",
+          "values.yaml",
+          "values.yml",
+          "**/values.yaml",
+          "**/values.yml",
+        ],
+      }),
+    ]);
+  });
+
+  test("uses manager-scoped infrastructure manifest defaults", () => {
+    const targets = expandTargets({
+      targets: [
+        { manager: "circleci", mode: "verbose", codependencies: [{ "circleci/node": "7.2.0" }] },
+        { manager: "kubernetes", mode: "verbose", codependencies: [{ nginx: "1.27.1" }] },
+        { manager: "kustomize", mode: "verbose", codependencies: [{ nginx: "1.27.1" }] },
+        { manager: "terraform", mode: "verbose", codependencies: [{ "hashicorp/aws": "5.31.0" }] },
+      ],
+    });
+
+    assertMatches(targets, [
+      match.objectContaining({
+        files: [".circleci/config.yml", ".circleci/config.yaml"],
+        language: "circleci",
+        packageManager: "circleci",
+      }),
+      match.objectContaining({
+        files: [
+          "k8s/**/*.yaml",
+          "k8s/**/*.yml",
+          "kubernetes/**/*.yaml",
+          "kubernetes/**/*.yml",
+          "manifests/**/*.yaml",
+          "manifests/**/*.yml",
+        ],
+        language: "kubernetes",
+        packageManager: "kubernetes",
+      }),
+      match.objectContaining({
+        files: [
+          "kustomization.yaml",
+          "kustomization.yml",
+          "**/kustomization.yaml",
+          "**/kustomization.yml",
+        ],
+        language: "kustomize",
+        packageManager: "kustomize",
+      }),
+      match.objectContaining({
+        files: ["*.tf", "**/*.tf"],
+        language: "terraform",
+        packageManager: "terraform",
+      }),
+    ]);
+  });
+
   test("inherits shared scope options and allows target overrides", () => {
     const targets = expandTargets({
       rootDir: "/repo",

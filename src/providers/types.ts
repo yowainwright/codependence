@@ -1,11 +1,16 @@
 import type { LANGUAGES } from "./constants";
 import type { PYTHON_MANIFEST_TYPES, PYTHON_PACKAGE_MANAGERS } from "./python/constants";
+import type { CircleCIProvider } from "./circleci";
 import type { DockerProvider } from "./docker";
 import type { GitHubActionsProvider } from "./github-actions";
 import type { GoProvider } from "./go";
+import type { HelmProvider } from "./helm";
+import type { KubernetesProvider } from "./kubernetes";
+import type { KustomizeProvider } from "./kustomize";
 import type { NodeJSProvider } from "./nodejs";
 import type { PythonProvider } from "./python";
 import type { RustProvider } from "./rust";
+import type { TerraformProvider } from "./terraform";
 
 export type ResolvedDependencyVersions = Record<string, Readonly<Record<string, string>>>;
 
@@ -62,8 +67,13 @@ export type LanguageProvider =
   | typeof GoProvider
   | typeof PythonProvider
   | typeof RustProvider
+  | typeof CircleCIProvider
   | typeof DockerProvider
-  | typeof GitHubActionsProvider;
+  | typeof GitHubActionsProvider
+  | typeof HelmProvider
+  | typeof KubernetesProvider
+  | typeof KustomizeProvider
+  | typeof TerraformProvider;
 
 export interface PackageManagerManifest {
   packageManager?: unknown;

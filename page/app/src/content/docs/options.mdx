@@ -13,7 +13,7 @@ Use one root `.codependencerc` for repository policy. CLI and Action inputs cont
 
 The primary config shape is a non-empty `targets` array. Every target requires a `manager` plus `codependencies`, `permissive`, or `mode`, and can define its own `files`, `rootDir`, `ignore`, `level`, and `lockfile` policy.
 
-Supported managers are `bun`, `npm`, `pnpm`, `yarn`, `conda`, `pip`, `pipenv`, `poetry`, `uv`, `go`, `rust`, `docker`, and `github-actions`. Codependence loads `.codependencerc` once and executes every target independently.
+Supported managers are `bun`, `npm`, `pnpm`, `yarn`, `conda`, `pip`, `pipenv`, `poetry`, `uv`, `go`, `rust`, `docker`, `github-actions`, and `helm`. Codependence loads `.codependencerc` once and executes every target independently.
 
 Use `--target bun`, `--target go`, or another configured manager to run only that part of the policy.
 
@@ -154,9 +154,9 @@ Write output to a file instead of stdout. Default: `undefined`
 
 One-off target language for legacy flat configuration. New repository configs should select a `manager` in each target.
 
-Node.js package manifests are stable. The `go`, `python`, `rust`, `docker`, and `github-actions` providers are experimental while manifest coverage and update semantics settle.
+Node.js package manifests are stable. The `go`, `python`, `rust`, `docker`, `github-actions`, and `helm` providers are experimental while manifest coverage and update semantics settle.
 
-Docker requires explicit object pins in verbose mode. GitHub Actions supports explicit pins, latest release resolution, and precise mode; resolved releases are pinned by immutable commit SHA.
+Docker requires explicit object pins in verbose mode. GitHub Actions supports explicit pins, latest release resolution, and precise mode; resolved releases are pinned by immutable commit SHA. Helm checks `Chart.yaml` dependency entries with explicit object pins in verbose mode.
 
 ---
 

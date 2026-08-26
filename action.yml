@@ -74,7 +74,7 @@ inputs:
     description: 'Allowed update level: patch, minor, or major'
     required: false
   language:
-    description: 'Target language: nodejs (stable), or experimental go, python, rust, docker, github-actions'
+    description: 'Target language: nodejs (stable), or experimental go, python, rust, circleci, docker, github-actions, helm, kubernetes, kustomize, terraform'
     required: false
   fail-on-outdated:
     description: 'Fail the action if dependencies are outdated (true/false)'
@@ -166,7 +166,7 @@ runs:
             bun|npm|pnpm|yarn|go|rust|uv)
               versioned+=("$target")
               ;;
-            docker|github-actions)
+            circleci|docker|github-actions|helm|kubernetes|kustomize|terraform)
               ;;
             *)
               echo "::error::Unsupported Action target: $target"
@@ -198,7 +198,7 @@ runs:
         }
 
         if [ "${#versioned[@]}" -eq 0 ] && [ -n "$INPUT_VERSION" ]; then
-          echo "::error::Docker and GitHub Actions targets do not accept version"
+          echo "::error::Infrastructure targets do not accept version"
           exit 2
         fi
 

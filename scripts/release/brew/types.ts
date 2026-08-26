@@ -25,4 +25,27 @@ export interface LocalFormulaOptions extends FormulaOptions {
 export interface BrewCliOptions {
   argv?: string[];
   env?: Record<string, string | undefined>;
+  fetchImpl?: Fetch;
+}
+
+export interface HomebrewReleaseStateOptions {
+  arch?: string;
+  env: Record<string, string | undefined>;
+  fetchImpl?: Fetch;
+}
+
+export interface HomebrewReleaseState {
+  reason?: string;
+  skip: boolean;
+}
+
+export interface HomebrewTapUpdateOptions {
+  env: Record<string, string | undefined>;
+  fetchImpl?: Fetch;
+}
+
+export interface HomebrewTapUpdateResult {
+  branch?: string;
+  changed: boolean;
+  pullRequestUrl?: string;
 }

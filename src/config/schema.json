@@ -24,8 +24,13 @@
         "uv",
         "go",
         "rust",
+        "circleci",
         "docker",
-        "github-actions"
+        "github-actions",
+        "helm",
+        "kubernetes",
+        "kustomize",
+        "terraform"
       ]
     },
     "repositoryPath": {
@@ -184,7 +189,19 @@
     },
     "language": {
       "type": "string",
-      "enum": ["nodejs", "python", "go", "rust", "docker", "github-actions"],
+      "enum": [
+        "nodejs",
+        "python",
+        "go",
+        "rust",
+        "circleci",
+        "docker",
+        "github-actions",
+        "helm",
+        "kubernetes",
+        "kustomize",
+        "terraform"
+      ],
       "description": "Target programming language for dependency management (experimental)"
     },
     "files": {

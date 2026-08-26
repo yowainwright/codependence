@@ -1,6 +1,6 @@
 # Codependence
 
-> Codependence is a CLI-first dependency version policy tool. It checks, reports, and updates dependency versions across Node, Python, Go, Rust, Docker, and GitHub Actions from one root `.codependencerc`, locally, in CI, or as a GitHub Action.
+> Codependence is a CLI-first dependency version policy tool. It checks, reports, and updates dependency versions across Node, Python, Go, Rust, Docker, GitHub Actions, and Helm from one root `.codependencerc`, locally, in CI, or as a GitHub Action.
 
 Install as a root devDependency (`npm install codependence --save-dev`) and run `codependence` to check targets or `codependence --update` to apply policy. `codependence init actions` generates split scheduled workflows per manager area, each maintaining a stable pull-request branch such as `update-dependencies/docker`.
 

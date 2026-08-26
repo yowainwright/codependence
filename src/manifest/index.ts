@@ -3,7 +3,11 @@ import { basename, dirname, isAbsolute, relative, resolve, sep, win32 } from "pa
 import {
   DockerProvider,
   GoProvider,
+  CircleCIProvider,
   GitHubActionsProvider,
+  HelmProvider,
+  KubernetesProvider,
+  KustomizeProvider,
   LANGUAGES,
   MANIFEST_FILES,
   NODE_PACKAGE_MANAGERS,
@@ -11,6 +15,7 @@ import {
   NodeJSProvider,
   PythonProvider,
   RustProvider,
+  TerraformProvider,
   detectNodePackageManager,
   detectPrimaryLanguage,
   detectPythonPackageManagerForManifest,
@@ -73,6 +78,16 @@ import type {
   DependencyManager,
 } from "../types";
 
+const LOCKFILE_EXEMPT_LANGUAGES = new Set<SupportedLanguage>([
+  LANGUAGES.DOCKER,
+  LANGUAGES.CIRCLECI,
+  LANGUAGES.GITHUB_ACTIONS,
+  LANGUAGES.HELM,
+  LANGUAGES.KUBERNETES,
+  LANGUAGES.KUSTOMIZE,
+  LANGUAGES.TERRAFORM,
+]);
+
 const isSupportedLanguageName = (language: string | undefined): language is SupportedLanguage => {
   if (!language) return false;
 
@@ -108,15 +123,37 @@ const inferLanguageFromFile = (file: string): SupportedLanguage | null => {
   const manifestName = basename(file);
   const normalizedFile = file.replaceAll("\\", "/");
   const normalizedDir = dirname(normalizedFile).replaceAll("\\", "/");
+  const isCircleCIConfig =
+    normalizedFile === MANIFEST_FILES.CIRCLECI_CONFIG_YML ||
+    normalizedFile === MANIFEST_FILES.CIRCLECI_CONFIG_YAML ||
+    normalizedFile.endsWith(`/${MANIFEST_FILES.CIRCLECI_CONFIG_YML}`) ||
+    normalizedFile.endsWith(`/${MANIFEST_FILES.CIRCLECI_CONFIG_YAML}`);
   const isGithubWorkflow =
     normalizedDir === ".github/workflows" || normalizedDir.endsWith("/.github/workflows");
+  const isKubernetesManifest =
+    normalizedDir === "k8s" ||
+    normalizedDir.startsWith("k8s/") ||
+    normalizedDir === "kubernetes" ||
+    normalizedDir.startsWith("kubernetes/") ||
+    normalizedDir === "manifests" ||
+    normalizedDir.startsWith("manifests/");
 
   if (manifestName === MANIFEST_FILES.PACKAGE_JSON) return LANGUAGES.NODEJS;
   if (manifestName === MANIFEST_FILES.GO_MOD) return LANGUAGES.GO;
   if (manifestName === MANIFEST_FILES.CARGO_TOML) return LANGUAGES.RUST;
   if (manifestName === MANIFEST_FILES.DOCKERFILE) return LANGUAGES.DOCKER;
+  if (manifestName === MANIFEST_FILES.HELM_CHART) return LANGUAGES.HELM;
+  if (manifestName === MANIFEST_FILES.HELM_VALUES_YAML) return LANGUAGES.HELM;
+  if (manifestName === MANIFEST_FILES.HELM_VALUES_YML) return LANGUAGES.HELM;
+  if (manifestName === MANIFEST_FILES.KUSTOMIZATION_YAML) return LANGUAGES.KUSTOMIZE;
+  if (manifestName === MANIFEST_FILES.KUSTOMIZATION_YML) return LANGUAGES.KUSTOMIZE;
+  if (manifestName.endsWith(".tf")) return LANGUAGES.TERRAFORM;
+  if (isCircleCIConfig) return LANGUAGES.CIRCLECI;
   if (isGithubWorkflow) {
     return LANGUAGES.GITHUB_ACTIONS;
+  }
+  if (isKubernetesManifest && (manifestName.endsWith(".yml") || manifestName.endsWith(".yaml"))) {
+    return LANGUAGES.KUBERNETES;
   }
   if (PYTHON_MANIFEST_NAMES.has(manifestName)) return LANGUAGES.PYTHON;
 
@@ -211,10 +248,35 @@ const createProvider = (
         provider: new DockerProvider(),
         packageManager: LANGUAGES.DOCKER,
       };
+    case LANGUAGES.CIRCLECI:
+      return {
+        provider: new CircleCIProvider(),
+        packageManager: LANGUAGES.CIRCLECI,
+      };
     case LANGUAGES.GITHUB_ACTIONS:
       return {
         provider: new GitHubActionsProvider(),
         packageManager: LANGUAGES.GITHUB_ACTIONS,
+      };
+    case LANGUAGES.HELM:
+      return {
+        provider: new HelmProvider(),
+        packageManager: LANGUAGES.HELM,
+      };
+    case LANGUAGES.KUBERNETES:
+      return {
+        provider: new KubernetesProvider(),
+        packageManager: LANGUAGES.KUBERNETES,
+      };
+    case LANGUAGES.KUSTOMIZE:
+      return {
+        provider: new KustomizeProvider(),
+        packageManager: LANGUAGES.KUSTOMIZE,
+      };
+    case LANGUAGES.TERRAFORM:
+      return {
+        provider: new TerraformProvider(),
+        packageManager: LANGUAGES.TERRAFORM,
       };
     case LANGUAGES.PYTHON: {
       const packageManager = resolvePythonManager(filePath, options.packageManager);
@@ -331,10 +393,7 @@ const assertRequiredLockfiles = (
   }
   if (!lockfile) return;
 
-  const lockfileManagers = manifests.filter(({ language }) => {
-    const isLockfileLanguage = language !== LANGUAGES.DOCKER && language !== LANGUAGES.GITHUB_ACTIONS;
-    return isLockfileLanguage;
-  });
+  const lockfileManagers = manifests.filter(({ language }) => !LOCKFILE_EXEMPT_LANGUAGES.has(language));
   lockfileManagers.forEach((manifest) => assertStandardLockfile(manifest, rootDir));
 };
 

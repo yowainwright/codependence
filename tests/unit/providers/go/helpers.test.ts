@@ -4,7 +4,7 @@ import {
   parseRequireBlock,
   parseSingleRequires,
   buildRequireBlock,
-} from "../../../src/providers/go";
+} from "../../../../src/providers/go";
 
 describe("parseRequireBlock", () => {
   test("parses multi-line require block", () => {

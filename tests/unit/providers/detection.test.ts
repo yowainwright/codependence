@@ -10,8 +10,13 @@ import { NodeJSProvider } from "../../../src/providers/nodejs";
 import { GoProvider } from "../../../src/providers/go";
 import { PythonProvider } from "../../../src/providers/python";
 import { RustProvider } from "../../../src/providers/rust";
+import { CircleCIProvider } from "../../../src/providers/circleci";
 import { DockerProvider } from "../../../src/providers/docker";
 import { GitHubActionsProvider } from "../../../src/providers/github-actions";
+import { HelmProvider } from "../../../src/providers/helm";
+import { KubernetesProvider } from "../../../src/providers/kubernetes";
+import { KustomizeProvider } from "../../../src/providers/kustomize";
+import { TerraformProvider } from "../../../src/providers/terraform";
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 
@@ -163,6 +168,72 @@ describe("Language Detection", () => {
         ".github/workflows/*.yaml",
       ]);
       assert.strictEqual(result[0].packageManager, "github-actions");
+    });
+  });
+
+  describe("detectLanguage - infrastructure manifests", () => {
+    test("should detect CircleCI config", () => {
+      const circleDir = join(tmpDir, ".circleci");
+      mkdirSync(circleDir, { recursive: true });
+      writeFileSync(join(circleDir, "config.yml"), "version: 2.1");
+
+      const result = detectLanguage(tmpDir);
+
+      assert.strictEqual(result[0].language, "circleci");
+      assert.strictEqual(result[0].packageManager, "circleci");
+    });
+
+    test("should detect nested Kubernetes manifests in known directories", () => {
+      const manifestDir = join(tmpDir, "k8s", "base");
+      mkdirSync(manifestDir, { recursive: true });
+      writeFileSync(join(manifestDir, "deployment.yaml"), "apiVersion: apps/v1");
+
+      const result = detectLanguage(tmpDir);
+      const primary = detectPrimaryLanguage(tmpDir);
+
+      assert.strictEqual(result[0].language, "kubernetes");
+      assert.strictEqual(result[0].packageManager, "kubernetes");
+      assert.strictEqual(primary?.language, "kubernetes");
+    });
+
+    test("should detect Kustomize manifests", () => {
+      writeFileSync(join(tmpDir, "kustomization.yaml"), "resources: []");
+
+      const result = detectLanguage(tmpDir);
+
+      assert.strictEqual(result[0].language, "kustomize");
+      assert.strictEqual(result[0].packageManager, "kustomize");
+    });
+
+    test("should detect Terraform manifests", () => {
+      writeFileSync(join(tmpDir, "main.tf"), "terraform {}");
+
+      const result = detectLanguage(tmpDir);
+
+      assert.strictEqual(result[0].language, "terraform");
+      assert.strictEqual(result[0].packageManager, "terraform");
+    });
+
+    test("should ignore infrastructure paths that are files", () => {
+      const fileRoot = join(tmpDir, "not-a-directory");
+      writeFileSync(join(tmpDir, "k8s"), "not a directory");
+      writeFileSync(fileRoot, "not a directory");
+
+      assert.deepStrictEqual(detectLanguage(tmpDir), []);
+      assert.deepStrictEqual(detectLanguage(fileRoot), []);
+    });
+  });
+
+  describe("detectLanguage - Helm", () => {
+    test("should detect Helm with Chart.yaml", () => {
+      writeFileSync(join(tmpDir, "Chart.yaml"), "apiVersion: v2\nname: web\nversion: 1.0.0\n");
+
+      const result = detectLanguage(tmpDir);
+
+      assert.strictEqual(result.length, 1);
+      assert.strictEqual(result[0].language, "helm");
+      assert.deepStrictEqual(result[0].manifestFiles, ["Chart.yaml"]);
+      assert.strictEqual(result[0].packageManager, "helm");
     });
   });
 
@@ -377,10 +448,40 @@ describe("Language Detection", () => {
       assert.strictEqual(Provider, DockerProvider);
     });
 
+    test("should get CircleCIProvider for circleci", () => {
+      const Provider = getLanguageProvider("circleci");
+
+      assert.strictEqual(Provider, CircleCIProvider);
+    });
+
     test("should get GitHubActionsProvider for github-actions", () => {
       const Provider = getLanguageProvider("github-actions");
 
       assert.strictEqual(Provider, GitHubActionsProvider);
+    });
+
+    test("should get HelmProvider for helm", () => {
+      const Provider = getLanguageProvider("helm");
+
+      assert.strictEqual(Provider, HelmProvider);
+    });
+
+    test("should get KubernetesProvider for kubernetes", () => {
+      const Provider = getLanguageProvider("kubernetes");
+
+      assert.strictEqual(Provider, KubernetesProvider);
+    });
+
+    test("should get KustomizeProvider for kustomize", () => {
+      const Provider = getLanguageProvider("kustomize");
+
+      assert.strictEqual(Provider, KustomizeProvider);
+    });
+
+    test("should get TerraformProvider for terraform", () => {
+      const Provider = getLanguageProvider("terraform");
+
+      assert.strictEqual(Provider, TerraformProvider);
     });
 
     test("should throw error for unsupported language", () => {

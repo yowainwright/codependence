@@ -4,7 +4,7 @@ import {
   parseCondaDependencyLine,
   parseRequirementLine,
   parsePoetryLine,
-} from "../../../src/providers/python";
+} from "../../../../src/providers/python";
 
 describe("parseRequirementLine", () => {
   test("parses pinned version with ==", () => {

@@ -106,7 +106,16 @@ describe("validateConfig", () => {
     });
 
     it("should validate config with new provider languages", () => {
-      const languages = ["rust", "docker", "github-actions"];
+      const languages = [
+        "rust",
+        "circleci",
+        "docker",
+        "github-actions",
+        "helm",
+        "kubernetes",
+        "kustomize",
+        "terraform",
+      ];
 
       languages.forEach((language) => {
         const config = {
@@ -441,7 +450,7 @@ describe("validateConfig", () => {
       assert.strictEqual(result.errors[0].message, '"language" must be a string, got number');
       assert.strictEqual(
         result.errors[0].suggestion,
-        "Use one of: nodejs, python, go, rust, docker, github-actions",
+        "Use one of: nodejs, python, go, rust, circleci, docker, github-actions, helm, kubernetes, kustomize, terraform",
       );
     });
 
@@ -458,7 +467,7 @@ describe("validateConfig", () => {
       assert.strictEqual(result.errors[0].message, 'Invalid language "ruby"');
       assert.strictEqual(
         result.errors[0].suggestion,
-        "Must be one of: nodejs, python, go, rust, docker, github-actions",
+        "Must be one of: nodejs, python, go, rust, circleci, docker, github-actions, helm, kubernetes, kustomize, terraform",
       );
     });
 
@@ -820,6 +829,28 @@ describe("validateConfig", () => {
       };
 
       assert.deepStrictEqual(validateConfig(config), { valid: true, errors: [] });
+    });
+
+    it("accepts Helm manager targets", () => {
+      const config = {
+        targets: [
+          {
+            manager: "helm",
+            codependencies: [{ redis: "20.6.3" }],
+          },
+        ],
+      };
+
+      assert.deepStrictEqual(validateConfig(config), { valid: true, errors: [] });
+    });
+
+    it("accepts infrastructure manager targets", () => {
+      const targets = ["circleci", "kubernetes", "kustomize", "terraform"].map((manager) => ({
+        codependencies: [{ example: "1.0.0" }],
+        manager,
+      }));
+
+      assert.deepStrictEqual(validateConfig({ targets }), { valid: true, errors: [] });
     });
 
     it("accepts lockfile policies", () => {

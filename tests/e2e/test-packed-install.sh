@@ -274,7 +274,12 @@ test_installed_init_actions() {
     { "manager": "go" },
     { "manager": "rust" },
     { "manager": "docker" },
-    { "manager": "github-actions" }
+    { "manager": "circleci" },
+    { "manager": "github-actions" },
+    { "manager": "helm" },
+    { "manager": "kubernetes" },
+    { "manager": "kustomize" },
+    { "manager": "terraform" }
   ]
 }
 JSON
@@ -304,6 +309,11 @@ JSON
   grep -q 'version: 1.88.0' "$rust_workflow" || fail "generated exact Rust version"
   grep -q 'cargo generate-lockfile' "$rust_workflow" || fail "generated Rust lockfile command"
   grep -q 'github-actions' "$infrastructure_workflow" || fail "generated GitHub Actions target"
+  grep -q 'helm' "$infrastructure_workflow" || fail "generated Helm target"
+  grep -q 'circleci' "$infrastructure_workflow" || fail "generated CircleCI target"
+  grep -q 'kubernetes' "$infrastructure_workflow" || fail "generated Kubernetes target"
+  grep -q 'kustomize' "$infrastructure_workflow" || fail "generated Kustomize target"
+  grep -q 'terraform' "$infrastructure_workflow" || fail "generated Terraform target"
   default_schedule='cron: "0 9 * * 1"'
   pull_request_mode='pull-request: true'
   for workflow_file in "$node_workflow" "$python_workflow" "$go_workflow" "$rust_workflow" "$infrastructure_workflow"; do

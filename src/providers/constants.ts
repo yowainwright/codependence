@@ -1,10 +1,15 @@
 export const LANGUAGES = {
+  CIRCLECI: "circleci",
   DOCKER: "docker",
   GITHUB_ACTIONS: "github-actions",
   GO: "go",
+  HELM: "helm",
+  KUBERNETES: "kubernetes",
+  KUSTOMIZE: "kustomize",
   NODEJS: "nodejs",
   PYTHON: "python",
   RUST: "rust",
+  TERRAFORM: "terraform",
 } as const;
 
 export const NODE_PACKAGE_MANAGERS = {
@@ -28,6 +33,8 @@ export const MANIFEST_FILES = {
   BUN_LOCK_BINARY: "bun.lockb",
   CARGO_LOCK: "Cargo.lock",
   CARGO_TOML: "Cargo.toml",
+  CIRCLECI_CONFIG_YAML: ".circleci/config.yaml",
+  CIRCLECI_CONFIG_YML: ".circleci/config.yml",
   CONDA_ENVIRONMENT_YAML: "environment.yaml",
   CONDA_ENVIRONMENT_YML: "environment.yml",
   DOCKERFILE: "Dockerfile",
@@ -35,6 +42,11 @@ export const MANIFEST_FILES = {
   GITHUB_WORKFLOW_YML: ".github/workflows/*.yml",
   GO_MOD: "go.mod",
   GO_SUM: "go.sum",
+  HELM_CHART: "Chart.yaml",
+  HELM_VALUES_YAML: "values.yaml",
+  HELM_VALUES_YML: "values.yml",
+  KUSTOMIZATION_YAML: "kustomization.yaml",
+  KUSTOMIZATION_YML: "kustomization.yml",
   NPM_LOCK: "package-lock.json",
   NPM_SHRINKWRAP: "npm-shrinkwrap.json",
   PACKAGE_JSON: "package.json",
@@ -43,6 +55,7 @@ export const MANIFEST_FILES = {
   PNPM_WORKSPACE: "pnpm-workspace.yaml",
   PYPROJECT: "pyproject.toml",
   REQUIREMENTS: "requirements.txt",
+  TERRAFORM: "*.tf",
   UV_LOCK: "uv.lock",
   YARN_LOCK: "yarn.lock",
   YARN_RC: ".yarnrc",
@@ -80,6 +93,10 @@ export const CONDA_MANIFEST_FILES = [
 ] as const;
 
 export const DEFAULT_LANGUAGE_MANIFESTS = {
+  [LANGUAGES.CIRCLECI]: [
+    MANIFEST_FILES.CIRCLECI_CONFIG_YML,
+    MANIFEST_FILES.CIRCLECI_CONFIG_YAML,
+  ],
   [LANGUAGES.DOCKER]: [
     MANIFEST_FILES.DOCKERFILE,
     `${MANIFEST_FILES.DOCKERFILE}.*`,
@@ -90,8 +107,31 @@ export const DEFAULT_LANGUAGE_MANIFESTS = {
     MANIFEST_FILES.GITHUB_WORKFLOW_YML,
     MANIFEST_FILES.GITHUB_WORKFLOW_YAML,
   ],
+  [LANGUAGES.HELM]: [
+    MANIFEST_FILES.HELM_CHART,
+    `**/${MANIFEST_FILES.HELM_CHART}`,
+    MANIFEST_FILES.HELM_VALUES_YAML,
+    MANIFEST_FILES.HELM_VALUES_YML,
+    `**/${MANIFEST_FILES.HELM_VALUES_YAML}`,
+    `**/${MANIFEST_FILES.HELM_VALUES_YML}`,
+  ],
+  [LANGUAGES.KUBERNETES]: [
+    "k8s/**/*.yaml",
+    "k8s/**/*.yml",
+    "kubernetes/**/*.yaml",
+    "kubernetes/**/*.yml",
+    "manifests/**/*.yaml",
+    "manifests/**/*.yml",
+  ],
+  [LANGUAGES.KUSTOMIZE]: [
+    MANIFEST_FILES.KUSTOMIZATION_YAML,
+    MANIFEST_FILES.KUSTOMIZATION_YML,
+    `**/${MANIFEST_FILES.KUSTOMIZATION_YAML}`,
+    `**/${MANIFEST_FILES.KUSTOMIZATION_YML}`,
+  ],
   [LANGUAGES.NODEJS]: [MANIFEST_FILES.PACKAGE_JSON],
   [LANGUAGES.GO]: [MANIFEST_FILES.GO_MOD],
   [LANGUAGES.PYTHON]: PYTHON_MANIFEST_FILES,
   [LANGUAGES.RUST]: [MANIFEST_FILES.CARGO_TOML, "**/Cargo.toml"],
+  [LANGUAGES.TERRAFORM]: [MANIFEST_FILES.TERRAFORM, "**/*.tf"],
 } as const;

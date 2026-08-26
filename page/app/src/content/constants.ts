@@ -97,7 +97,7 @@ export const SEARCH_DATA: SearchResult[] = [
     title: "GitHub Action",
     description: "Create targeted dependency pull requests",
     content:
-      "Run Bun, Go, uv, Docker, and GitHub Actions updates on separate schedules and stable pull request branches.",
+      "Run Bun, Go, uv, Docker, GitHub Actions, and Helm updates on separate schedules and stable pull request branches.",
     slug: "github-action",
   },
   {
