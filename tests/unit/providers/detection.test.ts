@@ -213,6 +213,15 @@ describe("Language Detection", () => {
       assert.strictEqual(result[0].language, "terraform");
       assert.strictEqual(result[0].packageManager, "terraform");
     });
+
+    test("should ignore infrastructure paths that are files", () => {
+      const fileRoot = join(tmpDir, "not-a-directory");
+      writeFileSync(join(tmpDir, "k8s"), "not a directory");
+      writeFileSync(fileRoot, "not a directory");
+
+      assert.deepStrictEqual(detectLanguage(tmpDir), []);
+      assert.deepStrictEqual(detectLanguage(fileRoot), []);
+    });
   });
 
   describe("detectLanguage - Helm", () => {

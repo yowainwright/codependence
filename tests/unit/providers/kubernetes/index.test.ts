@@ -15,6 +15,21 @@ describe("KubernetesProvider", () => {
     mkdirSync(manifestDir, { recursive: true });
   });
 
+  test("should expose provider metadata", async () => {
+    const provider = new KubernetesProvider();
+
+    assert.strictEqual(provider.language, "kubernetes");
+    assert.deepStrictEqual(provider.capabilities, {
+      supportsLatestResolution: false,
+      supportsPreciseMode: false,
+      versionStrategy: "exact",
+    });
+    assert.strictEqual(provider.validatePackageName("ghcr.io/acme/web"), true);
+    assert.strictEqual(provider.validatePackageName("bad image"), false);
+    await assert.rejects(() => provider.getLatestVersion("nginx"), /Kubernetes provider/);
+    await assert.rejects(() => provider.getAllVersions("nginx"), /Kubernetes provider/);
+  });
+
   test("should read container and init-container image tags", () => {
     const content = `apiVersion: apps/v1
 kind: Deployment
@@ -76,6 +91,33 @@ initContainers:
 initContainers:
   - name: init
     image: busybox:1.36.2
+`,
+    );
+  });
+
+  test("should update image tags through resolved versions", () => {
+    const content = `containers:
+  - name: app
+    image: ghcr.io/acme/web:2.4.0
+`;
+    writeFileSync(manifestPath, content);
+    const provider = new KubernetesProvider();
+
+    provider.writeManifest(manifestPath, {
+      filePath: manifestPath,
+      dependencies: {},
+      resolvedDependencyVersions: {
+        "ghcr.io/acme/web": {
+          "2.4.0": "2.5.0",
+        },
+      },
+    });
+
+    assert.strictEqual(
+      readFileSync(manifestPath, "utf8"),
+      `containers:
+  - name: app
+    image: ghcr.io/acme/web:2.5.0
 `,
     );
   });

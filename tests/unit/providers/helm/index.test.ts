@@ -27,6 +27,13 @@ describe("HelmProvider", () => {
     assert.strictEqual(provider.validatePackageName("bad chart"), false);
   });
 
+  test("should reject automatic version resolution", async () => {
+    const provider = new HelmProvider();
+
+    await assert.rejects(() => provider.getLatestVersion("redis"), /Helm provider requires/);
+    await assert.rejects(() => provider.getAllVersions("redis"), /Helm provider requires/);
+  });
+
   test("should read Chart.yaml dependency versions", () => {
     const content = `apiVersion: v2
 name: chart-name
@@ -86,6 +93,39 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
 `,
     );
+  });
+
+  test("should ignore unsafe Chart.yaml dependencies", () => {
+    const content = `apiVersion: v2
+name: chart-name
+version: "{{ .Values.version }}"
+dependencies:
+  - name: redis
+    version: 20.6.3
+    repository: file://../redis
+  - name: templated
+    version: "{{ .Values.templated }}"
+    repository: https://charts.example.com
+  - name: digest
+    version: sha256:aaaaaaaa
+    repository: https://charts.example.com
+  - name: safe
+    condition: safe.enabled
+    repository: https://charts.example.com
+    version: 1.2.3
+maintainers:
+  - name: Team
+`;
+    writeFileSync(chartPath, content);
+    const provider = new HelmProvider();
+
+    assert.deepStrictEqual(provider.readManifest(chartPath), {
+      filePath: chartPath,
+      name: "payments",
+      dependencies: {
+        safe: "1.2.3",
+      },
+    });
   });
 
   test("should read and update explicit values image tags", () => {
@@ -193,5 +233,23 @@ image:
     tag: 9.9.9
 `,
     );
+  });
+
+  test("should keep values image tags when no matching dependency exists", () => {
+    const valuesPath = join(chartDir, "values.yaml");
+    const content = `image:
+  repository: bitnami/nginx
+  pullPolicy: IfNotPresent
+  tag: 1.27.0
+`;
+    writeFileSync(valuesPath, content);
+    const provider = new HelmProvider();
+
+    provider.writeManifest(valuesPath, {
+      filePath: valuesPath,
+      dependencies: {},
+    });
+
+    assert.strictEqual(readFileSync(valuesPath, "utf8"), content);
   });
 });

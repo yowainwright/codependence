@@ -17,6 +17,21 @@ describe("KustomizeProvider", () => {
     mkdirSync(manifestDir, { recursive: true });
   });
 
+  test("should expose provider metadata", async () => {
+    const provider = new KustomizeProvider();
+
+    assert.strictEqual(provider.language, "kustomize");
+    assert.deepStrictEqual(provider.capabilities, {
+      supportsLatestResolution: false,
+      supportsPreciseMode: false,
+      versionStrategy: "exact",
+    });
+    assert.strictEqual(provider.validatePackageName("ghcr.io/acme/web"), true);
+    assert.strictEqual(provider.validatePackageName("{{ image }}"), false);
+    await assert.rejects(() => provider.getLatestVersion("alpine"), /Kustomize provider requires/);
+    await assert.rejects(() => provider.getAllVersions("alpine"), /Kustomize provider requires/);
+  });
+
   test("should read image newName, newTag, and digest entries", () => {
     const content = `resources:
   - deployment.yaml
@@ -75,5 +90,49 @@ images:
     digest: ${NEXT_DIGEST} # digest
 `,
     );
+  });
+
+  test("should ignore ambiguous and templated image entries", () => {
+    const content = `images:
+  - name: ambiguous
+    newTag: 1.0.0
+    digest: ${DIGEST}
+  - name: invalid
+    digest: sha256:not-a-digest
+  - name: "{{ .Values.image }}"
+    newTag: 1.0.0
+  - name: nginx
+    newTag: 1.27.0
+    annotations: stable
+`;
+    writeFileSync(manifestPath, content);
+    const provider = new KustomizeProvider();
+
+    assert.deepStrictEqual(provider.readManifest(manifestPath), {
+      filePath: manifestPath,
+      name: "prod",
+      dependencies: {
+        nginx: "1.27.0",
+      },
+      dependencyVersions: {
+        nginx: ["1.27.0"],
+      },
+    });
+  });
+
+  test("should keep image fields when no matching dependency exists", () => {
+    const content = `images:
+  - name: nginx
+    newTag: 1.27.0
+`;
+    writeFileSync(manifestPath, content);
+    const provider = new KustomizeProvider();
+
+    provider.writeManifest(manifestPath, {
+      filePath: manifestPath,
+      dependencies: {},
+    });
+
+    assert.strictEqual(readFileSync(manifestPath, "utf8"), content);
   });
 });

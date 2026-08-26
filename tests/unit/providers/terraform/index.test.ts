@@ -14,6 +14,22 @@ describe("TerraformProvider", () => {
     mkdirSync(stackDir, { recursive: true });
   });
 
+  test("should expose provider metadata", async () => {
+    const provider = new TerraformProvider();
+
+    assert.strictEqual(provider.language, "terraform");
+    assert.deepStrictEqual(provider.capabilities, {
+      supportsLatestResolution: false,
+      supportsPreciseMode: false,
+      versionStrategy: "semver",
+    });
+    assert.strictEqual(provider.validatePackageName("hashicorp/aws"), true);
+    assert.strictEqual(provider.validatePackageName(" hashicorp/aws"), false);
+    assert.strictEqual(provider.validatePackageName("{{ provider }}"), false);
+    await assert.rejects(() => provider.getLatestVersion("hashicorp/aws"), /Terraform provider/);
+    await assert.rejects(() => provider.getAllVersions("hashicorp/aws"), /Terraform provider/);
+  });
+
   test("should read required providers and versioned module sources", () => {
     const content = `terraform {
   required_providers {
@@ -108,5 +124,59 @@ module "app" {
 }
 `,
     );
+  });
+
+  test("should ignore local, templated, and unversioned modules", () => {
+    const content = `terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "{{ var.aws_version }}"
+    }
+  }
+}
+
+module "local" {
+  source = "../modules/local"
+}
+
+module "unversioned" {
+  source = "terraform-aws-modules/vpc/aws"
+  description = "not a dependency field"
+}
+
+module "safe" {
+  source = "git::https://github.com/acme/service.git?ref=v1.0.0"
+}
+`;
+    writeFileSync(manifestPath, content);
+    const provider = new TerraformProvider();
+
+    assert.deepStrictEqual(provider.readManifest(manifestPath), {
+      filePath: manifestPath,
+      name: "platform",
+      dependencies: {
+        "github.com/acme/service": "v1.0.0",
+      },
+      dependencyVersions: {
+        "github.com/acme/service": ["v1.0.0"],
+      },
+    });
+  });
+
+  test("should keep Terraform versions when no matching dependency exists", () => {
+    const content = `module "app" {
+  source = "git::https://github.com/acme/app.git?ref=v1.2.3"
+}
+`;
+    writeFileSync(manifestPath, content);
+    const provider = new TerraformProvider();
+
+    provider.writeManifest(manifestPath, {
+      filePath: manifestPath,
+      dependencies: {},
+    });
+
+    assert.strictEqual(readFileSync(manifestPath, "utf8"), content);
   });
 });
