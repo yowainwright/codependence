@@ -1,17 +1,17 @@
 import { test, describe, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
-import { assertCalledWith, assertThrows } from "../../helpers/assertions";
+import { assertCalledWith, assertThrows } from "../../../helpers/assertions";
 import { writeFileSync, readFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
-import { logger } from "../../../src/observability";
-import { configureBinaryHost } from "../../../src/cli/utils";
-import { exec } from "../../../src/utils/process";
+import { logger } from "../../../../src/observability";
+import { configureBinaryHost } from "../../../../src/cli/utils";
+import { exec } from "../../../../src/utils/process";
 import {
   GoProvider,
   runGoModTidy,
   updateRequireLine,
   updateExistingRequireLines,
-} from "../../../src/providers/go";
+} from "../../../../src/providers/go";
 
 const execMock = mock.fn<typeof exec>();
 const runExecMock = async (command: string, args: string[]): Promise<string> =>

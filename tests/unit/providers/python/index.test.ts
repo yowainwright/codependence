@@ -1,11 +1,11 @@
 import { test, describe, beforeEach, after, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
-import { assertCalledWith } from "../../helpers/assertions";
+import { assertCalledWith } from "../../../helpers/assertions";
 import { writeFileSync, readFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
-import { configureBinaryHost } from "../../../src/cli/utils";
-import { PythonProvider } from "../../../src/providers/python";
-import { exec } from "../../../src/utils/process";
+import { configureBinaryHost } from "../../../../src/cli/utils";
+import { PythonProvider } from "../../../../src/providers/python";
+import { exec } from "../../../../src/utils/process";
 
 const execMock = mock.fn<typeof exec>();
 const runExecMock = async (command: string, args: string[]): Promise<string> =>

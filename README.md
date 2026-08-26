@@ -7,7 +7,7 @@
 
 #### One configuration for every dependency manager.
 
-**Codependence** checks and updates dependency versions using [one-to-many](https://en.wikipedia.org/wiki/One-to-many_%28data_model%29) project policies with support for Node, Python, Go, Rust, Docker, and GitHub Actions. 
+**Codependence** checks and updates dependency versions using [one-to-many](https://en.wikipedia.org/wiki/One-to-many_%28data_model%29) project policies with support for Node, Python, Go, Rust, Docker, GitHub Actions, and Helm.
 
 This means you control how you update and why you update. Versus other tools, Codependence caters to a project's context vs a dependency's context.
 
@@ -887,7 +887,7 @@ Generates scheduled workflow files from the configured manifests. Existing gener
 codependence init actions
 ```
 
-The command creates stable workflow files for Node, Python, Go, Rust, Docker, and GitHub Actions. Docker gets its own `update-dependencies/docker` pull-request branch.
+The command creates stable workflow files for Node, Python, Go, Rust, Docker, and infrastructure targets such as GitHub Actions and Helm. Docker gets its own `update-dependencies/docker` pull-request branch.
 
 #### `uses: yowainwright/codependence@v1`
 
@@ -911,7 +911,7 @@ outdated: "true"
 
 #### `targets`
 
-> Type: **`Array<"bun" | "npm" | "pnpm" | "yarn" | "go" | "rust" | "uv" | "docker" | "github-actions">`**
+> Type: **`Array<"bun" | "npm" | "pnpm" | "yarn" | "go" | "rust" | "uv" | "docker" | "github-actions" | "helm">`**
 > Default: `undefined`
 
 Limits the action to configured manager targets. Versioned targets need an exact tool version unless a Node package-manager version can be inferred from `package.json`.
@@ -1263,7 +1263,7 @@ codependence --language python
 ```
 
 Use one supported language per run: `nodejs`, `python`, `go`, `rust`,
-`docker`, or `github-actions`.
+`docker`, `github-actions`, or `helm`.
 
 ### Supported managers
 
@@ -1284,9 +1284,9 @@ Use one supported language per run: `nodejs`, `python`, `go`, `rust`,
 
 #### Operations
 
-| Containers | CI |
-| --- | --- |
-| [docker](https://www.docker.com/)<br>Experimental<br>`Dockerfile` | [github-actions](https://github.com/features/actions)<br>Experimental<br>`.github/workflows/*.yml`, `.github/workflows/*.yaml` |
+| Containers | CI | Infrastructure |
+| --- | --- | --- |
+| [docker](https://www.docker.com/)<br>Experimental<br>`Dockerfile` | [github-actions](https://github.com/features/actions)<br>Experimental<br>`.github/workflows/*.yml`, `.github/workflows/*.yaml` | [helm](https://helm.sh/)<br>Experimental<br>`Chart.yaml`, `**/Chart.yaml` |
 
 > [!NOTE]
 > Docker support is experimental.
@@ -1318,6 +1318,12 @@ and `mode: "precise"`.
 - Authenticated lookups use `GITHUB_TOKEN` or `GH_TOKEN` when available.
 - For private GHCR packages, the action falls back to its workflow token and retries anonymously when GHCR rejects that token for a public package.
 
+> [!NOTE]
+> Helm support is experimental.
+
+The Helm provider checks `Chart.yaml` dependency entries and updates explicit
+object pins in `mode: "verbose"`. It ignores `appVersion`, local `file://`
+dependencies, templates, digest refs, and dependencies without a version.
 
 > [!NOTE]
 > Execution options such as `update`, `dryRun`, `format`, and `noCache` stay at the root. 
@@ -1339,6 +1345,7 @@ The same policy model can expand to other version surfaces over time.
 | Python, Go, and Rust manifests | Experimental | Apply the same check/update workflow outside Node.js                       |
 | Dockerfiles                    | Experimental | Check base image versions                                                  |
 | GitHub Actions workflows       | Experimental | Check action refs in workflow YAML                                         |
+| Helm charts                    | Experimental | Check chart dependency versions in `Chart.yaml`                            |
 | Local repository scans         | Roadmap      | Report drift across a directory of projects, such as `~/code`              |
 | Toolchain files                | Roadmap      | Keep `.nvmrc`, `.node-version`, `.tool-versions`, and `.mise.toml` aligned |
 | Compose and other CI YAML      | Roadmap      | Check service images, actions, and runtime versions in pipeline files      |

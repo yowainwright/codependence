@@ -38,10 +38,10 @@ The command creates up to six stable files:
 - `.github/workflows/codependence-docker.yml`
 - `.github/workflows/codependence-infrastructure.yml`
 
-Node package managers share one workflow. Docker and GitHub Actions use separate
-workflows so Docker updates stay on the stable `update-dependencies/docker`
-pull-request branch. Every generated workflow uses the default schedule unless
-an area-specific schedule is configured.
+Node package managers share one workflow. Docker and infrastructure targets use
+separate workflows so Docker updates stay on the stable
+`update-dependencies/docker` pull-request branch. Every generated workflow uses
+the default schedule unless an area-specific schedule is configured.
 
 Exact versions are read from `package.json#packageManager`, `go.mod`,
 `rust-toolchain.toml`, `rust-toolchain`, `mise.toml`, `.mise.toml`,
@@ -92,7 +92,7 @@ The default secret name is `CODEPENDENCE_TOKEN`; change it with
 | `permissive` | Update all except pinned | No | `false` |
 | `mode` | Policy mode: `verbose` or `precise` | No | - |
 | `level` | Allowed update level: `patch`, `minor`, or `major` | No | - |
-| `language` | Target language: `nodejs` (stable), or experimental `go`, `python`, `rust`, `docker`, `github-actions` | No | - |
+| `language` | Target language: `nodejs` (stable), or experimental `go`, `python`, `rust`, `docker`, `github-actions`, `helm` | No | - |
 | `fail-on-outdated` | Fail if outdated | No | `true` |
 | `rootDir` | Root directory | No | - |
 | `ignore` | Ignore patterns (space-separated) | No | - |
@@ -113,7 +113,7 @@ The default secret name is `CODEPENDENCE_TOKEN`; change it with
 ## Experimental Language Providers
 
 Node.js package manifests are the stable default. The `go`, `python`, `rust`,
-`docker`, and `github-actions` providers are experimental while their manifest
+`docker`, `github-actions`, and `helm` providers are experimental while their manifest
 coverage and update semantics settle.
 
 <!-- provider capabilities from src/providers/*/index.ts -->
@@ -126,6 +126,9 @@ read-only `dockerhub-token`. Private GHCR images use `ghcr-username` plus a
 classic PAT with `read:packages`, or the default workflow token when the
 repository has package access. GitHub Actions latest releases are pinned by
 immutable commit SHA.
+Helm checks `Chart.yaml` dependency entries and updates explicit object pins in
+verbose mode. Local `file://` chart dependencies, templates, digest refs,
+unversioned dependencies, and `appVersion` are left unchanged.
 
 ## Examples
 
@@ -198,7 +201,7 @@ is ignored automatically. An explicit `ignore` input replaces those defaults.
 
 The Action installs exact Bun, npm, pnpm, Yarn, Go, Rust, or uv versions for
 selected targets. Rust accepts stable `x.y.z` toolchains and normalizes an
-optional leading `v`. Docker and GitHub Actions targets do not accept `version`.
+optional leading `v`. Docker, GitHub Actions, and Helm targets do not accept `version`.
 Docker `ARG`-backed image tags are updated through their default value.
 Unversioned or URL-based Python requirements remain skipped.
 
@@ -233,7 +236,7 @@ jobs:
 ```
 
 The stable branch is `update-dependencies/go`, so every Go run updates the same
-open pull request. Bun, Go, Rust, uv, Docker, and GitHub Actions workflows use
+open pull request. Bun, Go, Rust, uv, Docker, GitHub Actions, and Helm workflows use
 different branches and therefore maintain separate pull requests. If multiple
 managers are intentionally passed together, they produce one pull request:
 

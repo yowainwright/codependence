@@ -23,6 +23,8 @@ const absent = (): GitResult => ({ status: 1, stdout: "", stderr: "" });
 const missing = (): GitResult => ({ status: 2, stdout: "", stderr: "" });
 
 interface ReleaseFlowState {
+  autoMergeDisabled?: boolean;
+  dirtyPullRequest?: boolean;
   extraMergedFile?: boolean;
   extraReleaseFile?: boolean;
   existingPullRequest?: boolean;
@@ -34,7 +36,13 @@ interface ReleaseFlowState {
   mismatchedMergedRefs?: boolean;
   mismatchedPullRequest?: boolean;
   mismatchedReleaseDiff?: boolean;
+  pendingRequirements?: boolean;
   remoteBranch?: boolean;
+}
+
+interface ReleaseFlowRuntimeState {
+  autoMergeQueued: boolean;
+  pendingReadCount: number;
 }
 
 function createRunner(overrides: Record<string, GitResult> = {}) {
@@ -153,6 +161,9 @@ function releaseFlowResult(key: string, prUrl: string, state: ReleaseFlowState):
   if (branchResult) return branchResult;
   const mergedCommit = mergedCommitResult(key, state);
   if (mergedCommit) return mergedCommit;
+  if (key === "gh api repos/yowainwright/codependence --jq .allow_auto_merge") {
+    return ok(`${state.autoMergeDisabled ? "false" : "true"}\n`);
+  }
   if (key.includes("release-it --release-version")) return ok("1.2.4\n");
   if (key.includes("rev-parse -q --verify refs/tags/v1.2.4")) return missing();
   if (key === "git ls-remote --tags origin refs/tags/v1.2.4") return ok();
@@ -168,12 +179,45 @@ function releaseFlowResult(key: string, prUrl: string, state: ReleaseFlowState):
   return readyMain[key as keyof typeof readyMain] ?? ok();
 }
 
+function mergedPullRequestState(): GitResult {
+  const state = { mergeCommit: { oid: MERGE_COMMIT }, mergedAt: "now", state: "MERGED" };
+  return ok(JSON.stringify(state));
+}
+
+function dirtyPullRequestState(): GitResult {
+  return ok(JSON.stringify({ mergeStateStatus: "DIRTY", state: "OPEN" }));
+}
+
+function pendingPullRequestState(runtime: ReleaseFlowRuntimeState): GitResult {
+  runtime.pendingReadCount += 1;
+  const pullRequestState = runtime.pendingReadCount === 1 ? "OPEN" : "CLOSED";
+  return ok(JSON.stringify({ mergeStateStatus: "BLOCKED", state: pullRequestState }));
+}
+
+function releaseFlowStateOverride(
+  key: string,
+  state: ReleaseFlowState,
+  runtime: ReleaseFlowRuntimeState,
+): GitResult | undefined {
+  const isMergeStateRead = key.endsWith("state,mergedAt,mergeCommit,mergeStateStatus");
+  if (!isMergeStateRead) return undefined;
+  if (runtime.autoMergeQueued) return mergedPullRequestState();
+  if (state.dirtyPullRequest) return dirtyPullRequestState();
+  if (!state.pendingRequirements) return undefined;
+  return pendingPullRequestState(runtime);
+}
+
 function createReleaseFlowRunner(prUrl: string, state: ReleaseFlowState = {}) {
   const calls: string[][] = [];
+  const runtime = { autoMergeQueued: false, pendingReadCount: 0 };
   const runner = mock.fn<ReleaseRunner>((command, args) => {
     const call = [command, ...Array.from(args)];
     calls[calls.length] = call;
-    return releaseFlowResult(call.join(" "), prUrl, state);
+    const key = call.join(" ");
+    if (key.startsWith("gh pr merge --auto ")) runtime.autoMergeQueued = true;
+    const override = releaseFlowStateOverride(key, state, runtime);
+    if (override) return override;
+    return releaseFlowResult(key, prUrl, state);
   });
   return { calls, runner };
 }
@@ -215,8 +259,8 @@ describe("scripts/release plans", () => {
     const output = formatReleasePlan(plan);
     assert.strictEqual((plan.branch), "release/v1.2.4");
     assert.strictEqual((plan.pullRequestTitle), "chore(release): v1.2.4");
-    assert.ok((output).includes("wait for required checks"));
-    assert.ok((output).includes("squash-merge the release PR"));
+    assert.ok((output).includes("verify repository auto-merge"));
+    assert.ok((output).includes("queue auto-merge for the release PR"));
   });
 
   test("describes tagging an existing prerelease package version", () => {
@@ -275,7 +319,7 @@ describe("scripts/release flow", () => {
     assertCalledWith((logger.log), expected);
   });
 
-  test("merges the release PR before tagging its merge commit", async () => {
+  test("queues release PR auto-merge before tagging its merge commit", async () => {
     const prUrl = "https://github.com/yowainwright/codependence/pull/300";
     const logger = createLogger();
     const { calls, runner } = createReleaseFlowRunner(prUrl);
@@ -284,6 +328,7 @@ describe("scripts/release flow", () => {
       "gh",
       "pr",
       "merge",
+      "--auto",
       "--squash",
       "--delete-branch",
       "--match-head-commit",
@@ -302,6 +347,62 @@ describe("scripts/release flow", () => {
     assert.strictEqual((code), 0);
     assertContainsEqual((calls), mergeCall);
     assertContainsEqual((calls), tagCall);
+  });
+
+  test("fails before version files change when repository auto-merge is disabled", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const { calls, runner } = createReleaseFlowRunner(prUrl, { autoMergeDisabled: true });
+    const release = runRelease({ increment: "patch", logger, runner });
+    await assertRejects(release, 'enable "Allow auto-merge" on yowainwright/codependence');
+    const releaseItCall = calls.find((call) => call[0] === "./node_modules/.bin/release-it");
+    assert.strictEqual((releaseItCall), undefined);
+  });
+
+  test("checks repository auto-merge before resolving the release version", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const { calls, runner } = createReleaseFlowRunner(prUrl);
+    const code = await runRelease({ increment: "patch", logger, runner });
+    const preflight = "gh api repos/yowainwright/codependence --jq .allow_auto_merge";
+    const releaseVersion = "./node_modules/.bin/release-it --release-version";
+    const preflightIndex = calls.findIndex((call) => call.join(" ") === preflight);
+    const releaseVersionIndex = calls.findIndex((call) => call.join(" ").startsWith(releaseVersion));
+    assert.strictEqual((code), 0);
+    assert.ok((preflightIndex) > -1);
+    assert.ok((releaseVersionIndex) > preflightIndex);
+  });
+
+  test("queues auto-merge while release requirements are pending", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { pendingRequirements: true };
+    const { calls, runner } = createReleaseFlowRunner(prUrl, state);
+    const code = await runRelease({ increment: "patch", logger, pollIntervalMs: 0, runner });
+    const mergeCall = [
+      "gh",
+      "pr",
+      "merge",
+      "--auto",
+      "--squash",
+      "--delete-branch",
+      "--match-head-commit",
+      MERGE_COMMIT,
+      prUrl,
+    ];
+    assert.strictEqual((code), 0);
+    assertContainsEqual((calls), mergeCall);
+  });
+
+  test("rejects conflicted release PRs before queueing auto-merge", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { dirtyPullRequest: true };
+    const { calls, runner } = createReleaseFlowRunner(prUrl, state);
+    const release = runRelease({ increment: "patch", logger, runner });
+    await assertRejects(release, "Release PR has merge conflicts");
+    const mergeCall = calls.find((call) => call[0] === "gh" && call.includes("merge"));
+    assert.strictEqual((mergeCall), undefined);
   });
 
   test("resumes an existing release PR", async () => {

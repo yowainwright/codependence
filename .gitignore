@@ -116,6 +116,7 @@ page/app/dist
 .kiro
 tmp
 tests/unit/providers/.tmp-*/
+tests/unit/providers/*/.tmp-*/
 .husky/
 
 # Local agent config

@@ -1,10 +1,10 @@
 import { beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { assertRejects } from "../../helpers/assertions";
+import { assertRejects } from "../../../helpers/assertions";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
-import { DockerProvider } from "../../../src/providers/docker";
-import type { DockerFetch } from "../../../src/providers/types";
+import { DockerProvider } from "../../../../src/providers/docker";
+import type { DockerFetch } from "../../../../src/providers/types";
 
 type DockerRequest = { url: string; init?: RequestInit };
 

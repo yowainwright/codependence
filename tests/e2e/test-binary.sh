@@ -18,5 +18,10 @@ printf '[PASS] binary help\n'
 
 CODEPENDENCE_E2E_BINARY="$BIN" "$SCRIPT_DIR/scripts/test-binary-runtime.sh"
 CODEPENDENCE_E2E_BINARY="$BIN" "$SCRIPT_DIR/provider/docker.sh"
+CODEPENDENCE_E2E_BINARY="$BIN" "$SCRIPT_DIR/provider/circleci.sh"
 CODEPENDENCE_E2E_BINARY="$BIN" "$SCRIPT_DIR/provider/github-actions.sh"
+CODEPENDENCE_E2E_BINARY="$BIN" "$SCRIPT_DIR/provider/helm.sh"
+CODEPENDENCE_E2E_BINARY="$BIN" "$SCRIPT_DIR/provider/kubernetes.sh"
+CODEPENDENCE_E2E_BINARY="$BIN" "$SCRIPT_DIR/provider/kustomize.sh"
 CODEPENDENCE_E2E_BINARY="$BIN" "$SCRIPT_DIR/provider/rust.sh"
+CODEPENDENCE_E2E_BINARY="$BIN" "$SCRIPT_DIR/provider/terraform.sh"

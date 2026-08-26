@@ -28,8 +28,13 @@ const ACTION_MANAGER_NAMES = Array.from(NODE_MANAGERS).concat([
   PYTHON_PACKAGE_MANAGERS.UV,
   LANGUAGES.GO,
   LANGUAGES.RUST,
+  LANGUAGES.CIRCLECI,
   LANGUAGES.DOCKER,
   LANGUAGES.GITHUB_ACTIONS,
+  LANGUAGES.HELM,
+  LANGUAGES.KUBERNETES,
+  LANGUAGES.KUSTOMIZE,
+  LANGUAGES.TERRAFORM,
 ]);
 export const ACTION_MANAGERS = new Set<DependencyManager>(ACTION_MANAGER_NAMES);
 const VERSIONED_MANAGER_NAMES = Array.from(NODE_MANAGERS).concat([
@@ -54,7 +59,7 @@ export const WORKFLOW_LABELS: Record<WorkflowArea, string> = {
   go: "Go",
   rust: "Rust",
   docker: "Docker",
-  infrastructure: "GitHub Actions",
+  infrastructure: "Infrastructure",
 };
 
 export const OPTION_DEFINITIONS: OptionDefinition[] = [
@@ -138,7 +143,7 @@ Options:
   -y, --yarnConfig                  Enable yarn config support
   --level <level>                   Update level: patch, minor, or major (default: major)
   -m, --mode <mode>                verbose: only listed packages; precise: all except listed
-  -l, --language <lang>            Target language (nodejs, go, python, rust, docker, github-actions)
+  -l, --language <lang>            Target language (nodejs, go, python, rust, circleci, docker, github-actions, helm, kubernetes, kustomize, terraform)
   -h, --help                        Show this help message
   --dryRun                          Show what would change without modifying files
   --interactive                     Choose which packages to update interactively
@@ -187,8 +192,13 @@ Examples:
   codependence --language python              Check Python requirements.txt/pyproject.toml
   codependence --language go                  Check Go go.mod dependencies
   codependence --language rust                Check Cargo.toml dependencies
+  codependence --language circleci            Check CircleCI orb and image pins
   codependence --language docker              Check Dockerfile image tags
   codependence --language github-actions      Check workflow action refs
+  codependence --language helm                Check Helm chart and values pins
+  codependence --language kubernetes          Check Kubernetes image tags
+  codependence --language kustomize           Check Kustomize image pins
+  codependence --language terraform           Check Terraform provider and module pins
 
   # Development
   codependence --watch                        Watch mode - check every 30 seconds

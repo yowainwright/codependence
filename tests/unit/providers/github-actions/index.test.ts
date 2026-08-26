@@ -1,12 +1,12 @@
 import { beforeEach, describe, test, mock } from "node:test";
 import assert from "node:assert/strict";
-import { assertRejects } from "../../helpers/assertions";
+import { assertRejects } from "../../../helpers/assertions";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import {
   GitHubActionsProvider,
   updateGitHubActionsUsesLine,
-} from "../../../src/providers/github-actions";
+} from "../../../../src/providers/github-actions";
 
 const jsonResponse = (value: unknown, status = 200): Response =>
   new Response(JSON.stringify(value), {

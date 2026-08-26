@@ -120,19 +120,21 @@ export function buildPullRequestBody(version: string): string {
     `Release v${version}.`,
     "",
     "This PR was created by `nub run release`.",
-    "After checks pass, the release command merges this PR and pushes the version tag.",
+    "GitHub auto-merges this PR after checks and reviews pass.",
+    "The release command then pushes the version tag.",
   ].join("\n");
 }
 
 function buildReleaseSteps(branch: string, tagName: string): string[] {
   return [
     "verify clean, up-to-date main",
+    "verify repository auto-merge is enabled",
     `create ${branch}`,
     "run release-it without pushing main or creating a tag",
     "push the release branch",
     "open a release PR",
-    "wait for required checks",
-    "squash-merge the release PR",
+    "queue auto-merge for the release PR",
+    "wait for GitHub to merge the release PR",
     "pull merged main",
     `push ${tagName} to trigger publishing`,
   ];

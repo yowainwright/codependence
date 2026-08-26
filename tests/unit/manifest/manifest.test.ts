@@ -1947,6 +1947,205 @@ test("checkFiles => resolves multiple current Docker tags independently", async 
   }
 });
 
+test("checkFiles => updates Helm chart dependency pins", async () => {
+  const tempDir = createTestDirectory();
+  const chartPath = join(tempDir, "Chart.yaml");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(
+    chartPath,
+    `apiVersion: v2
+name: web
+version: 1.0.0
+dependencies:
+  - name: redis
+    version: 20.6.3
+    repository: https://charts.bitnami.com/bitnami
+`,
+  );
+
+  try {
+    await assert.deepStrictEqual(
+      await checkFiles({
+        codependencies: [{ redis: "20.7.0" }],
+        rootDir: tempDir,
+        files: ["Chart.yaml"],
+        mode: "verbose",
+        update: true,
+        silent: true,
+      }),
+      [],
+    );
+    assert.strictEqual(
+      readFileSync(chartPath, "utf8"),
+      `apiVersion: v2
+name: web
+version: 1.0.0
+dependencies:
+  - name: redis
+    version: 20.7.0
+    repository: https://charts.bitnami.com/bitnami
+`,
+    );
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => updates Helm values image pins", async () => {
+  const tempDir = createTestDirectory();
+  const valuesPath = join(tempDir, "values.yaml");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(
+    valuesPath,
+    `image:
+  repository: nginx
+  tag: 1.27.0
+`,
+  );
+
+  try {
+    await assert.deepStrictEqual(
+      await checkFiles({
+        codependencies: [{ nginx: "1.27.1" }],
+        files: ["values.yaml"],
+        mode: "verbose",
+        rootDir: tempDir,
+        silent: true,
+        update: true,
+      }),
+      [],
+    );
+    assert.strictEqual(readFileSync(valuesPath, "utf8"), "image:\n  repository: nginx\n  tag: 1.27.1\n");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => updates CircleCI orb and image pins", async () => {
+  const tempDir = createTestDirectory();
+  const configDir = join(tempDir, ".circleci");
+  const configPath = join(configDir, "config.yml");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(configDir, { recursive: true });
+  writeFileSync(configPath, "orbs:\n  node: circleci/node@7.1.0\njobs:\n  test:\n    docker:\n      - image: cimg/node:22.11\n");
+
+  try {
+    await assert.deepStrictEqual(
+      await checkFiles({
+        codependencies: [{ "circleci/node": "7.2.0" }, { "cimg/node": "22.12" }],
+        files: [".circleci/config.yml"],
+        language: "circleci",
+        mode: "verbose",
+        rootDir: tempDir,
+        silent: true,
+        update: true,
+      }),
+      [],
+    );
+    assert.ok(readFileSync(configPath, "utf8").includes("circleci/node@7.2.0"));
+    assert.ok(readFileSync(configPath, "utf8").includes("cimg/node:22.12"));
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => updates Kubernetes image pins", async () => {
+  const tempDir = createTestDirectory();
+  const manifestPath = join(tempDir, "deployment.yaml");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(manifestPath, "containers:\n  - name: app\n    image: ghcr.io/acme/web:2.4.0\n");
+
+  try {
+    await assert.deepStrictEqual(
+      await checkFiles({
+        codependencies: [{ "ghcr.io/acme/web": "2.5.0" }],
+        files: ["deployment.yaml"],
+        language: "kubernetes",
+        mode: "verbose",
+        rootDir: tempDir,
+        silent: true,
+        update: true,
+      }),
+      [],
+    );
+    assert.ok(readFileSync(manifestPath, "utf8").includes("ghcr.io/acme/web:2.5.0"));
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => updates Kustomize image pins", async () => {
+  const tempDir = createTestDirectory();
+  const manifestPath = join(tempDir, "kustomization.yaml");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(manifestPath, "images:\n  - name: nginx\n    newTag: 1.27.0\n");
+
+  try {
+    await assert.deepStrictEqual(
+      await checkFiles({
+        codependencies: [{ nginx: "1.27.1" }],
+        files: ["kustomization.yaml"],
+        language: "kustomize",
+        mode: "verbose",
+        rootDir: tempDir,
+        silent: true,
+        update: true,
+      }),
+      [],
+    );
+    assert.ok(readFileSync(manifestPath, "utf8").includes("newTag: 1.27.1"));
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("checkFiles => updates Terraform provider and module pins", async () => {
+  const tempDir = createTestDirectory();
+  const manifestPath = join(tempDir, "main.tf");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+  writeFileSync(
+    manifestPath,
+    `terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "5.30.0"
+    }
+  }
+}
+
+module "app" {
+  source = "git::https://github.com/acme/app.git?ref=v1.2.3"
+}
+`,
+  );
+
+  try {
+    await assert.deepStrictEqual(
+      await checkFiles({
+        codependencies: [{ "hashicorp/aws": "5.31.0" }, { "github.com/acme/app": "v1.2.4" }],
+        files: ["main.tf"],
+        language: "terraform",
+        mode: "verbose",
+        rootDir: tempDir,
+        silent: true,
+        update: true,
+      }),
+      [],
+    );
+    const content = readFileSync(manifestPath, "utf8");
+    assert.ok(content.includes('version = "5.31.0"'));
+    assert.ok(content.includes("github.com/acme/app.git?ref=v1.2.4"));
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("checkFiles => scopes Docker version cache by current tag", async () => {
   const tempDir = createTestDirectory();
   const slimDir = join(tempDir, "slim");

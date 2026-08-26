@@ -20,10 +20,15 @@ export type SupportedLanguage = (typeof LANGUAGES)[keyof typeof LANGUAGES];
 export type DependencyManager =
   | (typeof NODE_PACKAGE_MANAGERS)[keyof typeof NODE_PACKAGE_MANAGERS]
   | (typeof PYTHON_PACKAGE_MANAGERS)[keyof typeof PYTHON_PACKAGE_MANAGERS]
+  | typeof LANGUAGES.CIRCLECI
   | typeof LANGUAGES.GO
   | typeof LANGUAGES.RUST
   | typeof LANGUAGES.DOCKER
-  | typeof LANGUAGES.GITHUB_ACTIONS;
+  | typeof LANGUAGES.GITHUB_ACTIONS
+  | typeof LANGUAGES.HELM
+  | typeof LANGUAGES.KUBERNETES
+  | typeof LANGUAGES.KUSTOMIZE
+  | typeof LANGUAGES.TERRAFORM;
 
 export type CodependenceTarget = {
   manager: DependencyManager;

@@ -1,13 +1,19 @@
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { basename, dirname, join } from "path";
+import { CircleCIProvider } from "./circleci";
 import { DockerProvider } from "./docker";
 import { GoProvider } from "./go";
 import { GitHubActionsProvider } from "./github-actions";
+import { HelmProvider } from "./helm";
+import { KubernetesProvider } from "./kubernetes";
+import { KustomizeProvider } from "./kustomize";
 import { NodeJSProvider } from "./nodejs";
 import { PythonProvider } from "./python";
 import { RustProvider } from "./rust";
+import { TerraformProvider } from "./terraform";
 import {
   CONDA_MANIFEST_FILES,
+  DEFAULT_LANGUAGE_MANIFESTS,
   LANGUAGES,
   MANIFEST_FILES,
   NODE_PACKAGE_MANAGER_LOCKFILES,
@@ -41,6 +47,33 @@ const hasGithubWorkflow = (rootDir: string): boolean => {
       const isYaml = file.endsWith(".yml") || file.endsWith(".yaml");
       return isYaml;
     });
+  } catch {
+    return false;
+  }
+};
+
+const hasYamlManifest = (path: string): boolean => {
+  try {
+    return readdirSync(path, { withFileTypes: true }).some((entry) => {
+      const entryPath = join(path, entry.name);
+      if (entry.isDirectory()) return hasYamlManifest(entryPath);
+      return entry.name.endsWith(".yml") || entry.name.endsWith(".yaml");
+    });
+  } catch {
+    return false;
+  }
+};
+
+const hasKubernetesManifests = (rootDir: string): boolean =>
+  ["k8s", "kubernetes", "manifests"].some((directory) => {
+    const path = join(rootDir, directory);
+    if (!existsSync(path)) return false;
+    return hasYamlManifest(path);
+  });
+
+const hasTerraformManifests = (rootDir: string): boolean => {
+  try {
+    return readdirSync(rootDir).some((file) => file.endsWith(".tf"));
   } catch {
     return false;
   }
@@ -160,9 +193,7 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
 
   const hasGoMod = existsSync(join(rootDir, MANIFEST_FILES.GO_MOD));
   const hasGoSum = existsSync(join(rootDir, MANIFEST_FILES.GO_SUM));
-  const goManifestFiles = [MANIFEST_FILES.GO_MOD].concat(
-    hasGoSum ? [MANIFEST_FILES.GO_SUM] : [],
-  );
+  const goManifestFiles = [MANIFEST_FILES.GO_MOD].concat(hasGoSum ? [MANIFEST_FILES.GO_SUM] : []);
   const goDetections: LanguageDetectionResult[] = hasGoMod
     ? [
         {
@@ -195,15 +226,69 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
       ]
     : [];
 
+  const hasCircleCIConfig =
+    existsSync(join(rootDir, MANIFEST_FILES.CIRCLECI_CONFIG_YML)) ||
+    existsSync(join(rootDir, MANIFEST_FILES.CIRCLECI_CONFIG_YAML));
+  const circleCIDetections: LanguageDetectionResult[] = hasCircleCIConfig
+    ? [
+        {
+          language: LANGUAGES.CIRCLECI,
+          manifestFiles: [MANIFEST_FILES.CIRCLECI_CONFIG_YML, MANIFEST_FILES.CIRCLECI_CONFIG_YAML],
+          packageManager: LANGUAGES.CIRCLECI,
+        },
+      ]
+    : [];
+
   const githubActionsDetections: LanguageDetectionResult[] = hasGithubWorkflow(rootDir)
     ? [
         {
           language: LANGUAGES.GITHUB_ACTIONS,
-          manifestFiles: [
-            MANIFEST_FILES.GITHUB_WORKFLOW_YML,
-            MANIFEST_FILES.GITHUB_WORKFLOW_YAML,
-          ],
+          manifestFiles: [MANIFEST_FILES.GITHUB_WORKFLOW_YML, MANIFEST_FILES.GITHUB_WORKFLOW_YAML],
           packageManager: LANGUAGES.GITHUB_ACTIONS,
+        },
+      ]
+    : [];
+
+  const kubernetesDetections: LanguageDetectionResult[] = hasKubernetesManifests(rootDir)
+    ? [
+        {
+          language: LANGUAGES.KUBERNETES,
+          manifestFiles: DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.KUBERNETES].slice(),
+          packageManager: LANGUAGES.KUBERNETES,
+        },
+      ]
+    : [];
+
+  const hasKustomization =
+    existsSync(join(rootDir, MANIFEST_FILES.KUSTOMIZATION_YAML)) ||
+    existsSync(join(rootDir, MANIFEST_FILES.KUSTOMIZATION_YML));
+  const kustomizeDetections: LanguageDetectionResult[] = hasKustomization
+    ? [
+        {
+          language: LANGUAGES.KUSTOMIZE,
+          manifestFiles: [MANIFEST_FILES.KUSTOMIZATION_YAML, MANIFEST_FILES.KUSTOMIZATION_YML],
+          packageManager: LANGUAGES.KUSTOMIZE,
+        },
+      ]
+    : [];
+
+  const hasHelmChart = existsSync(join(rootDir, MANIFEST_FILES.HELM_CHART));
+  const helmDetections: LanguageDetectionResult[] = hasHelmChart
+    ? [
+        {
+          language: LANGUAGES.HELM,
+          manifestFiles: [MANIFEST_FILES.HELM_CHART],
+          packageManager: LANGUAGES.HELM,
+        },
+      ]
+    : [];
+
+  const terraformDetections: LanguageDetectionResult[] = hasTerraformManifests(rootDir)
+    ? [
+        {
+          language: LANGUAGES.TERRAFORM,
+          manifestFiles: DEFAULT_LANGUAGE_MANIFESTS[LANGUAGES.TERRAFORM].slice(),
+          packageManager: LANGUAGES.TERRAFORM,
         },
       ]
     : [];
@@ -221,8 +306,9 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
     : [];
 
   return nodeDetections
-    .concat(goDetections, rustDetections, dockerDetections)
-    .concat(githubActionsDetections, pythonDetections);
+    .concat(goDetections, rustDetections, dockerDetections, circleCIDetections)
+    .concat(githubActionsDetections, kubernetesDetections, kustomizeDetections)
+    .concat(helmDetections, terraformDetections, pythonDetections);
 };
 
 export const detectPrimaryLanguage = (rootDir: string): LanguageDetectionResult | null => {
@@ -242,8 +328,18 @@ export const getLanguageProvider = (language: Language): LanguageProvider => {
       return RustProvider;
     case LANGUAGES.DOCKER:
       return DockerProvider;
+    case LANGUAGES.CIRCLECI:
+      return CircleCIProvider;
     case LANGUAGES.GITHUB_ACTIONS:
       return GitHubActionsProvider;
+    case LANGUAGES.HELM:
+      return HelmProvider;
+    case LANGUAGES.KUBERNETES:
+      return KubernetesProvider;
+    case LANGUAGES.KUSTOMIZE:
+      return KustomizeProvider;
+    case LANGUAGES.TERRAFORM:
+      return TerraformProvider;
     default:
       throw new Error(`Unsupported language: ${language}`);
   }

@@ -40,8 +40,20 @@ fail() {
 }
 
 make_tmp_dir() {
-  WORK_DIR="$(mktemp -d)"
+  base_dir="$(provider_tmp_base_dir)"
+  WORK_DIR="$(mktemp -d "$base_dir/codependence-provider.XXXXXX")"
   TMP_DIRS="$TMP_DIRS $WORK_DIR"
+}
+
+make_tmp_file() {
+  base_dir="$(provider_tmp_base_dir)"
+  mktemp "$base_dir/codependence-provider.XXXXXX"
+}
+
+provider_tmp_base_dir() {
+  base_dir="${CODEPENDENCE_E2E_TMPDIR:-$ROOT_DIR/tmp/e2e}"
+  mkdir -p "$base_dir"
+  printf '%s\n' "$base_dir"
 }
 
 cleanup_provider_e2e() {
@@ -123,7 +135,7 @@ assert_file_unchanged_after_update() {
   root="$1"
   file="$2"
   label="$3"
-  before_file="$(mktemp)"
+  before_file="$(make_tmp_file)"
   cp "$file" "$before_file"
 
   run_update "$root"
@@ -145,7 +157,7 @@ assert_update_fails_unchanged() {
   file="$2"
   expected_message="$3"
   label="$4"
-  before_file="$(mktemp)"
+  before_file="$(make_tmp_file)"
   cp "$file" "$before_file"
 
   run_update_expect_failure "$root" "$expected_message" "$label"
@@ -177,6 +189,44 @@ run_update() {
     printf '%s\n' "$output"
     fail "codependence --update had resolver errors"
   fi
+}
+
+run_update_from_root() {
+  root="$1"
+  output=""
+  exit_code=0
+
+  output=$(cd "$root" && run_cli --config .codependencerc --update --quiet 2>&1) || exit_code=$?
+  if [ "$exit_code" -ne 0 ]; then
+    printf '%s\n' "$output"
+    fail "codependence --update exited with $exit_code"
+  fi
+
+  if printf '%s\n' "$output" | grep -q "Failed to fetch version\|Error: Command failed"; then
+    printf '%s\n' "$output"
+    fail "codependence --update had resolver errors"
+  fi
+}
+
+assert_file_unchanged_after_update_from_root() {
+  root="$1"
+  file="$2"
+  label="$3"
+  before_file="$(make_tmp_file)"
+  cp "$file" "$before_file"
+
+  run_update_from_root "$root"
+
+  if cmp -s "$before_file" "$file"; then
+    rm -f "$before_file"
+    pass "$label"
+    return
+  fi
+
+  printf 'Expected file to remain unchanged after second update: %s\n' "$file"
+  diff -u "$before_file" "$file" || true
+  rm -f "$before_file"
+  fail "$label"
 }
 
 run_update_expect_failure() {

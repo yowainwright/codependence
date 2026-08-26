@@ -72,4 +72,14 @@ describe("composite action", () => {
     assert.ok((pullRequestOutput).includes("branch=update-dependencies/docker"));
     assert.ok((pullRequestOutput).includes("title=chore: update docker dependencies"));
   });
+
+  test("accepts infrastructure manifest-only targets", () => {
+    const targetOutput = runActionScript("Prepare targets", {
+      INPUT_TARGETS: "helm kubernetes kustomize terraform circleci",
+      INPUT_VERSION: "",
+    });
+
+    assert.ok((targetOutput).includes("list=helm kubernetes kustomize terraform circleci"));
+    assert.ok((targetOutput).includes("branch-suffix=circleci-helm-kubernetes-kustomize-terraform"));
+  });
 });

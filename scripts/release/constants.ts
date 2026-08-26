@@ -9,5 +9,6 @@ export const RELEASE_INCREMENTS = new Set<ReleaseIncrement>(["patch", "minor", "
 export const SAFE_SHELL_ARG_PATTERN = /^[A-Za-z0-9_./:=@-]+$/;
 export const DEFAULT_RELEASE_TIMEOUT_MINUTES = 90;
 export const RELEASE_POLL_INTERVAL_MS = 30_000;
+export const RELEASE_REPOSITORY = "yowainwright/codependence";
 export const COMMIT_PATTERN = /^[0-9a-f]{40}$/i;
 export const REMOVED_VERSION_LINE_PATTERN = /^-\s*"version":\s*"[^"]+",\s*$/;

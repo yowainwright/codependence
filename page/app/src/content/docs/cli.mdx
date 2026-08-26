@@ -45,7 +45,7 @@ Options:
   --permissive                      Update all deps except those in codependencies
   --level <level>                   Update level: patch, minor, or major (default: major)
   -m, --mode <mode>                verbose: only listed packages; precise: all except listed
-  -l, --language <lang>            Target language (nodejs, go, python, rust, docker, github-actions)
+  -l, --language <lang>            Target language (nodejs, go, python, rust, docker, github-actions, helm)
   -h, --help                        Show this help message
   --dryRun                          Show what would change without modifying files
   --interactive                     Choose which packages to update interactively
@@ -70,7 +70,7 @@ codependence init actions
 ```
 
 `codependence init actions` reads manager targets from `.codependencerc` and
-creates separate Node, Python, Go, Rust, Docker, and GitHub Actions workflows.
+creates separate Node, Python, Go, Rust, Docker, and infrastructure workflows.
 Existing files require `--force`; missing exact tool versions use
 `--version manager=version`.
 
@@ -114,11 +114,11 @@ Existing files require `--force`; missing exact tool versions use
 
 ### Language Options
 
-- `-l, --language <lang>` - Target language: `nodejs`, `go`, `python`, `rust`, `docker`, or `github-actions`
+- `-l, --language <lang>` - Target language: `nodejs`, `go`, `python`, `rust`, `docker`, `github-actions`, or `helm`
 
-Node.js package manifests are stable. The `go`, `python`, `rust`, `docker`, and `github-actions` providers are experimental while manifest coverage and update semantics settle.
+Node.js package manifests are stable. The `go`, `python`, `rust`, `docker`, `github-actions`, and `helm` providers are experimental while manifest coverage and update semantics settle.
 
-Docker requires explicit object pins in verbose mode. GitHub Actions supports explicit pins, latest release resolution, and precise mode.
+Docker requires explicit object pins in verbose mode. GitHub Actions supports explicit pins, latest release resolution, and precise mode. Helm checks `Chart.yaml` dependency entries with explicit object pins in verbose mode.
 
 ### Testing Options
 

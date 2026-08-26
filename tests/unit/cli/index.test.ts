@@ -256,6 +256,26 @@ describe("Action Function Tests (Fast)", () => {
     }
   });
 
+  test("passes Helm language options to the checker", async () => {
+    await action({
+      codependencies: [{ redis: "20.6.3" }],
+      language: "helm",
+      mode: "verbose",
+      update: true,
+    });
+
+    assert.strictEqual(scriptSpy.mock.callCount(), 1);
+    assertCalledWith(
+      scriptSpy,
+      match.objectContaining({
+        codependencies: [{ redis: "20.6.3" }],
+        language: "helm",
+        mode: "verbose",
+        update: true,
+      }),
+    );
+  });
+
   test("reports deferred target failures without a success message", async () => {
     const stdoutSpy = mock.method(process.stdout, "write", () => true);
     scriptSpy.mock.mockImplementationOnce(async (options) => {
@@ -1918,7 +1938,12 @@ const createActionsProject = (): string => {
     { manager: "go" },
     { manager: "rust" },
     { manager: "docker" },
+    { manager: "circleci" },
     { manager: "github-actions" },
+    { manager: "helm" },
+    { manager: "kubernetes" },
+    { manager: "kustomize" },
+    { manager: "terraform" },
   ];
   fs.writeFileSync(join(rootDir, ".codependencerc"), JSON.stringify({ targets }));
   fs.writeFileSync(
@@ -1966,7 +1991,12 @@ const expectWorkflowTargets = (workflows: string[]): void => {
   assert.ok(workflows[2].includes("targets: go\n          version: 1.26.4"));
   assert.ok(workflows[3].includes("targets: rust\n          version: 1.88.0"));
   assert.ok(workflows[4].includes("targets: docker"));
-  assert.ok(workflows[5].includes("targets: github-actions"));
+  assert.ok(workflows[5].includes("circleci"));
+  assert.ok(workflows[5].includes("github-actions"));
+  assert.ok(workflows[5].includes("helm"));
+  assert.ok(workflows[5].includes("kubernetes"));
+  assert.ok(workflows[5].includes("kustomize"));
+  assert.ok(workflows[5].includes("terraform"));
 };
 
 const expectWorkflowCommands = (workflows: string[]): void => {
@@ -1987,6 +2017,11 @@ const expectWorkflowDefaults = (workflows: string[]): void => {
 };
 
 describe("GitHub Actions initializer", () => {
+  beforeEach(() => {
+    loadConfigMock.mock.resetCalls();
+    loadConfigMock.mock.mockImplementation(config.loadConfig);
+  });
+
   test("splits a legacy generated combined infrastructure workflow for Docker", () => {
     const rootDir = createDockerActionsProject();
     const legacyPath = join(rootDir, ".github/workflows/codependence-infrastructure.yml");

@@ -28,8 +28,8 @@ cat > "$WORK_DIR/.codependencerc" <<'JSON'
 {"mode":"precise","files":["Dockerfile",".github/workflows/ci.yml"]}
 JSON
 
-docker_before="$(mktemp)"
-actions_before="$(mktemp)"
+docker_before="$(make_tmp_file)"
+actions_before="$(make_tmp_file)"
 cp "$WORK_DIR/Dockerfile" "$docker_before"
 cp "$WORK_DIR/.github/workflows/ci.yml" "$actions_before"
 

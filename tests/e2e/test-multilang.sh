@@ -79,6 +79,10 @@ run_provider_update_tests() {
     run_step "Provider update tests passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/all.sh
 }
 
+run_new_package_manager_tests() {
+    run_step "New package manager e2es passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/new-package-managers.sh
+}
+
 run_provider_rust_tests() {
     run_step "Rust provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/rust.sh
 }
@@ -87,8 +91,28 @@ run_provider_docker_tests() {
     run_step "Docker provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/docker.sh
 }
 
+run_provider_circleci_tests() {
+    run_step "CircleCI provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/circleci.sh
+}
+
 run_provider_github_actions_tests() {
     run_step "GitHub Actions provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/github-actions.sh
+}
+
+run_provider_helm_tests() {
+    run_step "Helm provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/helm.sh
+}
+
+run_provider_kubernetes_tests() {
+    run_step "Kubernetes provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/kubernetes.sh
+}
+
+run_provider_kustomize_tests() {
+    run_step "Kustomize provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/kustomize.sh
+}
+
+run_provider_terraform_tests() {
+    run_step "Terraform provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/terraform.sh
 }
 
 run_provider_uv_tests() {
@@ -142,7 +166,7 @@ if ! command -v docker &> /dev/null; then
 fi
 
 case "$COMMAND" in
-    "init"|"multilang"|"python"|"go"|"go-update"|"provider-updates"|"rust"|"docker"|"github-actions"|"uv"|"agent-skills"|"packed-install"|"verify-init-env"|"verify-multilang-env"|"all")
+    "init"|"multilang"|"python"|"go"|"go-update"|"provider-updates"|"new-package-managers"|"rust"|"docker"|"circleci"|"github-actions"|"helm"|"kubernetes"|"kustomize"|"terraform"|"uv"|"agent-skills"|"packed-install"|"verify-init-env"|"verify-multilang-env"|"all")
         enable_cleanup
         ;;
 esac
@@ -172,6 +196,12 @@ case "$COMMAND" in
         run_provider_update_tests
         ;;
 
+    "new-package-managers")
+        print_status "Running new package manager e2es..."
+        build_multilang_image
+        run_new_package_manager_tests
+        ;;
+
     "rust")
         print_status "Running Rust provider e2e..."
         build_multilang_image
@@ -184,10 +214,40 @@ case "$COMMAND" in
         run_provider_docker_tests
         ;;
 
+    "circleci")
+        print_status "Running CircleCI provider e2e..."
+        build_multilang_image
+        run_provider_circleci_tests
+        ;;
+
     "github-actions")
         print_status "Running GitHub Actions provider e2e..."
         build_multilang_image
         run_provider_github_actions_tests
+        ;;
+
+    "helm")
+        print_status "Running Helm provider e2e..."
+        build_multilang_image
+        run_provider_helm_tests
+        ;;
+
+    "kubernetes")
+        print_status "Running Kubernetes provider e2e..."
+        build_multilang_image
+        run_provider_kubernetes_tests
+        ;;
+
+    "kustomize")
+        print_status "Running Kustomize provider e2e..."
+        build_multilang_image
+        run_provider_kustomize_tests
+        ;;
+
+    "terraform")
+        print_status "Running Terraform provider e2e..."
+        build_multilang_image
+        run_provider_terraform_tests
         ;;
 
     "uv")
@@ -262,10 +322,16 @@ case "$COMMAND" in
         echo "  python      Run Python + Go tests only (alias)"
         echo "  go          Run Python + Go tests only (alias)"
         echo "  go-update   Run Go update/preserve tests only"
-        echo "  provider-updates Run Rust/Docker/GitHub Actions/uv update tests"
+        echo "  provider-updates Run provider update tests"
+        echo "  new-package-managers Run new package manager e2es"
         echo "  rust             Run Rust provider e2e only"
         echo "  docker           Run Docker provider e2e only"
+        echo "  circleci         Run CircleCI provider e2e only"
         echo "  github-actions   Run GitHub Actions provider e2e only"
+        echo "  helm             Run Helm provider e2e only"
+        echo "  kubernetes       Run Kubernetes provider e2e only"
+        echo "  kustomize        Run Kustomize provider e2e only"
+        echo "  terraform        Run Terraform provider e2e only"
         echo "  uv               Run uv pyproject provider e2e only"
         echo "  agent-skills     Run packaged agent skill install tests"
         echo "  packed-install   Run packed package install smoke tests"

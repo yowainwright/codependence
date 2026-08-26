@@ -5,16 +5,27 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  checkHomebrewReleaseState,
   createLocalFormula,
+  extractFormulaVersion,
   fetchPublishedTarball,
   npmTarballUrl,
   renderFormula,
   runBrewCli,
   sha256,
+  updateHomebrewTap,
   validateStableVersion,
 } from "../../../scripts/release/brew";
 
 describe("scripts/release/brew", () => {
+  const stateEnv = {
+    FORMULA_PATH: "codependence.rb",
+    GITHUB_REPOSITORY: "yowainwright/codependence",
+    GITHUB_TOKEN: "repo-token",
+    TAP_TOKEN: "tap-token",
+    VERSION: "1.0.11",
+  };
+
   test("builds the published npm tarball URL", () => {
     const url = "https://registry.npmjs.org/codependence/-/codependence-1.1.0.tgz";
     assert.strictEqual((npmTarballUrl("1.1.0")), url);
@@ -24,6 +35,82 @@ describe("scripts/release/brew", () => {
     assert.doesNotThrow((() => validateStableVersion("1.1.0")));
     assertThrows((() => validateStableVersion("1.1.0-beta.1")), "Invalid stable version");
     assertThrows((() => validateStableVersion("v1.1.0")), "Invalid stable version");
+  });
+
+  test("reads the formula tarball version", () => {
+    const formula = 'url "https://registry.npmjs.org/codependence/-/codependence-1.0.12.tgz"';
+    assert.strictEqual(extractFormulaVersion(formula), "1.0.12");
+  });
+
+  test("skips when the Homebrew tap already has a newer version", async () => {
+    const fetchImpl = async () => new Response(
+      'url "https://registry.npmjs.org/codependence/-/codependence-1.0.12.tgz"',
+    );
+    const state = await checkHomebrewReleaseState({ arch: "arm64", env: stateEnv, fetchImpl });
+    assert.deepStrictEqual(state, {
+      reason: "Homebrew tap already has newer codependence 1.0.12; skipping 1.0.11",
+      skip: true,
+    });
+  });
+
+  test("skips when the same Homebrew release is already complete", async () => {
+    const formula = 'url "https://registry.npmjs.org/codependence/-/codependence-1.0.11.tgz"';
+    const release = {
+      assets: [
+        { name: "codependence.rb" },
+        { name: "codependence-darwin-arm64" },
+        { name: "codependence-darwin-arm64.sigstore.json" },
+      ],
+      draft: false,
+    };
+    const fetchImpl = async (url: URL | RequestInfo) =>
+      new Response(String(url).includes("homebrew-tap") ? formula : JSON.stringify(release));
+    const state = await checkHomebrewReleaseState({ arch: "arm64", env: stateEnv, fetchImpl });
+    assert.deepStrictEqual(state, {
+      reason: "Homebrew formula and release assets already published for 1.0.11",
+      skip: true,
+    });
+  });
+
+  test("continues when the tap is behind the requested version", async () => {
+    const env = Object.assign({}, stateEnv, { VERSION: "1.0.12" });
+    const fetchImpl = async () => new Response(
+      'url "https://registry.npmjs.org/codependence/-/codependence-1.0.11.tgz"',
+    );
+    const state = await checkHomebrewReleaseState({ arch: "arm64", env, fetchImpl });
+    assert.deepStrictEqual(state, { skip: false });
+  });
+
+  test("updates the existing stable Homebrew tap PR", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "codependence-brew-tap-"));
+    const formulaPath = join(directory, "codependence.rb");
+    const calls: Array<{ body?: unknown; method: string; url: string }> = [];
+    try {
+      writeFileSync(formulaPath, "new formula");
+      const env = Object.assign({}, stateEnv, {
+        FORMULA_PATH: formulaPath,
+        TAP_BRANCH: "codependence-release",
+        VERSION: "1.0.13",
+      });
+      const fetchImpl = async (url: URL | RequestInfo, init?: RequestInit) => {
+        const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+        calls.push({ body, method: init?.method || "GET", url: String(url) });
+        return brewTapResponse(String(url), init?.method || "GET");
+      };
+      const result = await updateHomebrewTap({ env, fetchImpl });
+
+      assert.deepStrictEqual(result, {
+        branch: "codependence-release",
+        changed: true,
+        pullRequestUrl: "https://github.com/yowainwright/homebrew-tap/pull/10",
+      });
+      assert.ok(calls.some((call) => call.method === "PATCH" && call.url.includes("git/refs")));
+      assert.ok(calls.some((call) => call.method === "PUT" && call.url.includes("contents")));
+      assert.ok(calls.some((call) => call.method === "PATCH" && call.url.includes("pulls/10")));
+      assert.ok(!calls.some((call) => call.method === "POST" && call.url.endsWith("/pulls")));
+    } finally {
+      rmSync(directory, { recursive: true });
+    }
   });
 
   test("rejects prereleases before generating", async () => {
@@ -71,3 +158,28 @@ describe("scripts/release/brew", () => {
     }
   });
 });
+
+const jsonResponse = (body: unknown, status = 200): Response =>
+  new Response(JSON.stringify(body), { status });
+
+const brewTapResponse = (url: string, method: string): Response => {
+  const isFormulaRead =
+    method === "GET" && url.includes("contents/Formula/codependence.rb") && !url.includes("ref=");
+  if (isFormulaRead) {
+    return new Response("old formula");
+  }
+  if (url.includes("git/ref/heads/main")) return jsonResponse({ object: { sha: "main-sha" } });
+  if (url.includes("git/ref/heads/codependence-release")) {
+    return jsonResponse({ object: { sha: "branch-sha" } });
+  }
+  if (url.includes("contents/Formula/codependence.rb") && url.includes("ref=")) {
+    return jsonResponse({ sha: "formula-sha" });
+  }
+  if (url.includes("pulls?")) {
+    return jsonResponse([
+      { html_url: "https://github.com/yowainwright/homebrew-tap/pull/10", number: 10 },
+    ]);
+  }
+  if (method === "PUT" || method === "PATCH" || method === "POST") return jsonResponse({});
+  return jsonResponse({}, 404);
+};

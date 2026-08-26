@@ -3,6 +3,7 @@ import {
   DEFAULT_RELEASE_TIMEOUT_MINUTES,
   PRE_RELEASE_VERSION_PATTERN,
   RELEASE_POLL_INTERVAL_MS,
+  RELEASE_REPOSITORY,
   REMOVED_VERSION_LINE_PATTERN,
 } from "./constants";
 import {
@@ -124,6 +125,15 @@ function resolveReleaseVersion(runner: ReleaseRunner, releaseArgs: ReleaseArgs):
 function assertReleaseTagAvailable(runner: ReleaseRunner, version: string): void {
   const tagName = `v${version}`;
   if (releaseTagExists(runner, tagName)) throw new Error(`Release tag already exists: ${tagName}`);
+}
+
+function assertRepositoryAutoMergeEnabled(runner: ReleaseRunner): void {
+  const args = ["api", `repos/${RELEASE_REPOSITORY}`, "--jq", ".allow_auto_merge"];
+  const setting = commandText(runner, "gh", args);
+  if (setting === "true") return;
+  if (setting === "false")
+    throw new Error(`enable "Allow auto-merge" on ${RELEASE_REPOSITORY}`);
+  throw new Error(`Unable to read repository auto-merge setting for ${RELEASE_REPOSITORY}`);
 }
 
 function createReleaseCommit(
@@ -427,11 +437,6 @@ async function delay(milliseconds: number) {
   await new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-function refreshReleaseBranch(context: ReleaseContext, prUrl: string): void {
-  context.logger.log(`Updating release PR branch from main: ${prUrl}`);
-  runCommand(context.runner, "gh", ["pr", "update-branch", prUrl]);
-}
-
 function assertReadinessCanContinue(
   state: PullRequestState,
   prUrl: string,
@@ -442,47 +447,51 @@ function assertReadinessCanContinue(
   throw new Error(`Release PR has merge conflicts: ${prUrl}`);
 }
 
-async function pollForMergeReadiness(context: ReleaseContext, prUrl: string, deadline: number) {
+function readAlreadyMergedCommit(
+  context: ReleaseContext,
+  prUrl: string,
+  deadline: number,
+): string | undefined {
+  const fields = "state,mergedAt,mergeCommit,mergeStateStatus";
+  const state = readPullRequestState(context.runner, prUrl, fields);
+  if (state.mergedAt) return readMergeCommit(state, prUrl);
+  assertReadinessCanContinue(state, prUrl, deadline);
+  return undefined;
+}
+
+async function waitForMergeCompletion(context: ReleaseContext, prUrl: string, deadline: number) {
   const fields = "state,mergedAt,mergeCommit,mergeStateStatus";
   const state = readPullRequestState(context.runner, prUrl, fields);
   if (state.mergedAt) return readMergeCommit(state, prUrl);
 
   assertReadinessCanContinue(state, prUrl, deadline);
-  const isMergeable = ["CLEAN", "UNSTABLE"].includes(state.mergeStateStatus ?? "");
-  if (isMergeable) return undefined;
-  if (state.mergeStateStatus === "BEHIND") refreshReleaseBranch(context, prUrl);
-
-  context.logger.log(`Waiting for release PR checks to pass: ${prUrl}`);
-  await delay(context.pollIntervalMs);
-  return pollForMergeReadiness(context, prUrl, deadline);
-}
-
-async function waitForMergeCompletion(context: ReleaseContext, prUrl: string, deadline: number) {
-  const fields = "state,mergedAt,mergeCommit";
-  const state = readPullRequestState(context.runner, prUrl, fields);
-  if (state.mergedAt) return readMergeCommit(state, prUrl);
-
-  assertPullRequestOpen(state, prUrl, deadline);
   context.logger.log(`Waiting for release PR to merge: ${prUrl}`);
   await delay(context.pollIntervalMs);
   return waitForMergeCompletion(context, prUrl, deadline);
 }
 
-function mergeReleasePullRequest(
+function buildAutoMergeArgs(headCommit: string, prUrl: string): string[] {
+  return [
+    "pr",
+    "merge",
+    "--auto",
+    "--squash",
+    "--delete-branch",
+    "--match-head-commit",
+    headCommit,
+    prUrl,
+  ];
+}
+
+function queueReleasePullRequestAutoMerge(
   context: ReleaseContext,
   target: ReleasePullRequestTarget,
   deadline: number,
 ) {
   if (!target.headCommit) throw new Error(`Release PR head is unverified: ${target.url}`);
-  const args = [
-    "pr",
-    "merge",
-    "--squash",
-    "--delete-branch",
-    "--match-head-commit",
-    target.headCommit,
-    target.url,
-  ];
+  const mergedCommit = readAlreadyMergedCommit(context, target.url, deadline);
+  if (mergedCommit) return Promise.resolve(mergedCommit);
+  const args = buildAutoMergeArgs(target.headCommit, target.url);
   runCommand(context.runner, "gh", args);
   return waitForMergeCompletion(context, target.url, deadline);
 }
@@ -491,11 +500,9 @@ function resolveMergeCommit(
   context: ReleaseContext,
   target: ReleasePullRequestTarget,
   deadline: number,
-  existingMergeCommit?: string,
 ) {
-  const mergeCommit = target.mergeCommit ?? existingMergeCommit;
-  if (mergeCommit) return Promise.resolve(mergeCommit);
-  return mergeReleasePullRequest(context, target, deadline);
+  if (target.mergeCommit) return Promise.resolve(target.mergeCommit);
+  return queueReleasePullRequestAutoMerge(context, target, deadline);
 }
 
 function checkoutMergedMain(runner: ReleaseRunner): void {
@@ -566,8 +573,7 @@ async function publishReleasePullRequest(
   const branch = buildReleaseBranch(version);
   const target = resolveReleasePullRequest(context, releaseArgs, version, branch);
   const deadline = Date.now() + releaseArgs.timeoutMinutes * 60_000;
-  const existingCommit = await pollForMergeReadiness(context, target.url, deadline);
-  const mergeCommit = await resolveMergeCommit(context, target, deadline, existingCommit);
+  const mergeCommit = await resolveMergeCommit(context, target, deadline);
   checkoutMergedMain(context.runner);
   assertMergedReleaseCommit(context.runner, mergeCommit, version);
   return pushVersionTag(context, version, mergeCommit);
@@ -581,6 +587,7 @@ async function runVersionRelease(
   assertVersionChangeRequested(releaseArgs);
   const resumed = resumeMergedVersion(context, releaseArgs, packageVersion);
   if (resumed !== undefined) return resumed;
+  if (!releaseArgs.dryRun) assertRepositoryAutoMergeEnabled(context.runner);
   const version = resolveReleaseVersion(context.runner, releaseArgs);
   if (!releaseArgs.dryRun) return publishReleasePullRequest(context, releaseArgs, version);
 
