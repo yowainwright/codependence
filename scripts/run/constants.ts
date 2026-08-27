@@ -1,4 +1,3 @@
-export const NUB_PRELOAD_OPTION_PATTERN = /--require=\S*[\\/]nub[\\/]\S*[\\/]preload\.cjs/g;
 export const TEST_COVERAGE_FLAG = "--coverage";
 export const TEST_COVERAGE_DIR = "coverage";
 export const TEST_COVERAGE_REPORT = `${TEST_COVERAGE_DIR}/lcov.info`;

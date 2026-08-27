@@ -47,9 +47,9 @@ describe("package entry", () => {
     assert.strictEqual(rootPackage.types, "src/types.ts");
     assert.strictEqual(exports["./schema.json"], "./src/config/schema.json");
     assert.ok(files.includes("src"));
-    assert.strictEqual(entry.schema["x-revision"], 2);
+    assert.strictEqual(entry.schema["x-revision"], rootPackage.version);
     assert.strictEqual(entry.schema["x-created"], "2025-11-23");
-    assert.strictEqual(entry.schema["x-updated"], "2026-08-17");
+    assert.match(entry.schema["x-updated"], /^\d{4}-\d{2}-\d{2}$/);
     assert.ok(entry.schema["x-history"].includes("/commits/main/src/config/schema.json"));
     assert.deepStrictEqual(entry.schema.definitions.target.required, ["manager"]);
     assert.deepStrictEqual(entry.schema.definitions.manifest.required, ["path", "manager"]);

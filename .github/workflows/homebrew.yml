@@ -79,7 +79,9 @@ jobs:
           sparse-checkout: |
             scripts/upload-release-assets.sh
             scripts/release/brew/*
+            src/dx/constants.ts
             src/dx/output/*
+            src/dx/report/constants.ts
             src/observability/*
           sparse-checkout-cone-mode: false
 

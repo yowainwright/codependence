@@ -105,22 +105,28 @@ describe("validateConfig", () => {
       assert.deepStrictEqual(result.errors, []);
     });
 
-    it("should validate config with new provider languages", () => {
-      const languages = [
-        "rust",
-        "circleci",
-        "docker",
-        "github-actions",
-        "helm",
-        "kubernetes",
-        "kustomize",
-        "terraform",
-      ];
+    it("should validate latest-capable provider languages", () => {
+      const languages = ["rust", "docker", "github-actions"];
 
       languages.forEach((language) => {
         const config = {
           codependencies: ["example"],
           language,
+        };
+        const result = validateConfig(config);
+
+        assert.strictEqual(result.valid, true);
+      });
+    });
+
+    it("should validate explicit-pin provider languages", () => {
+      const languages = ["circleci", "helm", "kubernetes", "kustomize", "terraform"];
+
+      languages.forEach((language) => {
+        const config = {
+          codependencies: [{ example: "1.0.0" }],
+          language,
+          mode: "verbose",
         };
         const result = validateConfig(config);
 
@@ -851,6 +857,28 @@ describe("validateConfig", () => {
       }));
 
       assert.deepStrictEqual(validateConfig({ targets }), { valid: true, errors: [] });
+    });
+
+    it("rejects manifest-only targets without explicit object pins", () => {
+      const config = {
+        targets: [
+          { manager: "helm" },
+          { manager: "circleci", codependencies: ["circleci/node"] },
+          {
+            manager: "terraform",
+            mode: "precise",
+            codependencies: [{ "hashicorp/aws": "5.31.0" }],
+          },
+        ],
+      };
+
+      const result = validateConfig(config);
+      const fields = result.errors.map(({ field }) => field);
+
+      assert.strictEqual(result.valid, false);
+      assert.ok(fields.includes("targets[0].codependencies"));
+      assert.ok(fields.includes("targets[1].codependencies"));
+      assert.ok(fields.includes("targets[2].mode"));
     });
 
     it("accepts lockfile policies", () => {

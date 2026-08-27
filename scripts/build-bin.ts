@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { delimiter, dirname } from "node:path";
 import {
   BIN_BUILD_ARGS,
   BIN_BUNDLE_ARGS,
@@ -13,8 +14,20 @@ import {
   BIN_RUNTIME_TYPES_FILE,
 } from "./constants";
 
+const createBuildEnvironment = (): NodeJS.ProcessEnv => {
+  const nodeDirectory = dirname(process.execPath);
+  const pathEntries = (process.env.PATH ?? "")
+    .split(delimiter)
+    .filter((pathEntry) => pathEntry !== nodeDirectory);
+  const env = { ...process.env, PATH: [nodeDirectory].concat(pathEntries).join(delimiter) };
+
+  delete env.NODE_OPTIONS;
+  return env;
+};
+
 const runBuildStep = (command: string, args: string[]): void => {
-  const result = spawnSync(command, args, { encoding: "utf8" });
+  const env = createBuildEnvironment();
+  const result = spawnSync(command, args, { encoding: "utf8", env });
 
   if (result.error) throw result.error;
   if (result.status === 0) return;

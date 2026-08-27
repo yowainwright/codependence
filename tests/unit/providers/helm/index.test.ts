@@ -95,6 +95,38 @@ dependencies:
     );
   });
 
+  test("should update Chart.yaml dependency versions before dependency names", () => {
+    const content = `apiVersion: v2
+name: chart-name
+version: 1.0.0
+dependencies:
+  - version: 20.6.3 # keep suffix
+    repository: https://charts.bitnami.com/bitnami
+    name: redis # cache chart
+`;
+    writeFileSync(chartPath, content);
+    const provider = new HelmProvider();
+
+    provider.writeManifest(chartPath, {
+      filePath: chartPath,
+      name: "payments",
+      version: "1.0.0",
+      dependencies: { redis: "20.7.0" },
+    });
+
+    assert.strictEqual(
+      readFileSync(chartPath, "utf8"),
+      `apiVersion: v2
+name: chart-name
+version: 1.0.0
+dependencies:
+  - version: 20.7.0 # keep suffix
+    repository: https://charts.bitnami.com/bitnami
+    name: redis # cache chart
+`,
+    );
+  });
+
   test("should ignore unsafe Chart.yaml dependencies", () => {
     const content = `apiVersion: v2
 name: chart-name

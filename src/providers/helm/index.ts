@@ -34,22 +34,6 @@ interface HelmReadState {
   readonly inDependencies: boolean;
 }
 
-interface HelmWriteState {
-  readonly currentName: string | null;
-  readonly dependencyIndent: number;
-  readonly inDependencies: boolean;
-}
-
-interface HelmWriteResult {
-  readonly line: string;
-  readonly state: HelmWriteState;
-}
-
-interface HelmWriteAccumulator {
-  readonly lines: string[];
-  readonly state: HelmWriteState;
-}
-
 interface HelmImageDraft {
   readonly registry?: string;
   readonly repository?: string;
@@ -66,6 +50,22 @@ interface HelmImageState {
 interface HelmImageUpdate {
   readonly line: number;
   readonly name: string;
+}
+
+interface HelmDependencyUpdateDraft extends HelmDependencyDraft {
+  readonly versionLine?: number;
+}
+
+interface HelmDependencyUpdate {
+  readonly line: number;
+  readonly version: string;
+}
+
+interface HelmDependencyUpdateState {
+  readonly current: HelmDependencyUpdateDraft | null;
+  readonly dependencyIndent: number;
+  readonly inDependencies: boolean;
+  readonly updates: HelmDependencyUpdate[];
 }
 
 const unsupportedResolution = (): never => {
@@ -168,7 +168,10 @@ const isIgnoredLine = (line: string): boolean => {
   return trimmed.startsWith("#");
 };
 
-const exitsDependencies = (state: HelmReadState | HelmWriteState, line: string): boolean => {
+const exitsDependencies = (
+  state: { readonly dependencyIndent: number; readonly inDependencies: boolean },
+  line: string,
+): boolean => {
   if (!state.inDependencies) return false;
   if (isIgnoredLine(line)) return false;
 
@@ -375,15 +378,6 @@ const collectHelmValuesImages = (
   return { manifest, updates };
 };
 
-const safeDependencyName = (value: string | null): string | null => {
-  if (!value) return null;
-  const hasSafeValue = !hasTemplate(value);
-  if (!hasSafeValue) return null;
-  if (!HELM_PATTERNS.PACKAGE_NAME.test(value)) return null;
-
-  return value;
-};
-
 const updateVersionLine = (line: string, version: string): string => {
   const quoted = line.match(HELM_PATTERNS.QUOTED_VERSION_LINE);
   if (quoted) return `${quoted[1]}${quoted[2]}${version}${quoted[2]}${quoted[4]}`;
@@ -393,57 +387,105 @@ const updateVersionLine = (line: string, version: string): string => {
   return `${plain[1]}${version}${plain[3]}`;
 };
 
-const writeDependencyLine = (
-  state: HelmWriteState,
-  field: HelmFieldLine | null,
-  line: string,
+const dependencyUpdate = (
+  draft: HelmDependencyUpdateDraft,
   dependencies: Record<string, string>,
-): HelmWriteResult => {
-  if (!field) return { line, state };
+): HelmDependencyUpdate | null => {
+  const entry = dependencyEntry(draft);
+  if (!entry) return null;
 
-  const currentName = field.listItem ? null : state.currentName;
-  const base = Object.assign({}, state, { currentName });
-  if (field.key === "name") {
-    const name = safeDependencyName(readScalar(field.raw));
-    return { line, state: Object.assign({}, base, { currentName: name }) };
-  }
-  const version = base.currentName ? dependencies[base.currentName] : undefined;
-  const shouldUpdate = field.key === "version" && version;
-  if (!shouldUpdate) return { line, state: base };
+  const version = dependencies[entry[0]];
+  if (!version) return null;
+  if (draft.versionLine === undefined) return null;
 
-  return { line: updateVersionLine(line, version), state: base };
+  return { line: draft.versionLine, version };
 };
 
-const writeHelmLine = (
-  state: HelmWriteState,
-  line: string,
+const finalizeDependencyUpdate = (
+  state: HelmDependencyUpdateState,
   dependencies: Record<string, string>,
-): HelmWriteResult => {
+): HelmDependencyUpdateState => {
+  if (!state.current) return state;
+
+  const update = dependencyUpdate(state.current, dependencies);
+  const updates = update ? state.updates.concat(update) : state.updates;
+  return Object.assign({}, state, { current: null, updates });
+};
+
+const assignDependencyUpdateField = (
+  draft: HelmDependencyUpdateDraft,
+  field: HelmFieldLine,
+  lineIndex: number,
+): HelmDependencyUpdateDraft => {
+  const value = readScalar(field.raw);
+  if (!value) return draft;
+
+  const next = assignDependencyField(draft, field);
+  if (field.key !== "version") return next;
+  return Object.assign({}, next, { versionLine: lineIndex });
+};
+
+const readDependencyUpdateField = (
+  state: HelmDependencyUpdateState,
+  field: HelmFieldLine | null,
+  lineIndex: number,
+  dependencies: Record<string, string>,
+): HelmDependencyUpdateState => {
+  if (!field) return state;
+
+  const base = field.listItem ? finalizeDependencyUpdate(state, dependencies) : state;
+  const current = field.listItem ? {} : base.current;
+  if (!current) return base;
+
+  const nextCurrent = assignDependencyUpdateField(current, field, lineIndex);
+  return Object.assign({}, base, { current: nextCurrent });
+};
+
+const readHelmUpdateLine = (
+  state: HelmDependencyUpdateState,
+  line: string,
+  lineIndex: number,
+  dependencies: Record<string, string>,
+): HelmDependencyUpdateState => {
   const exited = exitsDependencies(state, line);
   const base = exited
-    ? Object.assign({}, state, { currentName: null, inDependencies: false })
+    ? Object.assign({}, finalizeDependencyUpdate(state, dependencies), { inDependencies: false })
     : state;
   const field = readFieldLine(line);
   if (isDependenciesField(field)) {
-    const nextState = {
-      currentName: null,
+    return Object.assign({}, finalizeDependencyUpdate(base, dependencies), {
+      current: null,
       dependencyIndent: field.indent,
       inDependencies: true,
-    };
-    return { line, state: nextState };
+    });
   }
-  if (!base.inDependencies) return { line, state: base };
+  if (!base.inDependencies) return base;
 
-  return writeDependencyLine(base, field, line, dependencies);
+  return readDependencyUpdateField(base, field, lineIndex, dependencies);
+};
+
+const collectDependencyUpdates = (
+  content: string,
+  dependencies: Record<string, string>,
+): HelmDependencyUpdate[] => {
+  const initial: HelmDependencyUpdateState = {
+    current: null,
+    dependencyIndent: -1,
+    inDependencies: false,
+    updates: [],
+  };
+  const state = content
+    .split("\n")
+    .reduce((acc, line, index) => readHelmUpdateLine(acc, line, index, dependencies), initial);
+  return finalizeDependencyUpdate(state, dependencies).updates;
 };
 
 const updateHelmManifest = (content: string, dependencies: Record<string, string>): string => {
-  const initialState = { currentName: null, dependencyIndent: -1, inDependencies: false };
-  const initial: HelmWriteAccumulator = { lines: [], state: initialState };
-  const { lines } = content.split("\n").reduce((accumulator, line) => {
-    const result = writeHelmLine(accumulator.state, line, dependencies);
-    return { lines: accumulator.lines.concat(result.line), state: result.state };
-  }, initial);
+  const lines = content.split("\n");
+  const updates = collectDependencyUpdates(content, dependencies);
+  updates.forEach(({ line, version }) => {
+    lines[line] = updateVersionLine(lines[line] || "", version);
+  });
 
   return lines.join("\n");
 };

@@ -1,9 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://unpkg.com/codependence/src/config/schema.json",
-  "x-revision": 2,
+  "x-revision": "1.0.12",
   "x-created": "2025-11-23",
-  "x-updated": "2026-08-17",
+  "x-updated": "2026-08-25",
   "x-history": "https://github.com/yowainwright/codependence/commits/main/src/config/schema.json",
   "title": "Codependence Configuration",
   "description": "Configuration for managing dependency versions across your project",
@@ -32,6 +32,26 @@
         "kustomize",
         "terraform"
       ]
+    },
+    "explicitPinManager": {
+      "type": "string",
+      "enum": ["circleci", "helm", "kubernetes", "kustomize", "terraform"]
+    },
+    "objectCodependency": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "minProperties": 1,
+      "maxProperties": 1,
+      "description": "Package name with version constraint"
+    },
+    "explicitPinCodependencies": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/objectCodependency"
+      }
     },
     "repositoryPath": {
       "type": "string",
@@ -94,7 +114,33 @@
         "rootDir": {
           "$ref": "#/properties/rootDir"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["manager"],
+            "properties": {
+              "manager": {
+                "$ref": "#/definitions/explicitPinManager"
+              }
+            }
+          },
+          "then": {
+            "required": ["codependencies"],
+            "properties": {
+              "codependencies": {
+                "$ref": "#/definitions/explicitPinCodependencies"
+              },
+              "mode": {
+                "enum": ["verbose"]
+              },
+              "permissive": {
+                "const": false
+              }
+            }
+          }
+        }
+      ]
     },
     "manifest": {
       "type": "object",
@@ -133,7 +179,33 @@
         "rootDir": {
           "$ref": "#/properties/rootDir"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["manager"],
+            "properties": {
+              "manager": {
+                "$ref": "#/definitions/explicitPinManager"
+              }
+            }
+          },
+          "then": {
+            "required": ["codependencies"],
+            "properties": {
+              "codependencies": {
+                "$ref": "#/definitions/explicitPinCodependencies"
+              },
+              "mode": {
+                "enum": ["verbose"]
+              },
+              "permissive": {
+                "const": false
+              }
+            }
+          }
+        }
+      ]
     }
   },
   "properties": {
@@ -170,13 +242,7 @@
                 "description": "Package name"
               },
               {
-                "type": "object",
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "minProperties": 1,
-                "maxProperties": 1,
-                "description": "Package name with version constraint"
+                "$ref": "#/definitions/objectCodependency"
               }
             ]
           }
@@ -297,6 +363,32 @@
       "description": "Write output to file instead of stdout"
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "required": ["language"],
+        "properties": {
+          "language": {
+            "$ref": "#/definitions/explicitPinManager"
+          }
+        }
+      },
+      "then": {
+        "required": ["codependencies"],
+        "properties": {
+          "codependencies": {
+            "$ref": "#/definitions/explicitPinCodependencies"
+          },
+          "mode": {
+            "enum": ["verbose"]
+          },
+          "permissive": {
+            "const": false
+          }
+        }
+      }
+    }
+  ],
   "dependencies": {
     "config": {
       "not": {

@@ -348,6 +348,10 @@ const configContent = (config: Record<string, unknown>): string =>
 
 const assertLoadedConfig = (config: Record<string, unknown>): void => {
   if (!("config" in config)) return;
+  assertValidConfig(config);
+};
+
+const assertValidConfig = (config: Record<string, unknown>): void => {
   const result = validateConfig(config, { requirePolicy: false });
   if (result.valid) return;
   throw new Error(`Invalid config\n${formatValidationErrors(result.errors)}`);
@@ -613,6 +617,7 @@ const configuredTargets = (rootDir: string): CodependenceTarget[] => {
     );
   }
 
+  assertValidConfig(result.config);
   const configRootDir = dirname(result.filepath);
   const normalizedConfig = normalizeConfigShape(result.config, configRootDir);
   const targets = normalizedConfig.targets;

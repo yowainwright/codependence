@@ -35,6 +35,7 @@ export type PreRelease = "alpha" | "beta" | "rc";
 export type ReleaseIncrement = "patch" | "minor" | "major";
 export type ReleaseRunner = (command: string, args: readonly string[]) => GitResult;
 export type ReleaseLogger = Pick<Console, "error" | "log" | "warn">;
+export type SchemaMetadataWriter = (cwd: string, version: string) => void;
 
 export interface ReleaseOptions {
   cwd?: string;
@@ -45,6 +46,7 @@ export interface ReleaseOptions {
   pollIntervalMs?: number;
   preRelease?: PreRelease;
   runner?: ReleaseRunner;
+  schemaMetadataWriter?: SchemaMetadataWriter;
   timeoutMinutes?: number;
 }
 
@@ -101,4 +103,5 @@ export interface ReleaseContext {
   logger: ReleaseLogger;
   pollIntervalMs: number;
   runner: ReleaseRunner;
+  schemaMetadataWriter: SchemaMetadataWriter;
 }

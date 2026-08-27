@@ -1938,12 +1938,12 @@ const createActionsProject = (): string => {
     { manager: "go" },
     { manager: "rust" },
     { manager: "docker" },
-    { manager: "circleci" },
+    { manager: "circleci", codependencies: [{ "circleci/node": "7.2.0" }] },
     { manager: "github-actions" },
-    { manager: "helm" },
-    { manager: "kubernetes" },
-    { manager: "kustomize" },
-    { manager: "terraform" },
+    { manager: "helm", codependencies: [{ redis: "20.6.3" }] },
+    { manager: "kubernetes", codependencies: [{ nginx: "1.27.0" }] },
+    { manager: "kustomize", codependencies: [{ nginx: "1.27.0" }] },
+    { manager: "terraform", codependencies: [{ "hashicorp/aws": "5.31.0" }] },
   ];
   fs.writeFileSync(join(rootDir, ".codependencerc"), JSON.stringify({ targets }));
   fs.writeFileSync(
@@ -2338,6 +2338,21 @@ describe("GitHub Actions initializer", () => {
       assertThrows(() => initGitHubActions({ rootDir }), "configuration not found");
       fs.writeFileSync(join(rootDir, ".codependencerc"), JSON.stringify({}));
       assertThrows(() => initGitHubActions({ rootDir }), "must define manager targets");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects manifest-only action targets without object pins", () => {
+    const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
+    fs.writeFileSync(
+      join(rootDir, ".codependencerc"),
+      JSON.stringify({ targets: [{ manager: "helm" }] }),
+    );
+
+    try {
+      assertThrows(() => initGitHubActions({ rootDir }), "helm requires explicit object");
+      assert.strictEqual(fs.existsSync(join(rootDir, ".github")), false);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }

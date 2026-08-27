@@ -274,12 +274,12 @@ test_installed_init_actions() {
     { "manager": "go" },
     { "manager": "rust" },
     { "manager": "docker" },
-    { "manager": "circleci" },
+    { "manager": "circleci", "codependencies": [{ "circleci/node": "7.2.0" }] },
     { "manager": "github-actions" },
-    { "manager": "helm" },
-    { "manager": "kubernetes" },
-    { "manager": "kustomize" },
-    { "manager": "terraform" }
+    { "manager": "helm", "codependencies": [{ "redis": "20.6.3" }] },
+    { "manager": "kubernetes", "codependencies": [{ "nginx": "1.27.0" }] },
+    { "manager": "kustomize", "codependencies": [{ "nginx": "1.27.0" }] },
+    { "manager": "terraform", "codependencies": [{ "hashicorp/aws": "5.31.0" }] }
   ]
 }
 JSON

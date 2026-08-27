@@ -1365,56 +1365,27 @@ The same policy model can expand to other version surfaces over time.
 
 #### Traditional dependency PRs vs. Codependence
 
-Traditional providers create an update stream for engineers to triage.
-Codependence lets the team choose the cadence and review one batched diff.
+Traditional providers optimize for immediate update discovery. Codependence
+optimizes for one intentional policy check.
 
----
+| Traditional providers                     | Codependence                                  |
+| ----------------------------------------- | -------------------------------------------- |
+| Open PRs as dependency versions appear    | Runs when the team chooses                   |
+| Create a stream of provider-specific work | Reads one policy across supported manifests  |
+| Leave triage cadence to engineers         | Produces one reviewable policy-driven change |
 
-Traditional providers open PRs as versions appear, leaving engineers to triage
-the stream. Codependence runs on the team's cadence and opens one policy-driven
-PR for review.
-
-<details>
-<summary>View Mermaid source</summary>
-
-##### Traditional dependency PR flow
+Codependence flow:
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Registry
-    participant Bot as Provider bot
-    participant Repo as Repository
-    participant Engineer
-    Note over Registry,Bot: Updates arrive independently
-    Registry-->>Bot: v1 available
-    Bot->>Repo: Open PR #1
-    Registry-->>Bot: v2 available
-    Bot->>Repo: Open PR #2
-    Registry-->>Bot: v3 available
-    Bot->>Repo: Open PR #3
-    Repo-->>Engineer: Triage the PR stream
+flowchart LR
+  Policy[Policy] --> Manifests[Manifests]
+  Manifests --> Check[Check drift]
+  Check --> Diff[One batched diff]
 ```
 
-##### Codependence cadence-controlled flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Engineer
-    participant Repo as Repository
-    participant Codependence
-    participant Registry
-    Engineer->>Repo: Set policy and cadence
-    Note over Codependence,Registry: Team chooses when to run
-    Codependence->>Repo: Read policy and manifests
-    Codependence->>Registry: Resolve allowed updates
-    Registry-->>Codependence: Return matching versions
-    Codependence->>Repo: Open one batched PR
-    Repo-->>Engineer: Review one intentional diff
-```
-
-</details>
+1. Read `.codependencerc` and target manifests.
+2. Resolve only the versions allowed by policy.
+3. Fail CI on drift or write one batched update diff.
 
 - It gives teams a small, explicit policy for versions that must stay current or pinned.
 - It can fail CI when dependency versions drift.

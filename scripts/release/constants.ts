@@ -12,3 +12,4 @@ export const RELEASE_POLL_INTERVAL_MS = 30_000;
 export const RELEASE_REPOSITORY = "yowainwright/codependence";
 export const COMMIT_PATTERN = /^[0-9a-f]{40}$/i;
 export const REMOVED_VERSION_LINE_PATTERN = /^-\s*"version":\s*"[^"]+",\s*$/;
+export const CONFIG_SCHEMA_PATH = "src/config/schema.json";

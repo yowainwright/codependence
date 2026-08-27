@@ -1,8 +1,9 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   COMMIT_PATTERN,
+  CONFIG_SCHEMA_PATH,
   DEFAULT_RELEASE_TIMEOUT_MINUTES,
   PRE_RELEASES,
   RELEASE_INCREMENTS,
@@ -27,6 +28,8 @@ import type {
 } from "./types";
 
 export type { GitResult, GitRunner, ReleaseTagOptions } from "./types";
+
+type ConfigSchema = Record<string, unknown>;
 
 function parseIncrement(args: readonly string[]): ReleaseIncrement | undefined {
   const flag = args.find((arg) => arg.startsWith("--increment="));
@@ -131,6 +134,7 @@ function buildReleaseSteps(branch: string, tagName: string): string[] {
     "verify repository auto-merge is enabled",
     `create ${branch}`,
     "run release-it without pushing main or creating a tag",
+    "stamp schema metadata from the release version",
     "push the release branch",
     "open a release PR",
     "queue auto-merge for the release PR",
@@ -303,6 +307,42 @@ export function readPackageVersion(cwd: string): string {
   const manifest = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8")) as PackageManifest;
   if (typeof manifest.version !== "string") throw new Error("package.json version is missing");
   return manifest.version;
+}
+
+export function formatReleaseDate(date = new Date()): string {
+  return date.toISOString().slice(0, 10);
+}
+
+export function updateSchemaMetadata(
+  schema: ConfigSchema,
+  version: string,
+  date = new Date(),
+): ConfigSchema {
+  formatTagName(version);
+  return {
+    ...schema,
+    "x-revision": version,
+    "x-updated": formatReleaseDate(date),
+  };
+}
+
+function replaceJsonField(content: string, key: string, value: unknown): string {
+  const pattern = new RegExp(`^(\\s*"${key}"\\s*:\\s*)[^,\\n]*(,?)$`, "m");
+  if (!pattern.test(content)) throw new Error(`schema ${key} is missing`);
+  return content.replace(pattern, `$1${JSON.stringify(value)}$2`);
+}
+
+export function renderSchemaMetadata(content: string, version: string, date = new Date()): string {
+  const schema = JSON.parse(content) as ConfigSchema;
+  const updatedSchema = updateSchemaMetadata(schema, version, date);
+  const withRevision = replaceJsonField(content, "x-revision", updatedSchema["x-revision"]);
+  return replaceJsonField(withRevision, "x-updated", updatedSchema["x-updated"]);
+}
+
+export function writeSchemaMetadata(cwd: string, version: string, date = new Date()): void {
+  const schemaPath = join(cwd, CONFIG_SCHEMA_PATH);
+  const content = readFileSync(schemaPath, "utf8");
+  writeFileSync(schemaPath, renderSchemaMetadata(content, version, date));
 }
 
 export function createGitRunner(cwd: string): GitRunner {
