@@ -293,7 +293,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> => {
 const manifestPath = (value: unknown): string | undefined => {
   if (!isRecord(value)) return undefined;
   const path = value.path;
-  return typeof path === "string" ? path : undefined;
+  const hasPath = typeof path === "string";
+  if (hasPath) return path;
+  return undefined;
 };
 
 const mergeManifest = (existing: unknown, generated: unknown): Record<string, unknown> => {

@@ -48,6 +48,7 @@ interface HelmImageState {
   readonly current: HelmImageDraft | null;
   readonly fieldIndent: number | null;
   readonly imageIndent: number;
+  readonly updates: HelmImageUpdate[];
 }
 
 interface HelmImageUpdate {
@@ -308,21 +309,44 @@ const imageName = ({ registry, repository }: HelmImageDraft): string | null => {
 
 const isSafeImageDraft = (draft: HelmImageDraft): boolean => {
   const name = imageName(draft);
-  const tag = draft.tag;
-  return Boolean(name && isSafeImageVersion(tag));
+  const hasSafeTag = isSafeImageVersion(draft.tag);
+  return Boolean(name && hasSafeTag);
 };
 
-const finalizeImage = (
-  manifest: DependencyManifest,
-  updates: HelmImageUpdate[],
-  draft: HelmImageDraft | null,
-): void => {
-  if (!draft || !isSafeImageDraft(draft)) return;
+const emptyImageState = (updates: HelmImageUpdate[] = []): HelmImageState => ({
+  current: null,
+  fieldIndent: null,
+  imageIndent: -1,
+  updates,
+});
 
-  const name = imageName(draft) as string;
-  const tag = draft.tag as string;
-  appendDependencyVersion(manifest, name, tag);
-  if (draft.tagLine !== undefined) updates.push({ line: draft.tagLine, name });
+const updatedImageState = (
+  state: HelmImageState,
+  line: number | undefined,
+  name: string,
+): HelmImageState => {
+  if (line === undefined) return emptyImageState(state.updates);
+
+  const updates = state.updates.concat({ line, name });
+  return emptyImageState(updates);
+};
+
+const finalizeImageState = (
+  manifest: DependencyManifest,
+  state: HelmImageState,
+): HelmImageState => {
+  const draft = state.current;
+  if (draft) {
+    const isSafeDraft = isSafeImageDraft(draft);
+    if (isSafeDraft) {
+      const name = imageName(draft) as string;
+      const tag = draft.tag as string;
+      appendDependencyVersion(manifest, name, tag);
+      return updatedImageState(state, draft.tagLine, name);
+    }
+  }
+
+  return emptyImageState(state.updates);
 };
 
 const assignImageField = (
@@ -331,33 +355,23 @@ const assignImageField = (
   lineIndex: number,
 ): HelmImageDraft => {
   const value = readScalar(field.raw);
-  if (!value || hasTemplate(value)) return draft;
-  if (field.key === "registry") return Object.assign({}, draft, { registry: value });
-  if (field.key === "repository") return Object.assign({}, draft, { repository: value });
-  if (field.key === "tag") return Object.assign({}, draft, { tag: value, tagLine: lineIndex });
+  if (value) {
+    const hasTemplatedValue = hasTemplate(value);
+    if (hasTemplatedValue) return draft;
+    if (field.key === "registry") return Object.assign({}, draft, { registry: value });
+    if (field.key === "repository") return Object.assign({}, draft, { repository: value });
+    if (field.key === "tag") return Object.assign({}, draft, { tag: value, tagLine: lineIndex });
+  }
+
   return draft;
 };
 
-const emptyImageState = (): HelmImageState => ({
-  current: null,
-  fieldIndent: null,
-  imageIndent: -1,
-});
-
-const startImageState = (field: HelmFieldLine): HelmImageState => ({
+const startImageState = (field: HelmFieldLine, updates: HelmImageUpdate[]): HelmImageState => ({
   current: {},
   fieldIndent: null,
   imageIndent: field.indent,
+  updates,
 });
-
-const closeImageState = (
-  manifest: DependencyManifest,
-  updates: HelmImageUpdate[],
-  state: HelmImageState,
-): HelmImageState => {
-  finalizeImage(manifest, updates, state.current);
-  return emptyImageState();
-};
 
 const startsImageBlock = (field: HelmFieldLine, rawValue: string | null): boolean =>
   field.key === "image" && !rawValue;
@@ -374,7 +388,6 @@ const directImageFieldIndent = (state: HelmImageState, field: HelmFieldLine): nu
 const readHelmImageLine = (
   state: HelmImageState,
   manifest: DependencyManifest,
-  updates: HelmImageUpdate[],
   line: string,
   lineIndex: number,
 ): HelmImageState => {
@@ -385,8 +398,10 @@ const readHelmImageLine = (
   if (!field) return state;
 
   const rawValue = readScalar(field.raw);
-  const base = exitsImageBlock(state, field) ? closeImageState(manifest, updates, state) : state;
-  if (startsImageBlock(field, rawValue) && !base.current) return startImageState(field);
+  const exitsBlock = exitsImageBlock(state, field);
+  const base = exitsBlock ? finalizeImageState(manifest, state) : state;
+  const startsNewImageBlock = startsImageBlock(field, rawValue) && !base.current;
+  if (startsNewImageBlock) return startImageState(field, base.updates);
 
   const childIndent = directImageFieldIndent(base, field);
   if (childIndent === null) return base;
@@ -405,13 +420,12 @@ const collectHelmValuesImages = (
   content: string,
 ): { manifest: DependencyManifest; updates: HelmImageUpdate[] } => {
   const manifest = emptyInfraManifest(filePath);
-  const updates: HelmImageUpdate[] = [];
   const initial = emptyImageState();
   const state = content
     .split("\n")
-    .reduce((acc, line, index) => readHelmImageLine(acc, manifest, updates, line, index), initial);
-  finalizeImage(manifest, updates, state.current);
-  return { manifest, updates };
+    .reduce((acc, line, index) => readHelmImageLine(acc, manifest, line, index), initial);
+  const finalState = finalizeImageState(manifest, state);
+  return { manifest, updates: finalState.updates };
 };
 
 const updateVersionLine = (line: string, version: string): string => {
@@ -419,8 +433,8 @@ const updateVersionLine = (line: string, version: string): string => {
   if (quoted) return `${quoted[1]}${quoted[2]}${version}${quoted[2]}${quoted[4]}`;
 
   const plain = line.match(HELM_PATTERNS.PLAIN_VERSION_LINE);
-  if (!plain) return line;
-  return `${plain[1]}${version}${plain[3]}`;
+  if (plain) return `${plain[1]}${version}${plain[3]}`;
+  return line;
 };
 
 const dependencyUpdate = (

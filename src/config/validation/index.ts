@@ -166,16 +166,20 @@ const explicitPinModeErrors = (
   config: Record<string, unknown>,
   manager: string,
 ): ValidationError[] => {
-  const usesPreciseMode = config.mode === "precise" || config.permissive === true;
-  if (!usesPreciseMode) return [];
+  const permissive = config.permissive;
+  const usesPermissiveMode = isBoolean(permissive) && permissive;
+  const usesPreciseMode = config.mode === "precise" || usesPermissiveMode;
+  if (usesPreciseMode) {
+    return [
+      {
+        field: "mode",
+        message: `${manager} does not support precise mode`,
+        suggestion: explicitPinSuggestion(manager),
+      },
+    ];
+  }
 
-  return [
-    {
-      field: "mode",
-      message: `${manager} does not support precise mode`,
-      suggestion: explicitPinSuggestion(manager),
-    },
-  ];
+  return [];
 };
 
 const hasObjectPins = (value: unknown): boolean => {
@@ -191,7 +195,8 @@ const explicitPinCodependencyErrors = (
 ): ValidationError[] => {
   const codependencies = config.codependencies;
   const invalidShape = "codependencies" in config && !Array.isArray(codependencies);
-  if (invalidShape || hasObjectPins(codependencies)) return [];
+  const hasValidShape = invalidShape || hasObjectPins(codependencies);
+  if (hasValidShape) return [];
 
   return [
     {

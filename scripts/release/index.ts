@@ -265,8 +265,9 @@ function assertSchemaRevisionChange(changes: readonly string[], version: string)
   const hasTwoRevisionChanges = revisionChanges.length === 2;
   const hasRemovedRevision = REMOVED_SCHEMA_REVISION_LINE_PATTERN.test(removedRevision ?? "");
   const hasAddedRevision = isAddedSchemaRevisionLine(addedRevision ?? "", version);
+  const hasRevisionChange = hasTwoRevisionChanges && hasRemovedRevision && hasAddedRevision;
 
-  if (hasTwoRevisionChanges && hasRemovedRevision && hasAddedRevision) return;
+  if (hasRevisionChange) return;
   throw new Error("Unverified release schema revision");
 }
 
@@ -277,8 +278,9 @@ function assertSchemaUpdatedChange(changes: readonly string[]): void {
   const hasTwoUpdatedChanges = updatedChanges.length === 2;
   const hasRemovedUpdated = REMOVED_SCHEMA_UPDATED_LINE_PATTERN.test(removedUpdated ?? "");
   const hasAddedUpdated = ADDED_SCHEMA_UPDATED_LINE_PATTERN.test(addedUpdated ?? "");
+  const hasUpdatedChange = hasTwoUpdatedChanges && hasRemovedUpdated && hasAddedUpdated;
 
-  if (hasTwoUpdatedChanges && hasRemovedUpdated && hasAddedUpdated) return;
+  if (hasUpdatedChange) return;
   throw new Error("Unverified release schema date");
 }
 

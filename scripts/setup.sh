@@ -190,6 +190,19 @@ install_claude_settings() {
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test ! -f package.json || nub run lint:agent",
+            "timeout": 120,
+            "statusMessage": "Checking agent lint"
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
@@ -241,6 +254,19 @@ install_codex_hooks() {
             "command": "test ! -x \"$HOME/.agents/bin/agent-sync\" || \"$HOME/.agents/bin/agent-sync\" hook git --codex",
             "timeout": 5,
             "statusMessage": "Checking Git permissions"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test ! -f package.json || nub run lint:agent",
+            "timeout": 120,
+            "statusMessage": "Checking agent lint"
           }
         ]
       }
