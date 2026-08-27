@@ -13,3 +13,13 @@ export const RELEASE_REPOSITORY = "yowainwright/codependence";
 export const COMMIT_PATTERN = /^[0-9a-f]{40}$/i;
 export const REMOVED_VERSION_LINE_PATTERN = /^-\s*"version":\s*"[^"]+",\s*$/;
 export const CONFIG_SCHEMA_PATH = "src/config/schema.json";
+export const SCHEMA_REVISION_LINE_PATTERN = /^[+-]\s*"x-revision":/;
+export const SCHEMA_UPDATED_LINE_PATTERN = /^[+-]\s*"x-updated":/;
+export const REMOVED_SCHEMA_REVISION_LINE_PATTERN =
+  /^-\s*"x-revision":\s*(?:"[^"]+"|\d+),?\s*$/;
+export const ADDED_SCHEMA_REVISION_LINE_PATTERN =
+  /^\+\s*"x-revision":\s*"([^"]+)",?\s*$/;
+export const REMOVED_SCHEMA_UPDATED_LINE_PATTERN =
+  /^-\s*"x-updated":\s*"\d{4}-\d{2}-\d{2}",?\s*$/;
+export const ADDED_SCHEMA_UPDATED_LINE_PATTERN =
+  /^\+\s*"x-updated":\s*"\d{4}-\d{2}-\d{2}",?\s*$/;

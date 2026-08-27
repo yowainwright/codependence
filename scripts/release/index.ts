@@ -1,11 +1,17 @@
 import {
+  ADDED_SCHEMA_REVISION_LINE_PATTERN,
+  ADDED_SCHEMA_UPDATED_LINE_PATTERN,
   COMMIT_PATTERN,
   CONFIG_SCHEMA_PATH,
   DEFAULT_RELEASE_TIMEOUT_MINUTES,
   PRE_RELEASE_VERSION_PATTERN,
   RELEASE_POLL_INTERVAL_MS,
   RELEASE_REPOSITORY,
+  REMOVED_SCHEMA_REVISION_LINE_PATTERN,
+  REMOVED_SCHEMA_UPDATED_LINE_PATTERN,
   REMOVED_VERSION_LINE_PATTERN,
+  SCHEMA_REVISION_LINE_PATTERN,
+  SCHEMA_UPDATED_LINE_PATTERN,
 } from "./constants";
 import {
   buildCurrentVersionTagPlan,
@@ -222,12 +228,6 @@ function readRefVersion(runner: ReleaseRunner, ref: string): string {
   throw new Error(`package.json version is missing on ${ref}`);
 }
 
-const SCHEMA_REVISION_LINE_PATTERN = /^[+-]\s*"x-revision":/;
-const SCHEMA_UPDATED_LINE_PATTERN = /^[+-]\s*"x-updated":/;
-const REMOVED_SCHEMA_REVISION_LINE_PATTERN = /^-\s*"x-revision":\s*(?:"[^"]+"|\d+),?\s*$/;
-const REMOVED_SCHEMA_UPDATED_LINE_PATTERN = /^-\s*"x-updated":\s*"\d{4}-\d{2}-\d{2}",?\s*$/;
-const ADDED_SCHEMA_UPDATED_LINE_PATTERN = /^\+\s*"x-updated":\s*"\d{4}-\d{2}-\d{2}",?\s*$/;
-
 function isDiffChangeLine(line: string): boolean {
   const isChange = line.startsWith("+") || line.startsWith("-");
   const isHeader = line.startsWith("+++") || line.startsWith("---");
@@ -253,34 +253,32 @@ function assertPackageReleaseDiff(
   throw new Error(`Unverified release diff: ${target}`);
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function isAddedSchemaRevisionLine(line: string, version: string): boolean {
-  const versionPattern = escapeRegExp(version);
-  const pattern = new RegExp(`^\\+\\s*"x-revision":\\s*"${versionPattern}",?\\s*$`);
-  return pattern.test(line);
+  const match = line.match(ADDED_SCHEMA_REVISION_LINE_PATTERN);
+  if (!match) return false;
+  return match[1] === version;
 }
 
 function assertSchemaRevisionChange(changes: readonly string[], version: string): void {
   const revisionChanges = changes.filter((line) => SCHEMA_REVISION_LINE_PATTERN.test(line));
-  const hasRevisionChange =
-    revisionChanges.length === 2 &&
-    REMOVED_SCHEMA_REVISION_LINE_PATTERN.test(revisionChanges[0] ?? "") &&
-    isAddedSchemaRevisionLine(revisionChanges[1] ?? "", version);
-  if (hasRevisionChange) return;
+  const [removedRevision, addedRevision] = revisionChanges;
+  const hasTwoRevisionChanges = revisionChanges.length === 2;
+  const hasRemovedRevision = REMOVED_SCHEMA_REVISION_LINE_PATTERN.test(removedRevision ?? "");
+  const hasAddedRevision = isAddedSchemaRevisionLine(addedRevision ?? "", version);
+
+  if (hasTwoRevisionChanges && hasRemovedRevision && hasAddedRevision) return;
   throw new Error("Unverified release schema revision");
 }
 
 function assertSchemaUpdatedChange(changes: readonly string[]): void {
   const updatedChanges = changes.filter((line) => SCHEMA_UPDATED_LINE_PATTERN.test(line));
   if (updatedChanges.length === 0) return;
-  const hasUpdatedChange =
-    updatedChanges.length === 2 &&
-    REMOVED_SCHEMA_UPDATED_LINE_PATTERN.test(updatedChanges[0] ?? "") &&
-    ADDED_SCHEMA_UPDATED_LINE_PATTERN.test(updatedChanges[1] ?? "");
-  if (hasUpdatedChange) return;
+  const [removedUpdated, addedUpdated] = updatedChanges;
+  const hasTwoUpdatedChanges = updatedChanges.length === 2;
+  const hasRemovedUpdated = REMOVED_SCHEMA_UPDATED_LINE_PATTERN.test(removedUpdated ?? "");
+  const hasAddedUpdated = ADDED_SCHEMA_UPDATED_LINE_PATTERN.test(addedUpdated ?? "");
+
+  if (hasTwoUpdatedChanges && hasRemovedUpdated && hasAddedUpdated) return;
   throw new Error("Unverified release schema date");
 }
 

@@ -26,12 +26,15 @@ interface HelmDependencyDraft {
   readonly version?: string;
 }
 
-interface HelmReadState {
-  readonly chartVersion?: string;
-  readonly current: HelmDependencyDraft | null;
-  readonly dependencies: Record<string, string>;
+interface HelmDependencySectionState<Draft extends object> {
+  readonly current: Draft | null;
   readonly dependencyIndent: number;
   readonly inDependencies: boolean;
+}
+
+interface HelmReadState extends HelmDependencySectionState<HelmDependencyDraft> {
+  readonly chartVersion?: string;
+  readonly dependencies: Record<string, string>;
 }
 
 interface HelmImageDraft {
@@ -61,10 +64,8 @@ interface HelmDependencyUpdate {
   readonly version: string;
 }
 
-interface HelmDependencyUpdateState {
-  readonly current: HelmDependencyUpdateDraft | null;
-  readonly dependencyIndent: number;
-  readonly inDependencies: boolean;
+interface HelmDependencyUpdateState
+  extends HelmDependencySectionState<HelmDependencyUpdateDraft> {
   readonly updates: HelmDependencyUpdate[];
 }
 
@@ -182,6 +183,36 @@ const exitsDependencies = (
   return !startsListItem;
 };
 
+const leaveDependencySection = <
+  Draft extends object,
+  State extends HelmDependencySectionState<Draft>,
+>(
+  state: State,
+  line: string,
+  finalize: (state: State) => State,
+): State => {
+  if (!exitsDependencies(state, line)) return state;
+
+  const finalized = finalize(state);
+  return Object.assign({}, finalized, { inDependencies: false });
+};
+
+const enterDependencySection = <
+  Draft extends object,
+  State extends HelmDependencySectionState<Draft>,
+>(
+  state: State,
+  field: HelmFieldLine,
+  finalize: (state: State) => State,
+): State => {
+  const finalized = finalize(state);
+  return Object.assign({}, finalized, {
+    current: null,
+    dependencyIndent: field.indent,
+    inDependencies: true,
+  });
+};
+
 const isDependenciesField = (field: HelmFieldLine | null): field is HelmFieldLine => {
   if (!field) return false;
 
@@ -219,29 +250,34 @@ const assignDependencyField = (
   return draft;
 };
 
-const assignDependency = (state: HelmReadState, field: HelmFieldLine | null): HelmReadState => {
+const readDependencyDraftField = <
+  Draft extends object,
+  State extends HelmDependencySectionState<Draft>,
+>(
+  state: State,
+  field: HelmFieldLine | null,
+  finalize: (state: State) => State,
+  createDraft: () => Draft,
+  assignField: (draft: Draft, field: HelmFieldLine) => Draft,
+): State => {
   if (!field) return state;
 
-  const base = field.listItem ? finalizeDependency(state) : state;
-  const current = field.listItem ? {} : base.current;
+  const base = field.listItem ? finalize(state) : state;
+  const current = field.listItem ? createDraft() : base.current;
   if (!current) return base;
 
-  const nextCurrent = assignDependencyField(current, field);
+  const nextCurrent = assignField(current, field);
   return Object.assign({}, base, { current: nextCurrent });
 };
 
+const assignDependency = (state: HelmReadState, field: HelmFieldLine | null): HelmReadState =>
+  readDependencyDraftField(state, field, finalizeDependency, () => ({}), assignDependencyField);
+
 const readHelmLine = (state: HelmReadState, line: string): HelmReadState => {
-  const exited = exitsDependencies(state, line);
-  const base = exited
-    ? Object.assign({}, finalizeDependency(state), { inDependencies: false })
-    : state;
+  const base = leaveDependencySection(state, line, finalizeDependency);
   const field = readFieldLine(line);
   if (isDependenciesField(field)) {
-    return Object.assign({}, finalizeDependency(base), {
-      current: null,
-      dependencyIndent: field.indent,
-      inDependencies: true,
-    });
+    return enterDependencySection(base, field, finalizeDependency);
   }
   if (base.inDependencies) return assignDependency(base, field);
 
@@ -431,14 +467,12 @@ const readDependencyUpdateField = (
   lineIndex: number,
   dependencies: Record<string, string>,
 ): HelmDependencyUpdateState => {
-  if (!field) return state;
+  const finalize = (nextState: HelmDependencyUpdateState) =>
+    finalizeDependencyUpdate(nextState, dependencies);
+  const assignField = (draft: HelmDependencyUpdateDraft, nextField: HelmFieldLine) =>
+    assignDependencyUpdateField(draft, nextField, lineIndex);
 
-  const base = field.listItem ? finalizeDependencyUpdate(state, dependencies) : state;
-  const current = field.listItem ? {} : base.current;
-  if (!current) return base;
-
-  const nextCurrent = assignDependencyUpdateField(current, field, lineIndex);
-  return Object.assign({}, base, { current: nextCurrent });
+  return readDependencyDraftField(state, field, finalize, () => ({}), assignField);
 };
 
 const readHelmUpdateLine = (
@@ -447,17 +481,12 @@ const readHelmUpdateLine = (
   lineIndex: number,
   dependencies: Record<string, string>,
 ): HelmDependencyUpdateState => {
-  const exited = exitsDependencies(state, line);
-  const base = exited
-    ? Object.assign({}, finalizeDependencyUpdate(state, dependencies), { inDependencies: false })
-    : state;
+  const finalize = (nextState: HelmDependencyUpdateState) =>
+    finalizeDependencyUpdate(nextState, dependencies);
+  const base = leaveDependencySection(state, line, finalize);
   const field = readFieldLine(line);
   if (isDependenciesField(field)) {
-    return Object.assign({}, finalizeDependencyUpdate(base, dependencies), {
-      current: null,
-      dependencyIndent: field.indent,
-      inDependencies: true,
-    });
+    return enterDependencySection(base, field, finalize);
   }
   if (!base.inDependencies) return base;
 
