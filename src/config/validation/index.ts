@@ -2,6 +2,7 @@ import { isAbsolute, win32 } from "node:path";
 import { error } from "../../dx/output";
 import {
   BOOLEAN_OPTION_FIELDS,
+  EXPLICIT_PIN_MANAGERS,
   VALID_FORMATS,
   VALID_LANGUAGES,
   VALID_LEVELS,
@@ -148,6 +149,73 @@ const validatePermissive = (config: Record<string, unknown>): ValidationError[] 
           suggestion: 'Change to: {"permissive": true} or {"permissive": false}',
         },
       ];
+};
+
+const explicitPinManager = (config: Record<string, unknown>): string | null => {
+  const manager = config.manager;
+  if (isString(manager)) return manager;
+
+  const language = config.language;
+  return isString(language) ? language : null;
+};
+
+const explicitPinSuggestion = (manager: string): string =>
+  `Use {"manager":"${manager}","mode":"verbose","codependencies":[{"name":"version"}]}`;
+
+const explicitPinModeErrors = (
+  config: Record<string, unknown>,
+  manager: string,
+): ValidationError[] => {
+  const permissive = config.permissive;
+  const usesPermissiveMode = isBoolean(permissive) && permissive;
+  const usesPreciseMode = config.mode === "precise" || usesPermissiveMode;
+  if (usesPreciseMode) {
+    return [
+      {
+        field: "mode",
+        message: `${manager} does not support precise mode`,
+        suggestion: explicitPinSuggestion(manager),
+      },
+    ];
+  }
+
+  return [];
+};
+
+const hasObjectPins = (value: unknown): boolean => {
+  if (!Array.isArray(value)) return false;
+  if (value.length === 0) return false;
+
+  return value.every(isObject);
+};
+
+const explicitPinCodependencyErrors = (
+  config: Record<string, unknown>,
+  manager: string,
+): ValidationError[] => {
+  const codependencies = config.codependencies;
+  const invalidShape = "codependencies" in config && !Array.isArray(codependencies);
+  const hasValidShape = invalidShape || hasObjectPins(codependencies);
+  if (hasValidShape) return [];
+
+  return [
+    {
+      field: "codependencies",
+      message: `${manager} requires explicit object codependencies`,
+      suggestion: explicitPinSuggestion(manager),
+    },
+  ];
+};
+
+const validateExplicitPinManager = (config: Record<string, unknown>): ValidationError[] => {
+  const manager = explicitPinManager(config);
+  if (!manager) return [];
+  if (!EXPLICIT_PIN_MANAGERS.has(manager)) return [];
+
+  return concat(
+    explicitPinModeErrors(config, manager),
+    explicitPinCodependencyErrors(config, manager),
+  );
 };
 
 export const createEnumValidator =
@@ -320,6 +388,7 @@ const targetFieldErrors = (target: Record<string, unknown>): ValidationError[] =
     validatePermissive(target),
     validateLevel(target),
     validateMode(target),
+    validateExplicitPinManager(target),
     validateFiles(target),
     validateIgnore(target),
     validateLockfile(target),
@@ -482,6 +551,7 @@ export const validateConfig = (
     validateLanguage(typedConfig),
     validateLevel(typedConfig),
     validateMode(typedConfig),
+    validateExplicitPinManager(typedConfig),
     validateFiles(typedConfig),
     validateIgnore(typedConfig),
     validateLockfile(typedConfig),

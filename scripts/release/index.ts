@@ -1,10 +1,20 @@
 import {
+  ADDED_SCHEMA_REVISION_LINE_PATTERN,
+  ADDED_SCHEMA_UPDATED_LINE_PATTERN,
   COMMIT_PATTERN,
+  CONFIG_SCHEMA_PATH,
   DEFAULT_RELEASE_TIMEOUT_MINUTES,
+  PACKAGE_JSON_PATH,
+  PACKAGE_RELEASE_FILES,
   PRE_RELEASE_VERSION_PATTERN,
   RELEASE_POLL_INTERVAL_MS,
   RELEASE_REPOSITORY,
+  RELEASE_FILES,
+  REMOVED_SCHEMA_REVISION_LINE_PATTERN,
+  REMOVED_SCHEMA_UPDATED_LINE_PATTERN,
   REMOVED_VERSION_LINE_PATTERN,
+  SCHEMA_REVISION_LINE_PATTERN,
+  SCHEMA_UPDATED_LINE_PATTERN,
 } from "./constants";
 import {
   buildCurrentVersionTagPlan,
@@ -22,6 +32,7 @@ import {
   releaseTagExists,
   resolveAvailableReleaseVersion,
   runReleaseTag,
+  writeSchemaMetadata,
 } from "./utils";
 import type {
   PullRequestState,
@@ -45,6 +56,7 @@ export type {
   ReleasePlan,
   ReleaseRunner,
   ReleaseTagOptions,
+  SchemaMetadataWriter,
   TagPlan,
 } from "./types";
 
@@ -73,7 +85,10 @@ export {
   readPackageVersion,
   releaseTagExists,
   resolveAvailableReleaseVersion,
+  renderSchemaMetadata,
   runReleaseTag,
+  updateSchemaMetadata,
+  writeSchemaMetadata,
 } from "./utils";
 
 function createReleaseContext(options: ReleaseOptions): ReleaseContext {
@@ -83,6 +98,7 @@ function createReleaseContext(options: ReleaseOptions): ReleaseContext {
     logger: options.logger ?? console,
     pollIntervalMs: options.pollIntervalMs ?? RELEASE_POLL_INTERVAL_MS,
     runner: options.runner ?? createRunner(cwd),
+    schemaMetadataWriter: options.schemaMetadataWriter ?? writeSchemaMetadata,
   };
 }
 
@@ -137,13 +153,16 @@ function assertRepositoryAutoMergeEnabled(runner: ReleaseRunner): void {
 }
 
 function createReleaseCommit(
-  runner: ReleaseRunner,
+  context: ReleaseContext,
   releaseArgs: ReleaseArgs,
   version: string,
 ): void {
   const options = { preRelease: releaseArgs.preRelease, version };
   const args = buildReleaseItArgs(options);
-  runCommand(runner, "./node_modules/.bin/release-it", args);
+  runCommand(context.runner, "./node_modules/.bin/release-it", args);
+  context.schemaMetadataWriter(context.cwd, version);
+  runCommand(context.runner, "git", ["add", CONFIG_SCHEMA_PATH]);
+  runCommand(context.runner, "git", ["commit", "--amend", "--no-edit", "--no-verify"]);
 }
 
 function buildPullRequestArgs(version: string, branch: string): string[] {
@@ -219,13 +238,13 @@ function isDiffChangeLine(line: string): boolean {
   return isReleaseChange;
 }
 
-function assertReleaseDiff(
+function assertPackageReleaseDiff(
   runner: ReleaseRunner,
   base: string,
   target: string,
   version: string,
 ): void {
-  const args = ["diff", "--unified=0", base, target, "--", "package.json"];
+  const args = ["diff", "--unified=0", base, target, "--", PACKAGE_JSON_PATH];
   const diff = commandText(runner, "git", args);
   const changes = diff.split("\n").filter(isDiffChangeLine);
   const addedVersion = `+  "version": "${version}",`;
@@ -237,19 +256,119 @@ function assertReleaseDiff(
   throw new Error(`Unverified release diff: ${target}`);
 }
 
-function assertReleaseFiles(runner: ReleaseRunner, target: string): void {
+function isAddedSchemaRevisionLine(line: string, version: string): boolean {
+  const match = line.match(ADDED_SCHEMA_REVISION_LINE_PATTERN);
+  if (!match) return false;
+  return match[1] === version;
+}
+
+function assertSchemaRevisionChange(changes: readonly string[], version: string): void {
+  const revisionChanges = changes.filter((line) => SCHEMA_REVISION_LINE_PATTERN.test(line));
+  const [removedRevision, addedRevision] = revisionChanges;
+  const hasTwoRevisionChanges = revisionChanges.length === 2;
+  const hasRemovedRevision = REMOVED_SCHEMA_REVISION_LINE_PATTERN.test(removedRevision ?? "");
+  const hasAddedRevision = isAddedSchemaRevisionLine(addedRevision ?? "", version);
+  const hasRevisionChange = hasTwoRevisionChanges && hasRemovedRevision && hasAddedRevision;
+
+  if (hasRevisionChange) return;
+  throw new Error("Unverified release schema revision");
+}
+
+function assertSchemaUpdatedChange(changes: readonly string[]): void {
+  const updatedChanges = changes.filter((line) => SCHEMA_UPDATED_LINE_PATTERN.test(line));
+  if (updatedChanges.length === 0) return;
+  const [removedUpdated, addedUpdated] = updatedChanges;
+  const hasTwoUpdatedChanges = updatedChanges.length === 2;
+  const hasRemovedUpdated = REMOVED_SCHEMA_UPDATED_LINE_PATTERN.test(removedUpdated ?? "");
+  const hasAddedUpdated = ADDED_SCHEMA_UPDATED_LINE_PATTERN.test(addedUpdated ?? "");
+  const hasUpdatedChange = hasTwoUpdatedChanges && hasRemovedUpdated && hasAddedUpdated;
+
+  if (hasUpdatedChange) return;
+  throw new Error("Unverified release schema date");
+}
+
+function assertSchemaReleaseDiff(
+  runner: ReleaseRunner,
+  base: string,
+  target: string,
+  version: string,
+): void {
+  const args = ["diff", "--unified=0", base, target, "--", CONFIG_SCHEMA_PATH];
+  const diff = commandText(runner, "git", args);
+  const changes = diff.split("\n").filter(isDiffChangeLine);
+  const metadataChanges = changes.filter((line) => {
+    const isRevision = SCHEMA_REVISION_LINE_PATTERN.test(line);
+    const isUpdated = SCHEMA_UPDATED_LINE_PATTERN.test(line);
+    return isRevision || isUpdated;
+  });
+  if (changes.length !== metadataChanges.length) {
+    throw new Error(`Unverified release diff: ${target}`);
+  }
+  assertSchemaRevisionChange(changes, version);
+  assertSchemaUpdatedChange(changes);
+}
+
+function assertReleaseDiff(
+  runner: ReleaseRunner,
+  base: string,
+  target: string,
+  version: string,
+): void {
+  assertPackageReleaseDiff(runner, base, target, version);
+  assertSchemaReleaseDiff(runner, base, target, version);
+}
+
+function readChangedFiles(runner: ReleaseRunner, target: string): string[] {
   const args = ["diff-tree", "--no-commit-id", "--name-only", "-r", target];
-  const changedFiles = commandText(runner, "git", args);
-  if (changedFiles === "package.json") return;
+  return commandText(runner, "git", args).split("\n").filter(Boolean).sort();
+}
+
+function sameFiles(left: readonly string[], right: readonly string[]): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function assertReleaseFiles(runner: ReleaseRunner, target: string): void {
+  const changedFiles = readChangedFiles(runner, target);
+  const hasReleaseFiles = sameFiles(changedFiles, RELEASE_FILES);
+  if (hasReleaseFiles) return;
   throw new Error(`Unverified release files: ${target}`);
 }
 
-function assertReleaseCommitShape(runner: ReleaseRunner, branch: string, version: string): void {
+function assertReleaseParent(runner: ReleaseRunner, branch: string): void {
   const parent = commandText(runner, "git", ["rev-parse", `${branch}^`]);
   const main = commandText(runner, "git", ["rev-parse", "origin/main"]);
   if (parent !== main) throw new Error(`Unverified release parent: ${branch}`);
+}
+
+function assertReleaseCommitShape(runner: ReleaseRunner, branch: string, version: string): void {
+  assertReleaseParent(runner, branch);
   assertReleaseFiles(runner, branch);
   assertReleaseDiff(runner, "origin/main", branch, version);
+}
+
+function canCompleteReleaseFiles(changedFiles: readonly string[]): boolean {
+  const hasCompleteFiles = sameFiles(changedFiles, RELEASE_FILES);
+  const hasPackageOnlyFiles = sameFiles(changedFiles, PACKAGE_RELEASE_FILES);
+  return hasCompleteFiles || hasPackageOnlyFiles;
+}
+
+function completeInterruptedReleaseCommit(
+  context: ReleaseContext,
+  version: string,
+  branch: string,
+): void {
+  assertReleaseParent(context.runner, branch);
+  assertPackageReleaseDiff(context.runner, "origin/main", branch, version);
+
+  const changedFiles = readChangedFiles(context.runner, branch);
+  if (!canCompleteReleaseFiles(changedFiles)) {
+    throw new Error(`Unverified release files: ${branch}`);
+  }
+  if (sameFiles(changedFiles, RELEASE_FILES)) return;
+
+  context.schemaMetadataWriter(context.cwd, version);
+  runCommand(context.runner, "git", ["add", CONFIG_SCHEMA_PATH]);
+  runCommand(context.runner, "git", ["commit", "--amend", "--no-edit", "--no-verify"]);
 }
 
 function readFirstParent(runner: ReleaseRunner, commit: string): string {
@@ -300,7 +419,8 @@ function checkoutReleaseBranch(
   const hasReleaseVersion = exists && readRefVersion(context.runner, branch) === version;
   const shouldAssertBranchBase = exists && !hasReleaseVersion;
   if (shouldAssertBranchBase) assertReleaseBranchBase(context.runner, branch);
-  if (!hasReleaseVersion) createReleaseCommit(context.runner, releaseArgs, version);
+  if (hasReleaseVersion) completeInterruptedReleaseCommit(context, version, branch);
+  if (!hasReleaseVersion) createReleaseCommit(context, releaseArgs, version);
   return readReleaseBranchCommit(context.runner, branch, version);
 }
 

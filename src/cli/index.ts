@@ -293,7 +293,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> => {
 const manifestPath = (value: unknown): string | undefined => {
   if (!isRecord(value)) return undefined;
   const path = value.path;
-  return typeof path === "string" ? path : undefined;
+  const hasPath = typeof path === "string";
+  if (hasPath) return path;
+  return undefined;
 };
 
 const mergeManifest = (existing: unknown, generated: unknown): Record<string, unknown> => {
@@ -348,6 +350,10 @@ const configContent = (config: Record<string, unknown>): string =>
 
 const assertLoadedConfig = (config: Record<string, unknown>): void => {
   if (!("config" in config)) return;
+  assertValidConfig(config);
+};
+
+const assertValidConfig = (config: Record<string, unknown>): void => {
   const result = validateConfig(config, { requirePolicy: false });
   if (result.valid) return;
   throw new Error(`Invalid config\n${formatValidationErrors(result.errors)}`);
@@ -613,6 +619,7 @@ const configuredTargets = (rootDir: string): CodependenceTarget[] => {
     );
   }
 
+  assertValidConfig(result.config);
   const configRootDir = dirname(result.filepath);
   const normalizedConfig = normalizeConfigShape(result.config, configRootDir);
   const targets = normalizedConfig.targets;

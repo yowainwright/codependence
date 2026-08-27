@@ -72,7 +72,9 @@ describe("release workflows", () => {
     assert.ok(homebrew.includes("scripts/upload-release-assets.sh"));
     assert.ok(homebrew.includes("scripts/release/brew/*"));
     assert.ok(homebrew.includes("src/observability/*"));
+    assert.ok(homebrew.includes("src/dx/constants.ts"));
     assert.ok(homebrew.includes("src/dx/output/*"));
+    assert.ok(homebrew.includes("src/dx/report/constants.ts"));
   });
 
   test("verifies a release tag before running repository code", () => {

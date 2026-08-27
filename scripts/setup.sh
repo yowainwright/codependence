@@ -57,16 +57,22 @@ reset_hooks_path() {
 install_pre_commit_hook() {
   path="$HOOKS_DIR/pre-commit"
 
-  if [ -f "$path" ] && ! grep -Eq '^(bun|nub) run lint$' "$path"; then
+  if [ -f "$path" ] && ! grep -Eq '^(mise exec -- )?(bun|nub) run lint$' "$path"; then
     log "pre-commit hook already exists, skipping..."
     return
   fi
 
   cat > "$path" <<'EOF'
 #!/bin/sh
-mise exec -- nub run lint
-mise exec -- nub run build
-mise exec -- nub run test
+set -eu
+
+if ! command -v nub >/dev/null 2>&1 && command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate sh)"
+fi
+
+nub run lint
+nub run build
+nub run test
 EOF
   chmod +x "$path"
   log "Installed pre-commit hook"
@@ -184,6 +190,19 @@ install_claude_settings() {
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test ! -f package.json || nub run lint:agent",
+            "timeout": 120,
+            "statusMessage": "Checking agent lint"
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
@@ -235,6 +254,19 @@ install_codex_hooks() {
             "command": "test ! -x \"$HOME/.agents/bin/agent-sync\" || \"$HOME/.agents/bin/agent-sync\" hook git --codex",
             "timeout": 5,
             "statusMessage": "Checking Git permissions"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test ! -f package.json || nub run lint:agent",
+            "timeout": 120,
+            "statusMessage": "Checking agent lint"
           }
         ]
       }

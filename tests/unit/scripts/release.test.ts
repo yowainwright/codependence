@@ -1,6 +1,13 @@
 import { describe, test, mock } from "node:test";
 import assert from "node:assert/strict";
-import { assertCalledWith, assertContainsEqual, assertNotContainsEqual, assertRejects, assertThrows, match } from "../../helpers/assertions";
+import {
+  assertCalledWith,
+  assertContainsEqual,
+  assertNotContainsEqual,
+  assertRejects,
+  assertThrows,
+  match,
+} from "../../helpers/assertions";
 import {
   buildCurrentVersionTagPlan,
   buildReleaseItArgs,
@@ -11,9 +18,13 @@ import {
   parseArgs,
   parseReleaseVersion,
   releaseTagExists,
+  renderSchemaMetadata,
   resolveAvailableReleaseVersion,
-  runRelease,
+  runRelease as runReleaseCommand,
+  updateSchemaMetadata,
+  type ReleaseOptions,
   type ReleaseRunner,
+  type SchemaMetadataWriter,
 } from "../../../scripts/release";
 import type { GitResult } from "../../../scripts/release";
 
@@ -21,6 +32,10 @@ const MERGE_COMMIT = "a".repeat(40);
 const ok = (stdout = ""): GitResult => ({ status: 0, stdout, stderr: "" });
 const absent = (): GitResult => ({ status: 1, stdout: "", stderr: "" });
 const missing = (): GitResult => ({ status: 2, stdout: "", stderr: "" });
+const noopSchemaMetadataWriter: SchemaMetadataWriter = () => {};
+
+const runRelease = (options: ReleaseOptions) =>
+  runReleaseCommand({ schemaMetadataWriter: noopSchemaMetadataWriter, ...options });
 
 interface ReleaseFlowState {
   autoMergeDisabled?: boolean;
@@ -31,6 +46,7 @@ interface ReleaseFlowState {
   localBranch?: boolean;
   mergedPullRequest?: boolean;
   mergedVersion?: boolean;
+  missingReleaseSchema?: boolean;
   mismatchedMergedAncestry?: boolean;
   mismatchedMergedDiff?: boolean;
   mismatchedMergedRefs?: boolean;
@@ -43,6 +59,7 @@ interface ReleaseFlowState {
 interface ReleaseFlowRuntimeState {
   autoMergeQueued: boolean;
   pendingReadCount: number;
+  schemaMetadataCompleted: boolean;
 }
 
 function createRunner(overrides: Record<string, GitResult> = {}) {
@@ -92,6 +109,7 @@ function releaseBranchResult(
   key: string,
   prUrl: string,
   state: ReleaseFlowState,
+  runtime: ReleaseFlowRuntimeState,
 ): GitResult | undefined {
   if (key.startsWith("gh pr list --head release/v1.2.4")) {
     const headRefOid = state.mismatchedPullRequest ? "b".repeat(40) : MERGE_COMMIT;
@@ -122,7 +140,11 @@ function releaseBranchResult(
   if (key === "git rev-parse release/v1.2.4^") return ok("abc\n");
   if (key === "git rev-parse refs/heads/release/v1.2.4") return ok(`${MERGE_COMMIT}\n`);
   if (key === "git diff-tree --no-commit-id --name-only -r release/v1.2.4") {
-    const changedFiles = state.extraReleaseFile ? "package.json\nsrc/index.ts\n" : "package.json\n";
+    const releaseFiles = "package.json\nsrc/config/schema.json\n";
+    const missingSchema = state.missingReleaseSchema && !runtime.schemaMetadataCompleted;
+    if (missingSchema) return ok("package.json\n");
+
+    const changedFiles = state.extraReleaseFile ? `${releaseFiles}src/index.ts\n` : releaseFiles;
     return ok(changedFiles);
   }
   if (key === "git diff --unified=0 origin/main release/v1.2.4 -- package.json") {
@@ -130,6 +152,11 @@ function releaseBranchResult(
       return ok('-  "version": "1.2.3",\n+  "version": "1.2.4",\n+  "private": false,\n');
     }
     return ok('-  "version": "1.2.3",\n+  "version": "1.2.4",\n');
+  }
+  if (key === "git diff --unified=0 origin/main release/v1.2.4 -- src/config/schema.json") {
+    return ok(
+      '-  "x-revision": "1.2.3",\n+  "x-revision": "1.2.4",\n-  "x-updated": "2026-08-25",\n+  "x-updated": "2026-08-26",\n',
+    );
   }
   return undefined;
 }
@@ -144,20 +171,31 @@ function mergedCommitResult(key: string, state: ReleaseFlowState): GitResult | u
     return ok(JSON.stringify({ version }));
   }
   if (key === `git diff-tree --no-commit-id --name-only -r ${MERGE_COMMIT}`) {
-    const files = state.extraMergedFile ? "package.json\nsrc/index.ts\n" : "package.json\n";
+    const releaseFiles = "package.json\nsrc/config/schema.json\n";
+    const files = state.extraMergedFile ? `${releaseFiles}src/index.ts\n` : releaseFiles;
     return ok(files);
   }
   if (key === `git diff --unified=0 abc ${MERGE_COMMIT} -- package.json`) {
     const extra = state.mismatchedMergedDiff ? '+  "private": false,\n' : "";
     return ok(`-  "version": "1.2.2",\n+  "version": "${version}",\n${extra}`);
   }
+  if (key === `git diff --unified=0 abc ${MERGE_COMMIT} -- src/config/schema.json`) {
+    return ok(
+      `-  "x-revision": "1.2.2",\n+  "x-revision": "${version}",\n-  "x-updated": "2026-08-25",\n+  "x-updated": "2026-08-26",\n`,
+    );
+  }
   return undefined;
 }
 
-function releaseFlowResult(key: string, prUrl: string, state: ReleaseFlowState): GitResult {
+function releaseFlowResult(
+  key: string,
+  prUrl: string,
+  state: ReleaseFlowState,
+  runtime: ReleaseFlowRuntimeState,
+): GitResult {
   const mergedResult = mergedVersionResult(key, prUrl, state);
   if (mergedResult) return mergedResult;
-  const branchResult = releaseBranchResult(key, prUrl, state);
+  const branchResult = releaseBranchResult(key, prUrl, state, runtime);
   if (branchResult) return branchResult;
   const mergedCommit = mergedCommitResult(key, state);
   if (mergedCommit) return mergedCommit;
@@ -209,15 +247,16 @@ function releaseFlowStateOverride(
 
 function createReleaseFlowRunner(prUrl: string, state: ReleaseFlowState = {}) {
   const calls: string[][] = [];
-  const runtime = { autoMergeQueued: false, pendingReadCount: 0 };
+  const runtime = { autoMergeQueued: false, pendingReadCount: 0, schemaMetadataCompleted: false };
   const runner = mock.fn<ReleaseRunner>((command, args) => {
     const call = [command, ...Array.from(args)];
     calls[calls.length] = call;
     const key = call.join(" ");
     if (key.startsWith("gh pr merge --auto ")) runtime.autoMergeQueued = true;
+    if (key === "git commit --amend --no-edit --no-verify") runtime.schemaMetadataCompleted = true;
     const override = releaseFlowStateOverride(key, state, runtime);
     if (override) return override;
-    return releaseFlowResult(key, prUrl, state);
+    return releaseFlowResult(key, prUrl, state, runtime);
   });
   return { calls, runner };
 }
@@ -260,6 +299,7 @@ describe("scripts/release plans", () => {
     assert.strictEqual((plan.branch), "release/v1.2.4");
     assert.strictEqual((plan.pullRequestTitle), "chore(release): v1.2.4");
     assert.ok((output).includes("verify repository auto-merge"));
+    assert.ok((output).includes("stamp schema metadata"));
     assert.ok((output).includes("queue auto-merge for the release PR"));
   });
 
@@ -275,6 +315,49 @@ describe("scripts/release versions", () => {
     assert.strictEqual((incrementStableVersion("1.2.3", "minor")), "1.3.0");
     assert.strictEqual((incrementStableVersion("1.2.3", "major")), "2.0.0");
     assert.strictEqual((incrementPreReleaseVersion("1.2.4-beta.7", "beta")), "1.2.4-beta.8");
+  });
+
+  test("updates schema metadata from the release version", () => {
+    const schema = {
+      "x-created": "2025-11-23",
+      "x-revision": "1.2.3",
+      "x-updated": "2026-08-25",
+    };
+    const date = new Date("2026-08-26T23:59:59.000Z");
+    const updated = updateSchemaMetadata(schema, "1.2.4", date);
+
+    assert.deepStrictEqual((updated), {
+      "x-created": "2025-11-23",
+      "x-revision": "1.2.4",
+      "x-updated": "2026-08-26",
+    });
+  });
+
+  test("renders schema metadata without reformatting other schema lines", () => {
+    const schema = [
+      "{",
+      '  "x-revision": 2,',
+      '  "x-created": "2025-11-23",',
+      '  "x-updated": "2026-08-25",',
+      '  "enum": ["circleci", "helm"]',
+      "}",
+      "",
+    ].join("\n");
+    const date = new Date("2026-08-26T23:59:59.000Z");
+    const rendered = renderSchemaMetadata(schema, "1.2.4", date);
+
+    assert.strictEqual(
+      rendered,
+      [
+        "{",
+        '  "x-revision": "1.2.4",',
+        '  "x-created": "2025-11-23",',
+        '  "x-updated": "2026-08-26",',
+        '  "enum": ["circleci", "helm"]',
+        "}",
+        "",
+      ].join("\n"),
+    );
   });
 
   test("checks local and remote tags", () => {
@@ -347,6 +430,66 @@ describe("scripts/release flow", () => {
     assert.strictEqual((code), 0);
     assertContainsEqual((calls), mergeCall);
     assertContainsEqual((calls), tagCall);
+  });
+
+  test("stamps schema metadata before pushing the release branch", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const { calls, runner } = createReleaseFlowRunner(prUrl);
+    const schemaMetadataWriter: SchemaMetadataWriter = (cwd, version) => {
+      calls[calls.length] = ["schemaMetadataWriter", cwd, version];
+    };
+    const options = {
+      cwd: "/repo",
+      increment: "patch" as const,
+      logger,
+      packageVersion: "1.2.3",
+      runner,
+    };
+    const code = await runRelease({ ...options, schemaMetadataWriter });
+    const stamp = "schemaMetadataWriter /repo 1.2.4";
+    const add = "git add src/config/schema.json";
+    const amend = "git commit --amend --no-edit --no-verify";
+    const push = "git push --set-upstream origin release/v1.2.4";
+    const releaseItIndex = calls.findIndex((call) => call[0] === "./node_modules/.bin/release-it");
+    const stampIndex = calls.findIndex((call) => call.join(" ") === stamp);
+    const addIndex = calls.findIndex((call) => call.join(" ") === add);
+    const amendIndex = calls.findIndex((call) => call.join(" ") === amend);
+    const pushIndex = calls.findIndex((call) => call.join(" ") === push);
+
+    assert.strictEqual((code), 0);
+    assert.ok((stampIndex) > releaseItIndex);
+    assert.ok((addIndex) > stampIndex);
+    assert.ok((amendIndex) > addIndex);
+    assert.ok((pushIndex) > amendIndex);
+  });
+
+  test("completes an interrupted local release commit before pushing", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { localBranch: true, missingReleaseSchema: true };
+    const { calls, runner } = createReleaseFlowRunner(prUrl, state);
+    const schemaMetadataWriter: SchemaMetadataWriter = (cwd, version) => {
+      calls[calls.length] = ["schemaMetadataWriter", cwd, version];
+    };
+    const options = {
+      cwd: "/repo",
+      increment: "patch" as const,
+      logger,
+      packageVersion: "1.2.3",
+      runner,
+      schemaMetadataWriter,
+    };
+    const code = await runRelease(options);
+    const ranReleaseItCommit = calls.some(
+      (call) => call[0] === "./node_modules/.bin/release-it" && call[1] === "1.2.4",
+    );
+
+    assert.strictEqual((code), 0);
+    assertContainsEqual((calls), ["schemaMetadataWriter", "/repo", "1.2.4"]);
+    assertContainsEqual((calls), ["git", "add", "src/config/schema.json"]);
+    assertContainsEqual((calls), ["git", "commit", "--amend", "--no-edit", "--no-verify"]);
+    assert.strictEqual((ranReleaseItCommit), false);
   });
 
   test("fails before version files change when repository auto-merge is disabled", async () => {
