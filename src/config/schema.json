@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://unpkg.com/codependence/src/config/schema.json",
-  "x-revision": "1.0.14",
+  "x-revision": "1.0.15",
   "x-created": "2025-11-23",
   "x-updated": "2026-08-28",
   "x-history": "https://github.com/yowainwright/codependence/commits/main/src/config/schema.json",
