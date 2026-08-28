@@ -158,22 +158,24 @@ export const formatVersionTable = (
     { header: "Previous", width: 12, align: "left" },
     { header: "Updated", width: 12, align: "left" },
   ];
-  const columns = mode === "check" ? checkColumns : updateColumns;
+
+  if (mode === "check") {
+    const rows = diffs.map(({ package: packageName, current, latest }) => ({
+      Package: packageName,
+      Current: current,
+      Available: green(latest),
+    }));
+    return createTable(checkColumns, rows);
+  }
+
   const rows = diffs.map(({ package: packageName, current, latest, installed, isPinned }) => {
     const installedVersion = installed || latest;
     const formattedUpdated = isPinned ? yellow(installedVersion) : green(installedVersion);
-    if (mode === "check") {
-      return {
-        Package: packageName,
-        Current: current,
-        Available: green(latest),
-      };
-    }
     return {
       Package: packageName,
       Previous: current,
       Updated: formattedUpdated,
     };
   });
-  return createTable(columns, rows);
+  return createTable(updateColumns, rows);
 };
