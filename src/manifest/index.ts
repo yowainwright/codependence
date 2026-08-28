@@ -103,6 +103,11 @@ const isFileInNamedDirectory = (normalizedDir: string, directoryName: string): b
   return normalizedDir.startsWith(`${directoryName}/`);
 };
 
+const isManifestPath = (normalizedFile: string, manifestPath: string): boolean => {
+  if (normalizedFile === manifestPath) return true;
+  return normalizedFile.endsWith(`/${manifestPath}`);
+};
+
 const isSupportedLanguageName = (language: string | undefined): language is SupportedLanguage => {
   if (!language) return false;
 
@@ -138,8 +143,9 @@ const inferLanguageFromFile = (file: string): SupportedLanguage | null => {
   const manifestName = basename(file);
   const normalizedFile = file.replaceAll("\\", "/");
   const normalizedDir = dirname(normalizedFile).replaceAll("\\", "/");
-  const normalizedFileParts = normalizedFile.split("/");
-  const isCircleCIConfig = normalizedFileParts.some((part) => CIRCLECI_MANIFESTS.has(part));
+  const isCircleCIConfig = Array.from(CIRCLECI_MANIFESTS).some((manifest) =>
+    isManifestPath(normalizedFile, manifest),
+  );
   const isGithubWorkflow =
     normalizedDir === ".github/workflows" || normalizedDir.endsWith("/.github/workflows");
   const isKubernetesDir = Array.from(KUBERNETES_DIRECTORIES).some((dir) =>

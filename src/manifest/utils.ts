@@ -136,7 +136,10 @@ const toVersionDiff = (
   const withinLevel = isWithinLevel(currentVersion, latestVersion, level, versionStrategy);
   const currentExactVersion = stripVersionPrefix(currentVersion);
   const latestExactVersion = stripVersionPrefix(latestVersion);
-  const isDifferent = currentExactVersion !== latestExactVersion;
+  let isDifferent = currentExactVersion !== latestExactVersion;
+  if (isExplicitTargetSpec(latestVersion)) {
+    isDifferent = latestVersion !== currentVersion;
+  }
   const isPinned = codependencies.includes(pkgName);
   const { bumpCharacter } = constructVersionTypes(currentVersion);
   const installed = constructExpectedVersion(bumpCharacter, latestVersion);

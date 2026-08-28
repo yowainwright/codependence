@@ -86,6 +86,22 @@ describe("buildVersionDiff", () => {
     assert.strictEqual(diffs[1].willUpdate, false);
   });
 
+  test("marks explicit prefix changes as actionable", () => {
+    const diffs = buildVersionDiff(
+      { lodash: "^1.0.0" },
+      {
+        dependencies: {
+          lodash: "~1.0.0",
+        },
+      },
+      ["lodash"],
+      false,
+    );
+
+    assert.strictEqual(diffs[0].willUpdate, true);
+    assert.strictEqual(diffs[0].installed, "^1.0.0");
+  });
+
   test("should handle devDependencies", () => {
     const versionMap = {
       jest: "29.0.0",

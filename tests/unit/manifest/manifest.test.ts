@@ -2123,6 +2123,29 @@ test("checkFiles => updates CircleCI orb and image pins", async () => {
   }
 });
 
+test("checkFiles => auto-detects CircleCI config paths", async () => {
+  const tempDir = createTestDirectory();
+  const configDir = join(tempDir, ".circleci");
+  const configPath = join(configDir, "config.yml");
+  rmSync(tempDir, { recursive: true, force: true });
+  mkdirSync(configDir, { recursive: true });
+  writeFileSync(configPath, "orbs:\n  node: circleci/node@7.1.0\n");
+
+  try {
+    await checkFiles({
+      codependencies: [{ "circleci/node": "7.2.0" }],
+      files: [".circleci/config.yml"],
+      rootDir: tempDir,
+      silent: true,
+      update: true,
+    });
+
+    assert.ok(readFileSync(configPath, "utf8").includes("circleci/node@7.2.0"));
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("checkFiles => updates Kubernetes image pins", async () => {
   const tempDir = createTestDirectory();
   const manifestPath = join(tempDir, "deployment.yaml");
