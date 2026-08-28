@@ -92,6 +92,16 @@ const LOCKFILE_EXEMPT_LANGUAGES = new Set<SupportedLanguage>([
   LANGUAGES.KUSTOMIZE,
   LANGUAGES.TERRAFORM,
 ]);
+const CIRCLECI_MANIFESTS = new Set([
+  MANIFEST_FILES.CIRCLECI_CONFIG_YML,
+  MANIFEST_FILES.CIRCLECI_CONFIG_YAML,
+]);
+const KUBERNETES_DIRECTORIES = new Set(["k8s", "kubernetes", "manifests"]);
+
+const isFileInNamedDirectory = (normalizedDir: string, directoryName: string): boolean => {
+  if (normalizedDir === directoryName) return true;
+  return normalizedDir.startsWith(`${directoryName}/`);
+};
 
 const isSupportedLanguageName = (language: string | undefined): language is SupportedLanguage => {
   if (!language) return false;
@@ -128,20 +138,15 @@ const inferLanguageFromFile = (file: string): SupportedLanguage | null => {
   const manifestName = basename(file);
   const normalizedFile = file.replaceAll("\\", "/");
   const normalizedDir = dirname(normalizedFile).replaceAll("\\", "/");
-  const isCircleCIConfig =
-    normalizedFile === MANIFEST_FILES.CIRCLECI_CONFIG_YML ||
-    normalizedFile === MANIFEST_FILES.CIRCLECI_CONFIG_YAML ||
-    normalizedFile.endsWith(`/${MANIFEST_FILES.CIRCLECI_CONFIG_YML}`) ||
-    normalizedFile.endsWith(`/${MANIFEST_FILES.CIRCLECI_CONFIG_YAML}`);
+  const normalizedFileParts = normalizedFile.split("/");
+  const isCircleCIConfig = normalizedFileParts.some((part) => CIRCLECI_MANIFESTS.has(part));
   const isGithubWorkflow =
     normalizedDir === ".github/workflows" || normalizedDir.endsWith("/.github/workflows");
-  const isKubernetesManifest =
-    normalizedDir === "k8s" ||
-    normalizedDir.startsWith("k8s/") ||
-    normalizedDir === "kubernetes" ||
-    normalizedDir.startsWith("kubernetes/") ||
-    normalizedDir === "manifests" ||
-    normalizedDir.startsWith("manifests/");
+  const isKubernetesDir = Array.from(KUBERNETES_DIRECTORIES).some((dir) =>
+    isFileInNamedDirectory(normalizedDir, dir),
+  );
+  const isYamlManifest = manifestName.endsWith(".yml") || manifestName.endsWith(".yaml");
+  const isKubernetesManifest = isKubernetesDir && isYamlManifest;
 
   if (manifestName === MANIFEST_FILES.PACKAGE_JSON) return LANGUAGES.NODEJS;
   if (manifestName === MANIFEST_FILES.GO_MOD) return LANGUAGES.GO;
@@ -157,7 +162,7 @@ const inferLanguageFromFile = (file: string): SupportedLanguage | null => {
   if (isGithubWorkflow) {
     return LANGUAGES.GITHUB_ACTIONS;
   }
-  if (isKubernetesManifest && (manifestName.endsWith(".yml") || manifestName.endsWith(".yaml"))) {
+  if (isKubernetesManifest) {
     return LANGUAGES.KUBERNETES;
   }
   if (PYTHON_MANIFEST_NAMES.has(manifestName)) return LANGUAGES.PYTHON;
