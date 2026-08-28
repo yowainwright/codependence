@@ -133,16 +133,15 @@ const toVersionDiff = (
   context: VersionDiffContext,
 ): VersionDiff => {
   const { codependencies, permissive, level, versionStrategy } = context;
+  const currentVersionTypes = constructVersionTypes(currentVersion);
+  const latestVersionTypes = constructVersionTypes(latestVersion);
   const withinLevel = isWithinLevel(currentVersion, latestVersion, level, versionStrategy);
-  const currentExactVersion = stripVersionPrefix(currentVersion);
-  const latestExactVersion = stripVersionPrefix(latestVersion);
-  let isDifferent = currentExactVersion !== latestExactVersion;
+  let isDifferent = currentVersionTypes.exactVersion !== latestVersionTypes.exactVersion;
   if (isExplicitTargetSpec(latestVersion)) {
     isDifferent = latestVersion !== currentVersion;
   }
   const isPinned = codependencies.includes(pkgName);
-  const { bumpCharacter } = constructVersionTypes(currentVersion);
-  const installed = constructExpectedVersion(bumpCharacter, latestVersion);
+  const installed = constructExpectedVersion(currentVersionTypes.bumpCharacter, latestVersion);
   const isPermissiveUpdate = !isPinned && isDifferent && withinLevel;
   const isStandardUpdate = isPinned && isDifferent && withinLevel;
   const willUpdate = permissive ? isPermissiveUpdate : isStandardUpdate;

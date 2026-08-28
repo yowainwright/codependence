@@ -102,6 +102,22 @@ describe("buildVersionDiff", () => {
     assert.strictEqual(diffs[0].installed, "^1.0.0");
   });
 
+  test("marks leading-v changes as actionable", () => {
+    const diffs = buildVersionDiff(
+      { lodash: "1.2.3" },
+      {
+        dependencies: {
+          lodash: "v1.2.3",
+        },
+      },
+      ["lodash"],
+      false,
+    );
+
+    assert.strictEqual(diffs[0].willUpdate, true);
+    assert.strictEqual(diffs[0].installed, "1.2.3");
+  });
+
   test("should handle devDependencies", () => {
     const versionMap = {
       jest: "29.0.0",
