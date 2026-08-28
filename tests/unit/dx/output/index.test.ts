@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { createAnsiPattern } from "../../../../src/dx/constants";
 import {
   green,
   red,
@@ -43,10 +44,13 @@ describe("colors", () => {
     assert.strictEqual(result, "\x1b[1mimportant\x1b[0m");
   });
 
-  it("should apply gradient (bold cyan)", () => {
+  it("should apply gradient", () => {
     const result = gradient("codependence");
-    assert.ok(result.includes("\x1b[36m"));
-    assert.ok(result.includes("codependence"));
+    const plain = result.replace(createAnsiPattern(), "");
+    assert.ok(result.includes("\x1b[38;2;0;194;255m"));
+    assert.ok(result.includes("\x1b[38;2;188;92;255m"));
+    assert.ok(result.includes("\x1b[1m"));
+    assert.strictEqual(plain, "codependence");
   });
 
   it("should handle empty strings", () => {

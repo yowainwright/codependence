@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createLogger, logger } from "../observability";
 import { checkFiles } from "../manifest";
 import { versionCache } from "../manifest";
-import { bold, createSpinner, cyan, gray, green, red } from "../dx/output";
+import { createSpinner, cyan, gradient, gray, green, red } from "../dx/output";
 import { SYMBOLS } from "../dx/report/constants";
 import { Prompt } from "../dx";
 import { exec } from "../utils/process";
@@ -100,8 +100,6 @@ import type { BinaryArgv } from "./types";
 export { configureBinaryHost } from "./utils";
 
 export const programDependencies = { checkFiles, exec, loadConfig };
-
-const gradient = (text: string) => bold(cyan(text));
 
 const isInitType = (value: string | undefined): value is InitType =>
   INIT_TYPES.includes(value as InitType);
@@ -1153,9 +1151,18 @@ export const mergeConfigs = (
   const effectiveBaseConfig = omitOverriddenTargets(selectedBaseConfig, options);
   const effectivePathConfig = omitOverriddenTargets(normalizedPathConfig, options);
 
-  const updatedConfig = Object.assign({}, effectiveBaseConfig, effectivePathConfig, options, {
+  const mergedConfig = Object.assign({}, effectiveBaseConfig, effectivePathConfig, options, {
     isCLI: true,
   });
+  const hasExplicitUpdate = Boolean(options.update);
+  const hasExplicitDryRun = options.dryRun !== undefined;
+  const hasInheritedDryRun = Boolean(mergedConfig.dryRun);
+  const shouldDisableInheritedDryRun =
+    hasExplicitUpdate && hasInheritedDryRun && !hasExplicitDryRun;
+  let updatedConfig = mergedConfig;
+  if (shouldDisableInheritedDryRun) {
+    updatedConfig = Object.assign({}, mergedConfig, { dryRun: false });
+  }
 
   const {
     config: _usedConfig,
@@ -1266,8 +1273,6 @@ export async function action(options: Options = {}): Promise<void | Options> {
 
   if (isTestingAction) return mergedOptions;
 
-  let spinner: ReturnType<typeof createSpinner> | null = null;
-
   try {
     const updatedOptions = withDefaultMode(mergedOptions);
     validateEffectiveConfig(updatedOptions);
@@ -1288,18 +1293,10 @@ export async function action(options: Options = {}): Promise<void | Options> {
     const startTime = Date.now();
     const formatType = updatedOptions.format || "table";
     const shouldUseFormatter = updatedOptions.format !== undefined;
-    const shouldUseSpinner = !shouldUseFormatter && !isOutputSuppressed;
-
-    spinner = shouldUseSpinner
-      ? createSpinner(`🤼‍♀️ ${gradient(`codependence`)} wrestling...\n`).start()
-      : null;
+    const shouldShowStatus = !shouldUseFormatter && !isOutputSuppressed;
 
     const optionsWithProgress = Object.assign({}, updatedOptions, {
-      onProgress: (current: number, total: number, packageName: string) => {
-        if (spinner) {
-          spinner.text = `🤼‍♀️ ${gradient(`codependence`)} checking ${packageName} (${current}/${total})`;
-        }
-      },
+      onProgress: () => {},
     });
 
     const { diffs, failed } = await runTargets(targets, optionsWithProgress.onProgress);
@@ -1322,14 +1319,23 @@ export async function action(options: Options = {}): Promise<void | Options> {
         actionLogger.print(formattedOutput);
       }
     } else {
+      const hasActionableDiffs = diffs.some((diff) => diff.willUpdate);
       const successMessage = isDryRun
         ? `🤼‍♀️ ${gradient(`codependence`)} dry run complete!`
-        : `🤼‍♀️ ${gradient(`codependence`)} pinned!`;
+        : "pinned!";
+      const detailedSuccessMessage = `🤼‍♀️ ${gradient(`codependence`)} pinned!`;
+      const updateSuccessMessage = hasActionableDiffs ? detailedSuccessMessage : successMessage;
       const failureMessage = `${gradient(`codependence`)} found dependency issues.`;
+      const shouldShowLeadingStatus = failed || hasActionableDiffs || isDryRun;
 
-      if (spinner) {
-        if (failed) spinner.fail(failureMessage);
-        else spinner.succeed(successMessage);
+      if (shouldShowStatus) {
+        if (shouldShowLeadingStatus) {
+          actionLogger.print(`🤼‍♀️ ${gradient(`codependence`)} wrestling...`);
+        }
+        const resultMessage = failed
+          ? `${SYMBOLS.error} ${failureMessage}`
+          : `${SYMBOLS.success} ${updateSuccessMessage}`;
+        actionLogger.print(resultMessage);
       }
 
       const shouldShowMetrics = Boolean(updatedOptions.verbose);
@@ -1338,7 +1344,6 @@ export async function action(options: Options = {}): Promise<void | Options> {
       }
     }
   } catch (err) {
-    spinner?.stop();
     actionLogger.error(errorMessage(err));
     process.exit(CLI_ERROR_EXIT_CODE);
   }

@@ -15,6 +15,7 @@ import { dirname, join } from "path";
 import { logger } from "../../../src/observability";
 import * as config from "../../../src/config";
 import { Prompt } from "../../../src/dx";
+import { createAnsiPattern } from "../../../src/dx/constants";
 import { GENERATED_ACTION_HEADER } from "../../../src/cli/constants";
 
 import {
@@ -507,6 +508,31 @@ describe("Action Function Tests (Fast)", () => {
     consoleSpy.mock.restore();
   });
 
+  test("prints the checking status once", async () => {
+    const consoleSpy = mock.method(console, "log", () => {});
+    scriptSpy.mock.mockImplementation(async () => [
+      {
+        package: "lodash",
+        current: "4.17.0",
+        latest: "4.17.21",
+        isPinned: true,
+        willUpdate: true,
+      },
+    ]);
+
+    await action({
+      codependencies: ["lodash"],
+    });
+
+    const calls = consoleSpy.mock.calls.flatMap((call) => call.arguments);
+    const statusCalls = calls.filter(
+      (argument) => String(argument).includes("wrestling"),
+    );
+
+    assert.strictEqual(statusCalls.length, 1);
+    consoleSpy.mock.restore();
+  });
+
   test("should execute script with verbose mode", async () => {
     const consoleSpy = mock.method(console, "log", () => {});
 
@@ -526,6 +552,27 @@ describe("Action Function Tests (Fast)", () => {
     });
 
     assert.ok(scriptSpy.mock.callCount() > 0);
+  });
+
+  test("prints short pinned status when there are no updates", async () => {
+    const consoleSpy = mock.method(console, "log", () => {});
+
+    try {
+      await action({
+        codependencies: ["lodash"],
+        update: true,
+      });
+
+      const output = consoleSpy.mock.calls
+        .flatMap((call) => call.arguments)
+        .join("\n")
+        .replace(createAnsiPattern(), "");
+      assert.ok(output.includes("✓ pinned!"));
+      assert.ok(!output.includes("codependence pinned!"));
+      assert.ok(!output.includes("wrestling"));
+    } finally {
+      consoleSpy.mock.restore();
+    }
   });
 
   test("should pass and invoke onProgress callback", async () => {
@@ -1644,6 +1691,20 @@ describe("mergeConfigs", () => {
     assert.deepStrictEqual(result.codependencies, ["react"]);
     assert.strictEqual(result.permissive, true);
     assert.strictEqual(result.rootDir, undefined);
+  });
+
+  test("explicit update clears configured dryRun", () => {
+    const result = mergeConfigs({ update: true }, { dryRun: true }, {});
+
+    assert.strictEqual(result.update, true);
+    assert.strictEqual(result.dryRun, false);
+  });
+
+  test("explicit dryRun keeps configured update in preview mode", () => {
+    const result = mergeConfigs({ dryRun: true }, { update: true }, {});
+
+    assert.strictEqual(result.update, true);
+    assert.strictEqual(result.dryRun, true);
   });
 });
 

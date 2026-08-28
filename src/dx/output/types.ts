@@ -30,5 +30,8 @@ export interface TableVersionDiff {
   package: string;
   current: string;
   latest: string;
+  installed?: string;
   isPinned: boolean;
 }
+
+export type VersionTableMode = "check" | "update";

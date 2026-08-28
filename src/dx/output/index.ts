@@ -15,7 +15,7 @@ export {
   success,
   yellow,
 } from "./utils";
-export type { Spinner, TableColumn, TableRow, TableVersionDiff } from "./types";
+export type { Spinner, TableColumn, TableRow, TableVersionDiff, VersionTableMode } from "./types";
 
 const singleLineText = (text: string): string => text.replace(LINE_BREAKS, " ").trimEnd();
 

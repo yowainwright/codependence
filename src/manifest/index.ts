@@ -29,17 +29,21 @@ import type {
 } from "../providers/types";
 import {
   collectDiffsFromManifests,
+  constructExpectedVersion,
+  constructVersionTypes,
   displayVersionDiffs,
+  isExplicitTargetSpec,
   isWithinLevel,
-  stripRepeatingVersionPrefixes,
   validatePackageName,
 } from "./utils";
 import { exec } from "../utils/process";
 import { glob } from "../utils/fs";
 import { logger } from "../observability";
-import { defaultOutput, item, Prompt } from "../dx";
+import { Prompt } from "../dx";
 import { versionCache, requestDeduplicator } from "./utils";
+import { formatVersionTable } from "../dx/output";
 import { formatEnhancedError } from "../dx/report";
+import { SYMBOLS } from "../dx/report/constants";
 import {
   DEFAULT_IGNORE_PATTERNS,
   DEFAULT_FILE_MATCHERS,
@@ -62,7 +66,6 @@ import type {
   ProviderResolution,
   VersionResolver,
 } from "./types";
-import { STRICT_INEQUALITY_VERSION_PREFIXES, VERSION_PREFIXES } from "./constants";
 import type {
   CheckFiles,
   ConstructVersionMapOptions,
@@ -78,6 +81,8 @@ import type {
   DependencyManager,
 } from "../types";
 
+export { constructVersionTypes } from "./utils";
+
 const LOCKFILE_EXEMPT_LANGUAGES = new Set<SupportedLanguage>([
   LANGUAGES.DOCKER,
   LANGUAGES.CIRCLECI,
@@ -87,6 +92,21 @@ const LOCKFILE_EXEMPT_LANGUAGES = new Set<SupportedLanguage>([
   LANGUAGES.KUSTOMIZE,
   LANGUAGES.TERRAFORM,
 ]);
+const CIRCLECI_MANIFESTS = new Set([
+  MANIFEST_FILES.CIRCLECI_CONFIG_YML,
+  MANIFEST_FILES.CIRCLECI_CONFIG_YAML,
+]);
+const KUBERNETES_DIRECTORIES = new Set(["k8s", "kubernetes", "manifests"]);
+
+const isFileInNamedDirectory = (normalizedDir: string, directoryName: string): boolean => {
+  if (normalizedDir === directoryName) return true;
+  return normalizedDir.startsWith(`${directoryName}/`);
+};
+
+const isManifestPath = (normalizedFile: string, manifestPath: string): boolean => {
+  if (normalizedFile === manifestPath) return true;
+  return normalizedFile.endsWith(`/${manifestPath}`);
+};
 
 const isSupportedLanguageName = (language: string | undefined): language is SupportedLanguage => {
   if (!language) return false;
@@ -123,20 +143,16 @@ const inferLanguageFromFile = (file: string): SupportedLanguage | null => {
   const manifestName = basename(file);
   const normalizedFile = file.replaceAll("\\", "/");
   const normalizedDir = dirname(normalizedFile).replaceAll("\\", "/");
-  const isCircleCIConfig =
-    normalizedFile === MANIFEST_FILES.CIRCLECI_CONFIG_YML ||
-    normalizedFile === MANIFEST_FILES.CIRCLECI_CONFIG_YAML ||
-    normalizedFile.endsWith(`/${MANIFEST_FILES.CIRCLECI_CONFIG_YML}`) ||
-    normalizedFile.endsWith(`/${MANIFEST_FILES.CIRCLECI_CONFIG_YAML}`);
+  const isCircleCIConfig = Array.from(CIRCLECI_MANIFESTS).some((manifest) =>
+    isManifestPath(normalizedFile, manifest),
+  );
   const isGithubWorkflow =
     normalizedDir === ".github/workflows" || normalizedDir.endsWith("/.github/workflows");
-  const isKubernetesManifest =
-    normalizedDir === "k8s" ||
-    normalizedDir.startsWith("k8s/") ||
-    normalizedDir === "kubernetes" ||
-    normalizedDir.startsWith("kubernetes/") ||
-    normalizedDir === "manifests" ||
-    normalizedDir.startsWith("manifests/");
+  const isKubernetesDir = Array.from(KUBERNETES_DIRECTORIES).some((dir) =>
+    isFileInNamedDirectory(normalizedDir, dir),
+  );
+  const isYamlManifest = manifestName.endsWith(".yml") || manifestName.endsWith(".yaml");
+  const isKubernetesManifest = isKubernetesDir && isYamlManifest;
 
   if (manifestName === MANIFEST_FILES.PACKAGE_JSON) return LANGUAGES.NODEJS;
   if (manifestName === MANIFEST_FILES.GO_MOD) return LANGUAGES.GO;
@@ -152,7 +168,7 @@ const inferLanguageFromFile = (file: string): SupportedLanguage | null => {
   if (isGithubWorkflow) {
     return LANGUAGES.GITHUB_ACTIONS;
   }
-  if (isKubernetesManifest && (manifestName.endsWith(".yml") || manifestName.endsWith(".yaml"))) {
+  if (isKubernetesManifest) {
     return LANGUAGES.KUBERNETES;
   }
   if (PYTHON_MANIFEST_NAMES.has(manifestName)) return LANGUAGES.PYTHON;
@@ -830,37 +846,6 @@ export const constructVersionMap = async ({
   return versionMap;
 };
 
-export const constructVersionTypes = (version: string): Record<string, string> => {
-  const prefix = VERSION_PREFIXES.find((candidate) => version.startsWith(candidate));
-
-  if (!prefix) {
-    return { bumpCharacter: "", bumpVersion: version, exactVersion: version };
-  }
-
-  const isStrictInequality = STRICT_INEQUALITY_VERSION_PREFIXES.some(
-    (strictPrefix) => strictPrefix === prefix,
-  );
-  const isRepeatingPrefix = prefix === "^" || prefix === "~";
-  const repeatedBumpCharacter = isRepeatingPrefix ? version[0] : prefix;
-  const bumpCharacter = isStrictInequality ? "" : repeatedBumpCharacter;
-  const exactVersion = isRepeatingPrefix
-    ? stripRepeatingVersionPrefixes(version)
-    : version.slice(prefix.length);
-
-  return { bumpCharacter, bumpVersion: version, exactVersion };
-};
-
-const isExplicitTargetSpec = (version: string): boolean => {
-  const { bumpVersion, exactVersion } = constructVersionTypes(version);
-  return bumpVersion !== exactVersion;
-};
-
-const constructExpectedVersion = (currentBumpCharacter: string, targetVersion: string): string => {
-  const target = constructVersionTypes(targetVersion);
-  if (isExplicitTargetSpec(targetVersion)) return target.bumpVersion;
-  return `${currentBumpCharacter}${target.exactVersion}`;
-};
-
 const isUpdatablePermissiveDep = (
   name: string,
   currentVersion: string,
@@ -1174,11 +1159,16 @@ const logDependencyIssueList = (list: DepToUpdateItem[]): void => {
   const pluralizedIssues = issueCount > 1 ? "s" : "";
   logger.info(`Found ${issueCount} dependency issue${pluralizedIssues}`);
 
-  list.forEach(({ name: depName, expected, actual }, index) => {
-    const versionMessage = `${depName}: found ${actual}, expected ${expected}`;
-    defaultOutput.writeLine(item(index + 1, versionMessage, 4));
-  });
-
+  const rows = list.map(({ name, actual, expected }) => ({
+    package: name,
+    current: actual,
+    latest: constructVersionTypes(expected).exactVersion,
+    installed: expected,
+    isPinned: false,
+    willUpdate: true,
+  }));
+  logger.print(`${SYMBOLS.info} Updated Dependencies:`);
+  logger.print(formatVersionTable(rows));
   logger.space();
 };
 
@@ -1403,8 +1393,9 @@ const checkLoadedManifests = async ({
 
   const isOutOfDate = packagesNeedingUpdate.length > 0;
   const isOutputEnabled = !isSilent && !isQuiet;
+  const shouldLogSuccess = isOutputEnabled && !isUpdating;
   if (!isOutOfDate) {
-    if (isOutputEnabled) {
+    if (shouldLogSuccess) {
       logger.info("No dependency issues found!");
     }
     return false;
@@ -1692,9 +1683,11 @@ export const checkFiles = async ({
     depNames = aliasCodependenciesForManifests(depNames, resolvedManifests);
 
     const isOutputEnabled = !silent && !quiet;
-    const hasUpdateOutput = update || dryRun;
-    const hasOutputChanges = hasUpdateOutput && isOutputEnabled;
-    const shouldCollectDiffs = format !== undefined || hasOutputChanges;
+    const hasPreviewOutput = !update || dryRun;
+    const hasOutputChanges = hasPreviewOutput && isOutputEnabled;
+    const canPromptInteractively = !dryRun && !isTesting;
+    const isInteractiveUpdate = interactive && update && canPromptInteractively;
+    const shouldCollectDiffs = format !== undefined || hasOutputChanges || isInteractiveUpdate;
     const allDiffs = shouldCollectDiffs
       ? collectDiffsFromManifests(
           versionMap,
@@ -1710,16 +1703,13 @@ export const checkFiles = async ({
       : [];
 
     const shouldShowDiffs = hasOutputChanges && format === undefined;
-    const hasDiffs = allDiffs.length > 0;
-    const shouldDisplayDiffs = shouldShowDiffs && hasDiffs;
+    const hasActionableDiffs = allDiffs.some((diff) => diff.willUpdate);
+    const shouldDisplayDiffs = shouldShowDiffs && hasActionableDiffs;
     if (shouldDisplayDiffs) {
-      displayVersionDiffs(allDiffs, dryRun);
+      displayVersionDiffs(allDiffs);
     }
 
     let shouldUpdate = update && !dryRun;
-
-    const canPromptInteractively = !dryRun && !isTesting;
-    const isInteractiveUpdate = interactive && update && canPromptInteractively;
     if (isInteractiveUpdate) {
       const result = await applyInteractiveSelection(allDiffs, depNames, versionMap);
       shouldUpdate = result.shouldUpdate;
@@ -1729,10 +1719,11 @@ export const checkFiles = async ({
 
     const shouldDeferFailure = format !== undefined || deferFailure;
     const hasFormatOutput = format !== undefined;
+    const shouldSilenceCheckOutput = silent || hasFormatOutput || shouldDisplayDiffs;
     const isOutOfDate = await checkLoadedManifests({
       manifests: resolvedManifests,
       versionMap,
-      isSilent: silent || hasFormatOutput,
+      isSilent: shouldSilenceCheckOutput,
       isVerbose: verbose,
       isQuiet: quiet,
       isUpdating: shouldUpdate,
