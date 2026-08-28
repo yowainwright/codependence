@@ -10,7 +10,9 @@ import {
   PACKAGE_NAME_EXCLUSIONS,
   REPEATING_VERSION_PREFIXES,
   SCOPED_PACKAGE_PATTERN,
+  STRICT_INEQUALITY_VERSION_PREFIXES,
   VERSION_COMPARISON_PREFIXES,
+  VERSION_PREFIXES,
 } from "./constants";
 import type { CacheEntry, CacheStats, ValidationResult } from "./types";
 
@@ -36,6 +38,38 @@ export const parseSemver = (version: string): [number, number, number] => {
   const minor = parts[1] || 0;
   const patch = parts[2] || 0;
   return [major, minor, patch];
+};
+
+export const constructVersionTypes = (version: string): Record<string, string> => {
+  const prefix = VERSION_PREFIXES.find((candidate) => version.startsWith(candidate));
+
+  if (!prefix) return { bumpCharacter: "", bumpVersion: version, exactVersion: version };
+
+  const isStrictInequality = STRICT_INEQUALITY_VERSION_PREFIXES.some(
+    (strictPrefix) => strictPrefix === prefix,
+  );
+  const isRepeatingPrefix = prefix === "^" || prefix === "~";
+  const repeatedBumpCharacter = isRepeatingPrefix ? version[0] : prefix;
+  const bumpCharacter = isStrictInequality ? "" : repeatedBumpCharacter;
+  const exactVersion = isRepeatingPrefix
+    ? stripRepeatingVersionPrefixes(version)
+    : version.slice(prefix.length);
+
+  return { bumpCharacter, bumpVersion: version, exactVersion };
+};
+
+export const isExplicitTargetSpec = (version: string): boolean => {
+  const { bumpVersion, exactVersion } = constructVersionTypes(version);
+  return bumpVersion !== exactVersion;
+};
+
+export const constructExpectedVersion = (
+  currentBumpCharacter: string,
+  targetVersion: string,
+): string => {
+  const target = constructVersionTypes(targetVersion);
+  if (isExplicitTargetSpec(targetVersion)) return target.bumpVersion;
+  return `${currentBumpCharacter}${target.exactVersion}`;
 };
 
 export const isWithinLevel = (
@@ -100,15 +134,21 @@ const toVersionDiff = (
 ): VersionDiff => {
   const { codependencies, permissive, level, versionStrategy } = context;
   const withinLevel = isWithinLevel(currentVersion, latestVersion, level, versionStrategy);
+  const currentExactVersion = stripVersionPrefix(currentVersion);
+  const latestExactVersion = stripVersionPrefix(latestVersion);
+  const isDifferent = currentExactVersion !== latestExactVersion;
   const isPinned = codependencies.includes(pkgName);
-  const isPermissiveUpdate = !isPinned && withinLevel;
-  const isStandardUpdate = isPinned && withinLevel;
+  const { bumpCharacter } = constructVersionTypes(currentVersion);
+  const installed = constructExpectedVersion(bumpCharacter, latestVersion);
+  const isPermissiveUpdate = !isPinned && isDifferent && withinLevel;
+  const isStandardUpdate = isPinned && isDifferent && withinLevel;
   const willUpdate = permissive ? isPermissiveUpdate : isStandardUpdate;
 
   return {
     package: pkgName,
     current: currentVersion,
     latest: latestVersion,
+    installed,
     isPinned,
     willUpdate,
   };
@@ -173,20 +213,16 @@ export const buildVersionDiff = (
       }),
     );
 
-export const displayVersionDiffs = (diffs: VersionDiff[], isDryRun: boolean): void => {
-  const diffsToShow = diffs.filter((d) => d.current !== d.latest);
+export const displayVersionDiffs = (diffs: VersionDiff[]): void => {
+  const diffsToShow = diffs.filter((d) => d.willUpdate);
 
   if (diffsToShow.length === 0) {
     logger.print(`\n${SYMBOLS.success} All dependencies are up-to-date!\n`);
     return;
   }
 
-  const header = isDryRun
-    ? `\n${SYMBOLS.info} Dependencies that would be updated:`
-    : `\n${SYMBOLS.info} Dependency Updates Available:`;
-
-  logger.print(header);
-  logger.print(formatVersionTable(diffsToShow));
+  logger.print(`\n${SYMBOLS.info} Dependency Updates Available:`);
+  logger.print(formatVersionTable(diffsToShow, "check"));
   logger.print("");
 };
 

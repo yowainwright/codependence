@@ -69,6 +69,23 @@ describe("buildVersionDiff", () => {
     assert.strictEqual(diffs[1].willUpdate, true);
   });
 
+  test("marks satisfied ranges as non-actionable in permissive mode", () => {
+    const diffs = buildVersionDiff(
+      { "@types/node": "26.4.0", typescript: "7.0.2" },
+      {
+        devDependencies: {
+          "@types/node": "^26.4.0",
+          typescript: "^7.0.2",
+        },
+      },
+      [],
+      true,
+    );
+
+    assert.strictEqual(diffs[0].willUpdate, false);
+    assert.strictEqual(diffs[1].willUpdate, false);
+  });
+
   test("should handle devDependencies", () => {
     const versionMap = {
       jest: "29.0.0",
@@ -162,6 +179,7 @@ describe("buildVersionDiff", () => {
         package: "node",
         current: "20-slim",
         latest: "24-slim",
+        installed: "24-slim",
         isPinned: true,
         willUpdate: true,
       },
@@ -169,6 +187,7 @@ describe("buildVersionDiff", () => {
         package: "node",
         current: "20-alpine",
         latest: "24-alpine",
+        installed: "24-alpine",
         isPinned: true,
         willUpdate: true,
       },
@@ -210,13 +229,13 @@ describe("displayVersionDiffs", () => {
     ];
 
     const consoleSpy = mock.method(console, "log");
-    displayVersionDiffs(diffs, false);
+    displayVersionDiffs(diffs);
 
     assert.ok(consoleSpy.mock.callCount() > 0);
     consoleSpy.mock.restore();
   });
 
-  test("should show dry-run message when in dry-run mode", () => {
+  test("should show check message when updates are available", () => {
     const diffs: VersionDiff[] = [
       {
         package: "lodash",
@@ -228,9 +247,9 @@ describe("displayVersionDiffs", () => {
     ];
 
     const consoleSpy = mock.method(console, "log");
-    displayVersionDiffs(diffs, true);
+    displayVersionDiffs(diffs);
 
-    assertCalledWith(consoleSpy, match.stringContaining("would be updated"));
+    assertCalledWith(consoleSpy, match.stringContaining("Dependency Updates Available"));
     consoleSpy.mock.restore();
   });
 
@@ -238,7 +257,7 @@ describe("displayVersionDiffs", () => {
     const diffs: VersionDiff[] = [];
 
     const consoleSpy = mock.method(console, "log");
-    displayVersionDiffs(diffs, false);
+    displayVersionDiffs(diffs);
 
     assertCalledWith(consoleSpy, match.stringContaining("up-to-date"));
     consoleSpy.mock.restore();
@@ -256,9 +275,36 @@ describe("displayVersionDiffs", () => {
     ];
 
     const consoleSpy = mock.method(console, "log");
-    displayVersionDiffs(diffs, false);
+    displayVersionDiffs(diffs);
 
     assertCalledWith(consoleSpy, match.stringContaining("up-to-date"));
+    consoleSpy.mock.restore();
+  });
+
+  test("filters out non-actionable range diffs", () => {
+    const diffs: VersionDiff[] = [
+      {
+        package: "typescript",
+        current: "^7.0.2",
+        latest: "7.0.2",
+        isPinned: false,
+        willUpdate: false,
+      },
+      {
+        package: "oxlint",
+        current: "^1.72.0",
+        latest: "^1.80.0",
+        isPinned: false,
+        willUpdate: true,
+      },
+    ];
+
+    const consoleSpy = mock.method(console, "log");
+    displayVersionDiffs(diffs);
+    const output = consoleSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
+
+    assert.ok(!output.includes("typescript"));
+    assert.ok(output.includes("oxlint"));
     consoleSpy.mock.restore();
   });
 });

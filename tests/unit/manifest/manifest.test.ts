@@ -759,6 +759,30 @@ test("checkDependenciesForVersion => has updates", () => {
   assert.deepStrictEqual(result, true);
 });
 
+test("checkDependenciesForVersion => logs dependency issues as a table", () => {
+  const logSpy = mock.method(console, "log", () => {});
+  const versionMap = {
+    "eslint-plugin-legibility": "0.3.5",
+  };
+  const json = {
+    name: "biz",
+    version: "1.0.0",
+    devDependencies: { "eslint-plugin-legibility": "0.3.3" },
+    path: "./test",
+  };
+
+  const result = checkDependenciesForVersion(versionMap, json, {
+    isTesting: true,
+  });
+  const output = logSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
+
+  assert.deepStrictEqual(result, true);
+  assert.ok(output.includes("┌"));
+  assert.ok(output.includes("eslint-plugin-legibility"));
+  assert.ok(!output.includes("1. eslint-plugin-legibility: found"));
+  logSpy.mock.restore();
+});
+
 test("checkDependenciesForVersion => has updates + special characters", () => {
   const versionMap = {
     foo: "2.0.0",
@@ -1029,7 +1053,7 @@ test("checkFiles => respects an explicit Node package manager", async () => {
 });
 
 test("checkFiles => with updates (verbose mode)", async () => {
-  const logCheckFilesWithUpdates = mock.method(console, "error");
+  const logCheckFilesWithUpdates = mock.method(console, "log");
   const codependencies = [{ lodash: "4.18.0" }, { "fs-extra": "5.0.0" }];
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
@@ -1038,7 +1062,11 @@ test("checkFiles => with updates (verbose mode)", async () => {
   } catch {
     // out-of-date deps throw in non-CLI mode
   }
-  assert.ok(logCheckFilesWithUpdates.mock.callCount() > 0);
+  const output = logCheckFilesWithUpdates.mock.calls
+    .flatMap((call) => call.arguments)
+    .join("\n");
+  assert.ok(output.includes("Dependency Updates Available"));
+  assert.ok(!output.includes("Found 2 dependency issues"));
   logCheckFilesWithUpdates.mock.restore();
 });
 
@@ -1084,7 +1112,7 @@ test("checkFiles => sets exit code for formatted CLI failures", async () => {
 });
 
 test("checkFiles => with permissive mode only", async () => {
-  const logCheckFilesPermissive = mock.method(console, "error");
+  const logCheckFilesPermissive = mock.method(console, "log");
   const codependencies = null;
   const getLatestVersionSpy = mock.method(
     NodeJSProvider.prototype,
@@ -1098,13 +1126,17 @@ test("checkFiles => with permissive mode only", async () => {
   } catch {
     // out-of-date deps throw in non-CLI mode
   }
-  assert.ok(logCheckFilesPermissive.mock.callCount() > 0);
+  const output = logCheckFilesPermissive.mock.calls
+    .flatMap((call) => call.arguments)
+    .join("\n");
+  assert.ok(output.includes("Dependency Updates Available"));
+  assert.ok(!output.includes("Found 2 dependency issues"));
   getLatestVersionSpy.mock.restore();
   logCheckFilesPermissive.mock.restore();
 });
 
 test("checkFiles => with permissive mode and codependencies", async () => {
-  const logCheckFilesPermissiveWithCodependencies = mock.method(console, "error");
+  const logCheckFilesPermissiveWithCodependencies = mock.method(console, "log");
   const codependencies = [{ lodash: "4.17.21" }];
   const getLatestVersionSpy = mock.method(
     NodeJSProvider.prototype,
@@ -1118,7 +1150,11 @@ test("checkFiles => with permissive mode and codependencies", async () => {
   } catch {
     // out-of-date deps throw in non-CLI mode
   }
-  assert.ok(logCheckFilesPermissiveWithCodependencies.mock.callCount() > 0);
+  const output = logCheckFilesPermissiveWithCodependencies.mock.calls
+    .flatMap((call) => call.arguments)
+    .join("\n");
+  assert.ok(output.includes("Dependency Updates Available"));
+  assert.ok(!output.includes("Found 1 dependency issue"));
   getLatestVersionSpy.mock.restore();
   logCheckFilesPermissiveWithCodependencies.mock.restore();
 });
@@ -1153,7 +1189,42 @@ test("checkFiles => with dryRun shows diffs", async () => {
   } catch {
     // may throw for out-of-date deps
   }
-  assert.ok(logSpy.mock.callCount() > 0);
+  const output = logSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
+  assert.ok(output.includes("Dependency Updates Available"));
+  assert.ok(output.includes("Current"));
+  assert.ok(output.includes("Available"));
+  assert.ok(!output.includes("Updated Dependencies"));
+  assert.ok(!output.includes("Found 2 dependency issues"));
+  logSpy.mock.restore();
+});
+
+test("checkFiles => with update shows dependency issue table only", async () => {
+  const logSpy = mock.method(console, "log");
+  const codependencies = [{ lodash: "4.18.0" }, { "fs-extra": "5.0.0" }];
+  const rootDir = "./tests/unit/fixtures/";
+  const files = ["test-fail-package.json"];
+
+  await checkFiles({ codependencies, rootDir, files, update: true, isTesting: true });
+
+  const output = logSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
+  assert.ok(output.includes("Found 2 dependency issues"));
+  assert.ok(output.includes("Updated Dependencies"));
+  assert.ok(output.includes("Previous"));
+  assert.ok(output.includes("Updated"));
+  assert.ok(!output.includes("Dependency Updates Available"));
+  logSpy.mock.restore();
+});
+
+test("checkFiles => update with no issues leaves final success to CLI", async () => {
+  const logSpy = mock.method(console, "log");
+  const codependencies = [{ lodash: "4.17.21" }, { "fs-extra": "10.1.0" }];
+  const rootDir = "./tests/unit/fixtures/";
+  const files = ["test-pass-package.json"];
+
+  await checkFiles({ codependencies, rootDir, files, update: true, isTesting: true });
+
+  const output = logSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
+  assert.ok(!output.includes("No dependency issues found"));
   logSpy.mock.restore();
 });
 
@@ -1430,6 +1501,7 @@ test("checkFiles => skips interactive prompt when nothing needs updating", async
       [
         {
           current: "1.0.0",
+          installed: "2.0.0",
           isPinned: true,
           latest: "2.0.0",
           package: "lodash",

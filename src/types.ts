@@ -210,6 +210,7 @@ export type VersionDiff = {
   package: string;
   current: string;
   latest: string;
+  installed?: string;
   isPinned: boolean;
   willUpdate: boolean;
 };
