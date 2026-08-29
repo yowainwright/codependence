@@ -62,7 +62,7 @@ describe("release workflows", () => {
     assert.ok(state > -1);
     assert.ok(wait > state);
     assert.ok(build > state);
-    assert.ok(homebrew.includes("nub release-tools/scripts/release/brew/index.ts check-state"));
+    assert.ok(homebrew.includes("nub release-tools/scripts/release/index.ts brew check-state"));
     assert.ok(homebrew.includes("steps.homebrew-state.outputs.skip != 'true'"));
   });
 
@@ -70,7 +70,10 @@ describe("release workflows", () => {
     const homebrew = readWorkflow("homebrew.yml");
     assert.ok(homebrew.includes('ref: "${{ github.workflow_sha }}"'));
     assert.ok(homebrew.includes("scripts/upload-release-assets.sh"));
-    assert.ok(homebrew.includes("scripts/release/brew/*"));
+    assert.ok(homebrew.includes("scripts/release/index.ts"));
+    assert.ok(homebrew.includes("scripts/release/constants.ts"));
+    assert.ok(homebrew.includes("scripts/release/types.ts"));
+    assert.ok(homebrew.includes("scripts/release/utils.ts"));
     assert.ok(homebrew.includes("src/observability/*"));
     assert.ok(homebrew.includes("src/dx/constants.ts"));
     assert.ok(homebrew.includes("src/dx/output/*"));
@@ -114,8 +117,8 @@ describe("release workflows", () => {
 
   test("updates the Homebrew tap through the REST API", () => {
     const homebrew = readWorkflow("homebrew.yml");
-    const brewScript = readScript("release/brew/utils.ts");
-    assert.ok(homebrew.includes("nub release-tools/scripts/release/brew/index.ts update-tap"));
+    const brewScript = readScript("release/utils.ts");
+    assert.ok(homebrew.includes("nub release-tools/scripts/release/index.ts brew update-tap"));
     assert.ok(homebrew.includes("TAP_BRANCH: codependence-release"));
     assert.ok(brewScript.includes("git/ref/heads/${branch}"));
     assert.ok(brewScript.includes("repos/${repository}/pulls"));
@@ -127,7 +130,7 @@ describe("release workflows", () => {
 
   test("keeps the Homebrew tap PR as a reviewed path", () => {
     const homebrew = readWorkflow("homebrew.yml");
-    const brewScript = readScript("release/brew/utils.ts");
+    const brewScript = readScript("release/utils.ts");
     assert.ok(!homebrew.includes("gh pr merge --auto"));
     assert.ok(!brewScript.includes("allow_auto_merge"));
     assert.ok(brewScript.includes("Automated formula update."));

@@ -23,18 +23,25 @@ import {
   buildReleaseItArgs,
   buildReleasePlan,
   commandText,
+  createLocalFormulaFromEnv,
+  createPublishedFormula,
   createRunner,
   formatReleasePlan,
   parseArgs,
-  parseReleaseVersion,
   parseTagArgs,
+  parseReleaseVersion,
   readPackageVersion,
   releaseTagExists,
+  requiredEnv,
   resolveAvailableReleaseVersion,
   runReleaseTag,
+  validateStableVersion,
+  writeHomebrewReleaseState,
+  writeHomebrewTapUpdate,
   writeSchemaMetadata,
 } from "./utils";
 import type {
+  BrewCliOptions,
   PullRequestState,
   ReleaseArgs,
   ReleaseContext,
@@ -45,9 +52,20 @@ import type {
 } from "./types";
 
 export type {
+  BrewCliOptions,
+  Fetch,
+  FormulaInput,
+  FormulaOptions,
+  FormulaSource,
   GitResult,
   GitRunner,
+  HomebrewReleaseState,
+  HomebrewReleaseStateOptions,
+  HomebrewTapUpdateOptions,
+  HomebrewTapUpdateResult,
+  LocalFormulaOptions,
   PreRelease,
+  PublishedFormulaOptions,
   ReleaseArgs,
   ReleaseIncrement,
   ReleaseItArgsOptions,
@@ -69,27 +87,42 @@ export {
   buildReleaseItArgs,
   buildReleasePlan,
   buildTagPushArgs,
+  checkHomebrewReleaseState,
   commandText,
+  compareStableVersions,
+  createLocalFormula,
+  createLocalFormulaFromEnv,
+  createPublishedFormula,
   createGitRunner,
   createRunner,
+  extractFormulaVersion,
+  fetchPublishedTarball,
   formatReleasePlan,
   formatShellCommand,
   formatTagName,
   gitText,
   incrementPreReleaseVersion,
   incrementStableVersion,
-  parseArgs,
+  npmTarballUrl,
   parseReleaseVersion,
-  parseTagArgs,
   quoteShellArg,
   readPackageVersion,
   releaseTagExists,
   resolveAvailableReleaseVersion,
   renderSchemaMetadata,
   runReleaseTag,
+  renderFormula,
   updateSchemaMetadata,
+  updateHomebrewTap,
+  requiredEnv,
+  sha256,
+  validateStableVersion,
+  writeHomebrewReleaseState,
+  writeHomebrewTapUpdate,
   writeSchemaMetadata,
 } from "./utils";
+
+export { parseArgs, parseTagArgs } from "./utils";
 
 function createReleaseContext(options: ReleaseOptions): ReleaseContext {
   const cwd = options.cwd ?? process.cwd();
@@ -727,22 +760,45 @@ export async function runRelease(options: ReleaseOptions = {}) {
   return runVersionRelease(context, releaseArgs, packageVersion);
 }
 
-const isTagCommand = process.argv[2] === "tag";
-const shouldRunTagCommand = Boolean(import.meta.main) && isTagCommand;
-const shouldRunReleaseCommand = Boolean(import.meta.main) && !isTagCommand;
+export const runBrewCli = async ({
+  argv = process.argv.slice(2),
+  env = process.env,
+  fetchImpl,
+}: BrewCliOptions = {}): Promise<void> => {
+  const command = argv[0] ?? "generate";
+  const version = requiredEnv(env, "VERSION");
+  validateStableVersion(version);
+  if (command === "validate-version") return;
+  if (command === "check-state") return writeHomebrewReleaseState({ env, fetchImpl });
+  if (command === "update-tap") return writeHomebrewTapUpdate({ env, fetchImpl });
+  if (command === "generate-local") return createLocalFormulaFromEnv(env, version);
+  if (command !== "generate") throw new Error(`Unknown command: ${command}`);
 
-if (shouldRunTagCommand) {
-  try {
-    process.exitCode = runReleaseTag(parseTagArgs(process.argv.slice(3)));
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
+  const outputPath = requiredEnv(env, "FORMULA_PATH");
+  await createPublishedFormula({ fetchImpl, outputPath, version });
+};
+
+const commandArgs = (argv: readonly string[]): string[] => Array.from(argv).slice(1);
+
+export const runReleaseCli = async (argv: readonly string[] = process.argv.slice(2)) => {
+  const command = argv[0];
+
+  if (command === "brew") {
+    await runBrewCli({ argv: commandArgs(argv) });
+    return 0;
   }
-}
 
-if (shouldRunReleaseCommand) {
+  if (command === "tag") {
+    return runReleaseTag(parseTagArgs(commandArgs(argv)));
+  }
+
+  const releaseArgs = command === "release" ? commandArgs(argv) : argv;
+  return runRelease(parseArgs(releaseArgs));
+};
+
+if (import.meta.main) {
   try {
-    process.exitCode = await runRelease(parseArgs(process.argv.slice(2)));
+    process.exitCode = await runReleaseCli();
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

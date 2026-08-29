@@ -36,6 +36,29 @@ programDependencies.checkFiles = checkFilesMock;
 programDependencies.loadConfig = loadConfigMock;
 programDependencies.exec = execMock;
 
+const restoreEnv = (name: string, value: string | undefined): void => {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+
+  process.env[name] = value;
+};
+
+const withoutCiOutput = async (callback: () => Promise<void>): Promise<void> => {
+  const previousCi = process.env.CI;
+  const previousGitHubActions = process.env.GITHUB_ACTIONS;
+  delete process.env.CI;
+  delete process.env.GITHUB_ACTIONS;
+
+  try {
+    await callback();
+  } finally {
+    restoreEnv("CI", previousCi);
+    restoreEnv("GITHUB_ACTIONS", previousGitHubActions);
+  }
+};
+
 describe("Action Function Tests (Fast)", () => {
   let scriptSpy = checkFilesMock;
   let previousLifecycleEvent: string | undefined;
@@ -555,9 +578,11 @@ describe("Action Function Tests (Fast)", () => {
     });
 
     try {
-      await action({
-        codependencies: ["lodash"],
-        update: true,
+      await withoutCiOutput(async () => {
+        await action({
+          codependencies: ["lodash"],
+          update: true,
+        });
       });
 
       const spinnerOutput = writeSpy.mock.calls.flatMap((call) => call.arguments).join("");
@@ -587,9 +612,11 @@ describe("Action Function Tests (Fast)", () => {
     const clearIntervalSpy = mock.method(globalThis, "clearInterval", (() => {}) as typeof clearInterval);
 
     try {
-      await action({
-        codependencies: ["lodash"],
-        update: true,
+      await withoutCiOutput(async () => {
+        await action({
+          codependencies: ["lodash"],
+          update: true,
+        });
       });
 
       const spinnerOutput = writeSpy.mock.calls.flatMap((call) => call.arguments).join("");

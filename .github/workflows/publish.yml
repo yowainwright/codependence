@@ -87,7 +87,7 @@ jobs:
           TARBALL_PATH: ${{ steps.pack.outputs.tarball }}
         run: |
           case "$GITHUB_REF_NAME" in *-*) exit 0 ;; esac
-          VERSION="${GITHUB_REF_NAME#v}" nub scripts/release/brew/index.ts generate-local
+          VERSION="${GITHUB_REF_NAME#v}" nub scripts/release/index.ts brew generate-local
 
       - name: Audit formula before publishing
         run: |

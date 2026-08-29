@@ -15,9 +15,11 @@ import {
   sha256,
   updateHomebrewTap,
   validateStableVersion,
-} from "../../../scripts/release/brew";
+} from "../../../scripts/release";
 
-describe("scripts/release/brew", () => {
+type GithubCall = { body?: unknown; method: string; url: string };
+
+describe("scripts/release brew", () => {
   const stateEnv = {
     FORMULA_PATH: "codependence.rb",
     GITHUB_REPOSITORY: "yowainwright/codependence",
@@ -84,7 +86,7 @@ describe("scripts/release/brew", () => {
   test("updates the existing stable Homebrew tap PR", async () => {
     const directory = mkdtempSync(join(tmpdir(), "codependence-brew-tap-"));
     const formulaPath = join(directory, "codependence.rb");
-    const calls: Array<{ body?: unknown; method: string; url: string }> = [];
+    let calls: GithubCall[] = [];
     try {
       writeFileSync(formulaPath, "new formula");
       const env = Object.assign({}, stateEnv, {
@@ -94,7 +96,8 @@ describe("scripts/release/brew", () => {
       });
       const fetchImpl = async (url: URL | RequestInfo, init?: RequestInit) => {
         const body = init?.body ? JSON.parse(String(init.body)) : undefined;
-        calls.push({ body, method: init?.method || "GET", url: String(url) });
+        const method = init?.method || "GET";
+        calls = calls.concat({ body, method, url: String(url) });
         return brewTapResponse(String(url), init?.method || "GET");
       };
       const result = await updateHomebrewTap({ env, fetchImpl });
@@ -172,7 +175,8 @@ const brewTapResponse = (url: string, method: string): Response => {
   if (url.includes("git/ref/heads/codependence-release")) {
     return jsonResponse({ object: { sha: "branch-sha" } });
   }
-  if (url.includes("contents/Formula/codependence.rb") && url.includes("ref=")) {
+  const isFormulaRefRead = url.includes("contents/Formula/codependence.rb") && url.includes("ref=");
+  if (isFormulaRefRead) {
     return jsonResponse({ sha: "formula-sha" });
   }
   if (url.includes("pulls?")) {
@@ -180,6 +184,8 @@ const brewTapResponse = (url: string, method: string): Response => {
       { html_url: "https://github.com/yowainwright/homebrew-tap/pull/10", number: 10 },
     ]);
   }
-  if (method === "PUT" || method === "PATCH" || method === "POST") return jsonResponse({});
+  const writeMethods = new Set(["PATCH", "POST", "PUT"]);
+  const isWriteMethod = writeMethods.has(method);
+  if (isWriteMethod) return jsonResponse({});
   return jsonResponse({}, 404);
 };

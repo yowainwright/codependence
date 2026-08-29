@@ -78,7 +78,10 @@ jobs:
           ref: "${{ github.workflow_sha }}"
           sparse-checkout: |
             scripts/upload-release-assets.sh
-            scripts/release/brew/*
+            scripts/release/index.ts
+            scripts/release/constants.ts
+            scripts/release/types.ts
+            scripts/release/utils.ts
             src/dx/constants.ts
             src/dx/output/*
             src/dx/report/constants.ts
@@ -90,7 +93,7 @@ jobs:
 
       - name: Validate stable version
         run: |
-          nub release-tools/scripts/release/brew/index.ts validate-version
+          nub release-tools/scripts/release/index.ts brew validate-version
 
       - name: Check Homebrew release state
         id: homebrew-state
@@ -98,7 +101,7 @@ jobs:
           GITHUB_TOKEN: "${{ github.token }}"
           TAP_TOKEN: "${{ secrets.HOMEBREW_TAP_TOKEN }}"
         run: |
-          nub release-tools/scripts/release/brew/index.ts check-state
+          nub release-tools/scripts/release/index.ts brew check-state
 
       - name: Wait for npm package availability
         if: steps.homebrew-state.outputs.skip != 'true'
@@ -142,7 +145,7 @@ jobs:
 
       - name: Generate formula from published tarball
         if: steps.homebrew-state.outputs.skip != 'true'
-        run: nub release-tools/scripts/release/brew/index.ts generate
+        run: nub release-tools/scripts/release/index.ts brew generate
 
       - name: Create formula test tap
         if: steps.homebrew-state.outputs.skip != 'true'
@@ -167,7 +170,7 @@ jobs:
           TAP_BRANCH: codependence-release
           TAP_TOKEN: "${{ secrets.HOMEBREW_TAP_TOKEN }}"
         run: |
-          nub release-tools/scripts/release/brew/index.ts update-tap
+          nub release-tools/scripts/release/index.ts brew update-tap
 
       - name: Attach Homebrew assets to GitHub release
         if: steps.homebrew-state.outputs.skip != 'true'
