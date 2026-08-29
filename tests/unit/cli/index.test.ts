@@ -38,14 +38,22 @@ programDependencies.exec = execMock;
 
 describe("Action Function Tests (Fast)", () => {
   let scriptSpy = checkFilesMock;
+  let previousLifecycleEvent: string | undefined;
 
   beforeEach(() => {
+    previousLifecycleEvent = process.env.npm_lifecycle_event;
+    delete process.env.npm_lifecycle_event;
     checkFilesMock.mock.resetCalls();
     checkFilesMock.mock.mockImplementation(async () => undefined);
     scriptSpy = checkFilesMock;
   });
 
   afterEach(() => {
+    if (previousLifecycleEvent) {
+      process.env.npm_lifecycle_event = previousLifecycleEvent;
+    } else {
+      delete process.env.npm_lifecycle_event;
+    }
     scriptSpy.mock.restore();
   });
 
@@ -533,6 +541,74 @@ describe("Action Function Tests (Fast)", () => {
     consoleSpy.mock.restore();
   });
 
+  test("pulses the checking status in interactive output", async () => {
+    Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: true });
+    const consoleSpy = mock.method(console, "log", () => {});
+    const writeSpy = mock.method(process.stdout, "write", () => true);
+    const setIntervalSpy = mock.method(globalThis, "setInterval", (() => ({
+      unref: () => {},
+    })) as unknown as typeof setInterval);
+    const clearIntervalSpy = mock.method(globalThis, "clearInterval", (() => {}) as typeof clearInterval);
+    scriptSpy.mock.mockImplementationOnce(async (options) => {
+      options.onProgress?.(1, 1, "lodash");
+      return undefined;
+    });
+
+    try {
+      await action({
+        codependencies: ["lodash"],
+        update: true,
+      });
+
+      const spinnerOutput = writeSpy.mock.calls.flatMap((call) => call.arguments).join("");
+      const finalOutput = consoleSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
+      assert.ok(spinnerOutput.includes("wrestling"));
+      assert.ok(spinnerOutput.includes("checking lodash (1/1)"));
+      assert.ok(finalOutput.includes("pinned!"));
+      assert.ok(!finalOutput.includes("codependence pinned!"));
+    } finally {
+      delete (process.stdout as { isTTY?: boolean }).isTTY;
+      setIntervalSpy.mock.restore();
+      clearIntervalSpy.mock.restore();
+      writeSpy.mock.restore();
+      consoleSpy.mock.restore();
+    }
+  });
+
+  test("pulses status in package scripts without stdout tty", async () => {
+    delete (process.stdout as { isTTY?: boolean }).isTTY;
+    const previousLifecycleEvent = process.env.npm_lifecycle_event;
+    process.env.npm_lifecycle_event = "update:deps";
+    const consoleSpy = mock.method(console, "log", () => {});
+    const writeSpy = mock.method(process.stdout, "write", () => true);
+    const setIntervalSpy = mock.method(globalThis, "setInterval", (() => ({
+      unref: () => {},
+    })) as unknown as typeof setInterval);
+    const clearIntervalSpy = mock.method(globalThis, "clearInterval", (() => {}) as typeof clearInterval);
+
+    try {
+      await action({
+        codependencies: ["lodash"],
+        update: true,
+      });
+
+      const spinnerOutput = writeSpy.mock.calls.flatMap((call) => call.arguments).join("");
+      const finalOutput = consoleSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
+      assert.ok(spinnerOutput.includes("wrestling"));
+      assert.ok(finalOutput.includes("pinned!"));
+    } finally {
+      if (previousLifecycleEvent) {
+        process.env.npm_lifecycle_event = previousLifecycleEvent;
+      } else {
+        delete process.env.npm_lifecycle_event;
+      }
+      setIntervalSpy.mock.restore();
+      clearIntervalSpy.mock.restore();
+      writeSpy.mock.restore();
+      consoleSpy.mock.restore();
+    }
+  });
+
   test("should execute script with verbose mode", async () => {
     const consoleSpy = mock.method(console, "log", () => {});
 
@@ -567,9 +643,43 @@ describe("Action Function Tests (Fast)", () => {
         .flatMap((call) => call.arguments)
         .join("\n")
         .replace(createAnsiPattern(), "");
+      const codependenceMentions = output.match(/codependence/g) || [];
       assert.ok(output.includes("✓ pinned!"));
       assert.ok(!output.includes("codependence pinned!"));
-      assert.ok(!output.includes("wrestling"));
+      assert.ok(output.includes("codependence wrestling"));
+      assert.strictEqual(codependenceMentions.length, 1);
+    } finally {
+      consoleSpy.mock.restore();
+    }
+  });
+
+  test("prints short pinned status after applying updates", async () => {
+    const consoleSpy = mock.method(console, "log", () => {});
+    scriptSpy.mock.mockImplementation(async () => [
+      {
+        package: "lodash",
+        current: "^4.17.0",
+        latest: "4.17.21",
+        isPinned: true,
+        willUpdate: true,
+      },
+    ]);
+
+    try {
+      await action({
+        codependencies: ["lodash"],
+        update: true,
+      });
+
+      const output = consoleSpy.mock.calls
+        .flatMap((call) => call.arguments)
+        .join("\n")
+        .replace(createAnsiPattern(), "");
+      const codependenceMentions = output.match(/codependence/g) || [];
+      assert.ok(output.includes("✓ pinned!"));
+      assert.ok(!output.includes("codependence pinned!"));
+      assert.ok(output.includes("codependence wrestling"));
+      assert.strictEqual(codependenceMentions.length, 1);
     } finally {
       consoleSpy.mock.restore();
     }
@@ -918,14 +1028,22 @@ describe("initAction", () => {
 
 describe("run", () => {
   let scriptSpy = checkFilesMock;
+  let previousLifecycleEvent: string | undefined;
 
   beforeEach(() => {
+    previousLifecycleEvent = process.env.npm_lifecycle_event;
+    delete process.env.npm_lifecycle_event;
     checkFilesMock.mock.resetCalls();
     checkFilesMock.mock.mockImplementation(async () => undefined);
     scriptSpy = checkFilesMock;
   });
 
   afterEach(() => {
+    if (previousLifecycleEvent) {
+      process.env.npm_lifecycle_event = previousLifecycleEvent;
+    } else {
+      delete process.env.npm_lifecycle_event;
+    }
     scriptSpy.mock.restore();
   });
 
@@ -936,6 +1054,56 @@ describe("run", () => {
 
     assert.ok(consoleSpy.mock.callCount() > 0);
     consoleSpy.mock.restore();
+  });
+
+  test("should show styleguide when --styleguide flag is provided", async () => {
+    const printSpy = mock.method(logger, "print", () => {});
+
+    await run(["node", "script.js", "--styleguide"]);
+
+    assert.strictEqual(scriptSpy.mock.callCount(), 0);
+    assertCalledWith(printSpy, match.stringContaining("Codependence CLI Styleguide"));
+    assertCalledWith(printSpy, match.stringContaining("Dependency Risk Legend"));
+    assertCalledWith(printSpy, match.stringContaining("Loader"));
+    assertCalledWith(printSpy, match.stringContaining("wrestling"));
+    printSpy.mock.restore();
+  });
+
+  test("should show styleguide when -sg flag is provided", async () => {
+    const printSpy = mock.method(logger, "print", () => {});
+
+    await run(["node", "script.js", "-sg"]);
+
+    assert.strictEqual(scriptSpy.mock.callCount(), 0);
+    assertCalledWith(printSpy, match.stringContaining("Codependence CLI Styleguide"));
+    printSpy.mock.restore();
+  });
+
+  test("includes the styleguide loader in interactive output", async () => {
+    Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: true });
+    const printSpy = mock.method(logger, "print", () => {});
+
+    try {
+      await run(["node", "script.js", "--styleguide"]);
+
+      const output = printSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
+      assertCalledWith(printSpy, match.stringContaining("Codependence CLI Styleguide"));
+      assert.ok(output.includes("Loader"));
+      assert.ok(output.includes("wrestling"));
+    } finally {
+      delete (process.stdout as { isTTY?: boolean }).isTTY;
+      printSpy.mock.restore();
+    }
+  });
+
+  test("should show legend when --legend flag is provided", async () => {
+    const printSpy = mock.method(logger, "print", () => {});
+
+    await run(["node", "script.js", "--legend"]);
+
+    assert.strictEqual(scriptSpy.mock.callCount(), 0);
+    assertCalledWith(printSpy, match.stringContaining("Dependency Risk Legend"));
+    printSpy.mock.restore();
   });
 
   test("should call initAction for init command", async () => {

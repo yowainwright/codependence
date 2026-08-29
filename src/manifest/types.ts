@@ -96,6 +96,7 @@ export interface CheckLoadedManifestsOptions {
   codependencies?: string[];
   level?: Level;
   deferFailure?: boolean;
+  onBeforeOutput?: CheckFiles["onBeforeOutput"];
 }
 
 export interface PreciseModeOptions {

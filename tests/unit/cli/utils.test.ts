@@ -215,6 +215,27 @@ describe("parseArgs", () => {
     assert.strictEqual(result.options.help, true);
   });
 
+  test("should handle --styleguide flag", () => {
+    const args = [...baseArgs, "--styleguide"];
+    const result = parseArgs(args);
+
+    assert.strictEqual(result.options.styleguide, true);
+  });
+
+  test("should handle short styleguide flag", () => {
+    const args = [...baseArgs, "-sg"];
+    const result = parseArgs(args);
+
+    assert.strictEqual(result.options.styleguide, true);
+  });
+
+  test("should handle --legend flag", () => {
+    const args = [...baseArgs, "--legend"];
+    const result = parseArgs(args);
+
+    assert.strictEqual(result.options.legend, true);
+  });
+
   test("should handle short help flag", () => {
     const args = [...baseArgs, "-h"];
     const result = parseArgs(args);
@@ -435,6 +456,8 @@ describe("showHelp", () => {
     assert.ok(callArg.includes("--interactive"));
     assert.ok(callArg.includes("--watch"));
     assert.ok(callArg.includes("--noCache"));
+    assert.ok(callArg.includes("--styleguide"));
+    assert.ok(callArg.includes("--legend"));
 
     consoleSpy.mock.restore();
   });

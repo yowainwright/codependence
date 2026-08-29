@@ -75,6 +75,8 @@ export type Options = {
   noCache?: boolean;
   format?: "json" | "markdown" | "table";
   outputFile?: string;
+  styleguide?: boolean;
+  legend?: boolean;
   level?: Level;
   mode?: Mode;
   targets?: CodependenceTarget[];
@@ -102,6 +104,7 @@ export type CheckFiles = {
   noCache?: boolean;
   format?: "json" | "markdown" | "table";
   onProgress?: (current: number, total: number, packageName: string) => void;
+  onBeforeOutput?: () => void;
   level?: Level;
   mode?: Mode;
   lockfile?: LockfilePolicy;
@@ -120,6 +123,7 @@ export type CheckDependenciesForVersionOptions = {
   permissive?: boolean;
   level?: Level;
   versionStrategy?: VersionStrategy;
+  onBeforeOutput?: () => void;
 };
 
 export type CheckMatches = {

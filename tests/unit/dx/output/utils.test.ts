@@ -1,6 +1,7 @@
 import { afterEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { createSpinner } from "../../../../src/dx/output";
+import { createAnsiPattern } from "../../../../src/dx/constants";
+import { createSpinner, glimmer } from "../../../../src/dx/output";
 
 const setInteractiveOutput = (interactive: boolean): void => {
   Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: interactive });
@@ -79,6 +80,17 @@ describe("createSpinner", () => {
     assert.ok(output.includes("Loading..."));
   });
 
+  it("renders the first frame immediately", () => {
+    setInteractiveOutput(true);
+    mock.timers.enable({ apis: ["setInterval"] });
+    const writeSpy = mock.method(process.stdout, "write", () => true);
+
+    createSpinner("Loading...").start();
+
+    const output = writeSpy.mock.calls.flatMap((call) => call.arguments).join("");
+    assert.ok(output.includes("Loading..."));
+  });
+
   it("keeps frames on one line", () => {
     setInteractiveOutput(true);
     mock.timers.enable({ apis: ["setInterval"] });
@@ -132,5 +144,21 @@ describe("createSpinner", () => {
     const stopped = spinner.stop();
 
     assert.notStrictEqual(stopped.start, undefined);
+  });
+});
+
+describe("glimmer", () => {
+  it("keeps the original text while adding ANSI color", () => {
+    const result = glimmer("codependence", { frameIndex: 3 });
+
+    assert.strictEqual(result.replace(createAnsiPattern(), ""), "codependence");
+    assert.ok(result.includes("\x1b[38;2;"));
+  });
+
+  it("loops after the final character", () => {
+    const firstFrame = glimmer("codependence", { frameIndex: 0 });
+    const loopedFrame = glimmer("codependence", { frameIndex: "codependence".length });
+
+    assert.strictEqual(loopedFrame, firstFrame);
   });
 });

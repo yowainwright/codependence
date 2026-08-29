@@ -101,6 +101,8 @@ export const OPTION_DEFINITIONS: OptionDefinition[] = [
   { flags: ["--noCache", "--no-cache"], hasValue: false },
   { flags: ["--format"], hasValue: true },
   { flags: ["--outputFile", "--output-file"], hasValue: true },
+  { flags: ["-sg", "--styleguide"], hasValue: false },
+  { flags: ["--legend"], hasValue: false },
   { flags: ["--level"], hasValue: true },
   { flags: ["-m", "--mode"], hasValue: true },
 ];
@@ -151,6 +153,8 @@ Options:
   --noCache                         Disable version caching for fresh results
   --format <type>                   Output format: json, markdown, or table (default: table)
   --outputFile <path>               Write output to file instead of stdout
+  -sg, --styleguide                 Print the CLI styleguide
+  --legend                          Print the dependency risk legend
 
 Examples:
   # Get started
@@ -210,6 +214,8 @@ Examples:
   codependence --format markdown              Output as Markdown for PR comments
   codependence --format json --outputFile deps.json
                                               Save JSON output to file
+  codependence --styleguide                   Print CLI colors and table styles
+  codependence --legend                       Print dependency risk colors
 `;
 
 export const ARGS_START_INDEX = 2;

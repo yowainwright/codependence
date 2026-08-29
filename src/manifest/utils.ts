@@ -5,7 +5,7 @@ import type { Level, VersionDiff, VersionDiffContext } from "../types";
 import { logger } from "../observability";
 import { DEP_SECTIONS } from "./constants";
 import { SYMBOLS } from "../dx/report/constants";
-import { formatVersionTable } from "../dx/output";
+import { formatVersionTable, formatVersionTableTitle } from "../dx/output";
 import {
   PACKAGE_NAME_EXCLUSIONS,
   REPEATING_VERSION_PREFIXES,
@@ -223,7 +223,7 @@ export const displayVersionDiffs = (diffs: VersionDiff[]): void => {
     return;
   }
 
-  logger.print(`\n${SYMBOLS.info} Dependency Updates Available:`);
+  logger.print(`\n${formatVersionTableTitle(diffsToShow, "check")}`);
   logger.print(formatVersionTable(diffsToShow, "check"));
   logger.print("");
 };

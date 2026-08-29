@@ -1,12 +1,33 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createAnsiPattern } from "../../../src/dx/constants";
-import { createTable, formatVersionTable } from "../../../src/dx/output";
+import {
+  createTable,
+  formatCliLegend,
+  formatVersionTable,
+  formatVersionTableTitle,
+  readableForeground,
+} from "../../../src/dx/output";
+import {
+  CODEPENDENCE_GRADIENT_END,
+  CODEPENDENCE_GRADIENT_MIDDLE,
+  CODEPENDENCE_GRADIENT_QUARTER,
+  CODEPENDENCE_GRADIENT_START,
+  CODEPENDENCE_GRADIENT_THREE_QUARTER,
+  DIFF_BACKGROUND_PALETTE,
+  DIFF_FOREGROUND_PALETTE,
+  MUTED_VERSION_COLOR,
+} from "../../../src/dx/output/constants";
+import type { Rgb } from "../../../src/dx/output";
 import type { TableColumn, TableRow, TableVersionDiff } from "../../../src/dx/output";
 
 const visibleLength = (value: string): number => value.replace(createAnsiPattern(), "").length;
 
 const outputLines = (value: string): string[] => value.split("\n");
+
+const ansiBackground = (rgb: Rgb): string => `\x1b[48;2;${rgb.join(";")}m`;
+
+const ansiForeground = (rgb: Rgb): string => `\x1b[38;2;${rgb.join(";")}m`;
 
 describe("createTable", () => {
   test("should create a basic table", () => {
@@ -219,5 +240,99 @@ describe("formatVersionTable", () => {
     assert.ok(result.includes("18.2.0"));
     assert.ok(result.includes("18.3.0"));
     assert.ok(result.includes("^18.3.0"));
+  });
+
+  test("colors version columns by semantic diff size", () => {
+    const diffs: TableVersionDiff[] = [
+      { package: "major", current: "1.0.0", latest: "6.0.0", isPinned: false },
+      { package: "minor", current: "1.0.0", latest: "1.12.0", isPinned: false },
+      { package: "patch", current: "1.0.0", latest: "1.0.50", isPinned: false },
+      { package: "unknown", current: "link:../pkg", latest: "1.0.0", isPinned: false },
+    ];
+
+    const result = formatVersionTable(diffs, "check");
+
+    assert.ok(!result.includes("\n\x1b[48;2;"));
+    assert.ok(result.includes(ansiBackground(DIFF_BACKGROUND_PALETTE.major[1])));
+    assert.ok(result.includes(ansiBackground(DIFF_BACKGROUND_PALETTE.minor[1])));
+    assert.ok(result.includes(ansiBackground(DIFF_BACKGROUND_PALETTE.patch[1])));
+    assert.ok(result.includes(ansiBackground(DIFF_BACKGROUND_PALETTE.unknown[1])));
+    assert.ok(result.includes(`${ansiForeground(MUTED_VERSION_COLOR)}  1.0.0`));
+    assert.ok(result.includes(`${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.major[1]))}  6.0.0`));
+    assert.ok(result.includes(`${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.minor[1]))}  1.12.0`));
+    assert.ok(result.includes(`${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.patch[1]))}  1.0.50`));
+    assert.ok(result.includes(`${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.unknown[1]))}  1.0.0`));
+  });
+
+  test("uses codependence gradient stops for semantic diff foregrounds", () => {
+    assert.deepStrictEqual(DIFF_FOREGROUND_PALETTE.patch, [
+      CODEPENDENCE_GRADIENT_START,
+      CODEPENDENCE_GRADIENT_QUARTER,
+    ]);
+    assert.deepStrictEqual(DIFF_FOREGROUND_PALETTE.minor, [
+      CODEPENDENCE_GRADIENT_MIDDLE,
+      CODEPENDENCE_GRADIENT_THREE_QUARTER,
+    ]);
+    assert.deepStrictEqual(DIFF_FOREGROUND_PALETTE.major, [
+      CODEPENDENCE_GRADIENT_THREE_QUARTER,
+      CODEPENDENCE_GRADIENT_END,
+    ]);
+  });
+
+  test("colors table titles by the median semantic diff risk", () => {
+    const diffs: TableVersionDiff[] = [
+      { package: "patch", current: "1.0.0", latest: "1.0.50", isPinned: false },
+      { package: "minor", current: "1.0.0", latest: "1.12.0", isPinned: false },
+      { package: "major", current: "1.0.0", latest: "6.0.0", isPinned: false },
+    ];
+
+    const result = formatVersionTableTitle(diffs, "check");
+
+    assert.ok(result.includes(`${ansiForeground(DIFF_FOREGROUND_PALETTE.minor[1])}◆\x1b[0m`));
+    assert.ok(result.includes("\x1b[1m\x1b[36mDependency Updates Available:"));
+  });
+
+  test("uses the upper median semantic diff for even row counts", () => {
+    const diffs: TableVersionDiff[] = [
+      { package: "patch-a", current: "1.0.0", latest: "1.0.1", isPinned: false },
+      { package: "patch-b", current: "1.0.0", latest: "1.0.2", isPinned: false },
+      { package: "minor", current: "1.0.0", latest: "1.12.0", isPinned: false },
+      { package: "major", current: "1.0.0", latest: "6.0.0", isPinned: false },
+    ];
+
+    const result = formatVersionTableTitle(diffs, "check");
+
+    assert.ok(result.includes(`${ansiForeground(DIFF_FOREGROUND_PALETTE.minor[1])}◆\x1b[0m`));
+  });
+
+  test("colors table titles from patch risk when patch is highest", () => {
+    const diffs: TableVersionDiff[] = [
+      { package: "patch", current: "1.0.0", latest: "1.0.50", isPinned: false },
+    ];
+
+    const result = formatVersionTableTitle(diffs);
+
+    assert.ok(result.includes(`${ansiForeground(DIFF_FOREGROUND_PALETTE.patch[1])}◆\x1b[0m`));
+    assert.ok(result.includes("\x1b[1m\x1b[36mUpdated Dependencies:"));
+  });
+
+  test("uses semver-shaped values instead of arbitrary digits", () => {
+    const diffs: TableVersionDiff[] = [
+      { package: "range", current: "^1.2.3", latest: "1.14.0", isPinned: false },
+      { package: "link", current: "link:../pkg-2", latest: "1.0.0", isPinned: false },
+    ];
+
+    const result = formatVersionTable(diffs, "check");
+
+    assert.ok(result.includes(`${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.minor[1]))}  1.14.0`));
+    assert.ok(result.includes(`${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.unknown[1]))}  1.0.0`));
+  });
+
+  test("uses readable foreground colors in the legend", () => {
+    const result = formatCliLegend();
+
+    assert.ok(result.includes(ansiBackground(DIFF_BACKGROUND_PALETTE.patch[1])));
+    assert.ok(result.includes(`${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.patch[1]))}  1.2.3 -> 1.2.4`));
+    assert.ok(!result.includes(`${ansiForeground(DIFF_FOREGROUND_PALETTE.patch[1])}  1.2.3 -> 1.2.4`));
   });
 });

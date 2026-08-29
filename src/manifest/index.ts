@@ -41,9 +41,8 @@ import { glob } from "../utils/fs";
 import { logger } from "../observability";
 import { Prompt } from "../dx";
 import { versionCache, requestDeduplicator } from "./utils";
-import { formatVersionTable } from "../dx/output";
+import { formatVersionTable, formatVersionTableTitle } from "../dx/output";
 import { formatEnhancedError } from "../dx/report";
-import { SYMBOLS } from "../dx/report/constants";
 import {
   DEFAULT_IGNORE_PATTERNS,
   DEFAULT_FILE_MATCHERS,
@@ -1167,7 +1166,7 @@ const logDependencyIssueList = (list: DepToUpdateItem[]): void => {
     isPinned: false,
     willUpdate: true,
   }));
-  logger.print(`${SYMBOLS.info} Updated Dependencies:`);
+  logger.print(formatVersionTableTitle(rows));
   logger.print(formatVersionTable(rows));
   logger.space();
 };
@@ -1229,6 +1228,7 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
   if (!hasDependencyIssues(depsToUpdate)) return false;
 
   if (!isSilent) {
+    options.onBeforeOutput?.();
     logDependencyIssues(depsToUpdate);
   }
 
@@ -1263,6 +1263,7 @@ const checkManifestDependenciesForVersion = async (
   if (!hasDependencyIssues(depsToUpdate)) return false;
 
   if (!isSilent) {
+    options.onBeforeOutput?.();
     logDependencyIssues(depsToUpdate);
   }
 
@@ -1357,6 +1358,7 @@ const checkLoadedManifests = async ({
   codependencies,
   level = "major",
   deferFailure = false,
+  onBeforeOutput,
 }: CheckLoadedManifestsOptions): Promise<boolean> => {
   const options = {
     isUpdating,
@@ -1367,6 +1369,7 @@ const checkLoadedManifests = async ({
     isTesting,
     permissive,
     level,
+    onBeforeOutput,
   };
 
   let packagesNeedingUpdate: string[] = [];
@@ -1580,6 +1583,7 @@ export const checkFiles = async ({
   noCache = false,
   format,
   onProgress,
+  onBeforeOutput,
   level = "major",
   mode,
   lockfile,
@@ -1639,6 +1643,7 @@ export const checkFiles = async ({
     if (shouldReportStale) {
       const stale = detectStaleCodependenciesFromManifests(codependencies, manifests);
       if (stale.length > 0) {
+        onBeforeOutput?.();
         const label = stale.length === 1 ? "codependency" : "codependencies";
         logger.warn(`${stale.length} stale ${label} not found in any manifest:`);
         stale.forEach((name) => logger.warn(`  - ${name}`));
@@ -1706,6 +1711,7 @@ export const checkFiles = async ({
     const hasActionableDiffs = allDiffs.some((diff) => diff.willUpdate);
     const shouldDisplayDiffs = shouldShowDiffs && hasActionableDiffs;
     if (shouldDisplayDiffs) {
+      onBeforeOutput?.();
       displayVersionDiffs(allDiffs);
     }
 
@@ -1733,6 +1739,7 @@ export const checkFiles = async ({
       codependencies: depNames,
       level,
       deferFailure: shouldDeferFailure,
+      onBeforeOutput,
     });
 
     const shouldReportDeferredFailure = shouldDeferFailure && isCLI && isOutOfDate && !shouldUpdate;
