@@ -96,7 +96,6 @@
     "hooks:setup": "sh scripts/setup.sh",
     "prepare": "sh scripts/setup.sh",
     "prepublishOnly": "rm -rf dist && nub scripts/build/index.ts dist",
-    "preview:table": "nub scripts/preview-version-table.ts",
     "preview:styleguide": "nub src/cli/index.ts --styleguide",
     "preview": "cd page/app && nub run preview",
     "release": "nub scripts/release/index.ts",

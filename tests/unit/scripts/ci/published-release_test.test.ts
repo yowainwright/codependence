@@ -1,8 +1,7 @@
 import { describe, test, mock } from "node:test";
 import assert from "node:assert/strict";
 import { assertThrows } from "../../../helpers/assertions";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import {
   buildDockerBuildArgs,
@@ -15,10 +14,25 @@ import {
   releaseE2eScript,
   requireVersion,
   runTestPublishedReleaseCli,
-} from "../../../../scripts/ci/published-release.js";
+} from "../../../../scripts/release";
 import { NODE_ALPINE_IMAGE as nodeAlpineImage } from "./constants";
 
-describe("scripts/ci/published-release_test", () => {
+const TEMP_ROOT = join(import.meta.dirname, ".tmp-published-release");
+
+const createCommandRecorder = () => {
+  let calls: string[] = [];
+  const runner = (command: string, args: readonly string[]) => {
+    const call = [command].concat(Array.from(args)).join(" ");
+    calls = calls.concat(call);
+    return { status: 0, stdout: "1.0.0\n", stderr: "" };
+  };
+  return {
+    calls: () => calls,
+    runner,
+  };
+};
+
+describe("scripts/release test-published", () => {
   test("packageSpec formats npm package specs", () => {
     assert.strictEqual((packageSpec("codependence", "1.0.0")), "codependence@1.0.0");
   });
@@ -94,7 +108,8 @@ describe("scripts/ci/published-release_test", () => {
   });
 
   test("resolve-version normalizes a release tag input", () => {
-    const directory = mkdtempSync(join(tmpdir(), "codependence-release-version-"));
+    mkdirSync(TEMP_ROOT, { recursive: true });
+    const directory = mkdtempSync(join(TEMP_ROOT, "version-"));
     const outputPath = join(directory, "github-output");
     const logSpy = mock.method(console, "log", () => {});
 
@@ -107,7 +122,7 @@ describe("scripts/ci/published-release_test", () => {
       assert.strictEqual((readFileSync(outputPath, "utf8")), "version=1.2.4\n");
     } finally {
       logSpy.mock.restore();
-      rmSync(directory, { recursive: true, force: true });
+      rmSync(TEMP_ROOT, { recursive: true, force: true });
     }
   });
 
@@ -163,5 +178,128 @@ describe("scripts/ci/published-release_test", () => {
     }
 
     assert.strictEqual((calls.filter((call) => call === "sleep 30")).length, 29);
+  });
+
+  test("wait-for-npm exits when npm has the package", () => {
+    const logSpy = mock.method(console, "log", () => {});
+    const { calls, runner } = createCommandRecorder();
+
+    try {
+      const code = runTestPublishedReleaseCli({
+        argv: ["wait-for-npm"],
+        env: { CODEPENDENCE_VERSION: "1.0.0" },
+        runner,
+      });
+      assert.strictEqual((code), 0);
+    } finally {
+      logSpy.mock.restore();
+    }
+
+    assert.deepStrictEqual(calls(), ["npm view codependence@1.0.0 version"]);
+  });
+
+  test("build-release-image builds the published image", () => {
+    const { calls, runner } = createCommandRecorder();
+    const code = runTestPublishedReleaseCli({
+      argv: ["build-release-image"],
+      env: {
+        CODEPENDENCE_VERSION: "1.0.0",
+        NODE_ALPINE_IMAGE: nodeAlpineImage,
+      },
+      runner,
+    });
+
+    assert.strictEqual((code), 0);
+    assert.ok(calls().some((call) => call.includes("tests/release/Dockerfile.published")));
+    assert.ok(calls().some((call) => call.includes("CODEPENDENCE_VERSION=1.0.0")));
+  });
+
+  test("verify-installation runs the installed CLI checks", () => {
+    const { calls, runner } = createCommandRecorder();
+    const code = runTestPublishedReleaseCli({ argv: ["verify-installation"], env: {}, runner });
+
+    assert.strictEqual((code), 0);
+    assert.ok(calls().some((call) => call.includes("codependence --help")));
+    assert.ok(calls().some((call) => call.includes("node /app/dist/cli.js --help")));
+  });
+
+  test("run-e2e routes through the release e2e script", () => {
+    const { calls, runner } = createCommandRecorder();
+    const code = runTestPublishedReleaseCli({ argv: ["run-e2e"], env: {}, runner });
+
+    assert.strictEqual((code), 0);
+    assert.ok(calls().some((call) => call.includes("test-python-go.sh")));
+  });
+
+  test("run-npm-smoke builds and runs the smoke image", () => {
+    const { calls, runner } = createCommandRecorder();
+    const code = runTestPublishedReleaseCli({
+      argv: ["run-npm-smoke"],
+      env: {
+        CODEPENDENCE_VERSION: "1.0.0",
+        NODE_ALPINE_IMAGE: nodeAlpineImage,
+      },
+      runner,
+    });
+
+    assert.strictEqual((code), 0);
+    assert.ok(calls().some((call) => call.includes("tests/release/Dockerfile.npm-smoke")));
+    assert.ok(calls().some((call) => call.includes("codependence --debug")));
+  });
+
+  test("compatibility-check routes through the compatibility script", () => {
+    const { calls, runner } = createCommandRecorder();
+    const code = runTestPublishedReleaseCli({ argv: ["compatibility-check"], env: {}, runner });
+
+    assert.strictEqual((code), 0);
+    assert.ok(calls().some((call) => call.includes("--format json")));
+  });
+
+  test("summary prints release test summary", () => {
+    let output = "";
+    const logSpy = mock.method(console, "log", (value) => {
+      output = `${output}${String(value)}`;
+    });
+
+    try {
+      const code = runTestPublishedReleaseCli({
+        argv: ["summary"],
+        env: { CODEPENDENCE_VERSION: "1.0.0" },
+      });
+      assert.strictEqual((code), 0);
+    } finally {
+      logSpy.mock.restore();
+    }
+
+    assert.ok(output.includes("Test Summary"));
+  });
+
+  test("write-report creates the release test report", () => {
+    mkdirSync(TEMP_ROOT, { recursive: true });
+    const directory = mkdtempSync(join(TEMP_ROOT, "report-"));
+    const cwd = process.cwd();
+    const logSpy = mock.method(console, "log", () => {});
+
+    try {
+      process.chdir(directory);
+      const code = runTestPublishedReleaseCli({
+        argv: ["write-report"],
+        env: { CODEPENDENCE_VERSION: "1.0.0" },
+      });
+      assert.strictEqual((code), 0);
+      assert.ok(readFileSync("test-report.md", "utf8").includes("1.0.0"));
+    } finally {
+      process.chdir(cwd);
+      logSpy.mock.restore();
+      rmSync(TEMP_ROOT, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects unknown published release commands", () => {
+    assertThrows(() =>
+      runTestPublishedReleaseCli({
+        argv: ["wat"],
+        env: {},
+      }), "Usage: test-published");
   });
 });

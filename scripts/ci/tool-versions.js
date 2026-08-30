@@ -2,12 +2,37 @@
 
 import { appendFileSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { isDirectCliExecution, runCliEntrypoint } from "./cli-entrypoint.js";
-import { TOOL_OUTPUT_KEYS } from "./constants.js";
+import { pathToFileURL } from "node:url";
 
 const DOCKERFILE_ARG_PATTERN = /^\s*ARG\s+([A-Za-z_][A-Za-z0-9_]*)=([^\s#]+)\s*$/gm;
 const DOCKERFILE_ARG_REFERENCE_PATTERN = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
 const NODE_PACKAGE_MANAGERS = new Set(["bun", "npm", "pnpm", "yarn"]);
+const TOOL_OUTPUT_KEYS = {
+  nodeAlpineImage: "node_alpine_image",
+  nodeSlimImage: "node_slim_image",
+  nodeVersion: "node_version",
+  nubVersion: "nub_version",
+};
+
+function errorMessage(error) {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+function isDirectCliExecution(metaUrl, argv = process.argv) {
+  const scriptPath = argv[1];
+  if (scriptPath === undefined) return false;
+  return metaUrl === pathToFileURL(resolve(scriptPath)).href;
+}
+
+function runCliEntrypoint(run) {
+  try {
+    process.exitCode = run() ?? 0;
+  } catch (error) {
+    console.error(errorMessage(error));
+    process.exitCode = 1;
+  }
+}
 
 function nodeMajor(nodeVersion) {
   const match = nodeVersion.match(/^\d+/);

@@ -157,3 +157,34 @@ export interface HomebrewTapUpdateResult {
   changed: boolean;
   pullRequestUrl?: string;
 }
+
+export interface ReleaseAsset {
+  digest?: string | null;
+  name?: string;
+  url?: string;
+}
+
+export interface GitHubRelease {
+  assets?: ReleaseAsset[];
+  id?: number;
+  tag_name?: string;
+  upload_url?: string;
+}
+
+export interface ReleaseAssetUploadOptions {
+  argv?: string[];
+  env?: Record<string, string | undefined>;
+  logger?: Pick<Console, "log">;
+  runner?: ReleaseRunner;
+}
+
+export interface PublishedReleaseOptions {
+  argv?: string[];
+  env?: Record<string, string | undefined>;
+  runner?: ReleaseRunner;
+}
+
+export interface ReportOptions {
+  date: string;
+  version: string;
+}

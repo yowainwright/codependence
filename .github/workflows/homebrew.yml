@@ -77,11 +77,8 @@ jobs:
           persist-credentials: false
           ref: "${{ github.workflow_sha }}"
           sparse-checkout: |
-            scripts/upload-release-assets.sh
-            scripts/release/index.ts
-            scripts/release/constants.ts
-            scripts/release/types.ts
-            scripts/release/utils.ts
+            scripts/release/*
+            scripts/ci/tool-versions.js
             src/dx/constants.ts
             src/dx/output/*
             src/dx/report/constants.ts
@@ -107,7 +104,7 @@ jobs:
         if: steps.homebrew-state.outputs.skip != 'true'
         run: |
           export CODEPENDENCE_VERSION="$VERSION"
-          node scripts/ci/published-release.js wait-for-npm
+          nub release-tools/scripts/release/index.ts test-published wait-for-npm
 
       - name: Build and test binary
         if: steps.homebrew-state.outputs.skip != 'true'
@@ -179,10 +176,9 @@ jobs:
           GITHUB_TOKEN: "${{ github.token }}"
           SIGSTORE_BUNDLE: ${{ steps.binary-attestation.outputs.sigstore_bundle }}
         run: |
-          RELEASE_SCRIPT="release-tools/scripts/upload-release-assets.sh"
           RELEASE_TAG="v${VERSION}"
           RELEASE_ASSETS=("$FORMULA_PATH" "$BINARY" "$SIGSTORE_BUNDLE")
-          RELEASE_ID="$(sh "$RELEASE_SCRIPT" "$RELEASE_TAG" "${RELEASE_ASSETS[@]}")"
+          RELEASE_ID="$(nub release-tools/scripts/release/index.ts assets "$RELEASE_TAG" "${RELEASE_ASSETS[@]}")"
           test -n "$RELEASE_ID"
           echo "RELEASE_ID=$RELEASE_ID" >> "$GITHUB_ENV"
 

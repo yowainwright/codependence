@@ -39,41 +39,41 @@ jobs:
 
       - name: Determine Version to Test
         id: version
-        run: bash scripts/ci/published-release_test.sh resolve-version
+        run: nub scripts/release/index.ts test-published resolve-version
         env:
           INPUT_VERSION: ${{ inputs.version || github.event.release.tag_name }}
 
       - name: Wait for NPM Package Availability
-        run: bash scripts/ci/published-release_test.sh wait-for-npm
+        run: nub scripts/release/index.ts test-published wait-for-npm
         env:
           CODEPENDENCE_VERSION: ${{ steps.version.outputs.version }}
 
       - name: Build Test Docker Image
-        run: bash scripts/ci/published-release_test.sh build-release-image
+        run: nub scripts/release/index.ts test-published build-release-image
         env:
           CODEPENDENCE_VERSION: ${{ steps.version.outputs.version }}
 
       - name: Verify Installation
-        run: bash scripts/ci/published-release_test.sh verify-installation
+        run: nub scripts/release/index.ts test-published verify-installation
 
       - name: Run Full E2E Test Suite
-        run: bash scripts/ci/published-release_test.sh run-e2e
+        run: nub scripts/release/index.ts test-published run-e2e
 
       - name: Run NPM Package Smoke Test
-        run: bash scripts/ci/published-release_test.sh run-npm-smoke
+        run: nub scripts/release/index.ts test-published run-npm-smoke
         env:
           CODEPENDENCE_VERSION: ${{ steps.version.outputs.version }}
 
       - name: Performance and Compatibility Check
-        run: bash scripts/ci/published-release_test.sh compatibility-check
+        run: nub scripts/release/index.ts test-published compatibility-check
 
       - name: Report Test Results
-        run: bash scripts/ci/published-release_test.sh summary
+        run: nub scripts/release/index.ts test-published summary
         env:
           CODEPENDENCE_VERSION: ${{ steps.version.outputs.version }}
 
       - name: Create Test Report
         if: success()
-        run: bash scripts/ci/published-release_test.sh write-report
+        run: nub scripts/release/index.ts test-published write-report
         env:
           CODEPENDENCE_VERSION: ${{ steps.version.outputs.version }}

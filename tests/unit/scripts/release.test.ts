@@ -12,20 +12,28 @@ import {
   buildCurrentVersionTagPlan,
   buildReleaseItArgs,
   buildReleasePlan,
+  commandText,
+  createRunner as createCommandRunner,
   formatReleasePlan,
+  gitText,
   incrementPreReleaseVersion,
   incrementStableVersion,
   parseArgs,
   parseReleaseVersion,
+  readPackageVersion,
   releaseTagExists,
   renderSchemaMetadata,
   resolveAvailableReleaseVersion,
+  runOrThrow,
   runRelease as runReleaseCommand,
   updateSchemaMetadata,
+  writeSchemaMetadata,
   type ReleaseOptions,
   type ReleaseRunner,
   type SchemaMetadataWriter,
 } from "../../../scripts/release";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import type { GitResult } from "../../../scripts/release";
 
 const MERGE_COMMIT = "a".repeat(40);
@@ -33,6 +41,7 @@ const ok = (stdout = ""): GitResult => ({ status: 0, stdout, stderr: "" });
 const absent = (): GitResult => ({ status: 1, stdout: "", stderr: "" });
 const missing = (): GitResult => ({ status: 2, stdout: "", stderr: "" });
 const noopSchemaMetadataWriter: SchemaMetadataWriter = () => {};
+const TEMP_ROOT = join(import.meta.dirname, ".tmp-release");
 
 const runRelease = (options: ReleaseOptions) =>
   runReleaseCommand({ schemaMetadataWriter: noopSchemaMetadataWriter, ...options });
@@ -273,12 +282,23 @@ describe("scripts/release arguments", () => {
   test("rejects unsafe and invalid options", () => {
     assertThrows((() => parseArgs(["--no-wait"])), "cannot safely tag");
     assertThrows((() => parseArgs(["--increment=nightly"])), "Invalid release increment");
+    assertThrows((() => parseArgs(["--preRelease=nightly"])), "Invalid prerelease identifier");
     assertThrows((() => parseArgs(["--timeout-minutes=0"])), "Invalid timeout");
   });
 
   test("builds non-publishing release-it arguments", () => {
     assert.deepStrictEqual((buildReleaseItArgs({ increment: "patch" })), [
       "--increment=patch",
+      "--git.tag=false",
+      "--git.push=false",
+      "--git.requireUpstream=false",
+      "--git.getLatestTagFromAllRefs=true",
+      "--ci",
+    ]);
+  });
+
+  test("builds default release-it arguments", () => {
+    assert.deepStrictEqual((buildReleaseItArgs({})), [
       "--git.tag=false",
       "--git.push=false",
       "--git.requireUpstream=false",
@@ -315,6 +335,11 @@ describe("scripts/release versions", () => {
     assert.strictEqual((incrementStableVersion("1.2.3", "minor")), "1.3.0");
     assert.strictEqual((incrementStableVersion("1.2.3", "major")), "2.0.0");
     assert.strictEqual((incrementPreReleaseVersion("1.2.4-beta.7", "beta")), "1.2.4-beta.8");
+    assertThrows(
+      (() => incrementPreReleaseVersion("1.2.4-alpha.7", "beta")),
+      "Unable to advance beta",
+    );
+    assertThrows((() => incrementStableVersion("1.2.3-beta.7", "patch")), "Unable to advance stable");
   });
 
   test("updates schema metadata from the release version", () => {
@@ -360,12 +385,49 @@ describe("scripts/release versions", () => {
     );
   });
 
+  test("rejects schemas missing release metadata fields", () => {
+    assertThrows((() => renderSchemaMetadata("{}", "1.2.4")), "schema x-revision is missing");
+  });
+
+  test("writes schema metadata to disk", () => {
+    mkdirSync(TEMP_ROOT, { recursive: true });
+    const directory = mkdtempSync(join(TEMP_ROOT, "schema-"));
+    const schemaPath = join(directory, "src/config/schema.json");
+    try {
+      mkdirSync(join(directory, "src/config"), { recursive: true });
+      writeFileSync(schemaPath, '{\n  "x-revision": "1.2.3",\n  "x-updated": "2026-08-25"\n}\n');
+      writeSchemaMetadata(directory, "1.2.4", new Date("2026-08-26T00:00:00.000Z"));
+      assert.ok((readFileSync(schemaPath, "utf8")).includes('"x-revision": "1.2.4"'));
+    } finally {
+      rmSync(TEMP_ROOT, { recursive: true, force: true });
+    }
+  });
+
+  test("reads package versions from disk", () => {
+    mkdirSync(TEMP_ROOT, { recursive: true });
+    const directory = mkdtempSync(join(TEMP_ROOT, "package-"));
+    try {
+      writeFileSync(join(directory, "package.json"), JSON.stringify({ version: "1.2.3" }));
+      assert.strictEqual((readPackageVersion(directory)), "1.2.3");
+    } finally {
+      rmSync(TEMP_ROOT, { recursive: true, force: true });
+    }
+  });
+
   test("checks local and remote tags", () => {
     const { runner } = createRunner({
       "git rev-parse -q --verify refs/tags/v1.2.4": missing(),
       "git ls-remote --tags origin refs/tags/v1.2.4": ok("abc refs/tags/v1.2.4\n"),
     });
     assert.strictEqual((releaseTagExists(runner, "v1.2.4")), true);
+  });
+
+  test("rejects tag lookup failures", () => {
+    const { runner } = createRunner({
+      "git rev-parse -q --verify refs/tags/v1.2.4": absent(),
+      "git ls-remote --tags origin refs/tags/v1.2.4": { status: 1, stdout: "", stderr: "" },
+    });
+    assertThrows((() => releaseTagExists(runner, "v1.2.4")), "Unable to check remote tag");
   });
 
   test("skips occupied stable release tags", () => {
@@ -376,6 +438,40 @@ describe("scripts/release versions", () => {
     });
     const args = { dryRun: true, increment: "patch" as const, timeoutMinutes: 90 };
     assert.strictEqual((resolveAvailableReleaseVersion(runner, args, "1.2.4")), "1.2.5");
+  });
+
+  test("skips occupied prerelease tags", () => {
+    const { runner } = createRunner({
+      "git rev-parse -q --verify refs/tags/v1.2.4-beta.7": ok("abc\n"),
+      "git rev-parse -q --verify refs/tags/v1.2.4-beta.8": missing(),
+      "git ls-remote --tags origin refs/tags/v1.2.4-beta.8": ok(),
+    });
+    const args = { dryRun: true, preRelease: "beta" as const, timeoutMinutes: 90 };
+    assert.strictEqual((resolveAvailableReleaseVersion(runner, args, "1.2.4-beta.7")), "1.2.4-beta.8");
+  });
+
+  test("wraps release command helpers", () => {
+    const runner: ReleaseRunner = () => ok(" output \n");
+    assert.strictEqual((commandText(runner, "gh", ["status"])), "output");
+    assert.deepStrictEqual((runOrThrow(runner, "gh", ["status"])), ok(" output \n"));
+  });
+
+  test("surfaces release command failures", () => {
+    const runner: ReleaseRunner = () => ({ status: 1, stdout: "", stderr: "boom\n" });
+    assertThrows((() => commandText(runner, "gh", ["status"])), "boom");
+    assertThrows((() => runOrThrow(runner, "gh", ["status"])), "gh status failed");
+  });
+
+  test("runs commands from a working directory", () => {
+    const runner = createCommandRunner(process.cwd());
+    const result = runner(process.execPath, ["--version"]);
+    assert.strictEqual((result.status), 0);
+    assert.ok((result.stdout).startsWith("v"));
+  });
+
+  test("surfaces git helper failures", () => {
+    const git = () => ({ status: 1, stdout: "", stderr: "nope\n" });
+    assertThrows((() => gitText(git, ["status"], "fallback")), "nope");
   });
 });
 
