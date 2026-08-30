@@ -20,6 +20,7 @@ import {
   assertContainsEqual,
   assertRejects,
   assertThrows,
+  match,
 } from "../../../helpers/assertions";
 
 const MERGE_COMMIT = "a".repeat(40);
@@ -34,9 +35,15 @@ const runRelease = (options: ReleaseOptions) =>
   runReleaseCommand({ schemaMetadataWriter: noopSchemaMetadataWriter, ...options });
 
 interface ReleaseFlowState {
+  closedPullRequest?: boolean;
+  dirtyPullRequest?: boolean;
+  mergedPullRequestMissingCommit?: boolean;
   missingFallbackPullRequestUrl?: boolean;
+  missingSchemaRevision?: boolean;
+  missingSchemaUpdatedDate?: boolean;
   missingReleaseBranchVersion?: boolean;
   mismatchedSchemaDiff?: boolean;
+  releasePullRequestMerged?: boolean;
   pullRequestCreateFails?: boolean;
   remoteBranchCheckFails?: boolean;
   remoteBranchInvalidCommit?: boolean;
@@ -117,6 +124,12 @@ const releaseBranchResult = (key: string, state: ReleaseFlowState): GitResult | 
   }
   if (key === "git diff --unified=0 origin/main release/v1.2.4 -- src/config/schema.json") {
     if (state.mismatchedSchemaDiff) return ok('+  "private": false,\n');
+    if (state.missingSchemaRevision)
+      return ok('-  "x-updated": "2026-08-25",\n+  "x-updated": "2026-08-26",\n');
+    if (state.missingSchemaUpdatedDate)
+      return ok(
+        '-  "x-revision": "1.2.3",\n+  "x-revision": "1.2.4",\n+  "x-updated": "2026-08-26",\n',
+      );
     return ok(
       '-  "x-revision": "1.2.3",\n+  "x-revision": "1.2.4",\n-  "x-updated": "2026-08-25",\n+  "x-updated": "2026-08-26",\n',
     );
@@ -138,8 +151,11 @@ const releaseFlowResult = (
   }
   if (key.includes("release-it --release-version")) return ok("1.2.4\n");
   if (key.includes("rev-parse -q --verify refs/tags/v1.2.4")) return missing();
+  if (key.includes("rev-parse -q --verify refs/tags/v1.2.4-rc.0")) return missing();
+  if (key.includes("rev-parse -q --verify refs/tags/v1.2.3-rc.0")) return missing();
   if (key.includes("ls-remote --exit-code --tags")) return missing();
   if (key === "git ls-remote --tags origin refs/tags/v1.2.4") return ok();
+  if (key === "git ls-remote --tags origin refs/tags/v1.2.4-rc.0") return ok();
   if (key.startsWith("gh pr create ")) {
     if (state.pullRequestCreateFails) return { status: 1, stdout: "", stderr: "already exists\n" };
     return ok(`${prUrl}\n`);
@@ -149,6 +165,13 @@ const releaseFlowResult = (
     return ok(JSON.stringify(result));
   }
   if (key.endsWith("state,mergedAt,mergeCommit,mergeStateStatus")) {
+    if (state.closedPullRequest) return ok(JSON.stringify({ state: "CLOSED" }));
+    if (state.dirtyPullRequest) {
+      return ok(JSON.stringify({ mergeStateStatus: "DIRTY", state: "OPEN" }));
+    }
+    if (state.mergedPullRequestMissingCommit) {
+      return ok(JSON.stringify({ mergeCommit: null, mergedAt: "now", state: "MERGED" }));
+    }
     if (runtime.autoMergeQueued) {
       const merged = { mergeCommit: { oid: MERGE_COMMIT }, mergedAt: "now", state: "MERGED" };
       return ok(JSON.stringify(merged));
@@ -156,6 +179,9 @@ const releaseFlowResult = (
     return ok(JSON.stringify({ mergeStateStatus: "CLEAN", state: "OPEN" }));
   }
   if (key.endsWith("state,mergedAt,mergeCommit")) {
+    if (state.mergedPullRequestMissingCommit) {
+      return ok(JSON.stringify({ mergeCommit: null, mergedAt: "now", state: "MERGED" }));
+    }
     const merged = { mergeCommit: { oid: MERGE_COMMIT }, mergedAt: "now", state: "MERGED" };
     return ok(JSON.stringify(merged));
   }
@@ -163,15 +189,24 @@ const releaseFlowResult = (
     return ok(`${MERGE_COMMIT} abc\nabc def\n`);
   }
   if (key === `git show ${MERGE_COMMIT}:package.json`) {
+    if (state.releasePullRequestMerged) return ok(JSON.stringify({ version: "1.2.3-rc.0" }));
     return ok(JSON.stringify({ version: "1.2.4" }));
   }
   if (key === `git diff-tree --no-commit-id --name-only -r ${MERGE_COMMIT}`) {
     return ok("package.json\nsrc/config/schema.json\n");
   }
   if (key === `git diff --unified=0 abc ${MERGE_COMMIT} -- package.json`) {
+    if (state.releasePullRequestMerged) {
+      return ok('-  "version": "1.2.3-beta.1",\n+  "version": "1.2.3-rc.0",\n');
+    }
     return ok('-  "version": "1.2.3",\n+  "version": "1.2.4",\n');
   }
   if (key === `git diff --unified=0 abc ${MERGE_COMMIT} -- src/config/schema.json`) {
+    if (state.releasePullRequestMerged) {
+      return ok(
+        '-  "x-revision": "1.2.3-beta.1",\n+  "x-revision": "1.2.3-rc.0",\n-  "x-updated": "2026-08-25",\n+  "x-updated": "2026-08-26",\n',
+      );
+    }
     return ok(
       '-  "x-revision": "1.2.3",\n+  "x-revision": "1.2.4",\n-  "x-updated": "2026-08-25",\n+  "x-updated": "2026-08-26",\n',
     );
@@ -181,6 +216,29 @@ const releaseFlowResult = (
   if (key === "git fetch origin main --tags") return ok();
   if (key === "git rev-parse HEAD") return ok("abc\n");
   if (key === "git rev-parse origin/main") return ok("abc\n");
+  if (key === "git rev-parse origin/main^") return ok("def\n");
+  if (key === "git ls-remote --tags origin refs/tags/v1.2.4") return ok();
+  if (
+    key ===
+    "gh pr list --head release/v1.2.3-rc.0 --state all --json url,headRefName,baseRefName,headRefOid,mergedAt,mergeCommit"
+  ) {
+    if (!state.releasePullRequestMerged) return ok("[]");
+    const pullRequest = {
+      baseRefName: "main",
+      headRefName: "release/v1.2.3-rc.0",
+      headRefOid: MERGE_COMMIT,
+      mergeCommit: state.mergedPullRequestMissingCommit ? null : { oid: MERGE_COMMIT },
+      mergedAt: "now",
+      url: prUrl,
+    };
+    return ok(JSON.stringify([pullRequest]));
+  }
+  if (key === "git show release/v1.2.3-rc.0:package.json")
+    return ok(JSON.stringify({ version: "1.2.3-rc.0" }));
+  if (key === "git log -1 --format=%s release/v1.2.3-rc.0")
+    return ok("chore(release): 1.2.3-rc.0\n");
+  if (key === "git rev-parse release/v1.2.3-rc.0^") return ok("abc\n");
+  if (key === "git rev-parse refs/heads/release/v1.2.3-rc.0") return ok(`${MERGE_COMMIT}\n`);
   return ok();
 };
 
@@ -347,6 +405,22 @@ describe("scripts/release/utils", () => {
     await assertRejects(release, "Unverified release diff");
   });
 
+  test("rejects release commits without a schema revision change", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const { runner } = createReleaseFlowRunner(prUrl, { missingSchemaRevision: true });
+    const release = runRelease({ increment: "patch", logger, runner });
+    await assertRejects(release, "Unverified release schema revision");
+  });
+
+  test("rejects malformed schema updated date changes", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const { runner } = createReleaseFlowRunner(prUrl, { missingSchemaUpdatedDate: true });
+    const release = runRelease({ increment: "patch", logger, runner });
+    await assertRejects(release, "Unverified release schema date");
+  });
+
   test("rejects release branch commits without a package version", async () => {
     const prUrl = "https://github.com/yowainwright/codependence/pull/300";
     const logger = createLogger();
@@ -390,6 +464,60 @@ describe("scripts/release/utils", () => {
     const { runner } = createReleaseFlowRunner(prUrl, state);
     const release = runRelease({ increment: "patch", logger, runner });
     await assertRejects(release, "Unable to find release PR");
+  });
+
+  test("writes dry-run plans for requested version changes", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const { runner } = createReleaseFlowRunner(prUrl);
+    const code = await runRelease({ dryRun: true, increment: "patch", logger, runner });
+
+    assert.strictEqual(code, 0);
+    assertCalledWith(logger.log, match.stringContaining("Dry run release commands"));
+  });
+
+  test("tags the current package version", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const { calls, runner } = createReleaseFlowRunner(prUrl);
+    const code = await runRelease({ logger, packageVersion: "1.2.4-rc.0", runner });
+
+    assert.strictEqual(code, 0);
+    assertCalledWith(logger.log, "Tagged current package version 1.2.4-rc.0.");
+    assertContainsEqual(calls, [
+      "git",
+      "tag",
+      "--annotate",
+      "v1.2.4-rc.0",
+      "--message",
+      "Release 1.2.4-rc.0",
+    ]);
+  });
+
+  test("writes a dry-run tag plan for merged current-version releases", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const { runner } = createReleaseFlowRunner(prUrl, { releasePullRequestMerged: true });
+    const code = await runRelease({ dryRun: true, logger, packageVersion: "1.2.3-rc.0", runner });
+
+    assert.strictEqual(code, 0);
+    assertCalledWith(logger.log, match.stringContaining("Dry run release commands"));
+  });
+
+  test("rejects closed release pull requests", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const { runner } = createReleaseFlowRunner(prUrl, { closedPullRequest: true });
+    const release = runRelease({ increment: "patch", logger, runner });
+    await assertRejects(release, "Release PR closed without merging");
+  });
+
+  test("rejects release pull requests with merge conflicts", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const { runner } = createReleaseFlowRunner(prUrl, { dirtyPullRequest: true });
+    const release = runRelease({ increment: "patch", logger, runner });
+    await assertRejects(release, "Release PR has merge conflicts");
   });
 
   test("updates the existing stable Homebrew tap PR", async () => {

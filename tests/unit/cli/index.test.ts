@@ -8,10 +8,11 @@ import {
   assertThrows,
   match,
 } from "../../helpers/assertions";
+import { spawn } from "node:child_process";
 import type { Options } from "../../../src/types";
 import fs from "node:fs";
 import { tmpdir } from "os";
-import { dirname, join } from "path";
+import { dirname, join, resolve } from "path";
 import { logger } from "../../../src/observability";
 import * as config from "../../../src/config";
 import { Prompt } from "../../../src/dx";
@@ -32,6 +33,7 @@ import {
 const checkFilesMock = mock.fn(programDependencies.checkFiles);
 const loadConfigMock = mock.fn(programDependencies.loadConfig);
 const execMock = mock.fn(programDependencies.exec);
+const PROJECT_ROOT = resolve(".");
 programDependencies.checkFiles = checkFilesMock;
 programDependencies.loadConfig = loadConfigMock;
 programDependencies.exec = execMock;
@@ -1127,6 +1129,51 @@ describe("run", () => {
       delete (process.stdout as { isTTY?: boolean }).isTTY;
       printSpy.mock.restore();
     }
+  });
+
+  test("stops the direct styleguide loader after a termination signal", async () => {
+    const code = [
+      "delete process.env.CI;",
+      "delete process.env.GITHUB_ACTIONS;",
+      'Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: true });',
+      'process.argv = [process.argv[0], "src/cli/index.ts", "--styleguide"];',
+      'await import("./src/cli/index.ts");',
+    ].join("\n");
+    const child = spawn(
+      process.execPath,
+      ["--import", "./scripts/run/index.ts", "--input-type=module", "--eval", code],
+      { cwd: PROJECT_ROOT },
+    );
+    let output = "";
+    let signalSent = false;
+
+    const result = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
+      (resolveResult, reject) => {
+        const timeout = setTimeout(() => {
+          child.kill("SIGKILL");
+          reject(new Error("Timed out waiting for direct styleguide loader"));
+        }, 2000);
+        const readOutput = (chunk: Buffer): void => {
+          output += chunk.toString();
+          const shouldStop = output.includes("\x1B[?25l") && !signalSent;
+          if (!shouldStop) return;
+          signalSent = true;
+          setTimeout(() => child.kill("SIGTERM"), 20);
+        };
+        child.stdout.on("data", readOutput);
+        child.stderr.on("data", readOutput);
+        child.once("error", reject);
+        child.once("close", (code, signal) => {
+          clearTimeout(timeout);
+          resolveResult({ code, signal });
+        });
+      },
+    );
+
+    assert.strictEqual(result.code, 0);
+    assert.strictEqual(result.signal, null);
+    assert.ok(output.includes("\x1B[?25l"));
+    assert.ok(output.includes("\x1B[?25h"));
   });
 
   test("should show legend when --legend flag is provided", async () => {

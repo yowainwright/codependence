@@ -1,6 +1,10 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { installArgs, runInstallCommand } from "../../../../scripts/install/index.js";
+import {
+  installArgs,
+  resolveLegibilityInstaller,
+  runInstallCommand,
+} from "../../../../scripts/install/index.js";
 
 const createErrorRecorder = () => {
   const errors: string[] = [];
@@ -11,6 +15,12 @@ const createErrorRecorder = () => {
 };
 
 describe("scripts/install/index", () => {
+  test("resolves the legibility package installer", () => {
+    assert.ok(
+      resolveLegibilityInstaller().endsWith("eslint-plugin-legibility/bin/agent/install.js"),
+    );
+  });
+
   test("builds global legibility install arguments", () => {
     assert.deepStrictEqual(installArgs("/repo/install.js", "codex", false), [
       "/repo/install.js",

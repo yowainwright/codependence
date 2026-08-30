@@ -177,6 +177,7 @@ const startStyleguideShimmerLoop = (spinner: Spinner): NodeJS.Timeout => {
     frameIndex += 1;
     spinner.text = styleguideLoaderText(frameIndex);
   }, CLI_STYLEGUIDE_LOADER_INTERVAL_MS);
+  interval.ref();
   return interval;
 };
 
@@ -185,9 +186,12 @@ const loopStyleguideLoader = async (): Promise<void> => {
 
   const spinner = createSpinner(styleguideLoaderText(1), { interactive: true }).start();
   const shimmerInterval = startStyleguideShimmerLoop(spinner);
-  await waitForExitSignal();
-  clearInterval(shimmerInterval);
-  spinner.stop();
+  try {
+    await waitForExitSignal();
+  } finally {
+    clearInterval(shimmerInterval);
+    spinner.stop();
+  }
 };
 
 const isOnboardingMode = (value: string | undefined): value is OnboardingMode =>
