@@ -45,7 +45,7 @@
   "files": [
     "dist",
     "src",
-    "scripts/install-legibility-skill.js"
+    "scripts/install"
   ],
   "keywords": [
     "peerDependencies",
@@ -120,12 +120,12 @@
     "update": "nub update",
     "validate": "NODE_OPTIONS= node --preserve-symlinks-main node_modules/eslint-plugin-legibility/bin/lint-changed.js && nub scripts/run/index.ts",
     "validate:full": "NODE_OPTIONS= node --preserve-symlinks-main node_modules/eslint-plugin-legibility/bin/lint-changed.js && nub scripts/run/index.ts && ./tests/e2e/test-multilang.sh all",
-    "skills:install": "node scripts/install-legibility-skill.js agents",
-    "skills:install:claude": "node scripts/install-legibility-skill.js claude",
-    "skills:install:claude:local": "node scripts/install-legibility-skill.js claude --local",
-    "skills:install:codex": "node scripts/install-legibility-skill.js codex",
-    "skills:install:codex:local": "node scripts/install-legibility-skill.js codex --local",
-    "skills:install:local": "node scripts/install-legibility-skill.js agents --local",
+    "skills:install": "node scripts/install/index.js agents",
+    "skills:install:claude": "node scripts/install/index.js claude",
+    "skills:install:claude:local": "node scripts/install/index.js claude --local",
+    "skills:install:codex": "node scripts/install/index.js codex",
+    "skills:install:codex:local": "node scripts/install/index.js codex --local",
+    "skills:install:local": "node scripts/install/index.js agents --local",
     "precoverage": "mkdir -p coverage"
   },
   "type": "module",

@@ -602,7 +602,7 @@ describe("Action Function Tests (Fast)", () => {
     }
   });
 
-  test("pulses status in package scripts without stdout tty", async () => {
+  test("keeps package script output stable without stdout tty", async () => {
     delete (process.stdout as { isTTY?: boolean }).isTTY;
     const previousLifecycleEvent = process.env.npm_lifecycle_event;
     process.env.npm_lifecycle_event = "update:deps";
@@ -627,7 +627,7 @@ describe("Action Function Tests (Fast)", () => {
 
       const spinnerOutput = writeSpy.mock.calls.flatMap((call) => call.arguments).join("");
       const finalOutput = consoleSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
-      assert.ok(spinnerOutput.includes("wrestling"));
+      assert.strictEqual(spinnerOutput.includes("wrestling"), false);
       assert.ok(finalOutput.includes("pinned!"));
     } finally {
       if (previousLifecycleEvent) {
@@ -1274,6 +1274,62 @@ describe("run", () => {
       assertCalledWith(infoSpy, `Created ${goWorkflow}`);
     } finally {
       infoSpy.mock.restore();
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("discovers init actions config from parent directories", async () => {
+    const rootDir = createActionsProject();
+    const nestedDir = join(rootDir, "packages", "api");
+    fs.mkdirSync(nestedDir, { recursive: true });
+
+    try {
+      await run([
+        "node",
+        "script.js",
+        "init",
+        "actions",
+        "go",
+        "--rootDir",
+        nestedDir,
+        "--version",
+        "go=1.25.3",
+      ]);
+
+      const goWorkflow = join(nestedDir, ".github/workflows/codependence-go.yml");
+      assert.strictEqual(fs.existsSync(goWorkflow), true);
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prefers package config over rc config for init actions", async () => {
+    const rootDir = createActionsProject();
+    const manifest = {
+      codependence: {
+        targets: [{ manager: "go" }],
+      },
+      name: "fixture",
+    };
+    fs.writeFileSync(join(rootDir, "package.json"), JSON.stringify(manifest));
+
+    try {
+      await run([
+        "node",
+        "script.js",
+        "init",
+        "actions",
+        "--rootDir",
+        rootDir,
+        "--version",
+        "go=1.25.3",
+      ]);
+
+      const goWorkflow = join(rootDir, ".github/workflows/codependence-go.yml");
+      const dockerWorkflow = join(rootDir, ".github/workflows/codependence-docker.yml");
+      assert.strictEqual(fs.existsSync(goWorkflow), true);
+      assert.strictEqual(fs.existsSync(dockerWorkflow), false);
+    } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
   });

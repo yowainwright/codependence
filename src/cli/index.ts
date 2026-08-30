@@ -144,16 +144,11 @@ const suppressOutput = (options: { quiet?: unknown; silent?: unknown }): boolean
 
 const isCiOutput = (): boolean => Boolean(process.env.CI || process.env.GITHUB_ACTIONS);
 
-const isPackageScriptOutput = (): boolean => Boolean(process.env.npm_lifecycle_event);
-
 const shouldUseStatusSpinner = (shouldShowStatus: boolean): boolean => {
   if (!shouldShowStatus) return false;
   if (isCiOutput()) return false;
 
-  const hasTty = Boolean(process.stdout.isTTY);
-  if (hasTty) return true;
-
-  return isPackageScriptOutput();
+  return Boolean(process.stdout.isTTY);
 };
 
 const styleguideLoaderText = (frameIndex: number): string => {
@@ -678,16 +673,8 @@ const areaForManager = (manager: DependencyManager): WorkflowArea => {
   return "infrastructure";
 };
 
-const actionConfigFiles = (): string[] => {
-  const rcFiles = CONFIG_FILES.filter((filename) => filename !== MANIFEST_FILES.PACKAGE_JSON);
-  return rcFiles.concat(MANIFEST_FILES.PACKAGE_JSON);
-};
-
 const configuredTargets = (rootDir: string): CodependenceTarget[] => {
-  const result = actionConfigFiles().reduce<ReturnType<typeof loadConfig>>(
-    (found, filename) => found || programDependencies.loadConfig(join(rootDir, filename)),
-    null,
-  );
+  const result = programDependencies.loadConfig(undefined, rootDir);
   if (!result) {
     throw new Error(
       "Codependence configuration not found. Add manager targets before running `codependence init actions`.",

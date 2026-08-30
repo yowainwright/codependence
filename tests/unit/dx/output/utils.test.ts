@@ -1,7 +1,8 @@
 import { afterEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import { createAnsiPattern } from "../../../../src/dx/constants";
-import { createSpinner, glimmer } from "../../../../src/dx/output";
+import { createSpinner, formatVersionTable, glimmer } from "../../../../src/dx/output";
+import type { TableVersionDiff } from "../../../../src/dx/output";
 
 const setInteractiveOutput = (interactive: boolean): void => {
   Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: interactive });
@@ -160,5 +161,35 @@ describe("glimmer", () => {
     const loopedFrame = glimmer("codependence", { frameIndex: "codependence".length });
 
     assert.strictEqual(loopedFrame, firstFrame);
+  });
+});
+
+describe("formatVersionTable", () => {
+  it("colors prerelease transitions by the release size", () => {
+    const diffs: TableVersionDiff[] = [
+      { package: "premajor", current: "1.0.0-alpha.1", latest: "1.0.0", isPinned: false },
+      { package: "preminor", current: "1.2.0-alpha.1", latest: "1.2.0", isPinned: false },
+      { package: "prepatch", current: "1.2.3-alpha.1", latest: "1.2.3", isPinned: false },
+      { package: "prerelease", current: "1.2.3-alpha.1", latest: "1.2.3-beta.1", isPinned: false },
+    ];
+
+    const result = formatVersionTable(diffs, "check");
+
+    assert.ok(result.includes("premajor"));
+    assert.ok(result.includes("preminor"));
+    assert.ok(result.includes("prepatch"));
+    assert.ok(result.includes("prerelease"));
+    assert.ok(result.includes("1.2.3-beta.1"));
+  });
+
+  it("colors release-to-prerelease transitions as release diffs", () => {
+    const diffs: TableVersionDiff[] = [
+      { package: "rollback", current: "1.0.0", latest: "1.0.0-beta.1", isPinned: false },
+    ];
+
+    const result = formatVersionTable(diffs, "check");
+
+    assert.ok(result.includes("rollback"));
+    assert.ok(result.includes("1.0.0-beta.1"));
   });
 });

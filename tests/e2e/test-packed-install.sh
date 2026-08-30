@@ -94,7 +94,7 @@ pack_package() {
 
   assert_file_exists "$PACK_FILE" "npm pack creates tarball"
   assert_tar_contains "$PACK_FILE" "package/dist/cli.js" "packed package includes CLI"
-  assert_tar_contains "$PACK_FILE" "package/scripts/install-legibility-skill.js" "packed package includes skill installer"
+  assert_tar_contains "$PACK_FILE" "package/scripts/install/index.js" "packed package includes skill installer"
 }
 
 prepare_local_legibility_package() {
@@ -125,7 +125,7 @@ JSON
   )
 
   assert_file_exists "$PROJECT_DIR/node_modules/codependence/dist/cli.js" "packed install exposes CLI"
-  assert_file_exists "$PROJECT_DIR/node_modules/codependence/scripts/install-legibility-skill.js" "packed install exposes skill script"
+  assert_file_exists "$PROJECT_DIR/node_modules/codependence/scripts/install/index.js" "packed install exposes skill script"
   assert_file_exists "$PROJECT_DIR/node_modules/eslint-plugin-legibility/bin/agent/install.js" "packed install has legibility installer dependency"
 }
 
@@ -424,7 +424,7 @@ test_installed_docker_action_workflow() {
 test_installed_skill_script() {
   (
     cd "$PROJECT_DIR"
-    node node_modules/codependence/scripts/install-legibility-skill.js codex --local >/dev/null
+    node node_modules/codependence/scripts/install/index.js codex --local >/dev/null
   )
 
   assert_file_exists "$PROJECT_DIR/.codex/skills/eslint-plugin-legibility/SKILL.md" "packed skill installer writes Codex skill"
