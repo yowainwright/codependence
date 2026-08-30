@@ -15,7 +15,7 @@ import {
   requireVersion,
   runTestPublishedReleaseCli,
 } from "../../../../scripts/release";
-import { NODE_ALPINE_IMAGE as nodeAlpineImage } from "./constants";
+import { NODE_ALPINE_IMAGE as nodeAlpineImage } from "../ci/constants";
 
 const TEMP_ROOT = join(import.meta.dirname, ".tmp-published-release");
 

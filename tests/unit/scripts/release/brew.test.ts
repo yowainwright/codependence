@@ -1,6 +1,6 @@
 import { describe, mock, test } from "node:test";
 import assert from "node:assert/strict";
-import { assertRejects, assertThrows } from "../../helpers/assertions";
+import { assertRejects, assertThrows } from "../../../helpers/assertions";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -17,7 +17,7 @@ import {
   writeHomebrewReleaseState,
   writeHomebrewTapUpdate,
   validateStableVersion,
-} from "../../../scripts/release";
+} from "../../../../scripts/release";
 
 type GithubCall = { body?: unknown; method: string; url: string };
 const TEMP_ROOT = join(import.meta.dirname, ".tmp-brew");

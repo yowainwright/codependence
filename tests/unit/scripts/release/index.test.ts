@@ -7,7 +7,7 @@ import {
   assertRejects,
   assertThrows,
   match,
-} from "../../helpers/assertions";
+} from "../../../helpers/assertions";
 import {
   buildCurrentVersionTagPlan,
   buildReleaseItArgs,
@@ -31,10 +31,10 @@ import {
   type ReleaseOptions,
   type ReleaseRunner,
   type SchemaMetadataWriter,
-} from "../../../scripts/release";
+} from "../../../../scripts/release";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { GitResult } from "../../../scripts/release";
+import type { GitResult } from "../../../../scripts/release";
 
 const MERGE_COMMIT = "a".repeat(40);
 const ok = (stdout = ""): GitResult => ({ status: 0, stdout, stderr: "" });
