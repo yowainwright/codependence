@@ -41,9 +41,8 @@ import { glob } from "../utils/fs";
 import { logger } from "../observability";
 import { Prompt } from "../dx";
 import { versionCache, requestDeduplicator } from "./utils";
-import { formatVersionTable } from "../dx/output";
+import { formatVersionTable, formatVersionTableTitle } from "../dx/output";
 import { formatEnhancedError } from "../dx/report";
-import { SYMBOLS } from "../dx/report/constants";
 import {
   DEFAULT_IGNORE_PATTERNS,
   DEFAULT_FILE_MATCHERS,
@@ -353,15 +352,18 @@ const assertCustomLockfiles = (rootDir: string, lockfile: string | string[]): vo
   }
 
   const paths = lockfiles.map((file) => resolve(rootDir, file));
-  const [outsideRoot, missing] = paths.reduce<[string[], string[]]>((groups, file) => {
-    const [outside, missingFiles] = groups;
-    const rootRelative = relative(rootDir, file);
-    const isOutsideRoot = rootRelative === ".." || rootRelative.startsWith(`..${sep}`);
-    const isMissing = !isFile(file);
-    const nextOutside = isOutsideRoot ? outside.concat(file) : outside;
-    const nextMissing = isMissing ? missingFiles.concat(file) : missingFiles;
-    return [nextOutside, nextMissing];
-  }, [[], []]);
+  const [outsideRoot, missing] = paths.reduce<[string[], string[]]>(
+    (groups, file) => {
+      const [outside, missingFiles] = groups;
+      const rootRelative = relative(rootDir, file);
+      const isOutsideRoot = rootRelative === ".." || rootRelative.startsWith(`..${sep}`);
+      const isMissing = !isFile(file);
+      const nextOutside = isOutsideRoot ? outside.concat(file) : outside;
+      const nextMissing = isMissing ? missingFiles.concat(file) : missingFiles;
+      return [nextOutside, nextMissing];
+    },
+    [[], []],
+  );
   if (outsideRoot.length > 0) {
     throw new Error(`Lockfile path escapes target root: ${outsideRoot.join(", ")}`);
   }
@@ -409,7 +411,9 @@ const assertRequiredLockfiles = (
   }
   if (!lockfile) return;
 
-  const lockfileManagers = manifests.filter(({ language }) => !LOCKFILE_EXEMPT_LANGUAGES.has(language));
+  const lockfileManagers = manifests.filter(
+    ({ language }) => !LOCKFILE_EXEMPT_LANGUAGES.has(language),
+  );
   lockfileManagers.forEach((manifest) => assertStandardLockfile(manifest, rootDir));
 };
 
@@ -1167,7 +1171,7 @@ const logDependencyIssueList = (list: DepToUpdateItem[]): void => {
     isPinned: false,
     willUpdate: true,
   }));
-  logger.print(`${SYMBOLS.info} Updated Dependencies:`);
+  logger.print(formatVersionTableTitle(rows));
   logger.print(formatVersionTable(rows));
   logger.space();
 };
@@ -1202,11 +1206,7 @@ const applyManifestUpdates = async (
     return;
   }
 
-  const updatedManifest = constructJson(
-    loadedManifest.manifest,
-    depsToUpdate,
-    isDebugging,
-  );
+  const updatedManifest = constructJson(loadedManifest.manifest, depsToUpdate, isDebugging);
   await loadedManifest.provider.writeManifest(loadedManifest.path, updatedManifest);
 };
 
@@ -1229,6 +1229,7 @@ export const checkDependenciesForVersion = <T extends PackageJSON>(
   if (!hasDependencyIssues(depsToUpdate)) return false;
 
   if (!isSilent) {
+    options.onBeforeOutput?.();
     logDependencyIssues(depsToUpdate);
   }
 
@@ -1263,6 +1264,7 @@ const checkManifestDependenciesForVersion = async (
   if (!hasDependencyIssues(depsToUpdate)) return false;
 
   if (!isSilent) {
+    options.onBeforeOutput?.();
     logDependencyIssues(depsToUpdate);
   }
 
@@ -1357,6 +1359,7 @@ const checkLoadedManifests = async ({
   codependencies,
   level = "major",
   deferFailure = false,
+  onBeforeOutput,
 }: CheckLoadedManifestsOptions): Promise<boolean> => {
   const options = {
     isUpdating,
@@ -1367,6 +1370,7 @@ const checkLoadedManifests = async ({
     isTesting,
     permissive,
     level,
+    onBeforeOutput,
   };
 
   let packagesNeedingUpdate: string[] = [];
@@ -1580,6 +1584,7 @@ export const checkFiles = async ({
   noCache = false,
   format,
   onProgress,
+  onBeforeOutput,
   level = "major",
   mode,
   lockfile,
@@ -1639,6 +1644,7 @@ export const checkFiles = async ({
     if (shouldReportStale) {
       const stale = detectStaleCodependenciesFromManifests(codependencies, manifests);
       if (stale.length > 0) {
+        onBeforeOutput?.();
         const label = stale.length === 1 ? "codependency" : "codependencies";
         logger.warn(`${stale.length} stale ${label} not found in any manifest:`);
         stale.forEach((name) => logger.warn(`  - ${name}`));
@@ -1706,6 +1712,7 @@ export const checkFiles = async ({
     const hasActionableDiffs = allDiffs.some((diff) => diff.willUpdate);
     const shouldDisplayDiffs = shouldShowDiffs && hasActionableDiffs;
     if (shouldDisplayDiffs) {
+      onBeforeOutput?.();
       displayVersionDiffs(allDiffs);
     }
 
@@ -1733,6 +1740,7 @@ export const checkFiles = async ({
       codependencies: depNames,
       level,
       deferFailure: shouldDeferFailure,
+      onBeforeOutput,
     });
 
     const shouldReportDeferredFailure = shouldDeferFailure && isCLI && isOutOfDate && !shouldUpdate;

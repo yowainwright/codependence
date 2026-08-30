@@ -18,6 +18,7 @@ export const ANSI = {
   CLEAR_LINE: "\r\x1B[K",
   HIDE_CURSOR: "\x1B[?25l",
   SHOW_CURSOR: "\x1B[?25h",
+  BOLD: "\x1b[1m",
   RESET: "\x1b[0m",
 } as const;
 

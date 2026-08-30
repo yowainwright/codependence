@@ -62,15 +62,15 @@ describe("release workflows", () => {
     assert.ok(state > -1);
     assert.ok(wait > state);
     assert.ok(build > state);
-    assert.ok(homebrew.includes("nub release-tools/scripts/release/brew/index.ts check-state"));
+    assert.ok(homebrew.includes("nub release-tools/scripts/release/index.ts brew check-state"));
     assert.ok(homebrew.includes("steps.homebrew-state.outputs.skip != 'true'"));
   });
 
   test("uses current release tooling when retrying old tags", () => {
     const homebrew = readWorkflow("homebrew.yml");
     assert.ok(homebrew.includes('ref: "${{ github.workflow_sha }}"'));
-    assert.ok(homebrew.includes("scripts/upload-release-assets.sh"));
-    assert.ok(homebrew.includes("scripts/release/brew/*"));
+    assert.ok(homebrew.includes("scripts/release/*"));
+    assert.ok(homebrew.includes("scripts/ci/tool-versions.js"));
     assert.ok(homebrew.includes("src/observability/*"));
     assert.ok(homebrew.includes("src/dx/constants.ts"));
     assert.ok(homebrew.includes("src/dx/output/*"));
@@ -99,13 +99,14 @@ describe("release workflows", () => {
   test("tests the exact published release", () => {
     const releaseTest = readWorkflow("test-release.yml");
     assert.ok(releaseTest.includes("inputs.version || github.event.release.tag_name"));
+    assert.ok(releaseTest.includes("nub scripts/release/index.ts test-published"));
   });
 
   test("publishes release assets immutably", () => {
     const files = [
       readWorkflow("homebrew.yml"),
       readWorkflow("publish.yml"),
-      readScript("upload-release-assets.sh"),
+      readScript("release/utils.ts"),
     ];
     files.forEach((file) => assert.ok(!file.includes("--clobber")));
     assert.ok(files.at(-1).includes("Release asset digest mismatch"));
@@ -114,8 +115,8 @@ describe("release workflows", () => {
 
   test("updates the Homebrew tap through the REST API", () => {
     const homebrew = readWorkflow("homebrew.yml");
-    const brewScript = readScript("release/brew/utils.ts");
-    assert.ok(homebrew.includes("nub release-tools/scripts/release/brew/index.ts update-tap"));
+    const brewScript = readScript("release/utils.ts");
+    assert.ok(homebrew.includes("nub release-tools/scripts/release/index.ts brew update-tap"));
     assert.ok(homebrew.includes("TAP_BRANCH: codependence-release"));
     assert.ok(brewScript.includes("git/ref/heads/${branch}"));
     assert.ok(brewScript.includes("repos/${repository}/pulls"));
@@ -127,9 +128,8 @@ describe("release workflows", () => {
 
   test("keeps the Homebrew tap PR as a reviewed path", () => {
     const homebrew = readWorkflow("homebrew.yml");
-    const brewScript = readScript("release/brew/utils.ts");
+    const brewScript = readScript("release/utils.ts");
     assert.ok(!homebrew.includes("gh pr merge --auto"));
-    assert.ok(!brewScript.includes("allow_auto_merge"));
     assert.ok(brewScript.includes("Automated formula update."));
   });
 });

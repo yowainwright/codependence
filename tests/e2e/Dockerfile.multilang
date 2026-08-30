@@ -74,8 +74,7 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --from=builder /app/page ./page
-RUN mkdir -p scripts
-COPY --from=builder /app/scripts/install-legibility-skill.js ./scripts/install-legibility-skill.js
+COPY --from=builder /app/scripts/install ./scripts/install
 
 # Install production dependencies when they exist
 RUN if node -e "const pkg = require('./package.json'); process.exit(Object.keys(pkg.dependencies || {}).length === 0 ? 0 : 1)"; then \
@@ -93,8 +92,8 @@ COPY tests/fixtures/ ./tests/fixtures/
 
 # Copy e2e test scripts
 COPY tests/e2e/test-go-update.sh ./
-COPY tests/e2e/test-agent-skill-install.sh ./
 COPY tests/e2e/test-packed-install.sh ./
+COPY tests/e2e/scripts/ ./tests/e2e/scripts/
 COPY tests/e2e/provider/ ./provider/
 
 # Make all test scripts executable

@@ -10,7 +10,8 @@ import { createHighlighter, type Highlighter } from "shiki";
 import remarkGfm from "remark-gfm";
 import { FRONTMATTER_REGEX } from "./src/lib/mdx/constants.ts";
 
-const stripFrontmatter = (source: string) => source.replace(FRONTMATTER_REGEX, "");
+const stripFrontmatter = (source: string) =>
+  source.replace(FRONTMATTER_REGEX, "");
 
 let _highlighterPromise: Promise<Highlighter> | null = null;
 
@@ -18,7 +19,17 @@ function getHighlighter(): Promise<Highlighter> {
   if (!_highlighterPromise) {
     _highlighterPromise = createHighlighter({
       themes: ["github-light", "github-dark"],
-      langs: ["javascript", "typescript", "json", "bash", "sh", "yaml", "markdown", "text", "diff"],
+      langs: [
+        "javascript",
+        "typescript",
+        "json",
+        "bash",
+        "sh",
+        "yaml",
+        "markdown",
+        "text",
+        "diff",
+      ],
     });
   }
   return _highlighterPromise;
@@ -54,7 +65,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "./src"),
-      "@codependence/onboarding": path.resolve(import.meta.dirname, "../../src/cli/init/index.ts"),
+      "@codependence/onboarding": path.resolve(
+        import.meta.dirname,
+        "../../src/cli/init/index.ts",
+      ),
     },
     dedupe: ["react", "react-dom"],
   },

@@ -37,11 +37,16 @@ const getSeverityIcon = (severity: "major" | "minor" | "patch" | "unknown"): str
 const partitionDependencies = (
   dependencies: DependencyInfo[],
 ): [DependencyInfo[], DependencyInfo[]] =>
-  dependencies.reduce<[DependencyInfo[], DependencyInfo[]]>((groups, dependency) => {
-    const [outdated, upToDate] = groups;
-    const isUpToDate = dependency.current === dependency.latest;
-    return isUpToDate ? [outdated, upToDate.concat(dependency)] : [outdated.concat(dependency), upToDate];
-  }, [[], []]);
+  dependencies.reduce<[DependencyInfo[], DependencyInfo[]]>(
+    (groups, dependency) => {
+      const [outdated, upToDate] = groups;
+      const isUpToDate = dependency.current === dependency.latest;
+      return isUpToDate
+        ? [outdated, upToDate.concat(dependency)]
+        : [outdated.concat(dependency), upToDate];
+    },
+    [[], []],
+  );
 
 export const formatAsJSON = (dependencies: DependencyInfo[], duration?: number): string => {
   const [outdatedDeps] = partitionDependencies(dependencies);
@@ -95,9 +100,7 @@ export const formatAsMarkdown = (dependencies: DependencyInfo[], duration?: numb
   const hasUpToDate = upToDateDeps.length > 0;
 
   const upToDateLines = hasUpToDate
-    ? [
-        `## ${RAW_SYMBOLS.success} Up-to-date Dependencies (${upToDateDeps.length})\n`,
-      ].concat(
+    ? [`## ${RAW_SYMBOLS.success} Up-to-date Dependencies (${upToDateDeps.length})\n`].concat(
         upToDateDeps.map((dep) => `- ${dep.name} @ ${dep.current}`),
         "",
       )
@@ -135,7 +138,11 @@ export const formatAsTable = (dependencies: DependencyInfo[]): string => {
     const severityDisplay = `${getSeverityIcon(severity)} ${severity}`;
     return `  ${dep.name.padEnd(maxNameLength)}  ${dep.current.padEnd(maxCurrentLength)}  ${dep.latest.padEnd(maxLatestLength)}  ${severityDisplay}`;
   });
-  const lines = [`\n${SYMBOLS.warning}  Outdated Dependencies:\n`, header, "  " + "─".repeat(header.length - 2)]
+  const lines = [
+    `\n${SYMBOLS.warning}  Outdated Dependencies:\n`,
+    header,
+    "  " + "─".repeat(header.length - 2),
+  ]
     .concat(dependencyLines)
     .concat(`\n  ${outdatedDeps.length} outdated of ${dependencies.length} total\n`);
 

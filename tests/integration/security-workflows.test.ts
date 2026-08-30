@@ -45,6 +45,6 @@ describe("Scorecard SARIF filtering", () => {
     const filtered = JSON.parse(output) as typeof sarif;
     const ruleIds = filtered.runs[0].results.map(({ ruleId }) => ruleId);
 
-    assert.deepStrictEqual((ruleIds), ["OtherRule", "PinnedDependenciesID", "PinnedDependenciesID"]);
+    assert.deepStrictEqual(ruleIds, ["OtherRule", "PinnedDependenciesID", "PinnedDependenciesID"]);
   });
 });

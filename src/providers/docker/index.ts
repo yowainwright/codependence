@@ -29,6 +29,7 @@ import {
   DOCKER_REGISTRY_REQUEST_ATTEMPTS,
   DOCKER_TAG_PAGE_LIMIT,
   DOCKER_TAG_PAGE_SIZE,
+  DOCKER_TRANSIENT_REGISTRY_STATUSES,
   DOCKER_USER_AGENT,
   GHCR_HOST,
 } from "./constants";
@@ -126,8 +127,7 @@ const resolveRegistryImage = (packageName: string): DockerRegistryImage => {
   const [first, ...remaining] = packageName.split("/");
   const hasRepository = remaining.length > 0;
   const isGhcrImage = first === GHCR_HOST && hasRepository;
-  if (isGhcrImage)
-    return ghcrImage(packageName, remaining.join("/"));
+  if (isGhcrImage) return ghcrImage(packageName, remaining.join("/"));
   const isDockerHubImage = DOCKER_HUB_NAMES.has(first) && hasRepository;
   if (isDockerHubImage) {
     return dockerHubImage(packageName, remaining.join("/"));
@@ -239,7 +239,7 @@ const isAuthenticationFailure = (response: Response): boolean =>
   response.status === 401 || response.status === 403;
 
 const isTransientRegistryFailure = (response: Response): boolean =>
-  response.status === 502 || response.status === 503 || response.status === 504;
+  DOCKER_TRANSIENT_REGISTRY_STATUSES.has(response.status);
 
 const readRegistryJson = async (response: Response, message: string): Promise<unknown> => {
   try {

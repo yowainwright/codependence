@@ -413,7 +413,8 @@ export const onboardingSourceFileNeedsContent = (path: string): boolean => {
   const isPackageFile = isOnboardingPackageFile(path);
   const isWorkspaceFile = path === ONBOARDING_PNPM_WORKSPACE_FILE;
   const isPyproject = pathSegments(path).at(-1) === "pyproject.toml";
-  const needsContent = isPackageFile || isWorkspaceFile || isPyproject || isWorkflowSourcePath(path);
+  const needsContent =
+    isPackageFile || isWorkspaceFile || isPyproject || isWorkflowSourcePath(path);
   return needsContent;
 };
 

@@ -26,7 +26,8 @@ export const isExcludeBlockStart = (line: string): boolean =>
 
 export const isBlockClose = (line: string): boolean => GO_PATTERNS.BLOCK_CLOSE.exec(line) !== null;
 
-export const isReplaceLine = (line: string): boolean => GO_PATTERNS.REPLACE_LINE.exec(line) !== null;
+export const isReplaceLine = (line: string): boolean =>
+  GO_PATTERNS.REPLACE_LINE.exec(line) !== null;
 
 export const preserveFinalNewline = (content: string): string =>
   content.endsWith("\n") ? content : content + "\n";

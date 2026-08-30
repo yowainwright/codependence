@@ -65,8 +65,7 @@ interface HelmDependencyUpdate {
   readonly version: string;
 }
 
-interface HelmDependencyUpdateState
-  extends HelmDependencySectionState<HelmDependencyUpdateDraft> {
+interface HelmDependencyUpdateState extends HelmDependencySectionState<HelmDependencyUpdateDraft> {
   readonly updates: HelmDependencyUpdate[];
 }
 

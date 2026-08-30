@@ -105,3 +105,86 @@ export interface ReleaseContext {
   runner: ReleaseRunner;
   schemaMetadataWriter: SchemaMetadataWriter;
 }
+
+export type Fetch = typeof fetch;
+
+export interface FormulaSource {
+  digest: string;
+  url: string;
+}
+
+export interface FormulaInput extends FormulaSource {
+  version: string;
+}
+
+export interface FormulaOptions {
+  outputPath: string;
+  version: string;
+}
+
+export interface PublishedFormulaOptions extends FormulaOptions {
+  fetchImpl?: Fetch;
+}
+
+export interface LocalFormulaOptions extends FormulaOptions {
+  tarballPath: string;
+}
+
+export interface BrewCliOptions {
+  argv?: string[];
+  env?: Record<string, string | undefined>;
+  fetchImpl?: Fetch;
+}
+
+export interface HomebrewReleaseStateOptions {
+  arch?: string;
+  env: Record<string, string | undefined>;
+  fetchImpl?: Fetch;
+}
+
+export interface HomebrewReleaseState {
+  reason?: string;
+  skip: boolean;
+}
+
+export interface HomebrewTapUpdateOptions {
+  env: Record<string, string | undefined>;
+  fetchImpl?: Fetch;
+}
+
+export interface HomebrewTapUpdateResult {
+  branch?: string;
+  changed: boolean;
+  pullRequestUrl?: string;
+}
+
+export interface ReleaseAsset {
+  digest?: string | null;
+  name?: string;
+  url?: string;
+}
+
+export interface GitHubRelease {
+  assets?: ReleaseAsset[];
+  id?: number;
+  tag_name?: string;
+  upload_url?: string;
+}
+
+export interface ReleaseAssetUploadOptions {
+  argv?: string[];
+  env?: Record<string, string | undefined>;
+  logger?: Pick<Console, "log">;
+  runner?: ReleaseRunner;
+}
+
+export interface PublishedReleaseOptions {
+  argv?: string[];
+  env?: Record<string, string | undefined>;
+  runner?: ReleaseRunner;
+}
+
+export interface ReportOptions {
+  date: string;
+  version: string;
+}

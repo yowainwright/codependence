@@ -8,10 +8,11 @@ import {
   assertThrows,
   match,
 } from "../../helpers/assertions";
+import { spawn } from "node:child_process";
 import type { Options } from "../../../src/types";
 import fs from "node:fs";
 import { tmpdir } from "os";
-import { dirname, join } from "path";
+import { dirname, join, resolve } from "path";
 import { logger } from "../../../src/observability";
 import * as config from "../../../src/config";
 import { Prompt } from "../../../src/dx";
@@ -32,20 +33,52 @@ import {
 const checkFilesMock = mock.fn(programDependencies.checkFiles);
 const loadConfigMock = mock.fn(programDependencies.loadConfig);
 const execMock = mock.fn(programDependencies.exec);
+const PROJECT_ROOT = resolve(".");
 programDependencies.checkFiles = checkFilesMock;
 programDependencies.loadConfig = loadConfigMock;
 programDependencies.exec = execMock;
 
+const restoreEnv = (name: string, value: string | undefined): void => {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+
+  process.env[name] = value;
+};
+
+const withoutCiOutput = async (callback: () => Promise<void>): Promise<void> => {
+  const previousCi = process.env.CI;
+  const previousGitHubActions = process.env.GITHUB_ACTIONS;
+  delete process.env.CI;
+  delete process.env.GITHUB_ACTIONS;
+
+  try {
+    await callback();
+  } finally {
+    restoreEnv("CI", previousCi);
+    restoreEnv("GITHUB_ACTIONS", previousGitHubActions);
+  }
+};
+
 describe("Action Function Tests (Fast)", () => {
   let scriptSpy = checkFilesMock;
+  let previousLifecycleEvent: string | undefined;
 
   beforeEach(() => {
+    previousLifecycleEvent = process.env.npm_lifecycle_event;
+    delete process.env.npm_lifecycle_event;
     checkFilesMock.mock.resetCalls();
     checkFilesMock.mock.mockImplementation(async () => undefined);
     scriptSpy = checkFilesMock;
   });
 
   afterEach(() => {
+    if (previousLifecycleEvent) {
+      process.env.npm_lifecycle_event = previousLifecycleEvent;
+    } else {
+      delete process.env.npm_lifecycle_event;
+    }
     scriptSpy.mock.restore();
   });
 
@@ -525,12 +558,90 @@ describe("Action Function Tests (Fast)", () => {
     });
 
     const calls = consoleSpy.mock.calls.flatMap((call) => call.arguments);
-    const statusCalls = calls.filter(
-      (argument) => String(argument).includes("wrestling"),
-    );
+    const statusCalls = calls.filter((argument) => String(argument).includes("wrestling"));
 
     assert.strictEqual(statusCalls.length, 1);
     consoleSpy.mock.restore();
+  });
+
+  test("pulses the checking status in interactive output", async () => {
+    Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: true });
+    const consoleSpy = mock.method(console, "log", () => {});
+    const writeSpy = mock.method(process.stdout, "write", () => true);
+    const setIntervalSpy = mock.method(globalThis, "setInterval", (() => ({
+      unref: () => {},
+    })) as unknown as typeof setInterval);
+    const clearIntervalSpy = mock.method(
+      globalThis,
+      "clearInterval",
+      (() => {}) as typeof clearInterval,
+    );
+    scriptSpy.mock.mockImplementationOnce(async (options) => {
+      options.onProgress?.(1, 1, "lodash");
+      return undefined;
+    });
+
+    try {
+      await withoutCiOutput(async () => {
+        await action({
+          codependencies: ["lodash"],
+          update: true,
+        });
+      });
+
+      const spinnerOutput = writeSpy.mock.calls.flatMap((call) => call.arguments).join("");
+      const finalOutput = consoleSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
+      assert.ok(spinnerOutput.includes("wrestling"));
+      assert.ok(spinnerOutput.includes("checking lodash (1/1)"));
+      assert.ok(finalOutput.includes("pinned!"));
+      assert.ok(!finalOutput.includes("codependence pinned!"));
+    } finally {
+      delete (process.stdout as { isTTY?: boolean }).isTTY;
+      setIntervalSpy.mock.restore();
+      clearIntervalSpy.mock.restore();
+      writeSpy.mock.restore();
+      consoleSpy.mock.restore();
+    }
+  });
+
+  test("keeps package script output stable without stdout tty", async () => {
+    delete (process.stdout as { isTTY?: boolean }).isTTY;
+    const previousLifecycleEvent = process.env.npm_lifecycle_event;
+    process.env.npm_lifecycle_event = "update:deps";
+    const consoleSpy = mock.method(console, "log", () => {});
+    const writeSpy = mock.method(process.stdout, "write", () => true);
+    const setIntervalSpy = mock.method(globalThis, "setInterval", (() => ({
+      unref: () => {},
+    })) as unknown as typeof setInterval);
+    const clearIntervalSpy = mock.method(
+      globalThis,
+      "clearInterval",
+      (() => {}) as typeof clearInterval,
+    );
+
+    try {
+      await withoutCiOutput(async () => {
+        await action({
+          codependencies: ["lodash"],
+          update: true,
+        });
+      });
+
+      const spinnerOutput = writeSpy.mock.calls.flatMap((call) => call.arguments).join("");
+      const finalOutput = consoleSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
+      assert.strictEqual(spinnerOutput.includes("wrestling"), false);
+      assert.ok(finalOutput.includes("pinned!"));
+    } finally {
+      if (previousLifecycleEvent) {
+        process.env.npm_lifecycle_event = previousLifecycleEvent;
+      } else {
+        delete process.env.npm_lifecycle_event;
+      }
+      setIntervalSpy.mock.restore();
+      clearIntervalSpy.mock.restore();
+      writeSpy.mock.restore();
+      consoleSpy.mock.restore();
+    }
   });
 
   test("should execute script with verbose mode", async () => {
@@ -567,9 +678,43 @@ describe("Action Function Tests (Fast)", () => {
         .flatMap((call) => call.arguments)
         .join("\n")
         .replace(createAnsiPattern(), "");
+      const codependenceMentions = output.match(/codependence/g) || [];
       assert.ok(output.includes("✓ pinned!"));
       assert.ok(!output.includes("codependence pinned!"));
-      assert.ok(!output.includes("wrestling"));
+      assert.ok(output.includes("codependence wrestling"));
+      assert.strictEqual(codependenceMentions.length, 1);
+    } finally {
+      consoleSpy.mock.restore();
+    }
+  });
+
+  test("prints short pinned status after applying updates", async () => {
+    const consoleSpy = mock.method(console, "log", () => {});
+    scriptSpy.mock.mockImplementation(async () => [
+      {
+        package: "lodash",
+        current: "^4.17.0",
+        latest: "4.17.21",
+        isPinned: true,
+        willUpdate: true,
+      },
+    ]);
+
+    try {
+      await action({
+        codependencies: ["lodash"],
+        update: true,
+      });
+
+      const output = consoleSpy.mock.calls
+        .flatMap((call) => call.arguments)
+        .join("\n")
+        .replace(createAnsiPattern(), "");
+      const codependenceMentions = output.match(/codependence/g) || [];
+      assert.ok(output.includes("✓ pinned!"));
+      assert.ok(!output.includes("codependence pinned!"));
+      assert.ok(output.includes("codependence wrestling"));
+      assert.strictEqual(codependenceMentions.length, 1);
     } finally {
       consoleSpy.mock.restore();
     }
@@ -918,14 +1063,22 @@ describe("initAction", () => {
 
 describe("run", () => {
   let scriptSpy = checkFilesMock;
+  let previousLifecycleEvent: string | undefined;
 
   beforeEach(() => {
+    previousLifecycleEvent = process.env.npm_lifecycle_event;
+    delete process.env.npm_lifecycle_event;
     checkFilesMock.mock.resetCalls();
     checkFilesMock.mock.mockImplementation(async () => undefined);
     scriptSpy = checkFilesMock;
   });
 
   afterEach(() => {
+    if (previousLifecycleEvent) {
+      process.env.npm_lifecycle_event = previousLifecycleEvent;
+    } else {
+      delete process.env.npm_lifecycle_event;
+    }
     scriptSpy.mock.restore();
   });
 
@@ -936,6 +1089,101 @@ describe("run", () => {
 
     assert.ok(consoleSpy.mock.callCount() > 0);
     consoleSpy.mock.restore();
+  });
+
+  test("should show styleguide when --styleguide flag is provided", async () => {
+    const printSpy = mock.method(logger, "print", () => {});
+
+    await run(["node", "script.js", "--styleguide"]);
+
+    assert.strictEqual(scriptSpy.mock.callCount(), 0);
+    assertCalledWith(printSpy, match.stringContaining("Codependence CLI Styleguide"));
+    assertCalledWith(printSpy, match.stringContaining("Dependency Risk Legend"));
+    assertCalledWith(printSpy, match.stringContaining("Loader"));
+    assertCalledWith(printSpy, match.stringContaining("wrestling"));
+    printSpy.mock.restore();
+  });
+
+  test("should show styleguide when -sg flag is provided", async () => {
+    const printSpy = mock.method(logger, "print", () => {});
+
+    await run(["node", "script.js", "-sg"]);
+
+    assert.strictEqual(scriptSpy.mock.callCount(), 0);
+    assertCalledWith(printSpy, match.stringContaining("Codependence CLI Styleguide"));
+    printSpy.mock.restore();
+  });
+
+  test("includes the styleguide loader in interactive output", async () => {
+    Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: true });
+    const printSpy = mock.method(logger, "print", () => {});
+
+    try {
+      await run(["node", "script.js", "--styleguide"]);
+
+      const output = printSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
+      assertCalledWith(printSpy, match.stringContaining("Codependence CLI Styleguide"));
+      assert.ok(output.includes("Loader"));
+      assert.ok(output.includes("wrestling"));
+    } finally {
+      delete (process.stdout as { isTTY?: boolean }).isTTY;
+      printSpy.mock.restore();
+    }
+  });
+
+  test("stops the direct styleguide loader after a termination signal", async () => {
+    const code = [
+      "delete process.env.CI;",
+      "delete process.env.GITHUB_ACTIONS;",
+      'Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: true });',
+      'process.argv = [process.argv[0], "src/cli/index.ts", "--styleguide"];',
+      'await import("./src/cli/index.ts");',
+    ].join("\n");
+    const child = spawn(
+      process.execPath,
+      ["--import", "./scripts/run/index.ts", "--input-type=module", "--eval", code],
+      { cwd: PROJECT_ROOT },
+    );
+    let output = "";
+    let signalSent = false;
+
+    const result = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
+      (resolveResult, reject) => {
+        const timeout = setTimeout(() => {
+          child.kill("SIGKILL");
+          reject(new Error("Timed out waiting for direct styleguide loader"));
+        }, 2000);
+        const readOutput = (chunk: Buffer): void => {
+          output += chunk.toString();
+          const shouldStop = output.includes("\x1B[?25l") && !signalSent;
+          if (!shouldStop) return;
+          signalSent = true;
+          setTimeout(() => child.kill("SIGTERM"), 20);
+        };
+        child.stdout.on("data", readOutput);
+        child.stderr.on("data", readOutput);
+        child.once("error", reject);
+        child.once("close", (code, signal) => {
+          clearTimeout(timeout);
+          resolveResult({ code, signal });
+        });
+      },
+    );
+
+    assert.strictEqual(result.code, 0);
+    assert.strictEqual(result.signal, null);
+    assert.ok(output.includes("\x1B[?25l"));
+    assert.ok(output.includes("\x1B[?25h"));
+  });
+
+  test("should show legend when --legend flag is provided", async () => {
+    const printSpy = mock.method(logger, "print", () => {});
+
+    await run(["node", "script.js", "--legend"]);
+
+    assert.strictEqual(scriptSpy.mock.callCount(), 0);
+    assertCalledWith(printSpy, match.stringContaining("Dependency Risk Legend"));
+    printSpy.mock.restore();
   });
 
   test("should call initAction for init command", async () => {
@@ -1073,6 +1321,62 @@ describe("run", () => {
       assertCalledWith(infoSpy, `Created ${goWorkflow}`);
     } finally {
       infoSpy.mock.restore();
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("discovers init actions config from parent directories", async () => {
+    const rootDir = createActionsProject();
+    const nestedDir = join(rootDir, "packages", "api");
+    fs.mkdirSync(nestedDir, { recursive: true });
+
+    try {
+      await run([
+        "node",
+        "script.js",
+        "init",
+        "actions",
+        "go",
+        "--rootDir",
+        nestedDir,
+        "--version",
+        "go=1.25.3",
+      ]);
+
+      const goWorkflow = join(nestedDir, ".github/workflows/codependence-go.yml");
+      assert.strictEqual(fs.existsSync(goWorkflow), true);
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("prefers package config over rc config for init actions", async () => {
+    const rootDir = createActionsProject();
+    const manifest = {
+      codependence: {
+        targets: [{ manager: "go" }],
+      },
+      name: "fixture",
+    };
+    fs.writeFileSync(join(rootDir, "package.json"), JSON.stringify(manifest));
+
+    try {
+      await run([
+        "node",
+        "script.js",
+        "init",
+        "actions",
+        "--rootDir",
+        rootDir,
+        "--version",
+        "go=1.25.3",
+      ]);
+
+      const goWorkflow = join(rootDir, ".github/workflows/codependence-go.yml");
+      const dockerWorkflow = join(rootDir, ".github/workflows/codependence-docker.yml");
+      assert.strictEqual(fs.existsSync(goWorkflow), true);
+      assert.strictEqual(fs.existsSync(dockerWorkflow), false);
+    } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
   });

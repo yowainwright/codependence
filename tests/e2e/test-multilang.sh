@@ -120,7 +120,7 @@ run_provider_uv_tests() {
 }
 
 run_agent_skill_tests() {
-    run_step "Agent skill install tests passed!" docker run --rm "$MULTILANG_IMAGE" ./test-agent-skill-install.sh
+    run_step "Agent skill install tests passed!" docker run --rm "$MULTILANG_IMAGE" node --test ./tests/e2e/scripts/install/index.test.ts
 }
 
 run_packed_install_tests() {

@@ -385,8 +385,7 @@ export const loadPackageJson = (filepath: string): Record<string, unknown> | str
   }
 
   const codependenceConfig = json.codependence;
-  const hasConfigPath =
-    typeof codependenceConfig === "string" && codependenceConfig.length > 0;
+  const hasConfigPath = typeof codependenceConfig === "string" && codependenceConfig.length > 0;
   if (hasConfigPath) {
     return codependenceConfig;
   }

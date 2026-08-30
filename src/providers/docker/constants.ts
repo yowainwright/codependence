@@ -6,6 +6,7 @@ export const GHCR_HOST = "ghcr.io";
 export const DOCKER_TAG_PAGE_SIZE = 100;
 export const DOCKER_TAG_PAGE_LIMIT = 100;
 export const DOCKER_REGISTRY_REQUEST_ATTEMPTS = 3;
+export const DOCKER_TRANSIENT_REGISTRY_STATUSES = new Set([502, 503, 504]);
 export const DOCKER_USER_AGENT = "codependence";
 export const DOCKER_BEARER_PREFIX = "bearer ";
 export const DOCKER_AUTH_HOSTS = {

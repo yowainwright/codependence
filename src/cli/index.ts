@@ -5,7 +5,20 @@ import { fileURLToPath } from "node:url";
 import { createLogger, logger } from "../observability";
 import { checkFiles } from "../manifest";
 import { versionCache } from "../manifest";
-import { createSpinner, cyan, gradient, gray, green, red } from "../dx/output";
+import {
+  createSpinner,
+  cyan,
+  formatCliLegend,
+  formatCliStyleguide,
+  glimmer,
+  gradient,
+  gray,
+  green,
+  red,
+  shortStatus,
+  type Spinner,
+} from "../dx/output";
+import { CLI_STYLEGUIDE_LOADER_INTERVAL_MS } from "../dx/output/constants";
 import { SYMBOLS } from "../dx/report/constants";
 import { Prompt } from "../dx";
 import { exec } from "../utils/process";
@@ -129,6 +142,58 @@ const stringOption = (value: unknown): string | undefined =>
 const suppressOutput = (options: { quiet?: unknown; silent?: unknown }): boolean =>
   Boolean(options.quiet) || Boolean(options.silent);
 
+const isCiOutput = (): boolean => Boolean(process.env.CI || process.env.GITHUB_ACTIONS);
+
+const shouldUseStatusSpinner = (shouldShowStatus: boolean): boolean => {
+  if (!shouldShowStatus) return false;
+  if (isCiOutput()) return false;
+
+  return Boolean(process.stdout.isTTY);
+};
+
+const styleguideLoaderText = (frameIndex: number): string => {
+  return `🤼‍♀️ ${glimmer("codependence", { frameIndex })} wrestling...`;
+};
+
+const waitForExitSignal = (): Promise<void> =>
+  new Promise((resolveExit) => {
+    const cleanup = (): void => {
+      process.off("SIGINT", cleanup);
+      process.off("SIGTERM", cleanup);
+      resolveExit();
+    };
+    process.once("SIGINT", cleanup);
+    process.once("SIGTERM", cleanup);
+  });
+
+const shouldLoopStyleguideLoader = (): boolean => {
+  if (!shouldUseStatusSpinner(true)) return false;
+  return isDirectExecution(process.argv);
+};
+
+const startStyleguideShimmerLoop = (spinner: Spinner): NodeJS.Timeout => {
+  let frameIndex = 1;
+  const interval = setInterval(() => {
+    frameIndex += 1;
+    spinner.text = styleguideLoaderText(frameIndex);
+  }, CLI_STYLEGUIDE_LOADER_INTERVAL_MS);
+  interval.ref();
+  return interval;
+};
+
+const loopStyleguideLoader = async (): Promise<void> => {
+  if (!shouldLoopStyleguideLoader()) return;
+
+  const spinner = createSpinner(styleguideLoaderText(1), { interactive: true }).start();
+  const shimmerInterval = startStyleguideShimmerLoop(spinner);
+  try {
+    await waitForExitSignal();
+  } finally {
+    clearInterval(shimmerInterval);
+    spinner.stop();
+  }
+};
+
 const isOnboardingMode = (value: string | undefined): value is OnboardingMode =>
   value === "verbose" || value === "precise";
 
@@ -162,7 +227,9 @@ const onboardingManifestFiles = (rootDir: string): OnboardingSourceFile[] => {
 
 const collectOnboardingFiles = (rootDir: string): OnboardingSourceFile[] => {
   const rootEntries = onboardingRootFiles(rootDir).map((file) => [file.path, file] as const);
-  const manifestEntries = onboardingManifestFiles(rootDir).map((file) => [file.path, file] as const);
+  const manifestEntries = onboardingManifestFiles(rootDir).map(
+    (file) => [file.path, file] as const,
+  );
   return Array.from(new Map(rootEntries.concat(manifestEntries)).values());
 };
 
@@ -249,7 +316,8 @@ const ensureOnboardingVersion = async (
   enforcement: OnboardingEnforcement,
   options: Record<string, unknown>,
 ): Promise<OnboardingProject> => {
-  const shouldKeepProject = !project.manager || Boolean(project.managerVersion) || enforcement === "local";
+  const shouldKeepProject =
+    !project.manager || Boolean(project.managerVersion) || enforcement === "local";
   if (shouldKeepProject) return project;
   const configured = onboardingVersionOption(project.manager, options.version);
   if (configured) return Object.assign({}, project, { managerVersion: configured });
@@ -1045,11 +1113,13 @@ const writeWorkflows = (
 ): void => {
   fs.mkdirSync(join(rootDir, ".github", "workflows"), { recursive: true });
   definitions.forEach((definition) => {
-    const workflow = renderWorkflow(Object.assign({}, definition, {
-      postUpdateCommand: postUpdateCommand(definition, targets, commands),
-      tokenSecret: secretName,
-      versions,
-    }));
+    const workflow = renderWorkflow(
+      Object.assign({}, definition, {
+        postUpdateCommand: postUpdateCommand(definition, targets, commands),
+        tokenSecret: secretName,
+        versions,
+      }),
+    );
     fs.writeFileSync(workflowPath(rootDir, definition.area), workflow);
   });
 };
@@ -1201,6 +1271,7 @@ const runTarget = async (
   result: TargetRunResult,
   options: CheckFiles,
   onProgress: ProgressHandler,
+  onBeforeOutput: NonNullable<CheckFiles["onBeforeOutput"]>,
   deferFailure: boolean,
 ): Promise<TargetRunResult> => {
   let targetFailed = false;
@@ -1209,6 +1280,7 @@ const runTarget = async (
   };
   const checkOptions = Object.assign({}, options, {
     onProgress,
+    onBeforeOutput,
     deferFailure,
     onDeferredFailure,
   });
@@ -1221,9 +1293,10 @@ const runTarget = async (
 const runTargets = (
   targets: CheckFiles[],
   onProgress: ProgressHandler,
+  onBeforeOutput: NonNullable<CheckFiles["onBeforeOutput"]> = () => {},
 ): Promise<TargetRunResult> => {
   return targets.reduce(
-    async (result, target) => runTarget(await result, target, onProgress, true),
+    async (result, target) => runTarget(await result, target, onProgress, onBeforeOutput, true),
     Promise.resolve<TargetRunResult>({ diffs: [], failed: false }),
   );
 };
@@ -1295,11 +1368,44 @@ export async function action(options: Options = {}): Promise<void | Options> {
     const shouldUseFormatter = updatedOptions.format !== undefined;
     const shouldShowStatus = !shouldUseFormatter && !isOutputSuppressed;
 
-    const optionsWithProgress = Object.assign({}, updatedOptions, {
-      onProgress: () => {},
-    });
+    const statusText = (packageName?: string, current?: number, total?: number): string => {
+      const base = `🤼‍♀️ ${gradient(`codependence`)}`;
+      if (!packageName) return `${base} wrestling...`;
 
-    const { diffs, failed } = await runTargets(targets, optionsWithProgress.onProgress);
+      return `${base} checking ${packageName} (${current}/${total})`;
+    };
+    const useStatusSpinner = shouldUseStatusSpinner(shouldShowStatus);
+    const spinner = useStatusSpinner
+      ? createSpinner(statusText(), { interactive: true }).start()
+      : undefined;
+    let didPrintStaticStatus = false;
+    const printStaticStatus = (): void => {
+      const shouldPrintStaticStatus = shouldShowStatus && !spinner && !didPrintStaticStatus;
+      if (!shouldPrintStaticStatus) return;
+
+      actionLogger.print(statusText());
+      didPrintStaticStatus = true;
+    };
+    const stopStatus = (): void => {
+      spinner?.stop();
+    };
+    const onProgress: ProgressHandler = (current, total, packageName) => {
+      if (!shouldShowStatus) return;
+
+      printStaticStatus();
+      if (spinner) spinner.text = statusText(packageName, current, total);
+    };
+    const onBeforeOutput = (): void => {
+      stopStatus();
+    };
+
+    printStaticStatus();
+    const { diffs, failed } = await runTargets(targets, onProgress, onBeforeOutput).catch(
+      (err: unknown) => {
+        stopStatus();
+        throw err;
+      },
+    );
     const duration = Date.now() - startTime;
 
     if (shouldUseFormatter) {
@@ -1319,22 +1425,14 @@ export async function action(options: Options = {}): Promise<void | Options> {
         actionLogger.print(formattedOutput);
       }
     } else {
-      const hasActionableDiffs = diffs.some((diff) => diff.willUpdate);
-      const successMessage = isDryRun
-        ? `🤼‍♀️ ${gradient(`codependence`)} dry run complete!`
-        : "pinned!";
-      const detailedSuccessMessage = `🤼‍♀️ ${gradient(`codependence`)} pinned!`;
-      const updateSuccessMessage = hasActionableDiffs ? detailedSuccessMessage : successMessage;
-      const failureMessage = `${gradient(`codependence`)} found dependency issues.`;
-      const shouldShowLeadingStatus = failed || hasActionableDiffs || isDryRun;
+      const successMessage = isDryRun ? "dry run complete!" : "pinned!";
+      const failureMessage = "found dependency issues.";
 
       if (shouldShowStatus) {
-        if (shouldShowLeadingStatus) {
-          actionLogger.print(`🤼‍♀️ ${gradient(`codependence`)} wrestling...`);
-        }
+        stopStatus();
         const resultMessage = failed
-          ? `${SYMBOLS.error} ${failureMessage}`
-          : `${SYMBOLS.success} ${updateSuccessMessage}`;
+          ? shortStatus(SYMBOLS.error, failureMessage)
+          : shortStatus(SYMBOLS.success, successMessage);
         actionLogger.print(resultMessage);
       }
 
@@ -1603,6 +1701,19 @@ export async function run(args: string[] = process.argv): Promise<void> {
   const isHelpRequested = Boolean(parsed.options.help);
   if (isHelpRequested) {
     showHelp();
+    return;
+  }
+
+  const isStyleguideRequested = Boolean(parsed.options.styleguide);
+  if (isStyleguideRequested) {
+    logger.print(formatCliStyleguide());
+    await loopStyleguideLoader();
+    return;
+  }
+
+  const isLegendRequested = Boolean(parsed.options.legend);
+  if (isLegendRequested) {
+    logger.print(formatCliLegend());
     return;
   }
 

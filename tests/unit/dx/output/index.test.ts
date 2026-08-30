@@ -9,9 +9,11 @@ import {
   gray,
   bold,
   gradient,
+  shortStatus,
   success,
   error,
 } from "../../../../src/dx/output";
+import { SHORT_STATUS_FOREGROUND } from "../../../../src/dx/output/constants";
 
 describe("colors", () => {
   it("should apply green color", () => {
@@ -56,6 +58,22 @@ describe("colors", () => {
   it("should handle empty strings", () => {
     assert.strictEqual(green(""), "\x1b[32m\x1b[0m");
     assert.strictEqual(red(""), "\x1b[31m\x1b[0m");
+  });
+
+  it("should apply bold warm-yellow to short status lines", () => {
+    const result = shortStatus(success(), "pinned!");
+    const ansiColor = `\x1b[38;2;${SHORT_STATUS_FOREGROUND.join(";")}m`;
+
+    assert.ok(result.startsWith(`\x1b[32m✓\x1b[0m \x1b[1m${ansiColor}`));
+    assert.strictEqual(result.replace(createAnsiPattern(), ""), "✓ pinned!");
+  });
+
+  it("should keep error symbols red while styling short status text", () => {
+    const result = shortStatus(error(), "dependencies are not correct");
+    const ansiColor = `\x1b[38;2;${SHORT_STATUS_FOREGROUND.join(";")}m`;
+
+    assert.ok(result.startsWith(`\x1b[31m✗\x1b[0m \x1b[1m${ansiColor}`));
+    assert.strictEqual(result.replace(createAnsiPattern(), ""), "✗ dependencies are not correct");
   });
 
   describe("success utility", () => {

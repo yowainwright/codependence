@@ -157,17 +157,17 @@ export const formatGenericError = (packageName: string, errorStr: string): strin
   const suggestion = getSuggestionForPackage(packageName);
   const issueLines = suggestion
     ? [
-      "Possible issues:",
-      `  - Package name typo? Did you mean "${suggestion}"?`,
-      "  - Private package? (see suggestions above)",
-      "  - Package doesn't exist on npm registry",
-    ]
+        "Possible issues:",
+        `  - Package name typo? Did you mean "${suggestion}"?`,
+        "  - Private package? (see suggestions above)",
+        "  - Package doesn't exist on npm registry",
+      ]
     : [
-      "Possible issues:",
-      "  - Private package? (configure .npmrc)",
-      "  - Package doesn't exist on npm registry",
-      "  - Network issue? Check your connection",
-    ];
+        "Possible issues:",
+        "  - Private package? (configure .npmrc)",
+        "  - Package doesn't exist on npm registry",
+        "  - Network issue? Check your connection",
+      ];
 
   const hasNonRegistryError = !hasRegistryInError(errorStr);
   const errorLines = hasNonRegistryError ? ["", `Error: ${errorStr}`] : [];

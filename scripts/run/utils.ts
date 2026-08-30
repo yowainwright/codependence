@@ -6,9 +6,9 @@ import { fileURLToPath } from "node:url";
 import {
   TEST_COVERAGE_ARGS,
   TEST_COVERAGE_DIR,
-  TEST_COVERAGE_EXCLUDE,
+  TEST_COVERAGE_EXCLUDES,
   TEST_COVERAGE_FLAG,
-  TEST_COVERAGE_INCLUDE,
+  TEST_COVERAGE_INCLUDES,
   TEST_COVERAGE_REPORT,
 } from "./constants.ts";
 import type { TestRunnerOptions } from "./types.ts";
@@ -46,11 +46,17 @@ const prepareCoverage = (coverageEnabled: boolean): void => {
 const coverageGlob = (root: string, pattern: string): string =>
   resolve(root, pattern).replaceAll("\\", "/");
 
+const createCoverageIncludeArgs = (root: string): string[] =>
+  TEST_COVERAGE_INCLUDES.map((pattern) => `--test-coverage-include=${coverageGlob(root, pattern)}`);
+
+const createCoverageExcludeArgs = (root: string): string[] =>
+  TEST_COVERAGE_EXCLUDES.map((pattern) => `--test-coverage-exclude=${coverageGlob(root, pattern)}`);
+
 const createCoverageArgs = (loaderUrl: string): string[] => {
   const root = fileURLToPath(new URL("../../", loaderUrl));
-  const include = `--test-coverage-include=${coverageGlob(root, TEST_COVERAGE_INCLUDE)}`;
-  const exclude = `--test-coverage-exclude=${coverageGlob(root, TEST_COVERAGE_EXCLUDE)}`;
-  return TEST_COVERAGE_ARGS.concat(include, exclude);
+  const includes = createCoverageIncludeArgs(root);
+  const excludes = createCoverageExcludeArgs(root);
+  return TEST_COVERAGE_ARGS.concat(includes, excludes);
 };
 
 const createNodeArgs = (options: TestRunnerOptions, loaderUrl: string): string[] => {

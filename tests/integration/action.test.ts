@@ -61,16 +61,16 @@ describe("composite action", () => {
       INPUT_TARGETS: "docker",
       INPUT_VERSION: "",
     });
-    assert.ok((targetOutput).includes("list=docker"));
-    assert.ok((targetOutput).includes("branch-suffix=docker"));
+    assert.ok(targetOutput.includes("list=docker"));
+    assert.ok(targetOutput.includes("branch-suffix=docker"));
 
     const pullRequestOutput = runActionScript("Prepare pull request", {
       BRANCH_PREFIX: "update-dependencies",
       BRANCH_SUFFIX: "docker",
       TARGETS: "docker",
     });
-    assert.ok((pullRequestOutput).includes("branch=update-dependencies/docker"));
-    assert.ok((pullRequestOutput).includes("title=chore: update docker dependencies"));
+    assert.ok(pullRequestOutput.includes("branch=update-dependencies/docker"));
+    assert.ok(pullRequestOutput.includes("title=chore: update docker dependencies"));
   });
 
   test("accepts infrastructure manifest-only targets", () => {
@@ -79,7 +79,7 @@ describe("composite action", () => {
       INPUT_VERSION: "",
     });
 
-    assert.ok((targetOutput).includes("list=helm kubernetes kustomize terraform circleci"));
-    assert.ok((targetOutput).includes("branch-suffix=circleci-helm-kubernetes-kustomize-terraform"));
+    assert.ok(targetOutput.includes("list=helm kubernetes kustomize terraform circleci"));
+    assert.ok(targetOutput.includes("branch-suffix=circleci-helm-kubernetes-kustomize-terraform"));
   });
 });

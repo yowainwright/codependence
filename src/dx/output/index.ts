@@ -1,6 +1,6 @@
 import { createAnsiPattern } from "../constants";
 import { LINE_BREAKS, SPINNER_FRAMES, SPINNER_INTERVAL_MS } from "./constants";
-import type { SpinnerState, Spinner } from "./types";
+import type { SpinnerState, Spinner, SpinnerOptions } from "./types";
 
 export {
   bold,
@@ -8,14 +8,35 @@ export {
   cyan,
   error,
   formatVersionTable,
+  formatVersionTableTitle,
+  glimmer,
   gradient,
   gray,
   green,
+  readableForeground,
   red,
+  shortStatus,
   success,
   yellow,
 } from "./utils";
-export type { Spinner, TableColumn, TableRow, TableVersionDiff, VersionTableMode } from "./types";
+export { formatCliLegend, formatCliLoader, formatCliStyleguide } from "./styleguide";
+export type {
+  CliLegendItem,
+  DiffDistance,
+  DiffMeasurement,
+  DiffPalette,
+  DiffSize,
+  GlimmerOptions,
+  Rgb,
+  Spinner,
+  SpinnerOptions,
+  TableCellStyle,
+  TableColumn,
+  TableRow,
+  TableRowStyle,
+  TableVersionDiff,
+  VersionTableMode,
+} from "./types";
 
 const singleLineText = (text: string): string => text.replace(LINE_BREAKS, " ").trimEnd();
 
@@ -88,6 +109,8 @@ const start = (state: SpinnerState): Spinner => {
   }
 
   hideCursor();
+  renderFrame(SPINNER_FRAMES, state.frameIndex, state.text);
+  Object.assign(state, incrementFrame(state));
   const newState = startInterval(state);
   Object.assign(state, newState);
   return createSpinnerMethods(state);
@@ -148,6 +171,10 @@ const createSpinnerMethods = (state: SpinnerState): Spinner => {
     },
     set text(value: string) {
       state.text = singleLineText(value);
+      const shouldRenderUpdatedText = state.isSpinning && state.interactive;
+      if (shouldRenderUpdatedText) {
+        renderFrame(SPINNER_FRAMES, state.frameIndex, state.text);
+      }
     },
     start: () => start(state),
     stop: () => stop(state),
@@ -158,10 +185,11 @@ const createSpinnerMethods = (state: SpinnerState): Spinner => {
   };
 };
 
-export const createSpinner = (text: string): Spinner => {
+export const createSpinner = (text: string, options: SpinnerOptions = {}): Spinner => {
+  const interactive = options.interactive ?? Boolean(process.stdout.isTTY);
   const state: SpinnerState = {
     text: singleLineText(text),
-    interactive: Boolean(process.stdout.isTTY),
+    interactive,
     isSpinning: false,
     frameIndex: 0,
     interval: null,

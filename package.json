@@ -45,7 +45,7 @@
   "files": [
     "dist",
     "src",
-    "scripts/install-legibility-skill.js"
+    "scripts/install"
   ],
   "keywords": [
     "peerDependencies",
@@ -66,9 +66,9 @@
     "access": "public"
   },
   "scripts": {
-    "build": "nub scripts/build-dist.ts",
-    "build:bin": "nub scripts/build-bin.ts",
-    "build-dist": "nub scripts/build-dist.ts",
+    "build": "nub scripts/build/index.ts dist",
+    "build:bin": "nub scripts/build/index.ts bin",
+    "build-dist": "nub scripts/build/index.ts dist",
     "clean-dist": "rm -rf dist",
     "clean": "rm -rf dist && cd page/app && rm -rf dist",
     "cmd:node:test-fail-run": "node dist/cli.js --config './tests/unit/fixtures/test-fail-package.json' --files 'test-fail-package.json' --rootDir './tests/unit/fixtures/' --debug",
@@ -95,7 +95,8 @@
     "lint:fix": "NODE_OPTIONS= oxlint src --fix",
     "hooks:setup": "sh scripts/setup.sh",
     "prepare": "sh scripts/setup.sh",
-    "prepublishOnly": "rm -rf dist && nub scripts/build-dist.ts",
+    "prepublishOnly": "rm -rf dist && nub scripts/build/index.ts dist",
+    "preview:styleguide": "nub src/cli/index.ts --styleguide",
     "preview": "cd page/app && nub run preview",
     "release": "nub scripts/release/index.ts",
     "release:patch": "nub scripts/release/index.ts --increment=patch",
@@ -113,18 +114,18 @@
     "release:tag": "nub scripts/release/index.ts tag",
     "release:tag:dry": "nub scripts/release/index.ts tag --dry-run",
     "release:dry": "nub scripts/release/index.ts --dry-run",
-    "setup": "nub install && sh scripts/setup.sh && nub scripts/build-dist.ts",
+    "setup": "nub install && sh scripts/setup.sh && nub scripts/build/index.ts dist",
     "test": "nub scripts/run/index.ts",
     "test:e2e:binary": "./tests/e2e/test-binary.sh",
     "update": "nub update",
     "validate": "NODE_OPTIONS= node --preserve-symlinks-main node_modules/eslint-plugin-legibility/bin/lint-changed.js && nub scripts/run/index.ts",
     "validate:full": "NODE_OPTIONS= node --preserve-symlinks-main node_modules/eslint-plugin-legibility/bin/lint-changed.js && nub scripts/run/index.ts && ./tests/e2e/test-multilang.sh all",
-    "skills:install": "node scripts/install-legibility-skill.js agents",
-    "skills:install:claude": "node scripts/install-legibility-skill.js claude",
-    "skills:install:claude:local": "node scripts/install-legibility-skill.js claude --local",
-    "skills:install:codex": "node scripts/install-legibility-skill.js codex",
-    "skills:install:codex:local": "node scripts/install-legibility-skill.js codex --local",
-    "skills:install:local": "node scripts/install-legibility-skill.js agents --local",
+    "skills:install": "node scripts/install/index.js agents",
+    "skills:install:claude": "node scripts/install/index.js claude",
+    "skills:install:claude:local": "node scripts/install/index.js claude --local",
+    "skills:install:codex": "node scripts/install/index.js codex",
+    "skills:install:codex:local": "node scripts/install/index.js codex --local",
+    "skills:install:local": "node scripts/install/index.js agents --local",
     "precoverage": "mkdir -p coverage"
   },
   "type": "module",

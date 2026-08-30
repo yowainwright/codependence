@@ -128,9 +128,7 @@ const validateCodependencies = (config: Record<string, unknown>): ValidationErro
   return codependencies
     .map((item, index) => {
       const itemError = validateCodeDependenciesItem(item);
-      return itemError
-        ? Object.assign({}, itemError, { field: `codependencies[${index}]` })
-        : null;
+      return itemError ? Object.assign({}, itemError, { field: `codependencies[${index}]` }) : null;
     })
     .filter((itemError): itemError is ValidationError => itemError !== null);
 };
