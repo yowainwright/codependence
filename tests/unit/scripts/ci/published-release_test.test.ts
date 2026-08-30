@@ -34,77 +34,76 @@ const createCommandRecorder = () => {
 
 describe("scripts/release test-published", () => {
   test("packageSpec formats npm package specs", () => {
-    assert.strictEqual((packageSpec("codependence", "1.0.0")), "codependence@1.0.0");
+    assert.strictEqual(packageSpec("codependence", "1.0.0"), "codependence@1.0.0");
   });
 
   test("buildDockerBuildArgs includes image and build args", () => {
-    assert.deepStrictEqual(buildDockerBuildArgs({
+    assert.deepStrictEqual(
+      buildDockerBuildArgs({
         dockerfile: "tests/release/Dockerfile.published",
         image: "codependence-release-test",
         nodeAlpineImage,
         version: "1.0.0",
-      }), [
-      "build",
-      "--build-arg",
-      "CODEPENDENCE_VERSION=1.0.0",
-      "--build-arg",
-      `NODE_ALPINE_IMAGE=${nodeAlpineImage}`,
-      "-f",
-      "tests/release/Dockerfile.published",
-      "-t",
-      "codependence-release-test",
-      ".",
-    ]);
+      }),
+      [
+        "build",
+        "--build-arg",
+        "CODEPENDENCE_VERSION=1.0.0",
+        "--build-arg",
+        `NODE_ALPINE_IMAGE=${nodeAlpineImage}`,
+        "-f",
+        "tests/release/Dockerfile.published",
+        "-t",
+        "codependence-release-test",
+        ".",
+      ],
+    );
   });
 
   test("buildDockerRunShellArgs builds bash runner args", () => {
-    assert.deepStrictEqual((buildDockerRunShellArgs("codependence-release-test", "codependence --help")), [
-      "run",
-      "--rm",
-      "codependence-release-test",
-      "bash",
-      "-lc",
-      "codependence --help",
-    ]);
+    assert.deepStrictEqual(
+      buildDockerRunShellArgs("codependence-release-test", "codependence --help"),
+      ["run", "--rm", "codependence-release-test", "bash", "-lc", "codependence --help"],
+    );
   });
 
   test("releaseE2eScript runs Python and Go checks", () => {
-    assert.ok((releaseE2eScript()).includes("./test-python-go.sh"));
-    assert.ok((releaseE2eScript()).includes("./tests/e2e/test-go-update.sh"));
+    assert.ok(releaseE2eScript().includes("./test-python-go.sh"));
+    assert.ok(releaseE2eScript().includes("./tests/e2e/test-go-update.sh"));
   });
 
   test("compatibilityScript checks debug and JSON output", () => {
-    assert.ok((compatibilityScript()).includes("--debug"));
-    assert.ok((compatibilityScript()).includes("--format json"));
+    assert.ok(compatibilityScript().includes("--debug"));
+    assert.ok(compatibilityScript().includes("--format json"));
   });
 
   test("legacyCompatibilityScript checks the 0.3.1 contract", () => {
     const script = legacyCompatibilityScript();
 
-    assert.ok((script).includes("tests/fixtures/0.3.1/package.json"));
-    assert.ok((script).includes("codependence -s"));
-    assert.ok((script).includes("cdp --help"));
-    assert.ok((script).includes("require('codependence')"));
+    assert.ok(script.includes("tests/fixtures/0.3.1/package.json"));
+    assert.ok(script.includes("codependence -s"));
+    assert.ok(script.includes("cdp --help"));
+    assert.ok(script.includes("require('codependence')"));
   });
 
   test("formatSummary includes the version", () => {
-    assert.ok((formatSummary("1.0.0")).includes("Tested codependence version: 1.0.0"));
+    assert.ok(formatSummary("1.0.0").includes("Tested codependence version: 1.0.0"));
   });
 
   test("formatReport includes release test coverage", () => {
     const report = formatReport({ date: "2026-05-25 00:00:00 UTC", version: "1.0.0" });
 
-    assert.ok((report).includes("- Go update preservation tests"));
-    assert.ok((report).includes("- 0.3.1 compatibility contract"));
+    assert.ok(report.includes("- Go update preservation tests"));
+    assert.ok(report.includes("- 0.3.1 compatibility contract"));
   });
 
   test("formatReport only claims tests run by this repository", () => {
     const report = formatReport({ date: "2026-05-25 00:00:00 UTC", version: "1.0.0" });
-    assert.ok(!(report).includes("External"));
+    assert.ok(!report.includes("External"));
   });
 
   test("requireVersion rejects missing versions", () => {
-    assertThrows((() => requireVersion("", "build-release-image")), "CODEPENDENCE_VERSION");
+    assertThrows(() => requireVersion("", "build-release-image"), "CODEPENDENCE_VERSION");
   });
 
   test("resolve-version normalizes a release tag input", () => {
@@ -118,8 +117,8 @@ describe("scripts/release test-published", () => {
         argv: ["resolve-version"],
         env: { GITHUB_OUTPUT: outputPath, INPUT_VERSION: "v1.2.4" },
       });
-      assert.strictEqual((code), 0);
-      assert.strictEqual((readFileSync(outputPath, "utf8")), "version=1.2.4\n");
+      assert.strictEqual(code, 0);
+      assert.strictEqual(readFileSync(outputPath, "utf8"), "version=1.2.4\n");
     } finally {
       logSpy.mock.restore();
       rmSync(TEMP_ROOT, { recursive: true, force: true });
@@ -130,11 +129,14 @@ describe("scripts/release test-published", () => {
     const logSpy = mock.method(console, "log", () => {});
 
     try {
-      assertThrows(() =>
-        runTestPublishedReleaseCli({
-          argv: ["resolve-version"],
-          env: { INPUT_VERSION: "../../latest" },
-        }), "Invalid release version");
+      assertThrows(
+        () =>
+          runTestPublishedReleaseCli({
+            argv: ["resolve-version"],
+            env: { INPUT_VERSION: "../../latest" },
+          }),
+        "Invalid release version",
+      );
     } finally {
       logSpy.mock.restore();
     }
@@ -145,12 +147,15 @@ describe("scripts/release test-published", () => {
     const runner = () => ({ status: 0, stdout: "9.9.9\n", stderr: "" });
 
     try {
-      assertThrows(() =>
-        runTestPublishedReleaseCli({
-          argv: ["resolve-version"],
-          env: { INPUT_VERSION: "v" },
-          runner,
-        }), "Invalid release version");
+      assertThrows(
+        () =>
+          runTestPublishedReleaseCli({
+            argv: ["resolve-version"],
+            env: { INPUT_VERSION: "v" },
+            runner,
+          }),
+        "Invalid release version",
+      );
     } finally {
       logSpy.mock.restore();
     }
@@ -167,17 +172,20 @@ describe("scripts/release test-published", () => {
     };
 
     try {
-      assertThrows(() =>
-        runTestPublishedReleaseCli({
-          argv: ["wait-for-npm"],
-          env: { CODEPENDENCE_VERSION: "1.0.0" },
-          runner,
-        }), "was not available after 30 attempts");
+      assertThrows(
+        () =>
+          runTestPublishedReleaseCli({
+            argv: ["wait-for-npm"],
+            env: { CODEPENDENCE_VERSION: "1.0.0" },
+            runner,
+          }),
+        "was not available after 30 attempts",
+      );
     } finally {
       logSpy.mock.restore();
     }
 
-    assert.strictEqual((calls.filter((call) => call === "sleep 30")).length, 29);
+    assert.strictEqual(calls.filter((call) => call === "sleep 30").length, 29);
   });
 
   test("wait-for-npm exits when npm has the package", () => {
@@ -190,7 +198,7 @@ describe("scripts/release test-published", () => {
         env: { CODEPENDENCE_VERSION: "1.0.0" },
         runner,
       });
-      assert.strictEqual((code), 0);
+      assert.strictEqual(code, 0);
     } finally {
       logSpy.mock.restore();
     }
@@ -209,7 +217,7 @@ describe("scripts/release test-published", () => {
       runner,
     });
 
-    assert.strictEqual((code), 0);
+    assert.strictEqual(code, 0);
     assert.ok(calls().some((call) => call.includes("tests/release/Dockerfile.published")));
     assert.ok(calls().some((call) => call.includes("CODEPENDENCE_VERSION=1.0.0")));
   });
@@ -218,7 +226,7 @@ describe("scripts/release test-published", () => {
     const { calls, runner } = createCommandRecorder();
     const code = runTestPublishedReleaseCli({ argv: ["verify-installation"], env: {}, runner });
 
-    assert.strictEqual((code), 0);
+    assert.strictEqual(code, 0);
     assert.ok(calls().some((call) => call.includes("codependence --help")));
     assert.ok(calls().some((call) => call.includes("node /app/dist/cli.js --help")));
   });
@@ -227,7 +235,7 @@ describe("scripts/release test-published", () => {
     const { calls, runner } = createCommandRecorder();
     const code = runTestPublishedReleaseCli({ argv: ["run-e2e"], env: {}, runner });
 
-    assert.strictEqual((code), 0);
+    assert.strictEqual(code, 0);
     assert.ok(calls().some((call) => call.includes("test-python-go.sh")));
   });
 
@@ -242,7 +250,7 @@ describe("scripts/release test-published", () => {
       runner,
     });
 
-    assert.strictEqual((code), 0);
+    assert.strictEqual(code, 0);
     assert.ok(calls().some((call) => call.includes("tests/release/Dockerfile.npm-smoke")));
     assert.ok(calls().some((call) => call.includes("codependence --debug")));
   });
@@ -251,7 +259,7 @@ describe("scripts/release test-published", () => {
     const { calls, runner } = createCommandRecorder();
     const code = runTestPublishedReleaseCli({ argv: ["compatibility-check"], env: {}, runner });
 
-    assert.strictEqual((code), 0);
+    assert.strictEqual(code, 0);
     assert.ok(calls().some((call) => call.includes("--format json")));
   });
 
@@ -266,7 +274,7 @@ describe("scripts/release test-published", () => {
         argv: ["summary"],
         env: { CODEPENDENCE_VERSION: "1.0.0" },
       });
-      assert.strictEqual((code), 0);
+      assert.strictEqual(code, 0);
     } finally {
       logSpy.mock.restore();
     }
@@ -286,7 +294,7 @@ describe("scripts/release test-published", () => {
         argv: ["write-report"],
         env: { CODEPENDENCE_VERSION: "1.0.0" },
       });
-      assert.strictEqual((code), 0);
+      assert.strictEqual(code, 0);
       assert.ok(readFileSync("test-report.md", "utf8").includes("1.0.0"));
     } finally {
       process.chdir(cwd);
@@ -296,10 +304,13 @@ describe("scripts/release test-published", () => {
   });
 
   test("rejects unknown published release commands", () => {
-    assertThrows(() =>
-      runTestPublishedReleaseCli({
-        argv: ["wat"],
-        env: {},
-      }), "Usage: test-published");
+    assertThrows(
+      () =>
+        runTestPublishedReleaseCli({
+          argv: ["wat"],
+          env: {},
+        }),
+      "Usage: test-published",
+    );
   });
 });

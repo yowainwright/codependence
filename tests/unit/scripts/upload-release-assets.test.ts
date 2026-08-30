@@ -46,10 +46,7 @@ function createReleaseJson(
   return JSON.stringify([[release]]);
 }
 
-function createEnvironment(
-  releaseJson: string,
-  assetBody: string,
-) {
+function createEnvironment(releaseJson: string, assetBody: string) {
   return Object.assign({}, process.env, {
     FAKE_ASSET_BODY: assetBody,
     FAKE_RELEASE_JSON: releaseJson,
@@ -141,27 +138,29 @@ describe("scripts/release assets", () => {
   test("uploads a missing asset", () => {
     const fixture = createFixture();
     const result = runUpload(fixture);
-    assert.strictEqual((result.status), 0);
-    assert.strictEqual((result.stdout), "123\n");
+    assert.strictEqual(result.status, 0);
+    assert.strictEqual(result.stdout, "123\n");
     assert.ok(fixture.log.some((line) => line.includes("api --paginate --slurp")));
     assert.ok(fixture.log.some((line) => line.includes("api --method POST")));
-    assert.ok(fixture.log.some((line) => line.includes("releases/123/assets?name=codependence.tgz")));
+    assert.ok(
+      fixture.log.some((line) => line.includes("releases/123/assets?name=codependence.tgz")),
+    );
   });
 
   test("skips an existing asset with the expected digest", () => {
     const digest = createHash("sha256").update("release asset").digest("hex");
     const fixture = createFixture(`sha256:${digest}`);
     const result = runUpload(fixture);
-    assert.strictEqual((result.status), 0);
-    assert.strictEqual((result.stdout), "123\n");
+    assert.strictEqual(result.status, 0);
+    assert.strictEqual(result.stdout, "123\n");
     assert.ok(!fixture.log.some((line) => line.includes("api --method POST")));
   });
 
   test("rejects an existing asset with a different digest", () => {
     const fixture = createFixture("sha256:unexpected");
     const result = runUpload(fixture);
-    assert.strictEqual((result.status), 1);
-    assert.ok((result.stderr).includes("Release asset digest mismatch: codependence.tgz"));
+    assert.strictEqual(result.status, 1);
+    assert.ok(result.stderr.includes("Release asset digest mismatch: codependence.tgz"));
     assert.ok(!fixture.log.some((line) => line.includes("api --method POST")));
   });
 
@@ -174,9 +173,11 @@ describe("scripts/release assets", () => {
       publishedDigest: "sha256:unexpected",
     });
     const result = runUpload(fixture);
-    assert.strictEqual((result.status), 0);
-    assert.strictEqual((result.stdout), "123\n");
-    assert.ok(fixture.log.some((line) => line.includes("api --header Accept: application/octet-stream")));
+    assert.strictEqual(result.status, 0);
+    assert.strictEqual(result.stdout, "123\n");
+    assert.ok(
+      fixture.log.some((line) => line.includes("api --header Accept: application/octet-stream")),
+    );
     assert.ok(!fixture.log.some((line) => line.includes("api --method POST")));
   });
 
@@ -188,24 +189,26 @@ describe("scripts/release assets", () => {
       publishedDigest: "sha256:unexpected",
     });
     const result = runUpload(fixture);
-    assert.strictEqual((result.status), 1);
-    assert.ok((result.stderr).includes(
-      "Release attestation subject digest mismatch: codependence-darwin-arm64.sigstore.json",
-    ));
+    assert.strictEqual(result.status, 1);
+    assert.ok(
+      result.stderr.includes(
+        "Release attestation subject digest mismatch: codependence-darwin-arm64.sigstore.json",
+      ),
+    );
   });
 
   test("rejects an existing asset without a published digest", () => {
     const fixture = createFixture(null);
     const result = runUpload(fixture);
-    assert.strictEqual((result.status), 1);
-    assert.ok((result.stderr).includes("Release asset digest unavailable: codependence.tgz"));
+    assert.strictEqual(result.status, 1);
+    assert.ok(result.stderr.includes("Release asset digest unavailable: codependence.tgz"));
   });
 
   test("rejects a missing release", () => {
     const fixture = createFixture(undefined, false);
     const result = runUpload(fixture);
-    assert.strictEqual((result.status), 1);
-    assert.ok((result.stderr).includes("Release not found: v1.2.3"));
+    assert.strictEqual(result.status, 1);
+    assert.ok(result.stderr.includes("Release not found: v1.2.3"));
   });
 
   test("rejects an unexpected release upload URL", () => {
@@ -213,12 +216,15 @@ describe("scripts/release assets", () => {
       uploadUrl: "https://uploads.github.com/repos/other/project/releases/123/assets{?name,label}",
     });
     const result = runUpload(fixture);
-    assert.strictEqual((result.status), 1);
-    assert.ok((result.stderr).includes("Unexpected release upload URL"));
+    assert.strictEqual(result.status, 1);
+    assert.ok(result.stderr.includes("Unexpected release upload URL"));
   });
 
   test("rejects missing CLI arguments", () => {
-    assert.throws(() => runUploadReleaseAssetsCli({ argv: [], env: {} }), /Release tag is required/);
+    assert.throws(
+      () => runUploadReleaseAssetsCli({ argv: [], env: {} }),
+      /Release tag is required/,
+    );
     assert.throws(
       () => runUploadReleaseAssetsCli({ argv: ["v1.2.3"], env: {} }),
       /At least one release asset is required/,

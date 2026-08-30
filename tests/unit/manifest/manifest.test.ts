@@ -1062,9 +1062,7 @@ test("checkFiles => with updates (verbose mode)", async () => {
   } catch {
     // out-of-date deps throw in non-CLI mode
   }
-  const output = logCheckFilesWithUpdates.mock.calls
-    .flatMap((call) => call.arguments)
-    .join("\n");
+  const output = logCheckFilesWithUpdates.mock.calls.flatMap((call) => call.arguments).join("\n");
   assert.ok(output.includes("Dependency Updates Available"));
   assert.ok(!output.includes("Found 2 dependency issues"));
   logCheckFilesWithUpdates.mock.restore();
@@ -1126,9 +1124,7 @@ test("checkFiles => with permissive mode only", async () => {
   } catch {
     // out-of-date deps throw in non-CLI mode
   }
-  const output = logCheckFilesPermissive.mock.calls
-    .flatMap((call) => call.arguments)
-    .join("\n");
+  const output = logCheckFilesPermissive.mock.calls.flatMap((call) => call.arguments).join("\n");
   assert.ok(output.includes("Dependency Updates Available"));
   assert.ok(!output.includes("Found 2 dependency issues"));
   getLatestVersionSpy.mock.restore();
@@ -1373,11 +1369,9 @@ test("constructPermissiveDepsToUpdateList => with mixed dependency types", () =>
 });
 
 test("constructPermissiveDepsToUpdateList => compares explicit latest specs", () => {
-  const result = manifest.constructPermissiveDepsToUpdateList(
-    { lodash: "4.17.0" },
-    [],
-    { lodash: "=4.17.21" },
-  );
+  const result = manifest.constructPermissiveDepsToUpdateList({ lodash: "4.17.0" }, [], {
+    lodash: "=4.17.21",
+  });
 
   assert.deepStrictEqual(result, [
     {
@@ -2089,7 +2083,10 @@ test("checkFiles => updates Helm values image pins", async () => {
       }),
       [],
     );
-    assert.strictEqual(readFileSync(valuesPath, "utf8"), "image:\n  repository: nginx\n  tag: 1.27.1\n");
+    assert.strictEqual(
+      readFileSync(valuesPath, "utf8"),
+      "image:\n  repository: nginx\n  tag: 1.27.1\n",
+    );
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -2101,7 +2098,10 @@ test("checkFiles => updates CircleCI orb and image pins", async () => {
   const configPath = join(configDir, "config.yml");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(configDir, { recursive: true });
-  writeFileSync(configPath, "orbs:\n  node: circleci/node@7.1.0\njobs:\n  test:\n    docker:\n      - image: cimg/node:22.11\n");
+  writeFileSync(
+    configPath,
+    "orbs:\n  node: circleci/node@7.1.0\njobs:\n  test:\n    docker:\n      - image: cimg/node:22.11\n",
+  );
 
   try {
     await assert.deepStrictEqual(

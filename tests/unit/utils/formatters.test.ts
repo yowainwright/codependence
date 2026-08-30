@@ -1,11 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  formatAsJSON,
-  formatAsMarkdown,
-  formatAsTable,
-  format,
-} from "../../../src/dx/report";
+import { formatAsJSON, formatAsMarkdown, formatAsTable, format } from "../../../src/dx/report";
 import { createAnsiPattern } from "../../../src/dx/constants";
 import type { DependencyInfo } from "../../../src/types";
 

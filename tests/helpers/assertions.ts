@@ -180,6 +180,9 @@ export const assertThrows = (callback: () => unknown, expected?: unknown): void 
   assert.throws(callback, (error) => errorMatches(error, expected));
 };
 
-export const assertRejects = async (promise: PromiseLike<unknown>, expected?: unknown): Promise<void> => {
+export const assertRejects = async (
+  promise: PromiseLike<unknown>,
+  expected?: unknown,
+): Promise<void> => {
   await assert.rejects(promise, (error) => errorMatches(error, expected));
 };

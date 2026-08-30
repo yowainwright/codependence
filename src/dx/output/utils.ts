@@ -154,7 +154,10 @@ const diffColor = (measurement: DiffMeasurement, palette: DiffPalette): Rgb => {
 };
 
 const cleanVersion = (version: string): string => {
-  return version.trim().replace(/^[~^<>=\s]+/, "").replace(/^v/, "");
+  return version
+    .trim()
+    .replace(/^[~^<>=\s]+/, "")
+    .replace(/^v/, "");
 };
 
 const parseSemverParts = (version: string): SemverParts | null => {
@@ -371,7 +374,12 @@ const checkRowStyle = ({ current, latest }: TableVersionDiff): TableRowStyle => 
   Available: targetVersionStyle(current, latest),
 });
 
-const updateRow = ({ package: packageName, current, latest, installed }: TableVersionDiff): TableRow => {
+const updateRow = ({
+  package: packageName,
+  current,
+  latest,
+  installed,
+}: TableVersionDiff): TableRow => {
   const target = installed || latest;
   return {
     Package: packageName,

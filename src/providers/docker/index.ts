@@ -126,8 +126,7 @@ const resolveRegistryImage = (packageName: string): DockerRegistryImage => {
   const [first, ...remaining] = packageName.split("/");
   const hasRepository = remaining.length > 0;
   const isGhcrImage = first === GHCR_HOST && hasRepository;
-  if (isGhcrImage)
-    return ghcrImage(packageName, remaining.join("/"));
+  if (isGhcrImage) return ghcrImage(packageName, remaining.join("/"));
   const isDockerHubImage = DOCKER_HUB_NAMES.has(first) && hasRepository;
   if (isDockerHubImage) {
     return dockerHubImage(packageName, remaining.join("/"));

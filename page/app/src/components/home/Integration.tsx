@@ -106,7 +106,8 @@ const scanDirectory = async (
     const isDirectory = handle.kind === "directory";
     const shouldScan = isDirectory && !IGNORED_DIRECTORIES.has(name);
     const directoryHandle = handle as FileSystemDirectoryHandle;
-    if (shouldScan) files = files.concat(await scanDirectory(directoryHandle, path));
+    if (shouldScan)
+      files = files.concat(await scanDirectory(directoryHandle, path));
   }
   return files;
 };

@@ -352,15 +352,18 @@ const assertCustomLockfiles = (rootDir: string, lockfile: string | string[]): vo
   }
 
   const paths = lockfiles.map((file) => resolve(rootDir, file));
-  const [outsideRoot, missing] = paths.reduce<[string[], string[]]>((groups, file) => {
-    const [outside, missingFiles] = groups;
-    const rootRelative = relative(rootDir, file);
-    const isOutsideRoot = rootRelative === ".." || rootRelative.startsWith(`..${sep}`);
-    const isMissing = !isFile(file);
-    const nextOutside = isOutsideRoot ? outside.concat(file) : outside;
-    const nextMissing = isMissing ? missingFiles.concat(file) : missingFiles;
-    return [nextOutside, nextMissing];
-  }, [[], []]);
+  const [outsideRoot, missing] = paths.reduce<[string[], string[]]>(
+    (groups, file) => {
+      const [outside, missingFiles] = groups;
+      const rootRelative = relative(rootDir, file);
+      const isOutsideRoot = rootRelative === ".." || rootRelative.startsWith(`..${sep}`);
+      const isMissing = !isFile(file);
+      const nextOutside = isOutsideRoot ? outside.concat(file) : outside;
+      const nextMissing = isMissing ? missingFiles.concat(file) : missingFiles;
+      return [nextOutside, nextMissing];
+    },
+    [[], []],
+  );
   if (outsideRoot.length > 0) {
     throw new Error(`Lockfile path escapes target root: ${outsideRoot.join(", ")}`);
   }
@@ -408,7 +411,9 @@ const assertRequiredLockfiles = (
   }
   if (!lockfile) return;
 
-  const lockfileManagers = manifests.filter(({ language }) => !LOCKFILE_EXEMPT_LANGUAGES.has(language));
+  const lockfileManagers = manifests.filter(
+    ({ language }) => !LOCKFILE_EXEMPT_LANGUAGES.has(language),
+  );
   lockfileManagers.forEach((manifest) => assertStandardLockfile(manifest, rootDir));
 };
 
@@ -1201,11 +1206,7 @@ const applyManifestUpdates = async (
     return;
   }
 
-  const updatedManifest = constructJson(
-    loadedManifest.manifest,
-    depsToUpdate,
-    isDebugging,
-  );
+  const updatedManifest = constructJson(loadedManifest.manifest, depsToUpdate, isDebugging);
   await loadedManifest.provider.writeManifest(loadedManifest.path, updatedManifest);
 };
 

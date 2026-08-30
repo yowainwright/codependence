@@ -79,12 +79,7 @@ export const KNOWN_FIELDS = [
   "mode",
   "rootDir",
   "lockfile",
-].concat(BOOLEAN_OPTION_FIELDS, [
-  "format",
-  "outputFile",
-  "config",
-  "targets",
-]);
+].concat(BOOLEAN_OPTION_FIELDS, ["format", "outputFile", "config", "targets"]);
 
 export const NODE_MANAGERS = new Set<string>(Object.values(NODE_PACKAGE_MANAGERS));
 export const PYTHON_MANAGERS = new Set<string>(Object.values(PYTHON_PACKAGE_MANAGERS));

@@ -228,7 +228,9 @@ const onboardingManifestFiles = (rootDir: string): OnboardingSourceFile[] => {
 
 const collectOnboardingFiles = (rootDir: string): OnboardingSourceFile[] => {
   const rootEntries = onboardingRootFiles(rootDir).map((file) => [file.path, file] as const);
-  const manifestEntries = onboardingManifestFiles(rootDir).map((file) => [file.path, file] as const);
+  const manifestEntries = onboardingManifestFiles(rootDir).map(
+    (file) => [file.path, file] as const,
+  );
   return Array.from(new Map(rootEntries.concat(manifestEntries)).values());
 };
 
@@ -315,7 +317,8 @@ const ensureOnboardingVersion = async (
   enforcement: OnboardingEnforcement,
   options: Record<string, unknown>,
 ): Promise<OnboardingProject> => {
-  const shouldKeepProject = !project.manager || Boolean(project.managerVersion) || enforcement === "local";
+  const shouldKeepProject =
+    !project.manager || Boolean(project.managerVersion) || enforcement === "local";
   if (shouldKeepProject) return project;
   const configured = onboardingVersionOption(project.manager, options.version);
   if (configured) return Object.assign({}, project, { managerVersion: configured });
@@ -1119,11 +1122,13 @@ const writeWorkflows = (
 ): void => {
   fs.mkdirSync(join(rootDir, ".github", "workflows"), { recursive: true });
   definitions.forEach((definition) => {
-    const workflow = renderWorkflow(Object.assign({}, definition, {
-      postUpdateCommand: postUpdateCommand(definition, targets, commands),
-      tokenSecret: secretName,
-      versions,
-    }));
+    const workflow = renderWorkflow(
+      Object.assign({}, definition, {
+        postUpdateCommand: postUpdateCommand(definition, targets, commands),
+        tokenSecret: secretName,
+        versions,
+      }),
+    );
     fs.writeFileSync(workflowPath(rootDir, definition.area), workflow);
   });
 };
@@ -1429,9 +1434,7 @@ export async function action(options: Options = {}): Promise<void | Options> {
         actionLogger.print(formattedOutput);
       }
     } else {
-      const successMessage = isDryRun
-        ? "dry run complete!"
-        : "pinned!";
+      const successMessage = isDryRun ? "dry run complete!" : "pinned!";
       const failureMessage = "found dependency issues.";
 
       if (shouldShowStatus) {

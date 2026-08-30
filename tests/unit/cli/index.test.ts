@@ -556,9 +556,7 @@ describe("Action Function Tests (Fast)", () => {
     });
 
     const calls = consoleSpy.mock.calls.flatMap((call) => call.arguments);
-    const statusCalls = calls.filter(
-      (argument) => String(argument).includes("wrestling"),
-    );
+    const statusCalls = calls.filter((argument) => String(argument).includes("wrestling"));
 
     assert.strictEqual(statusCalls.length, 1);
     consoleSpy.mock.restore();
@@ -571,7 +569,11 @@ describe("Action Function Tests (Fast)", () => {
     const setIntervalSpy = mock.method(globalThis, "setInterval", (() => ({
       unref: () => {},
     })) as unknown as typeof setInterval);
-    const clearIntervalSpy = mock.method(globalThis, "clearInterval", (() => {}) as typeof clearInterval);
+    const clearIntervalSpy = mock.method(
+      globalThis,
+      "clearInterval",
+      (() => {}) as typeof clearInterval,
+    );
     scriptSpy.mock.mockImplementationOnce(async (options) => {
       options.onProgress?.(1, 1, "lodash");
       return undefined;
@@ -609,7 +611,11 @@ describe("Action Function Tests (Fast)", () => {
     const setIntervalSpy = mock.method(globalThis, "setInterval", (() => ({
       unref: () => {},
     })) as unknown as typeof setInterval);
-    const clearIntervalSpy = mock.method(globalThis, "clearInterval", (() => {}) as typeof clearInterval);
+    const clearIntervalSpy = mock.method(
+      globalThis,
+      "clearInterval",
+      (() => {}) as typeof clearInterval,
+    );
 
     try {
       await withoutCiOutput(async () => {

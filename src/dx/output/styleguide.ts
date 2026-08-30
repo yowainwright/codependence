@@ -66,9 +66,10 @@ const legendStyles = (): TableRowStyle[] =>
   }));
 
 export const formatCliLegend = (): string => {
-  return [bold(cyan(CLI_LEGEND_TITLE)), createTable(legendColumns(), legendRows(), legendStyles())].join(
-    "\n",
-  );
+  return [
+    bold(cyan(CLI_LEGEND_TITLE)),
+    createTable(legendColumns(), legendRows(), legendStyles()),
+  ].join("\n");
 };
 
 const styleguideTables = (): string => {

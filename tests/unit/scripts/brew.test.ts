@@ -33,13 +33,13 @@ describe("scripts/release brew", () => {
 
   test("builds the published npm tarball URL", () => {
     const url = "https://registry.npmjs.org/codependence/-/codependence-1.1.0.tgz";
-    assert.strictEqual((npmTarballUrl("1.1.0")), url);
+    assert.strictEqual(npmTarballUrl("1.1.0"), url);
   });
 
   test("accepts only stable versions", () => {
-    assert.doesNotThrow((() => validateStableVersion("1.1.0")));
-    assertThrows((() => validateStableVersion("1.1.0-beta.1")), "Invalid stable version");
-    assertThrows((() => validateStableVersion("v1.1.0")), "Invalid stable version");
+    assert.doesNotThrow(() => validateStableVersion("1.1.0"));
+    assertThrows(() => validateStableVersion("1.1.0-beta.1"), "Invalid stable version");
+    assertThrows(() => validateStableVersion("v1.1.0"), "Invalid stable version");
   });
 
   test("reads the formula tarball version", () => {
@@ -48,9 +48,8 @@ describe("scripts/release brew", () => {
   });
 
   test("skips when the Homebrew tap already has a newer version", async () => {
-    const fetchImpl = async () => new Response(
-      'url "https://registry.npmjs.org/codependence/-/codependence-1.0.12.tgz"',
-    );
+    const fetchImpl = async () =>
+      new Response('url "https://registry.npmjs.org/codependence/-/codependence-1.0.12.tgz"');
     const state = await checkHomebrewReleaseState({ arch: "arm64", env: stateEnv, fetchImpl });
     assert.deepStrictEqual(state, {
       reason: "Homebrew tap already has newer codependence 1.0.12; skipping 1.0.11",
@@ -79,9 +78,8 @@ describe("scripts/release brew", () => {
 
   test("continues when the tap is behind the requested version", async () => {
     const env = Object.assign({}, stateEnv, { VERSION: "1.0.12" });
-    const fetchImpl = async () => new Response(
-      'url "https://registry.npmjs.org/codependence/-/codependence-1.0.11.tgz"',
-    );
+    const fetchImpl = async () =>
+      new Response('url "https://registry.npmjs.org/codependence/-/codependence-1.0.11.tgz"');
     const state = await checkHomebrewReleaseState({ arch: "arm64", env, fetchImpl });
     assert.deepStrictEqual(state, { skip: false });
   });
@@ -193,7 +191,7 @@ describe("scripts/release brew", () => {
   test("downloads published tarball bytes", async () => {
     const fetchImpl = async () => new Response("published tarball");
     const tarball = await fetchPublishedTarball(npmTarballUrl("1.1.0"), fetchImpl);
-    assert.deepStrictEqual((tarball), Buffer.from("published tarball"));
+    assert.deepStrictEqual(tarball, Buffer.from("published tarball"));
   });
 
   test("generates a formula from published tarball bytes", async () => {
@@ -203,8 +201,8 @@ describe("scripts/release brew", () => {
     try {
       const fetchImpl = async () => new Response("published tarball");
       const formula = await createPublishedFormula({ fetchImpl, outputPath, version: "1.1.0" });
-      assert.strictEqual((formula.digest), sha256(Buffer.from("published tarball")));
-      assert.ok((readFileSync(outputPath, "utf8")).includes(formula.digest));
+      assert.strictEqual(formula.digest, sha256(Buffer.from("published tarball")));
+      assert.ok(readFileSync(outputPath, "utf8").includes(formula.digest));
     } finally {
       rmSync(TEMP_ROOT, { recursive: true, force: true });
     }
@@ -218,16 +216,16 @@ describe("scripts/release brew", () => {
 
   test("computes a hexadecimal SHA256", () => {
     const digest = sha256(Buffer.from("hello"));
-    assert.strictEqual((digest).length, 64);
-    assert.match((digest), /^[a-f0-9]+$/);
+    assert.strictEqual(digest.length, 64);
+    assert.match(digest, /^[a-f0-9]+$/);
   });
 
   test("renders a Node-backed formula", () => {
     const formula = renderFormula({ digest: "abc123", url: npmTarballUrl("1.1.0") });
-    assert.doesNotMatch((formula), /^\s+version\s/m);
-    assert.ok((formula).includes('depends_on "node"'));
-    assert.ok((formula).includes('system bin/"codependence", "--help"'));
-    assert.ok((formula).includes('system bin/"cdp", "--help"'));
+    assert.doesNotMatch(formula, /^\s+version\s/m);
+    assert.ok(formula.includes('depends_on "node"'));
+    assert.ok(formula.includes('system bin/"codependence", "--help"'));
+    assert.ok(formula.includes('system bin/"cdp", "--help"'));
   });
 
   test("generates a formula from a local tarball", () => {
@@ -238,8 +236,8 @@ describe("scripts/release brew", () => {
     try {
       writeFileSync(tarballPath, "local tarball");
       const formula = createLocalFormula({ outputPath, tarballPath, version: "1.1.0" });
-      assert.strictEqual((formula.digest), sha256(Buffer.from("local tarball")));
-      assert.doesNotMatch((readFileSync(outputPath, "utf8")), /^\s+version\s/m);
+      assert.strictEqual(formula.digest, sha256(Buffer.from("local tarball")));
+      assert.doesNotMatch(readFileSync(outputPath, "utf8"), /^\s+version\s/m);
     } finally {
       rmSync(TEMP_ROOT, { recursive: true, force: true });
     }
@@ -256,7 +254,7 @@ describe("scripts/release brew", () => {
         argv: ["generate-local"],
         env: { FORMULA_PATH: outputPath, TARBALL_PATH: tarballPath, VERSION: "1.1.0" },
       });
-      assert.ok((readFileSync(outputPath, "utf8")).includes(npmTarballUrl("1.1.0")));
+      assert.ok(readFileSync(outputPath, "utf8").includes(npmTarballUrl("1.1.0")));
     } finally {
       rmSync(TEMP_ROOT, { recursive: true, force: true });
     }
@@ -273,7 +271,7 @@ describe("scripts/release brew", () => {
         env: { FORMULA_PATH: outputPath, VERSION: "1.1.0" },
         fetchImpl,
       });
-      assert.ok((readFileSync(outputPath, "utf8")).includes(npmTarballUrl("1.1.0")));
+      assert.ok(readFileSync(outputPath, "utf8").includes(npmTarballUrl("1.1.0")));
     } finally {
       rmSync(TEMP_ROOT, { recursive: true, force: true });
     }
@@ -292,7 +290,7 @@ describe("scripts/release brew", () => {
         env: Object.assign({}, stateEnv, { GITHUB_OUTPUT: outputPath }),
         fetchImpl,
       });
-      assert.strictEqual((readFileSync(outputPath, "utf8")), "skip=true\n");
+      assert.strictEqual(readFileSync(outputPath, "utf8"), "skip=true\n");
     } finally {
       writeSpy.mock.restore();
       rmSync(TEMP_ROOT, { recursive: true, force: true });
@@ -317,7 +315,7 @@ describe("scripts/release brew", () => {
         brewTapResponse(String(url), init?.method || "GET");
       await writeHomebrewTapUpdate({ env, fetchImpl });
       assert.strictEqual(
-        (readFileSync(outputPath, "utf8")),
+        readFileSync(outputPath, "utf8"),
         "tap-pr-url=https://github.com/yowainwright/homebrew-tap/pull/10\n",
       );
     } finally {
@@ -327,7 +325,10 @@ describe("scripts/release brew", () => {
   });
 
   test("rejects unknown Homebrew CLI commands", async () => {
-    await assertRejects(runBrewCli({ argv: ["wat"], env: { VERSION: "1.1.0" } }), "Unknown command");
+    await assertRejects(
+      runBrewCli({ argv: ["wat"], env: { VERSION: "1.1.0" } }),
+      "Unknown command",
+    );
   });
 });
 

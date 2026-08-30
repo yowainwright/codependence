@@ -258,10 +258,26 @@ describe("formatVersionTable", () => {
     assert.ok(result.includes(ansiBackground(DIFF_BACKGROUND_PALETTE.patch[1])));
     assert.ok(result.includes(ansiBackground(DIFF_BACKGROUND_PALETTE.unknown[1])));
     assert.ok(result.includes(`${ansiForeground(MUTED_VERSION_COLOR)}  1.0.0`));
-    assert.ok(result.includes(`${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.major[1]))}  6.0.0`));
-    assert.ok(result.includes(`${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.minor[1]))}  1.12.0`));
-    assert.ok(result.includes(`${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.patch[1]))}  1.0.50`));
-    assert.ok(result.includes(`${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.unknown[1]))}  1.0.0`));
+    assert.ok(
+      result.includes(
+        `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.major[1]))}  6.0.0`,
+      ),
+    );
+    assert.ok(
+      result.includes(
+        `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.minor[1]))}  1.12.0`,
+      ),
+    );
+    assert.ok(
+      result.includes(
+        `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.patch[1]))}  1.0.50`,
+      ),
+    );
+    assert.ok(
+      result.includes(
+        `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.unknown[1]))}  1.0.0`,
+      ),
+    );
   });
 
   test("uses codependence gradient stops for semantic diff foregrounds", () => {
@@ -324,15 +340,29 @@ describe("formatVersionTable", () => {
 
     const result = formatVersionTable(diffs, "check");
 
-    assert.ok(result.includes(`${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.minor[1]))}  1.14.0`));
-    assert.ok(result.includes(`${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.unknown[1]))}  1.0.0`));
+    assert.ok(
+      result.includes(
+        `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.minor[1]))}  1.14.0`,
+      ),
+    );
+    assert.ok(
+      result.includes(
+        `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.unknown[1]))}  1.0.0`,
+      ),
+    );
   });
 
   test("uses readable foreground colors in the legend", () => {
     const result = formatCliLegend();
 
     assert.ok(result.includes(ansiBackground(DIFF_BACKGROUND_PALETTE.patch[1])));
-    assert.ok(result.includes(`${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.patch[1]))}  1.2.3 -> 1.2.4`));
-    assert.ok(!result.includes(`${ansiForeground(DIFF_FOREGROUND_PALETTE.patch[1])}  1.2.3 -> 1.2.4`));
+    assert.ok(
+      result.includes(
+        `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.patch[1]))}  1.2.3 -> 1.2.4`,
+      ),
+    );
+    assert.ok(
+      !result.includes(`${ansiForeground(DIFF_FOREGROUND_PALETTE.patch[1])}  1.2.3 -> 1.2.4`),
+    );
   });
 });
