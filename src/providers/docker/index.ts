@@ -29,6 +29,7 @@ import {
   DOCKER_REGISTRY_REQUEST_ATTEMPTS,
   DOCKER_TAG_PAGE_LIMIT,
   DOCKER_TAG_PAGE_SIZE,
+  DOCKER_TRANSIENT_REGISTRY_STATUSES,
   DOCKER_USER_AGENT,
   GHCR_HOST,
 } from "./constants";
@@ -238,7 +239,7 @@ const isAuthenticationFailure = (response: Response): boolean =>
   response.status === 401 || response.status === 403;
 
 const isTransientRegistryFailure = (response: Response): boolean =>
-  response.status === 502 || response.status === 503 || response.status === 504;
+  DOCKER_TRANSIENT_REGISTRY_STATUSES.has(response.status);
 
 const readRegistryJson = async (response: Response, message: string): Promise<unknown> => {
   try {
