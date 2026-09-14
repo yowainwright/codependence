@@ -82,12 +82,28 @@ const styleguideTables = (): string => {
   ].join("\n");
 };
 
+const styleguidePrompts = (): string => {
+  return [
+    bold(cyan("Prompts")),
+    `${cyan("?")} Choose one package`,
+    `${cyan("›")} ${bold("●")} radio choice ${gray("· compatible update")}`,
+    `  ○ another choice ${gray("· available")}`,
+    `${cyan("?")} Choose packages ${gray("· 1 selected")}`,
+    `${cyan("›")} ${bold("■")} selected package ${gray("· compatible update")}`,
+    `  □ available package ${gray("· minor update")}`,
+    `  ${gray("─ pinned package · pinned")}`,
+    gray("Selected: selected package"),
+    gray("↑/↓ move · Space select · a all · n none · Enter confirm · Esc cancel"),
+  ].join("\n");
+};
+
 export const formatCliStyleguide = (): string => {
   return [
     styleguideHeader(),
     styleguideStatuses(),
     formatCliLegend(),
     styleguideTables(),
+    styleguidePrompts(),
     formatCliLoader(),
   ].join("\n\n");
 };

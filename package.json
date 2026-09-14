@@ -14,8 +14,6 @@
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "devDependencies": {
-    "@inquirer/checkbox": "^5.2.1",
-    "@inquirer/select": "^5.2.1",
     "@nubjs/nub": "0.7.5",
     "@types/node": "26.2.0",
     "eslint-plugin-legibility": "^0.3.3",
@@ -25,7 +23,8 @@
     "prettier": "^3.9.6",
     "release-it": "21.0.2",
     "rolldown": "1.2.3",
-    "scriptc": "0.0.26"
+    "scriptc": "0.0.36",
+    "turbo": "2.10.12"
   },
   "exports": {
     ".": {

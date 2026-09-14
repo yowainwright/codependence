@@ -9,16 +9,12 @@ import {
   createSpinner,
   cyan,
   formatCliLegend,
-  formatCliStyleguide,
-  glimmer,
   gradient,
   gray,
   green,
   red,
   shortStatus,
-  type Spinner,
 } from "../dx/output";
-import { CLI_STYLEGUIDE_LOADER_INTERVAL_MS } from "../dx/output/constants";
 import { SYMBOLS } from "../dx/report/constants";
 import { Prompt } from "../dx";
 import { exec } from "../utils/process";
@@ -33,6 +29,7 @@ import {
   validateConfig,
 } from "../config";
 import { normalizeBinaryArgv, parseArgs, showHelp } from "./utils";
+import { runCliStyleguide } from "./styleguide";
 import {
   analyzeOnboardingProject,
   createOnboardingSetup,
@@ -149,49 +146,6 @@ const shouldUseStatusSpinner = (shouldShowStatus: boolean): boolean => {
   if (isCiOutput()) return false;
 
   return Boolean(process.stdout.isTTY);
-};
-
-const styleguideLoaderText = (frameIndex: number): string => {
-  return `🤼‍♀️ ${glimmer("codependence", { frameIndex })} wrestling...`;
-};
-
-const waitForExitSignal = (): Promise<void> =>
-  new Promise((resolveExit) => {
-    const cleanup = (): void => {
-      process.off("SIGINT", cleanup);
-      process.off("SIGTERM", cleanup);
-      resolveExit();
-    };
-    process.once("SIGINT", cleanup);
-    process.once("SIGTERM", cleanup);
-  });
-
-const shouldLoopStyleguideLoader = (): boolean => {
-  if (!shouldUseStatusSpinner(true)) return false;
-  return isDirectExecution(process.argv);
-};
-
-const startStyleguideShimmerLoop = (spinner: Spinner): NodeJS.Timeout => {
-  let frameIndex = 1;
-  const interval = setInterval(() => {
-    frameIndex += 1;
-    spinner.text = styleguideLoaderText(frameIndex);
-  }, CLI_STYLEGUIDE_LOADER_INTERVAL_MS);
-  interval.ref();
-  return interval;
-};
-
-const loopStyleguideLoader = async (): Promise<void> => {
-  if (!shouldLoopStyleguideLoader()) return;
-
-  const spinner = createSpinner(styleguideLoaderText(1), { interactive: true }).start();
-  const shimmerInterval = startStyleguideShimmerLoop(spinner);
-  try {
-    await waitForExitSignal();
-  } finally {
-    clearInterval(shimmerInterval);
-    spinner.stop();
-  }
 };
 
 const isOnboardingMode = (value: string | undefined): value is OnboardingMode =>
@@ -1706,8 +1660,8 @@ export async function run(args: string[] = process.argv): Promise<void> {
 
   const isStyleguideRequested = Boolean(parsed.options.styleguide);
   if (isStyleguideRequested) {
-    logger.print(formatCliStyleguide());
-    await loopStyleguideLoader();
+    if (suppressOutput(parsed.options)) return;
+    await runCliStyleguide((message) => logger.print(message));
     return;
   }
 

@@ -1,8 +1,6 @@
 import { describe, it, beforeEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { assertCalledWith } from "../../helpers/assertions";
-import inquirerCheckbox from "@inquirer/checkbox";
-import inquirerSelect from "@inquirer/select";
 import {
   createOutput,
   defaultOutput,
@@ -70,13 +68,13 @@ describe("DX Utilities", () => {
     });
   });
 
-  describe("Prompt styles", () => {
-    it("should use a single-choice prompt for radio", () => {
-      assert.strictEqual(radio, inquirerSelect);
+  describe("Prompt exports", () => {
+    it("should export a single-choice radio prompt", () => {
+      assert.strictEqual(typeof radio, "function");
     });
 
-    it("should use a multi-choice prompt for select", () => {
-      assert.strictEqual(select, inquirerCheckbox);
+    it("should export a multi-choice select prompt", () => {
+      assert.strictEqual(typeof select, "function");
     });
   });
 

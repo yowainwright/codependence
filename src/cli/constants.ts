@@ -153,7 +153,7 @@ Options:
   --noCache                         Disable version caching for fresh results
   --format <type>                   Output format: json, markdown, or table (default: table)
   --outputFile <path>               Write output to file instead of stdout
-  -sg, --styleguide                 Print the CLI styleguide
+  -sg, --styleguide                 Browse the CLI styleguide interactively
   --legend                          Print the dependency risk legend
 
 Examples:
@@ -214,7 +214,7 @@ Examples:
   codependence --format markdown              Output as Markdown for PR comments
   codependence --format json --outputFile deps.json
                                               Save JSON output to file
-  codependence --styleguide                   Print CLI colors and table styles
+  codependence --styleguide                   Browse CLI components interactively
   codependence --legend                       Print dependency risk colors
 `;
 

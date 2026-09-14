@@ -17,6 +17,9 @@ export type TextAlign = "left" | "right" | "center";
 export interface PromptChoice {
   name: string;
   value: string;
+  description?: string;
+  checked?: boolean;
+  disabled?: boolean | string;
 }
 
 export interface ChoicePromptOptions {
