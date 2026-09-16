@@ -290,15 +290,24 @@ const runSelector = (
     let state = createSelectorState(choices);
     let previousLineCount = 0;
     let isFinished = false;
-    let skipSpaceKeypress = false;
 
-    const cleanup = (): void => {
+    const cleanup = (onRestored?: () => void): void => {
       process.stdin.off("keypress", onKeypress);
-      process.stdin.off("data", onData);
+      process.off("SIGINT", onInterrupt);
+      process.off("SIGTERM", onTerminate);
       if (typeof process.stdin.setRawMode === "function") process.stdin.setRawMode(false);
       process.stdin.pause();
-      process.stdout.write(ANSI.SHOW_CURSOR);
+      process.stdout.write(ANSI.SHOW_CURSOR, onRestored);
     };
+
+    const onSignal = (signal: NodeJS.Signals): void => {
+      if (isFinished) return;
+      isFinished = true;
+      cleanup(() => process.kill(process.pid, signal));
+    };
+
+    const onInterrupt = (): void => onSignal("SIGINT");
+    const onTerminate = (): void => onSignal("SIGTERM");
 
     const finish = (value?: string | string[], error?: Error): void => {
       if (isFinished) return;
@@ -316,7 +325,7 @@ const runSelector = (
       previousLineCount = writeFrame(lines, previousLineCount, previousLineCount === 0);
     };
 
-    const onKeypress = (input: string, key: PromptKey = {}): void => {
+    const onKeypress = (input = "", key: PromptKey = {}): void => {
       if (isCancelKey(input, key)) {
         finish(undefined, promptCancelled());
         return;
@@ -332,31 +341,11 @@ const runSelector = (
         render();
         return;
       }
-      const isSpace = input === " " || key.name === "space";
-      if (isSpace) {
-        if (skipSpaceKeypress) {
-          skipSpaceKeypress = false;
-          return;
-        }
-        state = updateSelected(state, input, key, choices);
-        render();
-        return;
-      }
       const isSelectShortcut = mode === "select" && isSelectionKey(input, key);
       if (isSelectShortcut) {
         state = updateSelected(state, input, key, choices);
         render();
       }
-    };
-
-    const onData = (chunk: Buffer): void => {
-      const isStandaloneSpace = chunk.toString("utf8") === " ";
-      if (isFinished) return;
-      if (mode !== "select") return;
-      if (!isStandaloneSpace) return;
-      skipSpaceKeypress = true;
-      state = updateSelected(state, " ", { name: "space" }, choices);
-      render();
     };
 
     try {
@@ -368,9 +357,10 @@ const runSelector = (
       if (!hasRawMode) {
         throw new Error("Interactive prompt input is unavailable");
       }
+      process.once("SIGINT", onInterrupt);
+      process.once("SIGTERM", onTerminate);
       process.stdin.setRawMode(true);
       process.stdin.resume();
-      process.stdin.on("data", onData);
       readline.emitKeypressEvents(process.stdin);
       process.stdin.on("keypress", onKeypress);
       process.stdout.write(ANSI.HIDE_CURSOR);

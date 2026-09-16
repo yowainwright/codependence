@@ -76,6 +76,8 @@ const emitDown = (count: number): void => {
   Array.from({ length: count }).forEach(() => emitKeypress("", { name: "down" }));
 };
 
+const signalListeners = () => ["SIGINT", "SIGTERM"].map((signal) => process.listeners(signal));
+
 describe("Prompt", { concurrency: false }, () => {
   test("should create readline interface on construction", () => {
     const prompt = new Prompt();
@@ -288,6 +290,49 @@ describe("Prompt", { concurrency: false }, () => {
     assert.strictEqual(result, "opt1");
   });
 
+  test("interactive select should ignore non-text keys without changing selections", async () => {
+    const choices = [
+      { name: "Option 1", value: "opt1", checked: true },
+      { name: "Option 2", value: "opt2" },
+    ];
+    const result = await withInteractiveTerminal(async () => {
+      const resultPromise = select({ message: "Choose multiple", choices });
+      const keySequences = ["\x1b[D", "\x1b[C", "\x1b[H", "\x1b[3~"];
+      try {
+        keySequences.forEach((sequence) => process.stdin.emit("data", Buffer.from(sequence)));
+      } finally {
+        emitKeypress("", { name: "return" });
+        await resultPromise;
+      }
+      return resultPromise;
+    });
+
+    assert.deepStrictEqual(result, ["opt1"]);
+  });
+
+  [
+    { name: "after radio", previous: radio, spaces: [" "], expected: ["opt1"] },
+    { name: "after checkbox", previous: select, spaces: [" "], expected: ["opt1"] },
+    { name: "twice separately", previous: select, spaces: [" ", " "], expected: [] },
+    { name: "twice in one chunk", previous: select, spaces: ["  "], expected: [] },
+  ].forEach(({ name, previous, spaces, expected }) => {
+    test(`interactive select should toggle once per Space: ${name}`, async () => {
+      const choices = [{ name: "Option 1", value: "opt1" }];
+      const result = await withInteractiveTerminal(async () => {
+        const previousResult = previous({ message: "Previous prompt", choices });
+        process.stdin.emit("data", Buffer.from("\r"));
+        await previousResult;
+
+        const resultPromise = select({ message: "Choose multiple", choices });
+        spaces.forEach((space) => process.stdin.emit("data", Buffer.from(space)));
+        process.stdin.emit("data", Buffer.from("\r"));
+        return resultPromise;
+      });
+
+      assert.deepStrictEqual(result, expected);
+    });
+  });
+
   test("interactive select should support scrolling and selection shortcuts", async () => {
     const restoreColumns = setColumns(120);
     const choices = [
@@ -356,6 +401,43 @@ describe("Prompt", { concurrency: false }, () => {
       });
       emitKeypress("", { name: "c", ctrl: true });
       await assert.rejects(controlC, { name: "PromptCancelled" });
+    });
+  });
+
+  [
+    { key: "return", expected: "opt" },
+    { key: "escape", expected: "PromptCancelled" },
+  ].forEach(({ key, expected }) => {
+    test(`interactive selector should remove signal handlers after ${key}`, async () => {
+      await withInteractiveTerminal(async () => {
+        const before = signalListeners();
+        const pending = radio({ message: "Choose", choices: [{ name: "Option", value: "opt" }] });
+        const activeCounts = signalListeners().map((listeners) => listeners.length);
+        const expectedCounts = before.map((listeners) => listeners.length + 1);
+        assert.deepStrictEqual(activeCounts, expectedCounts);
+        const outcome = pending.catch((error: Error) => error.name);
+        emitKeypress("", { name: key });
+
+        assert.strictEqual(await outcome, expected);
+        assert.deepStrictEqual(signalListeners(), before);
+      });
+    });
+  });
+
+  test("interactive selector should remove signal handlers after setup fails", async () => {
+    await withInteractiveTerminal(async () => {
+      const before = signalListeners();
+      const rawMode = mock.method(process.stdin, "setRawMode", (enabled: boolean) => {
+        if (enabled) throw new Error("Raw mode unavailable");
+        return process.stdin;
+      });
+      try {
+        const pending = radio({ message: "Choose", choices: [{ name: "Option", value: "opt" }] });
+        await assert.rejects(pending, /Raw mode unavailable/);
+        assert.deepStrictEqual(signalListeners(), before);
+      } finally {
+        rawMode.mock.restore();
+      }
     });
   });
 
