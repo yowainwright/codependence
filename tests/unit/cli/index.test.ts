@@ -1131,11 +1131,9 @@ describe("run", () => {
     }
   });
 
-  test("stops the direct styleguide loader after a termination signal", async () => {
+  test("prints the static styleguide for direct non-interactive execution", async () => {
     const code = [
-      "delete process.env.CI;",
-      "delete process.env.GITHUB_ACTIONS;",
-      'Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: true });',
+      'process.env.CI = "1";',
       'process.argv = [process.argv[0], "src/cli/index.ts", "--styleguide"];',
       'await import("./src/cli/index.ts");',
     ].join("\n");
@@ -1145,20 +1143,15 @@ describe("run", () => {
       { cwd: PROJECT_ROOT },
     );
     let output = "";
-    let signalSent = false;
 
     const result = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
       (resolveResult, reject) => {
         const timeout = setTimeout(() => {
           child.kill("SIGKILL");
-          reject(new Error("Timed out waiting for direct styleguide loader"));
+          reject(new Error("Timed out waiting for direct styleguide output"));
         }, 2000);
         const readOutput = (chunk: Buffer): void => {
           output += chunk.toString();
-          const shouldStop = output.includes("\x1B[?25l") && !signalSent;
-          if (!shouldStop) return;
-          signalSent = true;
-          setTimeout(() => child.kill("SIGTERM"), 20);
         };
         child.stdout.on("data", readOutput);
         child.stderr.on("data", readOutput);
@@ -1172,8 +1165,8 @@ describe("run", () => {
 
     assert.strictEqual(result.code, 0);
     assert.strictEqual(result.signal, null);
-    assert.ok(output.includes("\x1B[?25l"));
-    assert.ok(output.includes("\x1B[?25h"));
+    assert.ok(output.includes("Codependence CLI Styleguide"));
+    assert.ok(output.includes("Prompts"));
   });
 
   test("should show legend when --legend flag is provided", async () => {

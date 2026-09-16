@@ -19,6 +19,10 @@ export const ANSI = {
   HIDE_CURSOR: "\x1B[?25l",
   SHOW_CURSOR: "\x1B[?25h",
   BOLD: "\x1b[1m",
+  CYAN: "\x1b[36m",
+  GRAY: "\x1b[90m",
+  GREEN: "\x1b[32m",
+  RED: "\x1b[31m",
   RESET: "\x1b[0m",
 } as const;
 
