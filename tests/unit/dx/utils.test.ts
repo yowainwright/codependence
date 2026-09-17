@@ -2,6 +2,7 @@ import { describe, test, mock } from "node:test";
 import assert from "node:assert/strict";
 import { assertCalledWith } from "../../helpers/assertions";
 import { Prompt, createPrompt, radio, select } from "../../../src/dx";
+import { createAnsiPattern } from "../../../src/dx/constants";
 
 type TTYStream = { isTTY?: boolean };
 type PromptKey = { name?: string; ctrl?: boolean };
@@ -288,6 +289,63 @@ describe("Prompt", { concurrency: false }, () => {
     });
 
     assert.strictEqual(result, "opt1");
+  });
+
+  [
+    { selector: radio, mark: "●", disabledCount: 7 },
+    { selector: radio, mark: "●", disabledCount: 8 },
+    { selector: radio, mark: "●", disabledCount: 12 },
+    { selector: select, mark: "□", disabledCount: 7 },
+    { selector: select, mark: "□", disabledCount: 8 },
+    { selector: select, mark: "□", disabledCount: 12 },
+  ].forEach(({ selector, mark, disabledCount }) => {
+    test(`${selector.name} initially shows the active choice after ${disabledCount} disabled entries`, async () => {
+      const disabled = Array.from({ length: disabledCount }, (_, index) => ({
+        name: `Disabled ${index}`,
+        value: `disabled-${index}`,
+        disabled: true,
+      }));
+      const choices = [...disabled, { name: "Available", value: "available" }];
+      await withInteractiveTerminal(async () => {
+        const write = mock.method(process.stdout, "write", () => true);
+        const pending = selector({ message: "Choose", choices });
+        try {
+          const output = write.mock.calls.map((call) => String(call.arguments[0])).join("");
+          const visible = output.replace(createAnsiPattern(), "");
+          assert.ok(visible.includes(`› ${mark} Available`), visible);
+        } finally {
+          emitKeypress("", { name: "return" });
+          await pending;
+          write.mock.restore();
+        }
+      });
+    });
+  });
+
+  test("interactive radio should not confirm a choice disabled while the prompt is open", async () => {
+    const choices = [
+      { name: "Option 1", value: "opt1", disabled: false },
+      { name: "Option 2", value: "opt2", disabled: false },
+    ];
+    const result = await withInteractiveTerminal(async () => {
+      const pending = radio({ message: "Choose", choices });
+      choices[0].disabled = true;
+      process.stdin.emit("data", Buffer.from("\r\x1b[B\r"));
+      return pending;
+    });
+
+    assert.strictEqual(result, "opt2");
+  });
+
+  test("interactive select should allow an empty selection when all choices are disabled", async () => {
+    const choices = [{ name: "Pinned", value: "pinned", disabled: true, checked: true }];
+    const result = await withInteractiveTerminal(async () => {
+      const pending = select({ message: "Choose", choices });
+      process.stdin.emit("data", Buffer.from("\r"));
+      return pending;
+    });
+
+    assert.deepStrictEqual(result, []);
   });
 
   test("interactive select should ignore non-text keys without changing selections", async () => {

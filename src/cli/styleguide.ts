@@ -72,10 +72,16 @@ const writeMenu = (write: StyleguideWriter): void => {
   );
 };
 
+const handlePromptCancellation = (cause: unknown): undefined => {
+  const isCancelled = cause instanceof Error && cause.name === "PromptCancelled";
+  if (!isCancelled) throw cause;
+  return undefined;
+};
+
 const waitForReturn = async (prompts: StyleguidePrompts): Promise<void> => {
   await prompts
     .radio({ message: "Return to the component menu", choices: RETURN_CHOICE })
-    .catch(() => undefined);
+    .catch(handlePromptCancellation);
 };
 
 const formatBrandDemo = (): string =>
@@ -174,7 +180,7 @@ const runPromptDemo = async (
       message: "Choose one package",
       choices: promptChoices,
     })
-    .catch(() => undefined);
+    .catch(handlePromptCancellation);
 
   if (!radioValue) return;
 
@@ -188,7 +194,7 @@ const runPromptDemo = async (
       message: "Choose packages",
       choices: promptChoices,
     })
-    .catch(() => undefined);
+    .catch(handlePromptCancellation);
   if (!selected) return;
 
   const summary = selected.length > 0 ? selected.join(", ") : "none";
@@ -231,7 +237,8 @@ export const runCliStyleguide = async (
         message: "Choose a component",
         choices: STYLEGUIDE_CHOICES,
       })
-      .catch(() => "quit");
+      .catch(handlePromptCancellation);
+    if (selected === undefined) return;
     const isQuit = selected === "quit";
     const isUnknownSection = !isStyleguideSection(selected);
     if (isQuit) return;

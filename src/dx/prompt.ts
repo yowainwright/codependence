@@ -47,17 +47,26 @@ const isDisabled = (choice: PromptChoice): boolean => {
   const hasDisabledLabel = typeof disabled === "string";
   return hasDisabledValue || hasDisabledLabel;
 };
+
+const radioChoiceError = (choices: PromptChoice[]): Error | undefined => {
+  if (!hasChoices(choices)) return new Error("Prompt requires at least one choice");
+  const hasEnabledChoice = choices.some((choice) => !isDisabled(choice));
+  if (hasEnabledChoice) return;
+  return new Error("Radio prompt requires at least one enabled choice");
+};
+
 const firstSelectableIndex = (choices: PromptChoice[]): number => {
   const index = choices.findIndex((choice) => !isDisabled(choice));
   if (index < 0) return 0;
   return index;
 };
 
-const createSelectorState = (choices: PromptChoice[]): SelectorState => ({
-  cursorIndex: firstSelectableIndex(choices),
-  selected: choices.map((choice) => Boolean(choice.checked) && !isDisabled(choice)),
-  viewportStart: 0,
-});
+const createSelectorState = (choices: PromptChoice[]): SelectorState => {
+  const cursorIndex = firstSelectableIndex(choices);
+  const selected = choices.map((choice) => Boolean(choice.checked) && !isDisabled(choice));
+  const viewportStart = updateViewportStart(cursorIndex, 0, choices.length);
+  return { cursorIndex, selected, viewportStart };
+};
 
 const moveCursor = (cursorIndex: number, direction: number, choices: PromptChoice[]): number => {
   const nextIndexes = choices.map(
@@ -331,6 +340,8 @@ const runSelector = (
         return;
       }
       if (isConfirmKey(key)) {
+        const isDisabledRadioChoice = mode === "radio" && isDisabled(choices[state.cursorIndex]);
+        if (isDisabledRadioChoice) return;
         finish(selectedValues(mode, choices, state));
         return;
       }
@@ -371,8 +382,11 @@ const runSelector = (
     }
   });
 
-export const radio: RadioPrompt = (options) =>
-  runSelector("radio", options).then((value) => value as string);
+export const radio: RadioPrompt = (options) => {
+  const error = radioChoiceError(options.choices);
+  if (error) return Promise.reject(error);
+  return runSelector("radio", options).then((value) => value as string);
+};
 
 export const select: SelectPrompt = (options) =>
   runSelector("select", options).then((value) => value as string[]);
@@ -511,8 +525,8 @@ export class Prompt {
   }
 
   radio(message: string, choices: PromptChoice[]) {
-    if (!hasChoices(choices))
-      return Promise.reject(new Error("Prompt requires at least one choice"));
+    const error = radioChoiceError(choices);
+    if (error) return Promise.reject(error);
     const usesRadio = this.interactive && !hasBinaryHost();
     if (usesRadio) return this.interactiveRadio({ message, choices });
 

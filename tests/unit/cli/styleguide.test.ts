@@ -37,8 +37,8 @@ const createWriter = (): {
 };
 
 const interactivePrompts = (
-  selections: string[],
-  selected: string[],
+  selections: (string | Error)[],
+  selected: string[] | Error,
 ): {
   prompts: StyleguidePrompts;
   state: { radioMessages: string[]; selectCalls: number[] };
@@ -50,17 +50,67 @@ const interactivePrompts = (
       state.radioMessages = state.radioMessages.concat(message);
       const selection = selections[selectionIndex];
       selectionIndex += 1;
+      if (selection instanceof Error) throw selection;
       return selection ?? "quit";
     },
     select: async () => {
       state.selectCalls = state.selectCalls.concat(1);
+      if (selected instanceof Error) throw selected;
       return selected;
     },
   };
   return { prompts, state };
 };
 
+const withInteractiveStyleguide = async (callback: () => Promise<void>): Promise<void> => {
+  const previousCi = process.env.CI;
+  const previousGitHubActions = process.env.GITHUB_ACTIONS;
+  const restoreInputTTY = setTTY(process.stdin, true);
+  const restoreOutputTTY = setTTY(process.stdout, true);
+  delete process.env.CI;
+  delete process.env.GITHUB_ACTIONS;
+  try {
+    await callback();
+  } finally {
+    restoreInputTTY();
+    restoreOutputTTY();
+    restoreEnv("CI", previousCi);
+    restoreEnv("GITHUB_ACTIONS", previousGitHubActions);
+  }
+};
+
+const promptFailureCases = (failure: Error) => [
+  { name: "main menu", selections: [failure], selected: [] },
+  { name: "return prompt", selections: ["brand", failure, "quit"], selected: [] },
+  { name: "radio demo", selections: ["prompts", failure, "quit"], selected: [] },
+  { name: "checkbox demo", selections: ["prompts", "alpha", "quit"], selected: failure },
+];
+
 describe("CLI styleguide", { concurrency: 1 }, () => {
+  const failure = new Error("Terminal input unavailable");
+  promptFailureCases(failure).forEach(({ name, selections, selected }) => {
+    test(`propagates unexpected errors from the ${name}`, async () => {
+      const { write } = createWriter();
+      const { prompts } = interactivePrompts(selections, selected);
+      await withInteractiveStyleguide(async () => {
+        await assert.rejects(runCliStyleguide(write, prompts), (error) => error === failure);
+      });
+    });
+  });
+
+  const cancellation = new Error("Prompt cancelled");
+  cancellation.name = "PromptCancelled";
+  promptFailureCases(cancellation).forEach(({ name, selections, selected }) => {
+    test(`handles cancellation from the ${name}`, async () => {
+      const { write } = createWriter();
+      const { prompts, state } = interactivePrompts(selections, selected);
+      await withInteractiveStyleguide(() => runCliStyleguide(write, prompts));
+      const menus = state.radioMessages.filter((message) => message === "Choose a component");
+      const expectedMenuCount = name === "main menu" ? 1 : 2;
+      assert.strictEqual(menus.length, expectedMenuCount);
+    });
+  });
+
   test("prints the static guide outside an interactive terminal", async () => {
     const previousCi = process.env.CI;
     process.env.CI = "1";
@@ -136,7 +186,7 @@ describe("CLI styleguide", { concurrency: 1 }, () => {
           isInitialMenu = false;
           return "prompts";
         }
-        return Promise.reject(new Error("cancelled"));
+        return Promise.reject(cancellation);
       },
       select: async () => [],
     };
