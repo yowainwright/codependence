@@ -947,14 +947,12 @@ export const constructDeps = <T extends DependencySections>(
   json: T,
   depName: DependencySection,
   depList: Array<DepToUpdateItem>,
-) =>
-  depList?.length
-    ? depList.reduce(
-        (newJson: Record<string, string>, { name, expected: version }: DepToUpdateItem) =>
-          Object.assign({}, json[depName], newJson, { [name]: version }),
-        {},
-      )
-    : json[depName];
+) => {
+  if (!depList?.length) return json[depName];
+  const entries = depList.map(({ name, expected }) => [name, expected]);
+  const replacements = Object.fromEntries(entries);
+  return Object.assign({}, json[depName], replacements);
+};
 
 export const constructJson = <T extends DependencySections>(
   json: T,

@@ -31,7 +31,8 @@ export const pad = (value: string, length: number, align: TextAlign = "left"): s
 export const truncate = (value: string, maxLength: number): string => {
   if (visibleLength(value) <= maxLength) return value;
   if (maxLength <= 3) return ".".repeat(maxLength);
-  return `${value.slice(0, maxLength - 3)}...`;
+  const plainValue = value.replace(createAnsiPattern(), "");
+  return `${plainValue.slice(0, maxLength - 3)}...`;
 };
 
 export const indent = (value: string, spaces = INDENT_SIZE): string =>

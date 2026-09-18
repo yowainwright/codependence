@@ -560,6 +560,8 @@ name = "myproject"
 [tool.poetry.dependencies]
 python = "^3.8"
 old-package = "^1.0.0"
+requests = "^2.30.0"
+flask = "~1.0.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.0.0"
@@ -582,8 +584,54 @@ pytest = "^7.0.0"
       assert.ok(content.includes('python = "^3.8"'));
       assert.ok(content.includes('requests = "^2.31.0"'));
       assert.ok(content.includes('flask = "~2.0.0"'));
-      assert.ok(!content.includes("old-package"));
+      assert.ok(content.includes('old-package = "^1.0.0"'));
       assert.ok(content.includes("[tool.poetry.dev-dependencies]"));
+    });
+
+    ["\n", "\r\n"].forEach((newline) => {
+      test(`should preserve Poetry configuration with ${JSON.stringify(newline)} line endings`, () => {
+        const pyprojectPath = join(tmpDir, "pyproject.toml");
+        const lines = [
+          "[tool.poetry.dependencies] # runtime [packages]",
+          'python = "^3.12"',
+          "# Preserve [comments] and inline dependency metadata",
+          'local-lib = { path = "../local-lib", develop = true }',
+          'httpx = { version = "^0.27.0", extras = ["http2"] }',
+          '  requests  =  "^2.30.0"  # keep this comment',
+          'flask = "~2.0.0"',
+          "",
+          "[tool.poetry.group.dev.dependencies] # separate policy",
+          'requests = "^2.30.0"',
+        ];
+        const original = lines.join(newline);
+        writeFileSync(pyprojectPath, original);
+        const provider = new PythonProvider(pyprojectPath, "poetry");
+        const manifest = provider.readManifest(pyprojectPath);
+        assert.deepStrictEqual(manifest.dependencies, {
+          requests: "^2.30.0",
+          flask: "~2.0.0",
+        });
+
+        const dependencies = Object.assign({}, manifest.dependencies, { requests: "^2.31.0" });
+        provider.writeManifest(pyprojectPath, Object.assign({}, manifest, { dependencies }));
+
+        const expected = original.replace('  requests  =  "^2.30.0"', '  requests  =  "^2.31.0"');
+        assert.strictEqual(readFileSync(pyprojectPath, "utf8"), expected);
+      });
+    });
+
+    test("should preserve a Poetry manifest when no matching dependency changes", () => {
+      const pyprojectPath = join(tmpDir, "pyproject.toml");
+      const original = '[tool.poetry.dependencies]\npython = "^3.12"\nrequests = "^2.30.0"\n';
+      writeFileSync(pyprojectPath, original);
+      const provider = new PythonProvider(pyprojectPath, "poetry");
+
+      provider.writeManifest(pyprojectPath, {
+        filePath: pyprojectPath,
+        dependencies: { python: "^3.8", missing: "1.0.0" },
+      });
+
+      assert.strictEqual(readFileSync(pyprojectPath, "utf8"), original);
     });
 
     test("should update PEP 621 and uv dependency groups", async () => {

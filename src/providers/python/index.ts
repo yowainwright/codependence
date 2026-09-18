@@ -46,6 +46,28 @@ export const parsePoetryLine = (line: string): [string, string] | null => {
   return [match[1], match[2]];
 };
 
+const updatePoetryDependencyLine = (line: string, dependencies: Record<string, string>): string => {
+  const parsed = parsePoetryLine(line);
+  if (!parsed) return line;
+
+  const [name, currentVersion] = parsed;
+  const version = dependencies[name];
+  if (!version) return line;
+
+  const start = line.indexOf('"') + 1;
+  const end = start + currentVersion.length;
+  return `${line.slice(0, start)}${version}${line.slice(end)}`;
+};
+
+const updatePoetryDependencies = (
+  section: string,
+  dependencies: Record<string, string>,
+): string => {
+  const lines = section.split("\n");
+  const updatedLines = lines.map((line) => updatePoetryDependencyLine(line, dependencies));
+  return updatedLines.join("\n");
+};
+
 const parseCondaDependencySpec = (spec: string): ParsedCondaDependencyLine | null => {
   const trimmed = spec.trim();
   const isSectionHeader = trimmed.endsWith(":");
@@ -494,12 +516,9 @@ export class PythonProvider implements DependencyProvider {
       return;
     }
 
-    const depEntries = Object.entries(manifest.dependencies)
-      .map(([name, version]) => `${name} = "${version}"`)
-      .join("\n");
-
-    const replacement = `[tool.poetry.dependencies]\npython = "^3.8"\n${depEntries}\n\n`;
-    const updated = content.replace(PYTHON_PATTERNS.POETRY_DEPS, replacement);
+    const updated = content.replace(PYTHON_PATTERNS.POETRY_DEPS, (section) =>
+      updatePoetryDependencies(section, manifest.dependencies),
+    );
 
     writeFileSync(filePath, updated);
   }

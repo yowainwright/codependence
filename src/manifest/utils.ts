@@ -255,13 +255,15 @@ export const deduplicateVersionDiffs = (
   diffs: VersionDiff[],
   resolvedPackages: ReadonlySet<string> = new Set(),
 ): VersionDiff[] => {
-  const seen = new Set<string>();
-  return diffs.reduce<VersionDiff[]>((uniqueDiffs, diff) => {
+  const uniqueDiffs = new Map<string, VersionDiff>();
+  diffs.forEach((diff) => {
     const key = versionDiffKey(diff, resolvedPackages);
-    if (seen.has(key)) return uniqueDiffs;
-    seen.add(key);
-    return uniqueDiffs.concat(diff);
-  }, []);
+    const existing = uniqueDiffs.get(key);
+    const hasActionableReplacement = diff.willUpdate && !existing?.willUpdate;
+    const shouldStore = !existing || hasActionableReplacement;
+    if (shouldStore) uniqueDiffs.set(key, diff);
+  });
+  return Array.from(uniqueDiffs.values());
 };
 
 export const collectDiffsFromManifests = (

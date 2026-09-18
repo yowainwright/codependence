@@ -322,6 +322,35 @@ describe("Prompt", { concurrency: false }, () => {
     });
   });
 
+  [
+    { selector: radio, mark: "●", expected: "option" },
+    { selector: select, mark: "■", expected: ["option"] },
+  ].forEach(({ selector, mark, expected }) => {
+    test(`${selector.name} safely truncates colored labels in a narrow terminal`, async () => {
+      const restoreColumns = setColumns(16);
+      const name = "\x1b[31mabcdefghijklmnopq\x1b[0m";
+      const choices = [{ name, value: "option", checked: true }];
+      try {
+        await withInteractiveTerminal(async () => {
+          const write = mock.method(process.stdout, "write", () => true);
+          try {
+            const pending = selector({ message: "Go", choices });
+            emitKeypress("", { name: "return" });
+            assert.deepStrictEqual(await pending, expected);
+            const frames = write.mock.calls.map((call) => String(call.arguments[0]));
+            const lines = frames.join("\n").replace(createAnsiPattern(), "").split("\n");
+            assert.ok(lines.includes(`› ${mark} abcdefghi...`), lines.join("\n"));
+            assert.ok(lines.includes("✔ Go: abcdefg..."), lines.join("\n"));
+          } finally {
+            write.mock.restore();
+          }
+        });
+      } finally {
+        restoreColumns();
+      }
+    });
+  });
+
   test("interactive radio should not confirm a choice disabled while the prompt is open", async () => {
     const choices = [
       { name: "Option 1", value: "opt1", disabled: false },

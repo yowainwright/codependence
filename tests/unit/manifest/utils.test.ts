@@ -4,6 +4,8 @@ import { assertCalledWith, assertMatchObject, match } from "../../helpers/assert
 import {
   buildVersionDiff,
   collectAllDiffs,
+  collectDiffsFromManifests,
+  deduplicateVersionDiffs,
   displayVersionDiffs,
   validatePackageName,
 } from "../../../src/manifest";
@@ -338,6 +340,71 @@ describe("displayVersionDiffs", () => {
     assert.ok(!output.includes("typescript"));
     assert.ok(output.includes("oxlint"));
     consoleSpy.mock.restore();
+  });
+});
+
+describe("collectDiffsFromManifests", () => {
+  [
+    ["2.0.1", "2.0.0"],
+    ["2.0.0", "2.0.1"],
+    ["1.0.0", "2.0.0"],
+    ["2.0.0", "1.0.0"],
+  ].forEach((currentVersions) => {
+    test(`keeps actionable duplicates for ${currentVersions.join(", ")}`, () => {
+      const manifests = currentVersions.map((current) => ({ dependencies: { lodash: current } }));
+
+      const diffs = collectDiffsFromManifests(
+        { lodash: "2.0.1" },
+        manifests,
+        ["lodash"],
+        false,
+        "patch",
+      );
+
+      assert.deepStrictEqual(diffs, [
+        {
+          package: "lodash",
+          current: "2.0.0",
+          latest: "2.0.1",
+          installed: "2.0.1",
+          isPinned: true,
+          willUpdate: true,
+        },
+      ]);
+    });
+  });
+
+  test("keeps actionable duplicates across dependency sections in precise mode", () => {
+    const diffs = collectDiffsFromManifests(
+      { lodash: "2.0.0" },
+      [{ dependencies: { lodash: "2.0.0" }, devDependencies: { lodash: "1.0.0" } }],
+      [],
+      true,
+    );
+
+    assert.strictEqual(diffs.length, 1);
+    assert.strictEqual(diffs[0].current, "1.0.0");
+    assert.strictEqual(diffs[0].willUpdate, true);
+  });
+});
+
+describe("deduplicateVersionDiffs", () => {
+  test("preserves package order and input rows when replacing a duplicate", () => {
+    const current: VersionDiff = {
+      package: "lodash",
+      current: "2.0.0",
+      latest: "2.0.0",
+      isPinned: true,
+      willUpdate: false,
+    };
+    const other = Object.assign({}, current, { package: "react" });
+    const outdated = Object.assign({}, current, { current: "1.0.0", willUpdate: true });
+    const input = [current, other, outdated, outdated, current];
+    const original = structuredClone(input);
+
+    assert.deepStrictEqual(deduplicateVersionDiffs(input), [outdated, other]);
+    assert.deepStrictEqual(input, original);
+    assert.deepStrictEqual(deduplicateVersionDiffs([]), []);
   });
 });
 

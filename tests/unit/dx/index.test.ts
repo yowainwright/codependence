@@ -119,6 +119,20 @@ describe("DX Utilities", () => {
       assert.strictEqual(truncate("test", 1), ".");
     });
 
+    it("should strip ANSI styling before truncating colored text", () => {
+      const value = "\x1b[1;31mabc\x1b[0m\x1b[38;2;20;30;40mdefghijk\x1b[0m";
+      assert.strictEqual(truncate(value, 6), "abc...");
+      assert.strictEqual(truncate(value, 8), "abcde...");
+      assert.strictEqual(truncate(value, 3), "...");
+      assert.strictEqual(truncate(value, 0), "");
+    });
+
+    it("should preserve ANSI styling when colored text fits", () => {
+      const value = "\x1b[31mhello\x1b[0m";
+      assert.strictEqual(truncate(value, 5), value);
+      assert.strictEqual(truncate(value, 10), value);
+    });
+
     it("should indent text", () => {
       assert.strictEqual(indent("test"), "  test");
       assert.strictEqual(indent("test", 4), "    test");

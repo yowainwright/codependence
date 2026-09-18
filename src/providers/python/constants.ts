@@ -19,7 +19,7 @@ export const PYTHON_PATTERNS = {
     `^([a-zA-Z0-9_.-]+)(?:\\[[^\\]]+\\])?(${PYTHON_REQUIREMENT_PREFIX_PATTERN})([0-9.]+)`,
   ),
   COMMENT: /^#/,
-  POETRY_DEPS: /\[tool\.poetry\.dependencies\]([\s\S]*?)(?=\[|$)/,
+  POETRY_DEPS: /^[ \t]*\[tool\.poetry\.dependencies\]([^\n]*(?:\n(?![ \t]*\[)[^\n]*)*)/m,
   POETRY_LINE: /^([a-zA-Z0-9_.-]+)\s*=\s*"([^"]+)"/,
   PYPROJECT_SECTION: /^\s*\[([^\]]+)\]\s*$/,
   PYPROJECT_ARRAY_START: /^\s*([A-Za-z0-9_.-]+)\s*=\s*\[/,

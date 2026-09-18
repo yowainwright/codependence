@@ -578,7 +578,7 @@ test("constructDeps => with update", () => {
     dependencies: { bar: "1.0.0" },
     path: "./test",
   };
-  const depName = "bar";
+  const depName = "dependencies";
   const depList = [{ name: "bar", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" }];
   const result = constructDeps(json, depName, depList);
   assert.deepStrictEqual(result, { bar: "2.0.0" });
@@ -591,7 +591,7 @@ test("constructDeps => with no deplist", () => {
     dependencies: { bar: "1.0.0" },
     path: "./test",
   };
-  const depName = "bar";
+  const depName = "dependencies";
   const depList: Array<{
     name: string;
     expected: string;
@@ -599,7 +599,7 @@ test("constructDeps => with no deplist", () => {
     exact: string;
   }> = [];
   const result = constructDeps(json, depName, depList);
-  assert.strictEqual(result, undefined);
+  assert.strictEqual(result, json.dependencies);
 });
 
 test("constructDeps => with more deps", () => {
@@ -609,13 +609,37 @@ test("constructDeps => with more deps", () => {
     dependencies: { bar: "1.0.0", biz: "1.0.0" },
     path: "./test",
   };
-  const depName = "bar";
+  const depName = "dependencies";
   const depList = [
     { name: "bar", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
     { name: "biz", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
   ];
   const result = constructDeps(json, depName, depList);
   assert.deepStrictEqual(result, { bar: "2.0.0", biz: "2.0.0" });
+});
+
+test("constructDeps => preserves inputs and uses the last update for duplicate names", () => {
+  const dependencies = Object.freeze({ bar: "1.0.0", unchanged: "^3.0.0" });
+  const json = Object.freeze({ dependencies });
+  const depList = [
+    { name: "bar", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
+    { name: "added", expected: "1.0.0", actual: "", exact: "1.0.0" },
+    { name: "bar", expected: "3.0.0", actual: "1.0.0", exact: "3.0.0" },
+  ];
+  const originalUpdates = structuredClone(depList);
+  const result = constructDeps(json, "dependencies", depList);
+  assert.deepStrictEqual(result, { bar: "3.0.0", unchanged: "^3.0.0", added: "1.0.0" });
+  assert.notStrictEqual(result, dependencies);
+  assert.deepStrictEqual(depList, originalUpdates);
+});
+
+test("constructDeps => leaves an absent section undefined without updates", () => {
+  assert.strictEqual(constructDeps({}, "dependencies", []), undefined);
+});
+
+test("constructDeps => creates an absent section when updates exist", () => {
+  const depList = [{ name: "bar", expected: "2.0.0", actual: "", exact: "2.0.0" }];
+  assert.deepStrictEqual(constructDeps({}, "dependencies", depList), { bar: "2.0.0" });
 });
 
 test("constructJson => with updates", () => {
@@ -1456,6 +1480,45 @@ test("checkFiles => interactive mode invokes prompt selection", async () => {
   assert.ok(selectSpy.mock.callCount() > 0);
   selectSpy.mock.restore();
   closeSpy.mock.restore();
+});
+
+test("checkFiles => prompts before updating an outdated duplicate and honors no selection", async () => {
+  const rootDir = createTestDirectory();
+  const currentPath = join(rootDir, "a-current.json");
+  const outdatedPath = join(rootDir, "b-outdated.json");
+  const currentContent = JSON.stringify({ dependencies: { lodash: "2.0.0" } });
+  const outdatedContent = JSON.stringify({ dependencies: { lodash: "1.0.0" } });
+  writeFileSync(currentPath, currentContent);
+  writeFileSync(outdatedPath, outdatedContent);
+  const selectSpy = mock.method(Prompt.prototype, "select", async () => []);
+  const writeSpy = mock.method(NodeJSProvider.prototype, "writeManifest", () => {});
+
+  try {
+    await assert.rejects(
+      checkFiles({
+        rootDir,
+        files: ["a-current.json", "b-outdated.json"],
+        language: "nodejs",
+        codependencies: [{ lodash: "2.0.0" }],
+        mode: "verbose",
+        interactive: true,
+        update: true,
+        silent: true,
+      }),
+      /Dependencies are not correct/,
+    );
+
+    assert.strictEqual(selectSpy.mock.callCount(), 1);
+    assert.deepStrictEqual(selectSpy.mock.calls[0].arguments[1], [
+      { name: "lodash (1.0.0 -> 2.0.0)", value: "lodash" },
+    ]);
+    assert.strictEqual(writeSpy.mock.callCount(), 0);
+    assert.strictEqual(readFileSync(currentPath, "utf8"), currentContent);
+    assert.strictEqual(readFileSync(outdatedPath, "utf8"), outdatedContent);
+  } finally {
+    selectSpy.mock.restore();
+    writeSpy.mock.restore();
+  }
 });
 
 test("checkFiles => skips interactive prompt when nothing needs updating", async () => {
