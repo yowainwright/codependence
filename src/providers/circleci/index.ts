@@ -29,7 +29,8 @@ interface CircleCIWriteState {
 
 const exitsBlock = (inBlock: boolean, blockIndent: number, line: string): boolean => {
   if (!inBlock) return false;
-  if (!line.trim() || line.trimStart().startsWith("#")) return false;
+  const isIgnoredLine = !line.trim() || line.trimStart().startsWith("#");
+  if (isIgnoredLine) return false;
 
   const indent = line.search(/\S/);
   return indent <= blockIndent;
@@ -53,14 +54,17 @@ const readCircleCILine = (
   const field = readYamlFieldLine(line);
   const exited = exitsBlock(state.inOrbs, state.orbsIndent, line);
   const base = exited ? Object.assign({}, state, { inOrbs: false }) : state;
-  if (field?.key === "orbs" && field.indent === 0 && !field.listItem) {
+  const isRootField = field?.indent === 0 && !field.listItem;
+  const isOrbsHeader = isRootField && field.key === "orbs";
+  if (isOrbsHeader) {
     return Object.assign({}, base, { inOrbs: true, orbsIndent: field.indent });
   }
 
   const image = readYamlImageLine(line);
   if (image) appendDependencyVersion(manifest, image.name, image.version);
 
-  const orb = base.inOrbs && field && !field.listItem ? readOrbReference(field.raw) : null;
+  const isOrbField = base.inOrbs && field && !field.listItem;
+  const orb = isOrbField ? readOrbReference(field.raw) : null;
   if (orb) appendDependencyVersion(manifest, orb[0], orb[1]);
   return Object.assign({}, base, {
     dependencies: manifest.dependencies,
@@ -71,7 +75,8 @@ const readCircleCILine = (
 const updateOrbRaw = (raw: string, dependencies: Record<string, string>): string => {
   const range = readScalarRange(raw);
   const orb = readOrbReference(raw);
-  if (!range || !orb) return raw;
+  const hasOrbReference = range && orb;
+  if (!hasOrbReference) return raw;
 
   const version = dependencies[orb[0]];
   if (!version) return raw;
@@ -87,7 +92,9 @@ const updateCircleCILine = (
   const field = readYamlFieldLine(line);
   const exited = exitsBlock(state.inOrbs, state.orbsIndent, line);
   const base = exited ? Object.assign({}, state, { inOrbs: false }) : state;
-  if (field?.key === "orbs" && field.indent === 0 && !field.listItem) {
+  const isRootField = field?.indent === 0 && !field.listItem;
+  const isOrbsHeader = isRootField && field.key === "orbs";
+  if (isOrbsHeader) {
     return { line, state: Object.assign({}, base, { inOrbs: true, orbsIndent: field.indent }) };
   }
 
@@ -132,21 +139,19 @@ export class CircleCIProvider implements DependencyProvider {
   }
 
   writeManifest(filePath: string, manifest: DependencyManifest): void {
-    const initialState = { inOrbs: false, orbsIndent: -1 };
-    const output = readFileSync(filePath, "utf8")
-      .split("\n")
-      .reduce(
-        (acc, line) => {
-          const result = updateCircleCILine(acc.state, line, manifest.dependencies);
-          return { lines: acc.lines.concat(result.line), state: result.state };
-        },
-        { lines: [] as string[], state: initialState },
-      )
-      .lines.join("\n");
+    let state = { inOrbs: false, orbsIndent: -1 };
+    const lines = readFileSync(filePath, "utf8").split("\n");
+    for (const [index, line] of lines.entries()) {
+      const result = updateCircleCILine(state, line, manifest.dependencies);
+      state = result.state;
+      lines[index] = result.line;
+    }
+    const output = lines.join("\n");
     writeFileSync(filePath, output);
   }
 
   validatePackageName(packageName: string): boolean {
-    return CIRCLECI_PATTERNS.PACKAGE_NAME.test(packageName);
+    const isValid = CIRCLECI_PATTERNS.PACKAGE_NAME.test(packageName);
+    return isValid;
   }
 }

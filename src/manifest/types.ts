@@ -4,6 +4,7 @@ import type {
   DependencyManager,
   Level,
   SupportedLanguage,
+  VersionResolution,
 } from "../types";
 import type {
   DependencyManifest,
@@ -21,7 +22,7 @@ export interface ValidationResult {
 }
 
 export interface CacheEntry {
-  value: string;
+  value: VersionResolution;
   timestamp: number;
 }
 
@@ -67,7 +68,7 @@ export interface ProviderResolution {
 
 export interface VersionResolver {
   provider: DependencyProvider;
-  resolveVersion: (packageName: string) => Promise<string>;
+  resolveVersion: NonNullable<ConstructVersionMapOptions["resolveVersion"]>;
   cachePrefix: string;
   resolvedDependencyVersions: ResolvedDependencyVersions;
 }
@@ -105,7 +106,8 @@ export interface PreciseModeOptions {
   isTesting: boolean;
   noCache: boolean;
   onProgress?: CheckFiles["onProgress"];
-  resolveVersion: (packageName: string) => Promise<string>;
+  resolveVersion: NonNullable<ConstructVersionMapOptions["resolveVersion"]>;
   cachePrefix: string;
+  resolvedDependencyVersions: ResolvedDependencyVersions;
   validate: NonNullable<ConstructVersionMapOptions["validate"]>;
 }

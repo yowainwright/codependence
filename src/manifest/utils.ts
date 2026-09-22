@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { DependencyManifest, VersionStrategy } from "../providers/types";
-import type { Level, VersionDiff, VersionDiffContext } from "../types";
+import type { Level, VersionDiff, VersionDiffContext, VersionResolution } from "../types";
 import { logger } from "../observability";
 import { DEP_SECTIONS } from "./constants";
 import { SYMBOLS } from "../dx/report/constants";
@@ -366,6 +366,10 @@ export class ResponseCache {
   }
 
   get(key: string): string | null {
+    return this.getResolution(key)?.version ?? null;
+  }
+
+  getResolution(key: string): VersionResolution | null {
     const entry = this.cache.get(key);
     if (!entry) return this.recordMiss();
     const isExpired = Date.now() - entry.timestamp > this.ttl;
@@ -383,6 +387,10 @@ export class ResponseCache {
   }
 
   set(key: string, value: string): void {
+    this.setResolution(key, { version: value });
+  }
+
+  setResolution(key: string, value: VersionResolution): void {
     this.cache.set(key, { value, timestamp: Date.now() });
   }
 

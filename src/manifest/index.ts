@@ -78,6 +78,7 @@ import type {
   InteractiveResult,
   SupportedLanguage,
   DependencyManager,
+  VersionResolution,
 } from "../types";
 
 export { constructVersionTypes } from "./utils";
@@ -539,8 +540,7 @@ const resolveProviderVersion = async (
   language: SupportedLanguage,
   manifests: LoadedManifest[],
   packageName: string,
-  resolvedDependencyVersions: ResolvedDependencyVersions,
-): Promise<string> => {
+): Promise<string | VersionResolution> => {
   const currentVersions = currentVersionsFor(manifests, packageName);
   const hasMultipleDockerVersions = language === LANGUAGES.DOCKER && currentVersions.length > 1;
   if (!hasMultipleDockerVersions) {
@@ -548,8 +548,8 @@ const resolveProviderVersion = async (
   }
 
   const resolvedVersions = await resolveDockerVersions(provider, packageName, currentVersions);
-  resolvedDependencyVersions[packageName] = resolvedVersions;
-  return resolvedVersions[currentVersions[0]];
+  const version = resolvedVersions[currentVersions[0]];
+  return { version, resolvedVersions };
 };
 
 const resolutionCachePrefix = (
@@ -594,13 +594,7 @@ const createVersionResolver = (
   return {
     provider,
     resolveVersion: (packageName: string) =>
-      resolveProviderVersion(
-        provider,
-        language,
-        manifests,
-        packageName,
-        resolvedDependencyVersions,
-      ),
+      resolveProviderVersion(provider, language, manifests, packageName),
     cachePrefix: resolutionCachePrefix(manifests, language, packageManager),
     resolvedDependencyVersions,
   };
@@ -775,6 +769,31 @@ const handleVersionMapError = (
   throw err;
 };
 
+const normalizeVersionResolution = async (
+  resolveVersion: NonNullable<ConstructVersionMapOptions["resolveVersion"]>,
+  packageName: string,
+): Promise<VersionResolution> => {
+  const result = await resolveVersion(packageName);
+  if (typeof result === "string") return { version: result };
+  return result;
+};
+
+const cachedVersionResolution = async (
+  cacheKey: string,
+  packageName: string,
+  resolveVersion: NonNullable<ConstructVersionMapOptions["resolveVersion"]>,
+  noCache: boolean,
+): Promise<VersionResolution> => {
+  const shouldCache = !noCache;
+  const cached = shouldCache ? versionCache.getResolution(cacheKey) : null;
+  if (cached) return cached;
+  const result = await requestDeduplicator.dedupe(cacheKey, () =>
+    normalizeVersionResolution(resolveVersion, packageName),
+  );
+  if (shouldCache) versionCache.setResolution(cacheKey, result);
+  return result;
+};
+
 export const constructVersionMap = async ({
   codependencies,
   exec: execFn = exec,
@@ -786,8 +805,8 @@ export const constructVersionMap = async ({
   onProgress,
   resolveVersion,
   cachePrefix,
+  resolvedDependencyVersions,
 }: ConstructVersionMapOptions) => {
-  const total = codependencies.length;
   let current = 0;
   const resolveLatestVersion =
     resolveVersion ||
@@ -810,27 +829,21 @@ export const constructVersionMap = async ({
         validateStringDep(stringDep, validate);
 
         const cacheKey = `${cacheNamespace}:${stringDep}`;
-        const cached = resolveFromCache(cacheKey, noCache);
-
-        if (cached) {
-          current++;
-          if (onProgress) onProgress(current, total, stringDep);
-          return { [stringDep]: cached };
-        }
-
-        const version = await requestDeduplicator.dedupe(cacheKey, async () =>
-          resolveLatestVersion(stringDep),
+        const result = await cachedVersionResolution(
+          cacheKey,
+          stringDep,
+          resolveLatestVersion,
+          noCache,
         );
-
-        const shouldCacheVersion = !noCache;
-        if (shouldCacheVersion) {
-          versionCache.set(cacheKey, version);
+        const hasResolvedVersions = resolvedDependencyVersions && result.resolvedVersions;
+        if (hasResolvedVersions) {
+          resolvedDependencyVersions[stringDep] = result.resolvedVersions;
         }
 
         current++;
-        if (onProgress) onProgress(current, total, stringDep);
+        if (onProgress) onProgress(current, codependencies.length, stringDep);
 
-        return { [stringDep]: version };
+        return { [stringDep]: result.version };
       } catch (err) {
         return handleVersionMapError(err, dep, debug, isTesting);
       }
@@ -850,7 +863,7 @@ export const constructVersionMap = async ({
   return versionMap;
 };
 
-const isUpdatablePermissiveDep = (
+const isUpdatableDep = (
   name: string,
   currentVersion: string,
   exactVersion: string,
@@ -887,7 +900,7 @@ export const constructPermissiveDepsToUpdateList = (
     return { name, version, exactVersion, bumpCharacter };
   });
   const updatableDependencies = normalizedDependencies.filter(({ name, version, exactVersion }) =>
-    isUpdatablePermissiveDep(name, version, exactVersion, versionMap, level, versionStrategy),
+    isUpdatableDep(name, version, exactVersion, versionMap, level, versionStrategy),
   );
 
   return updatableDependencies.map(({ name, version, bumpCharacter }) => ({
@@ -896,26 +909,6 @@ export const constructPermissiveDepsToUpdateList = (
     exact: constructVersionTypes(versionMap[name]).exactVersion,
     expected: constructExpectedVersion(bumpCharacter, versionMap[name]),
   }));
-};
-
-const isUpdatableDep = (
-  name: string,
-  currentVersion: string,
-  exactVersion: string,
-  versionMap: Record<string, string>,
-  level: Level,
-  versionStrategy: VersionStrategy,
-): boolean => {
-  const latestVersion = versionMap[name];
-  if (!latestVersion) return false;
-  const normalizedLatestVersion = constructVersionTypes(latestVersion).exactVersion;
-  const hasExplicitLatestSpec = isExplicitTargetSpec(latestVersion);
-  let isDifferent = normalizedLatestVersion !== exactVersion;
-  if (hasExplicitLatestSpec) {
-    isDifferent = latestVersion !== currentVersion;
-  }
-  const isAllowed = isWithinLevel(exactVersion, normalizedLatestVersion, level, versionStrategy);
-  return isDifferent && isAllowed;
 };
 
 export const constructDepsToUpdateList = (
@@ -1494,18 +1487,19 @@ const applyInteractiveSelection = async (
 ): Promise<InteractiveResult> => {
   const diffsNeedingUpdate = allDiffs.filter((d) => d.willUpdate);
   const candidateDepNames = diffsNeedingUpdate.map((diff) => diff.package);
-  const selectedDepNames = depNames.length > 0 ? depNames : candidateDepNames;
 
   if (diffsNeedingUpdate.length === 0) {
     return {
       shouldUpdate: true,
-      depNames: selectedDepNames,
+      depNames,
       versionMap,
     };
   }
 
   const selected = await promptForSelection(allDiffs);
-  return filterSelectedDeps(selected, selectedDepNames, versionMap);
+  if (selected.length === 0) return filterSelectedDeps(selected, depNames, versionMap);
+  const result = filterSelectedDeps(selected, candidateDepNames, versionMap);
+  return Object.assign({}, result, { depNames });
 };
 
 const resolvePreciseModeDeps = async (
@@ -1528,6 +1522,7 @@ const resolvePreciseModeDeps = async (
     onProgress: options.onProgress,
     resolveVersion: options.resolveVersion,
     cachePrefix: options.cachePrefix,
+    resolvedDependencyVersions: options.resolvedDependencyVersions,
     validate: options.validate,
   });
 
@@ -1560,6 +1555,24 @@ const withResolvedDependencyVersions = (
       manifest: Object.assign({}, loadedManifest.manifest, { resolvedDependencyVersions }),
     }),
   );
+};
+
+const unchangedVersionResolutions = (versions: Record<string, string>): Record<string, string> => {
+  const entries = Object.keys(versions).map((version) => [version, version]);
+  return Object.fromEntries(entries);
+};
+
+const selectedVersionResolutions = (
+  resolutions: ResolvedDependencyVersions,
+  versionMap: Record<string, string>,
+): ResolvedDependencyVersions => {
+  const entries = Object.entries(resolutions).map(([name, versions]) => {
+    const isSelected = versionMap[name] !== undefined;
+    if (isSelected) return [name, versions];
+    const unchangedVersions = unchangedVersionResolutions(versions);
+    return [name, unchangedVersions];
+  });
+  return Object.fromEntries(entries);
 };
 
 export const checkFiles = async ({
@@ -1659,6 +1672,7 @@ export const checkFiles = async ({
         onProgress,
         resolveVersion: versionResolver.resolveVersion,
         cachePrefix: versionResolver.cachePrefix,
+        resolvedDependencyVersions: versionResolver.resolvedDependencyVersions,
         validate,
       });
       depNames = codependencies
@@ -1675,6 +1689,7 @@ export const checkFiles = async ({
         onProgress,
         resolveVersion: versionResolver.resolveVersion,
         cachePrefix: versionResolver.cachePrefix,
+        resolvedDependencyVersions: versionResolver.resolvedDependencyVersions,
         validate,
       });
     }
@@ -1725,8 +1740,13 @@ export const checkFiles = async ({
     const shouldDeferFailure = format !== undefined || deferFailure;
     const hasFormatOutput = format !== undefined;
     const shouldSilenceCheckOutput = silent || hasFormatOutput || shouldDisplayDiffs;
+    const selectedResolutions = selectedVersionResolutions(
+      versionResolver.resolvedDependencyVersions,
+      versionMap,
+    );
+    const updateManifests = withResolvedDependencyVersions(manifests, selectedResolutions);
     const isOutOfDate = await checkLoadedManifests({
-      manifests: resolvedManifests,
+      manifests: updateManifests,
       versionMap,
       isSilent: shouldSilenceCheckOutput,
       isVerbose: verbose,
