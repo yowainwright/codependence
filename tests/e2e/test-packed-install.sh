@@ -7,7 +7,6 @@ PACK_DIR="$WORK_DIR/pack"
 PROJECT_DIR="$WORK_DIR/project"
 NPM_CACHE_DIR="$WORK_DIR/npm-cache"
 BUN_PROJECT_DIR="$WORK_DIR/bun-project"
-PLUGIN_PACKAGE_DIR="$WORK_DIR/eslint-plugin-legibility"
 
 pass() { printf '[PASS] %s\n' "$1"; }
 fail() { printf '[FAIL] %s\n' "$1"; exit 1; }
@@ -94,39 +93,29 @@ pack_package() {
 
   assert_file_exists "$PACK_FILE" "npm pack creates tarball"
   assert_tar_contains "$PACK_FILE" "package/dist/cli.js" "packed package includes CLI"
-  assert_tar_contains "$PACK_FILE" "package/scripts/install/index.js" "packed package includes skill installer"
-}
-
-prepare_local_legibility_package() {
-  cp -RL "$ROOT_DIR/node_modules/eslint-plugin-legibility" "$PLUGIN_PACKAGE_DIR"
-  node - "$PLUGIN_PACKAGE_DIR/package.json" <<'NODE'
-const fs = require("node:fs");
-const packagePath = process.argv[2];
-const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
-delete pkg.scripts;
-delete pkg.devDependencies;
-fs.writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`);
-NODE
+  assert_tar_contains "$PACK_FILE" "package/src/config/schema.json" "packed package includes schema"
+  if tar -tf "$PACK_FILE" | grep -q '^package/scripts/'; then
+    fail "packed package excludes development scripts"
+  fi
 }
 
 install_package() {
   mkdir -p "$PROJECT_DIR"
   cat > "$PROJECT_DIR/package.json" <<JSON
-{"private":true,"type":"module","dependencies":{"codependence":"file:$PACK_FILE","eslint-plugin-legibility":"file:$PLUGIN_PACKAGE_DIR"}}
+{"private":true,"type":"module","dependencies":{"codependence":"file:$PACK_FILE"}}
 JSON
 
   (
     cd "$PROJECT_DIR"
     install_output="$WORK_DIR/npm-install.log"
-    if ! npm --cache "$NPM_CACHE_DIR" install --ignore-scripts --no-audit --no-fund > "$install_output" 2>&1; then
+    if ! npm --cache "$NPM_CACHE_DIR" install --no-audit --no-fund > "$install_output" 2>&1; then
       cat "$install_output"
       exit 1
     fi
   )
 
   assert_file_exists "$PROJECT_DIR/node_modules/codependence/dist/cli.js" "packed install exposes CLI"
-  assert_file_exists "$PROJECT_DIR/node_modules/codependence/scripts/install/index.js" "packed install exposes skill script"
-  assert_file_exists "$PROJECT_DIR/node_modules/eslint-plugin-legibility/bin/agent/install.js" "packed install has legibility installer dependency"
+  assert_file_exists "$PROJECT_DIR/node_modules/codependence/src/config/schema.json" "packed install exposes schema"
 }
 
 run_installed_update() {
@@ -421,30 +410,39 @@ test_installed_docker_action_workflow() {
   grep -q 'pull-request: true' "$docker_workflow" || fail "generated Docker PR mode"
 }
 
-test_installed_skill_script() {
+test_installed_package_exports() {
   (
     cd "$PROJECT_DIR"
-    node node_modules/codependence/scripts/install/index.js codex --local >/dev/null
+    node --input-type=module <<'NODE'
+import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+import { readFileSync, existsSync } from "node:fs";
+import codependence, { schema } from "codependence";
+const require = createRequire(import.meta.url);
+const commonjs = require("codependence");
+const schemaPath = require.resolve("codependence/schema.json");
+assert.equal(typeof codependence, "function");
+assert.equal(typeof commonjs.codependence, "function");
+assert.deepEqual(schema, JSON.parse(readFileSync(schemaPath, "utf8")));
+assert.deepEqual(commonjs.schema, schema);
+for (const path of ["AGENTS.md", "CLAUDE.md", ".agents", ".claude", ".codex"]) {
+  assert.equal(existsSync(path), false, `install must not create ${path}`);
+}
+NODE
   )
-
-  assert_file_exists "$PROJECT_DIR/.codex/skills/eslint-plugin-legibility/SKILL.md" "packed skill installer writes Codex skill"
+  pass "packed package exposes API and schema without installing agent configuration"
 }
 
 main() {
-  if [ ! -d "$ROOT_DIR/node_modules/eslint-plugin-legibility" ]; then
-    fail "eslint-plugin-legibility not installed - run nub install first"
-  fi
-
   pack_package
-  prepare_local_legibility_package
   install_package
+  test_installed_package_exports
   test_installed_cli_updates_providers
   test_installed_legacy_compatibility
   test_installed_bunx_smoke
   test_installed_target_selection
   test_installed_init_actions
   test_installed_docker_action_workflow
-  test_installed_skill_script
 }
 
 main

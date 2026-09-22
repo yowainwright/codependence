@@ -106,7 +106,7 @@ const formatStatusDemo = (): string => {
   return [
     shortStatus(success(), pinned),
     shortStatus(error(), failed),
-    shortStatus(yellow(), "warning needs review"),
+    shortStatus(yellow("⚠"), "warning needs review"),
     gray(muted),
     "",
     formatCliLegend(),

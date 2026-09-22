@@ -125,6 +125,16 @@ describe("CLI styleguide", { concurrency: 1 }, () => {
     assert.deepStrictEqual(state.messages, [formatCliStyleguide()]);
   });
 
+  test("renders a yellow warning symbol in the status demo", async () => {
+    const { state, write } = createWriter();
+    const { prompts } = interactivePrompts(["statuses", "back", "quit"], []);
+    await withInteractiveStyleguide(() => runCliStyleguide(write, prompts));
+    const output = state.messages.join("\n");
+    assert.ok(output.includes("\x1b[33m⚠\x1b[0m"), output);
+    assert.ok(output.includes("warning needs review"), output);
+    assert.ok(!output.includes("undefined"), output);
+  });
+
   test("walks every interactive section and returns prompt results", async () => {
     const previousCi = process.env.CI;
     const previousGitHubActions = process.env.GITHUB_ACTIONS;
