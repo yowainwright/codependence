@@ -6,33 +6,23 @@ PROJECT_ROOT="${1:-.}"
 CLAUDE_DIR="${CLAUDE_DIR:-.claude}"
 CODEX_DIR="${CODEX_DIR:-.codex}"
 
-cd "$PROJECT_ROOT"
-
 log() {
   printf '%s\n' "$1"
 }
 
 skip_existing() {
-  path="$1"
-  label="$2"
+  path="${1:?path is required}"
+  label="${2:?label is required}"
 
-  if [ -f "$path" ]; then
-    log "$label already exists, skipping..."
-    return 0
-  fi
-
-  if [ -L "$path" ]; then
-    log "$label symlink does not point to a file, replacing..."
-    rm "$path"
-  fi
+  [ ! -f "$path" ] || report_existing_file
+  [ ! -f "$path" ] || return 0
+  replace_broken_symlink
 
   return 1
 }
 
 ensure_git_repo() {
-  if git rev-parse --git-dir >/dev/null 2>&1; then
-    return
-  fi
+  git rev-parse --git-dir >/dev/null 2>&1 && return
 
   log "Skipping setup outside a git repository"
   exit 0
@@ -43,11 +33,9 @@ set_hooks_dir() {
 }
 
 reset_hooks_path() {
-  hooks_path="$(git config --get core.hooksPath 2>/dev/null || true)"
+  hooks_path="$(git config --get core.hooksPath 2>/dev/null || :)"
 
-  if [ -z "$hooks_path" ]; then
-    return
-  fi
+  [ -n "$hooks_path" ] || return 0
 
   log "Found core.hooksPath set to: $hooks_path"
   git config --unset core.hooksPath
@@ -57,12 +45,22 @@ reset_hooks_path() {
 install_pre_commit_hook() {
   path="$HOOKS_DIR/pre-commit"
 
-  if [ -f "$path" ] && ! grep -Eq '^(mise exec -- )?(bun|nub) run lint$' "$path"; then
-    log "pre-commit hook already exists, skipping..."
-    return
-  fi
+  managed_pre_commit_hook || return 0
 
-  cat > "$path" <<'EOF'
+  write_pre_commit_hook
+  chmod +x "$path"
+  log "Installed pre-commit hook"
+}
+
+managed_pre_commit_hook() {
+  [ ! -f "$path" ] && return 0
+  grep -Eq '^(mise exec -- )?(bun|nub) run lint$' "$path" && return 0
+  log "pre-commit hook already exists, skipping..."
+  return 1
+}
+
+write_pre_commit_hook() {
+  cat >"$path" <<'EOF'
 #!/bin/sh
 set -eu
 
@@ -74,15 +72,13 @@ nub run lint
 nub run build
 nub run test
 EOF
-  chmod +x "$path"
-  log "Installed pre-commit hook"
 }
 
 install_post_checkout_hook() {
   path="$HOOKS_DIR/post-checkout"
   skip_existing "$path" "post-checkout hook" && return
 
-  cat > "$path" <<'EOF'
+  cat >"$path" <<'EOF'
 #!/bin/sh
 if git rev-parse --abbrev-ref @{upstream} >/dev/null 2>&1; then
   git pull
@@ -93,11 +89,8 @@ EOF
   log "Created post-checkout hook"
 }
 
-install_commit_msg_hook() {
-  path="$HOOKS_DIR/commit-msg"
-  skip_existing "$path" "commit-msg hook" && return
-
-  cat > "$path" <<'EOF'
+write_commit_msg_hook_template() {
+  cat >"$path" <<'EOF'
 #!/bin/sh
 commit_msg=$(cat "$1")
 pattern="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .{1,}"
@@ -117,6 +110,13 @@ if [ ${#commit_msg} -gt 120 ]; then
   exit 1
 fi
 EOF
+} # noqa: LEG038 -- This function only writes a literal configuration template.
+
+install_commit_msg_hook() {
+  path="$HOOKS_DIR/commit-msg"
+  skip_existing "$path" "commit-msg hook" && return
+
+  write_commit_msg_hook_template
   chmod +x "$path"
   log "Created commit-msg hook"
 }
@@ -128,10 +128,8 @@ install_git_hooks() {
   install_commit_msg_hook
 }
 
-install_agents_md() {
-  skip_existing "AGENTS.md" "AGENTS.md" && return
-
-  cat > AGENTS.md <<'EOF'
+write_agents_md_template() {
+  cat >AGENTS.md <<'EOF'
 # Codependence Docs
 
 For README updates, use the `technical-writing` skill.
@@ -155,13 +153,19 @@ Use `jsonc` for JSON examples and `diff` for changed output or behavior.
 
 Write one section at a time and wait for approval before editing the next section.
 EOF
+} # noqa: LEG038 -- This function only writes a literal configuration template.
+
+install_agents_md() {
+  skip_existing "AGENTS.md" "AGENTS.md" && return
+
+  write_agents_md_template
   log "Created AGENTS.md"
 }
 
 install_claude_md() {
   skip_existing "CLAUDE.md" "CLAUDE.md" && return
 
-  cat > CLAUDE.md <<'EOF'
+  cat >CLAUDE.md <<'EOF'
 # Codependence Docs
 
 Follow `AGENTS.md` for project-specific documentation work.
@@ -169,12 +173,8 @@ EOF
   log "Created CLAUDE.md"
 }
 
-install_claude_settings() {
-  path="$CLAUDE_DIR/settings.json"
-  skip_existing "$path" "Claude settings" && return
-
-  mkdir -p "$CLAUDE_DIR"
-  cat > "$path" <<'EOF'
+write_claude_settings_template() {
+  cat >"$path" <<'EOF'
 {
   "hooks": {
     "PreToolUse": [
@@ -218,6 +218,14 @@ install_claude_settings() {
   }
 }
 EOF
+} # noqa: LEG038 -- This function only writes a literal configuration template.
+
+install_claude_settings() {
+  path="$CLAUDE_DIR/settings.json"
+  skip_existing "$path" "Claude settings" && return
+
+  mkdir -p "$CLAUDE_DIR"
+  write_claude_settings_template
   log "Created Claude settings"
 }
 
@@ -226,7 +234,7 @@ install_codex_config() {
   skip_existing "$path" "Codex config" && return
 
   mkdir -p "$CODEX_DIR"
-  cat > "$path" <<'EOF'
+  cat >"$path" <<'EOF'
 sandbox_mode = "workspace-write"
 
 [sandbox_workspace_write]
@@ -237,12 +245,8 @@ EOF
   log "Created Codex config"
 }
 
-install_codex_hooks() {
-  path="$CODEX_DIR/hooks.json"
-  skip_existing "$path" "Codex hooks" && return
-
-  mkdir -p "$CODEX_DIR"
-  cat > "$path" <<'EOF'
+write_codex_hooks_template() {
+  cat >"$path" <<'EOF'
 {
   "hooks": {
     "PreToolUse": [
@@ -286,6 +290,14 @@ install_codex_hooks() {
   }
 }
 EOF
+} # noqa: LEG038 -- This function only writes a literal configuration template.
+
+install_codex_hooks() {
+  path="$CODEX_DIR/hooks.json"
+  skip_existing "$path" "Codex hooks" && return
+
+  mkdir -p "$CODEX_DIR"
+  write_codex_hooks_template
   log "Created Codex hooks"
 }
 
@@ -298,6 +310,7 @@ install_agent_config() {
 }
 
 main() {
+  cd "$PROJECT_ROOT"
   ensure_git_repo
   reset_hooks_path
   set_hooks_dir
@@ -305,6 +318,16 @@ main() {
   install_git_hooks
   install_agent_config
   log "Setup complete!"
+}
+
+report_existing_file() {
+  log "$label already exists, skipping..."
+}
+
+replace_broken_symlink() {
+  [ -L "$path" ] || return 0
+  log "$label symlink does not point to a file, replacing..."
+  rm "$path"
 }
 
 main "$@"

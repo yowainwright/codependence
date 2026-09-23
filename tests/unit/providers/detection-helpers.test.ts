@@ -9,6 +9,7 @@ import {
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("detectNodePackageManager", () => {
   const tmpDir = join(import.meta.dirname, ".tmp-node-pm-test");
 
@@ -104,6 +105,7 @@ describe("detectNodePackageManager", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("detectPythonPackageManager", () => {
   const tmpDir = join(import.meta.dirname, ".tmp-python-pm-test");
 
@@ -177,6 +179,7 @@ describe("detectPythonPackageManager", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("detectPythonPackageManagerForManifest", () => {
   const tmpDir = join(import.meta.dirname, ".tmp-python-manifest-pm-test");
 

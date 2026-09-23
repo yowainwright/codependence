@@ -11,6 +11,7 @@ import {
   PYTHON_RUNTIME_DEPENDENCY_NAME,
 } from "./constants";
 import type {
+  CondaWriteState,
   DependencyProvider,
   DependencyManifest,
   ParsedCondaDependencyLine,
@@ -20,6 +21,31 @@ import type {
   PythonManifestType,
   PythonPackageManager,
 } from "../types";
+
+const updateCondaLine = (
+  line: string,
+  state: CondaWriteState,
+  dependencies: Record<string, string>,
+): string => {
+  if (!state.inDependencies) {
+    state.inDependencies = PYTHON_PATTERNS.CONDA_DEPENDENCIES_SECTION.test(line);
+    return line;
+  }
+  const isTopLevelSection = PYTHON_PATTERNS.CONDA_TOP_LEVEL_SECTION.test(line);
+  if (isTopLevelSection) {
+    state.inDependencies = false;
+    return line;
+  }
+  const itemMatch = line.match(PYTHON_PATTERNS.CONDA_DEPENDENCY_ITEM);
+  if (!itemMatch) return line;
+  const itemIndent = itemMatch[1].length;
+  state.dependencyItemIndent ??= itemIndent;
+  if (itemIndent !== state.dependencyItemIndent) return line;
+  const parsed = parseCondaDependencySpec(itemMatch[2]);
+  if (!parsed) return line;
+  const version = dependencies[parsed.name];
+  return version ? `${itemMatch[1]}- ${parsed.name}${version}${parsed.suffix}` : line;
+};
 
 export const parseRequirementLine = (line: string): [string, string] | null => {
   const trimmed = line.trim();
@@ -239,7 +265,7 @@ export class PythonProvider implements DependencyProvider {
     return PYTHON_MANIFEST_TYPES.REQUIREMENTS;
   }
 
-  async getLatestVersion(packageName: string): Promise<string> {
+  getLatestVersion(packageName: string): Promise<string> {
     if (this.packageManager === PYTHON_PACKAGE_MANAGERS.CONDA) {
       return this.getCondaVersion(packageName);
     }
@@ -577,55 +603,14 @@ export class PythonProvider implements DependencyProvider {
 
   private writeCondaEnvironment(filePath: string, manifest: DependencyManifest): void {
     const content = readFileSync(filePath, "utf8");
-    const initialState = {
-      lines: [] as string[],
+    const state: CondaWriteState = {
       inDependencies: false,
-      dependencyItemIndent: null as number | null,
+      dependencyItemIndent: null,
     };
-    const state = content.split("\n").reduce((current, line) => {
-      if (!current.inDependencies) {
-        const inDependencies = PYTHON_PATTERNS.CONDA_DEPENDENCIES_SECTION.test(line);
-        return Object.assign({}, current, {
-          lines: current.lines.concat(line),
-          inDependencies,
-        });
-      }
-
-      const isTopLevelSection = PYTHON_PATTERNS.CONDA_TOP_LEVEL_SECTION.test(line);
-      if (isTopLevelSection) {
-        return Object.assign({}, current, {
-          lines: current.lines.concat(line),
-          inDependencies: false,
-        });
-      }
-
-      const itemMatch = line.match(PYTHON_PATTERNS.CONDA_DEPENDENCY_ITEM);
-      if (!itemMatch) return Object.assign({}, current, { lines: current.lines.concat(line) });
-
-      const itemIndent = itemMatch[1].length;
-      const dependencyItemIndent = current.dependencyItemIndent ?? itemIndent;
-      if (itemIndent !== dependencyItemIndent) {
-        return Object.assign({}, current, { lines: current.lines.concat(line) });
-      }
-
-      const parsed = parseCondaDependencySpec(itemMatch[2]);
-      if (!parsed) {
-        return Object.assign({}, current, {
-          lines: current.lines.concat(line),
-          dependencyItemIndent,
-        });
-      }
-
-      const version = manifest.dependencies[parsed.name];
-      const updatedLine = version
-        ? `${itemMatch[1]}- ${parsed.name}${version}${parsed.suffix}`
-        : line;
-      return Object.assign({}, current, {
-        lines: current.lines.concat(updatedLine),
-        dependencyItemIndent,
-      });
-    }, initialState);
-    const updated = state.lines.join("\n");
+    const updated = content
+      .split("\n")
+      .map((line) => updateCondaLine(line, state, manifest.dependencies))
+      .join("\n");
 
     writeFileSync(filePath, updated);
   }

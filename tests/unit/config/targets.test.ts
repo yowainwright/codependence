@@ -3,6 +3,15 @@ import assert from "node:assert/strict";
 import { assertMatches, assertThrows, match } from "../../helpers/assertions";
 import { expandTargets, normalizeConfigShape } from "../../../src/config";
 
+const usesManagerScopedInfrastructureManifestDefaultsExpected = {
+  targets: [
+    { manager: "circleci", mode: "verbose", codependencies: [{ "circleci/node": "7.2.0" }] },
+    { manager: "kubernetes", mode: "verbose", codependencies: [{ nginx: "1.27.1" }] },
+    { manager: "kustomize", mode: "verbose", codependencies: [{ nginx: "1.27.1" }] },
+    { manager: "terraform", mode: "verbose", codependencies: [{ "hashicorp/aws": "5.31.0" }] },
+  ],
+};
+
 test("normalizes named manifest config for the existing target runner", () => {
   const config = {
     config: {
@@ -36,6 +45,7 @@ test("normalizes named manifest config for the existing target runner", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("expandTargets", () => {
   test("keeps legacy flat options as one target", () => {
     const options = {
@@ -166,14 +176,7 @@ describe("expandTargets", () => {
   });
 
   test("uses manager-scoped infrastructure manifest defaults", () => {
-    const targets = expandTargets({
-      targets: [
-        { manager: "circleci", mode: "verbose", codependencies: [{ "circleci/node": "7.2.0" }] },
-        { manager: "kubernetes", mode: "verbose", codependencies: [{ nginx: "1.27.1" }] },
-        { manager: "kustomize", mode: "verbose", codependencies: [{ nginx: "1.27.1" }] },
-        { manager: "terraform", mode: "verbose", codependencies: [{ "hashicorp/aws": "5.31.0" }] },
-      ],
-    });
+    const targets = expandTargets(usesManagerScopedInfrastructureManifestDefaultsExpected);
 
     assertMatches(targets, [
       match.objectContaining({

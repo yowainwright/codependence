@@ -2,6 +2,7 @@ import { describe, test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { ResponseCache, RequestDeduplicator } from "../../../src/manifest";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("ResponseCache", () => {
   let cache: ResponseCache;
 
@@ -85,6 +86,7 @@ describe("ResponseCache", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("RequestDeduplicator", () => {
   let deduplicator: RequestDeduplicator;
 
@@ -112,9 +114,9 @@ describe("RequestDeduplicator", () => {
 
   test("should handle different keys separately", async () => {
     let callCount = 0;
-    const expensiveFn = async () => {
+    const expensiveFn = () => {
       callCount++;
-      return "result";
+      return Promise.resolve("result");
     };
 
     await Promise.all([
@@ -127,14 +129,14 @@ describe("RequestDeduplicator", () => {
   });
 
   test("should clear pending requests after completion", async () => {
-    const fn = async () => "result";
+    const fn = () => Promise.resolve("result");
 
     await deduplicator.dedupe("key1", fn);
 
     let callCount = 0;
-    const fn2 = async () => {
+    const fn2 = () => {
       callCount++;
-      return "result2";
+      return Promise.resolve("result2");
     };
 
     await deduplicator.dedupe("key1", fn2);
@@ -143,8 +145,8 @@ describe("RequestDeduplicator", () => {
   });
 
   test("should handle errors", async () => {
-    const errorFn = async () => {
-      throw new Error("Test error");
+    const errorFn = () => {
+      return Promise.reject(new Error("Test error"));
     };
 
     const promises = [deduplicator.dedupe("key1", errorFn), deduplicator.dedupe("key1", errorFn)];

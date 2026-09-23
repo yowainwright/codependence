@@ -5,6 +5,7 @@ import type {
   Level,
   SupportedLanguage,
   VersionResolution,
+  VersionDiff,
 } from "../types";
 import type {
   DependencyManifest,
@@ -59,6 +60,17 @@ export interface DependencyUpdateContext {
   versionStrategy: VersionStrategy;
 }
 
+export interface VersionDiffOptions {
+  permissive: boolean;
+  level?: Level;
+  versionStrategy?: VersionStrategy;
+}
+
+export interface UpdateVersionOptions {
+  level?: Level;
+  versionStrategy?: VersionStrategy;
+}
+
 export type PackageNormalizer = (packageName: string) => string;
 
 export interface ProviderResolution {
@@ -71,6 +83,11 @@ export interface VersionResolver {
   resolveVersion: NonNullable<ConstructVersionMapOptions["resolveVersion"]>;
   cachePrefix: string;
   resolvedDependencyVersions: ResolvedDependencyVersions;
+}
+
+export interface VersionMapResolverOptions extends ConstructVersionMapOptions {
+  resolveVersion: NonNullable<ConstructVersionMapOptions["resolveVersion"]>;
+  cachePrefix: string;
 }
 
 export interface MatchedFileOptions {
@@ -110,4 +127,44 @@ export interface PreciseModeOptions {
   cachePrefix: string;
   resolvedDependencyVersions: ResolvedDependencyVersions;
   validate: NonNullable<ConstructVersionMapOptions["validate"]>;
+}
+
+export type NormalizedCheckFiles = CheckFiles &
+  Required<
+    Pick<
+      CheckFiles,
+      | "rootDir"
+      | "ignore"
+      | "update"
+      | "debug"
+      | "silent"
+      | "verbose"
+      | "quiet"
+      | "isCLI"
+      | "yarnConfig"
+      | "isTesting"
+      | "dryRun"
+      | "interactive"
+      | "noCache"
+      | "level"
+      | "deferFailure"
+    >
+  >;
+
+export interface FileCheckContext {
+  options: NormalizedCheckFiles;
+  manifests: LoadedManifest[];
+  versionResolver: VersionResolver;
+  isPreciseMode: boolean;
+}
+
+export interface FileCheckVersions {
+  versionMap: Record<string, string>;
+  depNames: string[];
+}
+
+export interface FileCheckPreview {
+  allDiffs: VersionDiff[];
+  shouldDisplayDiffs: boolean;
+  isInteractiveUpdate: boolean;
 }

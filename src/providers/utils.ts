@@ -179,7 +179,7 @@ export const detectPythonPackageManager = (rootDir: string): string => {
   return PYTHON_PACKAGE_MANAGERS.PIP;
 };
 
-export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
+const detectNodeManifests = (rootDir: string): LanguageDetectionResult[] => {
   const hasPackageJson = existsSync(join(rootDir, MANIFEST_FILES.PACKAGE_JSON));
   const nodeDetections: LanguageDetectionResult[] = hasPackageJson
     ? [
@@ -190,7 +190,10 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
         },
       ]
     : [];
+  return nodeDetections;
+};
 
+const detectGoManifests = (rootDir: string): LanguageDetectionResult[] => {
   const hasGoMod = existsSync(join(rootDir, MANIFEST_FILES.GO_MOD));
   const hasGoSum = existsSync(join(rootDir, MANIFEST_FILES.GO_SUM));
   const goManifestFiles = [MANIFEST_FILES.GO_MOD].concat(hasGoSum ? [MANIFEST_FILES.GO_SUM] : []);
@@ -203,7 +206,10 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
         },
       ]
     : [];
+  return goDetections;
+};
 
+const detectRustManifests = (rootDir: string): LanguageDetectionResult[] => {
   const hasCargoToml = existsSync(join(rootDir, MANIFEST_FILES.CARGO_TOML));
   const rustDetections: LanguageDetectionResult[] = hasCargoToml
     ? [
@@ -214,7 +220,10 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
         },
       ]
     : [];
+  return rustDetections;
+};
 
+const detectDockerManifests = (rootDir: string): LanguageDetectionResult[] => {
   const hasDockerfile = existsSync(join(rootDir, MANIFEST_FILES.DOCKERFILE));
   const dockerDetections: LanguageDetectionResult[] = hasDockerfile
     ? [
@@ -225,7 +234,10 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
         },
       ]
     : [];
+  return dockerDetections;
+};
 
+const detectCircleCIManifests = (rootDir: string): LanguageDetectionResult[] => {
   const hasCircleCIConfig =
     existsSync(join(rootDir, MANIFEST_FILES.CIRCLECI_CONFIG_YML)) ||
     existsSync(join(rootDir, MANIFEST_FILES.CIRCLECI_CONFIG_YAML));
@@ -238,7 +250,10 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
         },
       ]
     : [];
+  return circleCIDetections;
+};
 
+const detectGithubActionsManifests = (rootDir: string): LanguageDetectionResult[] => {
   const githubActionsDetections: LanguageDetectionResult[] = hasGithubWorkflow(rootDir)
     ? [
         {
@@ -248,7 +263,10 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
         },
       ]
     : [];
+  return githubActionsDetections;
+};
 
+const detectKubernetesManifests = (rootDir: string): LanguageDetectionResult[] => {
   const kubernetesDetections: LanguageDetectionResult[] = hasKubernetesManifests(rootDir)
     ? [
         {
@@ -258,7 +276,10 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
         },
       ]
     : [];
+  return kubernetesDetections;
+};
 
+const detectKustomizeManifests = (rootDir: string): LanguageDetectionResult[] => {
   const hasKustomization =
     existsSync(join(rootDir, MANIFEST_FILES.KUSTOMIZATION_YAML)) ||
     existsSync(join(rootDir, MANIFEST_FILES.KUSTOMIZATION_YML));
@@ -271,7 +292,10 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
         },
       ]
     : [];
+  return kustomizeDetections;
+};
 
+const detectHelmManifests = (rootDir: string): LanguageDetectionResult[] => {
   const hasHelmChart = existsSync(join(rootDir, MANIFEST_FILES.HELM_CHART));
   const helmDetections: LanguageDetectionResult[] = hasHelmChart
     ? [
@@ -282,7 +306,10 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
         },
       ]
     : [];
+  return helmDetections;
+};
 
+const detectTerraformManifests = (rootDir: string): LanguageDetectionResult[] => {
   const terraformDetections: LanguageDetectionResult[] = hasTerraformManifests(rootDir)
     ? [
         {
@@ -292,7 +319,10 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
         },
       ]
     : [];
+  return terraformDetections;
+};
 
+const detectPythonManifests = (rootDir: string): LanguageDetectionResult[] => {
   const foundPythonManifests = PYTHON_MANIFEST_FILES.filter((f) => existsSync(join(rootDir, f)));
   const hasPythonManifests = foundPythonManifests.length > 0;
   const pythonDetections: LanguageDetectionResult[] = hasPythonManifests
@@ -304,12 +334,22 @@ export const detectLanguage = (rootDir: string): LanguageDetectionResult[] => {
         },
       ]
     : [];
-
-  return nodeDetections
-    .concat(goDetections, rustDetections, dockerDetections, circleCIDetections)
-    .concat(githubActionsDetections, kubernetesDetections, kustomizeDetections)
-    .concat(helmDetections, terraformDetections, pythonDetections);
+  return pythonDetections;
 };
+
+export const detectLanguage = (rootDir: string): LanguageDetectionResult[] =>
+  detectNodeManifests(rootDir).concat(
+    detectGoManifests(rootDir),
+    detectRustManifests(rootDir),
+    detectDockerManifests(rootDir),
+    detectCircleCIManifests(rootDir),
+    detectGithubActionsManifests(rootDir),
+    detectKubernetesManifests(rootDir),
+    detectKustomizeManifests(rootDir),
+    detectHelmManifests(rootDir),
+    detectTerraformManifests(rootDir),
+    detectPythonManifests(rootDir),
+  );
 
 export const detectPrimaryLanguage = (rootDir: string): LanguageDetectionResult | null => {
   const detections = detectLanguage(rootDir);

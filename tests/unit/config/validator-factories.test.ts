@@ -2,6 +2,7 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createEnumValidator, createArrayValidator } from "../../../src/config/validation";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("createEnumValidator", () => {
   const validateColor = createEnumValidator("color", ["red", "green", "blue"]);
 
@@ -56,6 +57,7 @@ describe("createEnumValidator", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("createArrayValidator", () => {
   const validateTags = createArrayValidator("tags", "tag", '{"tags": ["a", "b"]}');
 

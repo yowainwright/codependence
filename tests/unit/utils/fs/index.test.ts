@@ -11,6 +11,7 @@ const writeFile = (path: string): void => {
   writeFileSync(join(testDir, path), "");
 };
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("glob", () => {
   before(() => {
     testDir = mkdtempSync(join(tmpdir(), "codependence-glob-"));

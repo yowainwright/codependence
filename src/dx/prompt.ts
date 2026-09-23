@@ -17,6 +17,10 @@ import type {
   PromptDependencies,
   RadioPrompt,
   SelectPrompt,
+  SelectorMode,
+  SelectorState,
+  PromptKey,
+  SelectorSession,
 } from "./types";
 
 const SELECTOR_VIEWPORT_SIZE = 8;
@@ -31,14 +35,6 @@ const SELECT_INSTRUCTIONS =
   "↑/↓ navigate · Space toggle · a all · n none · Enter confirm · Esc cancel";
 const COMPACT_RADIO_INSTRUCTIONS = "↑/↓ move · Enter · Esc";
 const COMPACT_SELECT_INSTRUCTIONS = "↑/↓ move · Space toggle · a/n · Enter · Esc";
-
-type SelectorMode = "radio" | "select";
-type SelectorState = {
-  cursorIndex: number;
-  selected: boolean[];
-  viewportStart: number;
-};
-type PromptKey = { name?: string; ctrl?: boolean };
 
 const hasChoices = (choices: PromptChoice[]): boolean => choices.length > 0;
 const isDisabled = (choice: PromptChoice): boolean => {
@@ -286,100 +282,114 @@ const isSelectionKey = (input: string, key: PromptKey): boolean => {
   return isSpace || isShortcut;
 };
 
+const cleanupSelector = (session: SelectorSession, onRestored?: () => void): void => {
+  process.stdin.off("keypress", session.onKeypress);
+  process.off("SIGINT", session.onInterrupt);
+  process.off("SIGTERM", session.onTerminate);
+  if (typeof process.stdin.setRawMode === "function") process.stdin.setRawMode(false);
+  process.stdin.pause();
+  process.stdout.write(ANSI.SHOW_CURSOR, onRestored);
+};
+
+const signalSelector = (session: SelectorSession, signal: NodeJS.Signals): void => {
+  if (session.isFinished) return;
+  session.isFinished = true;
+  cleanupSelector(session, () => process.kill(process.pid, signal));
+};
+
+const finishSelector = (
+  session: SelectorSession,
+  result: { value: string | string[] } | { error: Error },
+): void => {
+  if (session.isFinished) return;
+  session.isFinished = true;
+  cleanupSelector(session);
+  const isError = "error" in result;
+  const lines = isError
+    ? cancelFrame(session.message)
+    : finalFrame(session.mode, session.message, session.choices, session.state);
+  writeFrame(lines, session.previousLineCount);
+  process.stdout.write("\n");
+  if (isError) session.reject(result.error);
+  else session.resolve(result.value);
+};
+
+const renderSelector = (session: SelectorSession): void => {
+  const lines = selectorFrame(session.mode, session.message, session.choices, session.state);
+  session.previousLineCount = writeFrame(
+    lines,
+    session.previousLineCount,
+    session.previousLineCount === 0,
+  );
+};
+
+const handleSelectorKey = (session: SelectorSession, input = "", key: PromptKey = {}): void => {
+  const { mode, choices, state } = session;
+  if (isCancelKey(input, key)) {
+    finishSelector(session, { error: promptCancelled() });
+    return;
+  }
+  if (isConfirmKey(key)) {
+    const isDisabledRadioChoice = mode === "radio" && isDisabled(choices[state.cursorIndex]);
+    if (isDisabledRadioChoice) return;
+    finishSelector(session, { value: selectedValues(mode, choices, state) });
+    return;
+  }
+  const direction = cursorDirection(key);
+  if (direction !== 0) {
+    session.state = moveSelector(state, direction, choices);
+    renderSelector(session);
+    return;
+  }
+  const isSelectShortcut = mode === "select" && isSelectionKey(input, key);
+  if (isSelectShortcut) {
+    session.state = updateSelected(state, input, key, choices);
+    renderSelector(session);
+  }
+};
+
+const startSelector = (session: SelectorSession): void => {
+  try {
+    const hasRawMode = typeof process.stdin.setRawMode === "function";
+    if (!hasInteractiveTerminal()) throw new Error("Interactive prompt input is unavailable");
+    if (!hasRawMode) throw new Error("Interactive prompt input is unavailable");
+    process.once("SIGINT", session.onInterrupt);
+    process.once("SIGTERM", session.onTerminate);
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    readline.emitKeypressEvents(process.stdin);
+    process.stdin.on("keypress", session.onKeypress);
+    process.stdout.write(ANSI.HIDE_CURSOR);
+    renderSelector(session);
+  } catch (error) {
+    cleanupSelector(session);
+    session.reject(error);
+  }
+};
+
 const runSelector = (
   mode: SelectorMode,
-  { message, choices }: ChoicePromptOptions,
+  options: ChoicePromptOptions,
 ): Promise<string | string[]> =>
   new Promise((resolve, reject) => {
-    if (!hasChoices(choices)) {
+    if (!hasChoices(options.choices)) {
       reject(new Error("Prompt requires at least one choice"));
       return;
     }
-
-    let state = createSelectorState(choices);
-    let previousLineCount = 0;
-    let isFinished = false;
-
-    const cleanup = (onRestored?: () => void): void => {
-      process.stdin.off("keypress", onKeypress);
-      process.off("SIGINT", onInterrupt);
-      process.off("SIGTERM", onTerminate);
-      if (typeof process.stdin.setRawMode === "function") process.stdin.setRawMode(false);
-      process.stdin.pause();
-      process.stdout.write(ANSI.SHOW_CURSOR, onRestored);
+    const state = createSelectorState(options.choices);
+    const session: SelectorSession = {
+      ...options,
+      mode,
+      state,
+      resolve,
+      reject,
+      previousLineCount: 0,
+      isFinished: false,
+      onKeypress: (input, key) => handleSelectorKey(session, input, key),
+      onInterrupt: () => signalSelector(session, "SIGINT"),
+      onTerminate: () => signalSelector(session, "SIGTERM"),
     };
-
-    const onSignal = (signal: NodeJS.Signals): void => {
-      if (isFinished) return;
-      isFinished = true;
-      cleanup(() => process.kill(process.pid, signal));
-    };
-
-    const onInterrupt = (): void => onSignal("SIGINT");
-    const onTerminate = (): void => onSignal("SIGTERM");
-
-    const finish = (value?: string | string[], error?: Error): void => {
-      if (isFinished) return;
-      isFinished = true;
-      cleanup();
-      const lines = error ? cancelFrame(message) : finalFrame(mode, message, choices, state);
-      writeFrame(lines, previousLineCount);
-      process.stdout.write("\n");
-      if (error) reject(error);
-      else resolve(value);
-    };
-
-    const render = (): void => {
-      const lines = selectorFrame(mode, message, choices, state);
-      previousLineCount = writeFrame(lines, previousLineCount, previousLineCount === 0);
-    };
-
-    const onKeypress = (input = "", key: PromptKey = {}): void => {
-      if (isCancelKey(input, key)) {
-        finish(undefined, promptCancelled());
-        return;
-      }
-      if (isConfirmKey(key)) {
-        const isDisabledRadioChoice = mode === "radio" && isDisabled(choices[state.cursorIndex]);
-        if (isDisabledRadioChoice) return;
-        finish(selectedValues(mode, choices, state));
-        return;
-      }
-
-      const direction = cursorDirection(key);
-      if (direction !== 0) {
-        state = moveSelector(state, direction, choices);
-        render();
-        return;
-      }
-      const isSelectShortcut = mode === "select" && isSelectionKey(input, key);
-      if (isSelectShortcut) {
-        state = updateSelected(state, input, key, choices);
-        render();
-      }
-    };
-
-    try {
-      const hasRawMode = typeof process.stdin.setRawMode === "function";
-      const hasInteractiveInput = hasInteractiveTerminal();
-      if (!hasInteractiveInput) {
-        throw new Error("Interactive prompt input is unavailable");
-      }
-      if (!hasRawMode) {
-        throw new Error("Interactive prompt input is unavailable");
-      }
-      process.once("SIGINT", onInterrupt);
-      process.once("SIGTERM", onTerminate);
-      process.stdin.setRawMode(true);
-      process.stdin.resume();
-      readline.emitKeypressEvents(process.stdin);
-      process.stdin.on("keypress", onKeypress);
-      process.stdout.write(ANSI.HIDE_CURSOR);
-      render();
-    } catch (error) {
-      cleanup();
-      reject(error);
-    }
+    startSelector(session);
   });
 
 export const radio: RadioPrompt = (options) => {

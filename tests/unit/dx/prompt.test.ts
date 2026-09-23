@@ -1,3 +1,4 @@
+import { assertTextIncludes } from "../../helpers/assertions";
 import { describe, test, mock } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
@@ -72,6 +73,7 @@ const terminatePrompt = (
     });
   });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("disabled radio choices", () => {
   test("rejects an all-disabled list before opening the terminal", async () => {
     await assert.rejects(
@@ -82,7 +84,7 @@ describe("disabled radio choices", () => {
 
   [false, true].forEach((interactive) => {
     test(`rejects all-disabled choices before requesting input (interactive=${interactive})`, async () => {
-      const radioPrompt = mock.fn(async () => "unavailable");
+      const radioPrompt = mock.fn(() => Promise.resolve("unavailable"));
       const prompt = new Prompt({ interactive, radioPrompt });
       const question = mock.method(prompt["rl"]!, "question", () => {
         throw new Error("Should not request an impossible choice");
@@ -113,7 +115,7 @@ describe("disabled radio choices", () => {
   });
 
   test("allows explicitly enabled radio choices", async () => {
-    const radioPrompt = mock.fn(async () => "enabled");
+    const radioPrompt = mock.fn(() => Promise.resolve("enabled"));
     const prompt = new Prompt({ interactive: true, radioPrompt });
     const choices = DISABLED_CHOICES.concat({ name: "Enabled", value: "enabled", disabled: false });
     try {
@@ -133,11 +135,11 @@ describe("prompt termination signals", () => {
 
       assert.strictEqual(result.code, null, result.output);
       assert.strictEqual(result.signal, signal, result.output);
-      assert.ok(result.output.includes("RAW_MODE=true"), result.output);
-      assert.ok(result.output.includes("RAW_MODE=false"), result.output);
-      assert.ok(result.output.includes(ANSI.HIDE_CURSOR), result.output);
-      assert.ok(result.output.includes(ANSI.SHOW_CURSOR), result.output);
-      assert.ok(!result.output.includes("PROMPT_RESOLVED"), result.output);
+      assert.match(result.output, /RAW_MODE=true/, result.output);
+      assert.match(result.output, /RAW_MODE=false/, result.output);
+      assertTextIncludes(result.output, ANSI.HIDE_CURSOR, result.output);
+      assertTextIncludes(result.output, ANSI.SHOW_CURSOR, result.output);
+      assert.doesNotMatch(result.output, /PROMPT_RESOLVED/, result.output);
     });
   });
 });

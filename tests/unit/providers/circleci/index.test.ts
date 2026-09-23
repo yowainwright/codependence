@@ -4,6 +4,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { CircleCIProvider } from "../../../../src/providers/circleci";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("CircleCIProvider", () => {
   const tmpDir = join(import.meta.dirname, ".tmp-circleci-test");
   const projectDir = join(tmpDir, "web");

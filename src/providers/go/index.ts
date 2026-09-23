@@ -51,57 +51,25 @@ export const updateRequireLine = (
   return { line: `${prefix}${pkgName}${space}${newVersion}${rest}`, updated: true, found: true };
 };
 
+const nextBlockState = (line: string, state: GoLineState): GoLineState | null => {
+  if (state.inReplaceBlock) {
+    return isBlockClose(line) ? { ...state, inReplaceBlock: false } : state;
+  }
+  if (state.inExcludeBlock) {
+    return isBlockClose(line) ? { ...state, inExcludeBlock: false } : state;
+  }
+  if (isReplaceBlockStart(line)) return { ...state, inReplaceBlock: true };
+  if (isExcludeBlockStart(line)) return { ...state, inExcludeBlock: true };
+  return null;
+};
+
 export const processLine = (
   line: string,
   state: GoLineState,
   dependencies: Record<string, string>,
 ): GoProcessedLine => {
-  if (state.inReplaceBlock) {
-    if (isBlockClose(line)) {
-      return {
-        line,
-        state: Object.assign({}, state, { inReplaceBlock: false }),
-        updated: false,
-        found: false,
-      };
-    }
-    return { line, state, updated: false, found: false };
-  }
-
-  if (state.inExcludeBlock) {
-    if (isBlockClose(line)) {
-      return {
-        line,
-        state: Object.assign({}, state, { inExcludeBlock: false }),
-        updated: false,
-        found: false,
-      };
-    }
-    return { line, state, updated: false, found: false };
-  }
-
-  if (isReplaceBlockStart(line)) {
-    return {
-      line,
-      state: Object.assign({}, state, { inReplaceBlock: true }),
-      updated: false,
-      found: false,
-    };
-  }
-
-  if (isExcludeBlockStart(line)) {
-    return {
-      line,
-      state: Object.assign({}, state, { inExcludeBlock: true }),
-      updated: false,
-      found: false,
-    };
-  }
-
-  if (isReplaceLine(line)) {
-    return { line, state, updated: false, found: false };
-  }
-
+  const blockState = nextBlockState(line, state);
+  if (blockState) return { line, state: blockState, updated: false, found: false };
   const { line: updatedLine, updated, found } = updateRequireLine(line, dependencies);
   return { line: updatedLine, state, updated, found };
 };

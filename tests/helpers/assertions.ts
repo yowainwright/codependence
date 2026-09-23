@@ -133,6 +133,18 @@ export const assertMatches = (actual: unknown, expected: unknown): void => {
   assert.ok(matches(actual, expected), "received value did not match the expected structure");
 };
 
+export const assertTextIncludes = (actual: string, expected: string, message?: string): void => {
+  const failure =
+    message ?? `Expected ${JSON.stringify(actual)} to contain ${JSON.stringify(expected)}`;
+  assert.ok(actual.includes(expected), failure);
+};
+
+export const assertTextExcludes = (actual: string, expected: string, message?: string): void => {
+  const failure =
+    message ?? `Expected ${JSON.stringify(actual)} to exclude ${JSON.stringify(expected)}`;
+  assert.ok(!actual.includes(expected), failure);
+};
+
 export const assertCalledWith = (mockFunction: TrackedMock, ...expected: unknown[]): void => {
   const matchingCall = mockFunction.mock.calls.some((call) => matches(call.arguments, expected));
   assert.ok(matchingCall, "mock was not called with the expected arguments");

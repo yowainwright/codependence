@@ -418,25 +418,18 @@ export const onboardingSourceFileNeedsContent = (path: string): boolean => {
   return needsContent;
 };
 
-const mapConcurrentBatch = async <Input, Output>(
+const mapConcurrent = async <Input, Output>(
   values: Input[],
   limit: number,
   transform: (value: Input) => Promise<Output>,
-  offset: number,
-  previous: Output[],
 ): Promise<Output[]> => {
-  if (offset >= values.length) return previous;
-  const batch = values.slice(offset, offset + limit);
-  const current = await Promise.all(batch.map(transform));
-  const results = previous.concat(current);
-  return mapConcurrentBatch(values, limit, transform, offset + limit, results);
+  const batches: Output[][] = [];
+  for (let offset = 0; offset < values.length; offset += limit) {
+    const batch = values.slice(offset, offset + limit);
+    batches[batches.length] = await Promise.all(batch.map(transform));
+  }
+  return batches.flat();
 };
-
-const mapConcurrent = <Input, Output>(
-  values: Input[],
-  limit: number,
-  transform: (value: Input) => Promise<Output>,
-): Promise<Output[]> => mapConcurrentBatch(values, limit, transform, 0, []);
 
 const repositorySourceFile = async (
   fetcher: OnboardingFetcher,

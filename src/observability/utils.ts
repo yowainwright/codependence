@@ -2,6 +2,9 @@ import { bold, cyan, gray, red, yellow } from "../dx/output";
 import { ICONS, LEVELS } from "./constants";
 import type { Log, LogLevel, Logger, LoggerConfig } from "./types";
 
+const infoColor = (text: string): string => bold(cyan(text));
+const colors = { error: red, warn: yellow, info: infoColor, debug: gray, verbose: gray };
+
 export const createLoggerConfig = (options: Partial<LoggerConfig>): LoggerConfig =>
   Object.assign(
     {},
@@ -52,11 +55,11 @@ const writeLog = (level: LogLevel, message: string): void => {
 
 export const createLog =
   (config: LoggerConfig): Log =>
-  (level, icon, color, message, extra): void => {
+  (level, message, extra): void => {
     if (!shouldLog(config, level)) return;
     const formatted = config.structured
       ? formatStructured(level, message, extra)
-      : formatPlain(icon, color, message, extra);
+      : formatPlain(ICONS[level], colors[level], message, extra);
     writeLog(level, formatted);
   };
 
@@ -67,12 +70,12 @@ const writeUnlessSilent = (config: LoggerConfig, write: () => void): void => {
 export const createLoggerMethods = (config: LoggerConfig, log: Log): Logger => ({
   error: (message, error) => {
     const detail = error instanceof Error ? error.message : error;
-    log("error", ICONS.error, red, message, detail);
+    log("error", message, detail);
   },
-  warn: (message) => log("warn", ICONS.warn, yellow, message),
-  info: (message) => log("info", ICONS.info, (text) => bold(cyan(text)), message),
-  debug: (message, data) => log("debug", ICONS.debug, gray, message, data),
-  verbose: (message, data) => log("verbose", ICONS.verbose, gray, message, data),
+  warn: (message) => log("warn", message),
+  info: (message) => log("info", message),
+  debug: (message, data) => log("debug", message, data),
+  verbose: (message, data) => log("verbose", message, data),
   print: (message) => writeUnlessSilent(config, () => console.log(message)),
   printError: (message) => writeUnlessSilent(config, () => console.error(message)),
   line: (message) => writeUnlessSilent(config, () => console.log(`\n${message}`)),

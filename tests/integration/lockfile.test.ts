@@ -29,6 +29,7 @@ afterEach(() => {
   staleWorkspaces.forEach((root) => rmSync(root, { force: true, recursive: true }));
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("lockfiles", () => {
   test("requires the selected Node manager lockfile", async () => {
     const root = createWorkspace("package.json", nodeManifest);

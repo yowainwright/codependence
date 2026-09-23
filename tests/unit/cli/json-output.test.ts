@@ -48,6 +48,7 @@ const runCli = (workDir: string, args: string[]) =>
 const readPackageJson = (workDir: string) =>
   JSON.parse(readFileSync(join(workDir, "package.json"), "utf8"));
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("CLI JSON output contract", () => {
   test("reports outdated dependencies as JSON and exits 1 without writing files", () => {
     const workDir = createOutdatedProject();

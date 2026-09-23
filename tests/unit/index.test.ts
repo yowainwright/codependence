@@ -21,6 +21,7 @@ const schemaAllowsRepositoryPath = (path: string): boolean =>
     matchesRepositoryPathRule(path, rule),
   );
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("package entry", () => {
   test("exports the public API without running the CLI", () => {
     assert.deepStrictEqual(Object.keys(entry).sort(), [

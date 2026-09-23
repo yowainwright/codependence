@@ -1,3 +1,4 @@
+import { assertTextExcludes, assertTextIncludes } from "../../helpers/assertions";
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createAnsiPattern } from "../../../src/dx/constants";
@@ -29,6 +30,7 @@ const ansiBackground = (rgb: Rgb): string => `\x1b[48;2;${rgb.join(";")}m`;
 
 const ansiForeground = (rgb: Rgb): string => `\x1b[38;2;${rgb.join(";")}m`;
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("createTable", () => {
   test("should create a basic table", () => {
     const columns: TableColumn[] = [
@@ -43,14 +45,14 @@ describe("createTable", () => {
 
     const result = createTable(columns, rows);
 
-    assert.ok(result.includes("┌"));
-    assert.ok(result.includes("┐"));
-    assert.ok(result.includes("└"));
-    assert.ok(result.includes("┘"));
-    assert.ok(result.includes("Name"));
-    assert.ok(result.includes("Value"));
-    assert.ok(result.includes("foo"));
-    assert.ok(result.includes("bar"));
+    assert.match(result, /┌/);
+    assert.match(result, /┐/);
+    assert.match(result, /└/);
+    assert.match(result, /┘/);
+    assert.match(result, /Name/);
+    assert.match(result, /Value/);
+    assert.match(result, /foo/);
+    assert.match(result, /bar/);
   });
 
   test("should handle empty rows", () => {
@@ -63,10 +65,10 @@ describe("createTable", () => {
 
     const result = createTable(columns, rows);
 
-    assert.ok(result.includes("Name"));
-    assert.ok(result.includes("Value"));
-    assert.ok(result.includes("┌"));
-    assert.ok(result.includes("┘"));
+    assert.match(result, /Name/);
+    assert.match(result, /Value/);
+    assert.match(result, /┌/);
+    assert.match(result, /┘/);
   });
 
   test("should handle left alignment", () => {
@@ -76,7 +78,7 @@ describe("createTable", () => {
 
     const result = createTable(columns, rows);
 
-    assert.ok(result.includes("test"));
+    assert.match(result, /test/);
   });
 
   test("should handle right alignment", () => {
@@ -86,7 +88,7 @@ describe("createTable", () => {
 
     const result = createTable(columns, rows);
 
-    assert.ok(result.includes("123"));
+    assert.match(result, /123/);
   });
 
   test("should handle center alignment", () => {
@@ -96,7 +98,7 @@ describe("createTable", () => {
 
     const result = createTable(columns, rows);
 
-    assert.ok(result.includes("text"));
+    assert.match(result, /text/);
   });
 
   test("should handle missing values in rows", () => {
@@ -109,7 +111,7 @@ describe("createTable", () => {
 
     const result = createTable(columns, rows);
 
-    assert.ok(result.includes("value1"));
+    assert.match(result, /value1/);
   });
 
   test("expands columns for long cell values", () => {
@@ -122,11 +124,12 @@ describe("createTable", () => {
     const result = createTable(columns, rows);
     const lengths = outputLines(result).map(visibleLength);
 
-    assert.ok(result.includes("eslint-plugin-legibility"));
+    assert.match(result, /eslint-plugin-legibility/);
     assert.deepStrictEqual(new Set(lengths).size, 1);
   });
 
   test("shrinks wide tables to the terminal width", () => {
+    // eslint-disable-next-line legibility/no-single-use-renaming-alias -- Snapshot the original value before the test mutates it.
     const originalColumns = process.stdout.columns;
     Object.defineProperty(process.stdout, "columns", { configurable: true, value: 52 });
 
@@ -143,7 +146,7 @@ describe("createTable", () => {
       const lengths = outputLines(result).map(visibleLength);
 
       assert.ok(lengths.every((length) => length <= 52));
-      assert.ok(result.includes("..."));
+      assert.match(result, /\.\.\./);
     } finally {
       Object.defineProperty(process.stdout, "columns", {
         configurable: true,
@@ -153,6 +156,7 @@ describe("createTable", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("formatVersionTable", () => {
   test("should format version diffs with pinned packages", () => {
     const diffs: TableVersionDiff[] = [
@@ -176,17 +180,17 @@ describe("formatVersionTable", () => {
 
     const result = formatVersionTable(diffs);
 
-    assert.ok(result.includes("lodash"));
-    assert.ok(result.includes("Previous"));
-    assert.ok(result.includes("Updated"));
-    assert.ok(result.includes("4.17.0"));
-    assert.ok(result.includes("4.17.21"));
-    assert.ok(result.includes("^4.17.21"));
-    assert.ok(result.includes("express"));
-    assert.ok(result.includes("4.18.0"));
-    assert.ok(result.includes("4.19.0"));
-    assert.ok(!result.includes("Update ✓"));
-    assert.ok(!result.includes("Pinned"));
+    assert.match(result, /lodash/);
+    assert.match(result, /Previous/);
+    assert.match(result, /Updated/);
+    assert.match(result, /4\.17\.0/);
+    assert.match(result, /4\.17\.21/);
+    assert.match(result, /\^4\.17\.21/);
+    assert.match(result, /express/);
+    assert.match(result, /4\.18\.0/);
+    assert.match(result, /4\.19\.0/);
+    assert.doesNotMatch(result, /Update ✓/);
+    assert.doesNotMatch(result, /Pinned/);
   });
 
   test("should format check diffs without update action columns", () => {
@@ -203,11 +207,11 @@ describe("formatVersionTable", () => {
 
     const result = formatVersionTable(diffs, "check");
 
-    assert.ok(result.includes("Package"));
-    assert.ok(result.includes("Current"));
-    assert.ok(result.includes("Available"));
-    assert.ok(!result.includes("Previous"));
-    assert.ok(!result.includes("Updated"));
+    assert.match(result, /Package/);
+    assert.match(result, /Current/);
+    assert.match(result, /Available/);
+    assert.doesNotMatch(result, /Previous/);
+    assert.doesNotMatch(result, /Updated/);
   });
 
   test("should handle empty diffs array", () => {
@@ -215,11 +219,11 @@ describe("formatVersionTable", () => {
 
     const result = formatVersionTable(diffs);
 
-    assert.ok(result.includes("Package"));
-    assert.ok(result.includes("Previous"));
-    assert.ok(result.includes("Updated"));
-    assert.ok(!result.includes("Latest"));
-    assert.ok(!result.includes("Installed"));
+    assert.match(result, /Package/);
+    assert.match(result, /Previous/);
+    assert.match(result, /Updated/);
+    assert.doesNotMatch(result, /Latest/);
+    assert.doesNotMatch(result, /Installed/);
   });
 
   test("should handle single diff", () => {
@@ -236,10 +240,10 @@ describe("formatVersionTable", () => {
 
     const result = formatVersionTable(diffs);
 
-    assert.ok(result.includes("react"));
-    assert.ok(result.includes("18.2.0"));
-    assert.ok(result.includes("18.3.0"));
-    assert.ok(result.includes("^18.3.0"));
+    assert.match(result, /react/);
+    assert.match(result, /18\.2\.0/);
+    assert.match(result, /18\.3\.0/);
+    assert.match(result, /\^18\.3\.0/);
   });
 
   test("colors version columns by semantic diff size", () => {
@@ -252,31 +256,27 @@ describe("formatVersionTable", () => {
 
     const result = formatVersionTable(diffs, "check");
 
-    assert.ok(!result.includes("\n\x1b[48;2;"));
-    assert.ok(result.includes(ansiBackground(DIFF_BACKGROUND_PALETTE.major[1])));
-    assert.ok(result.includes(ansiBackground(DIFF_BACKGROUND_PALETTE.minor[1])));
-    assert.ok(result.includes(ansiBackground(DIFF_BACKGROUND_PALETTE.patch[1])));
-    assert.ok(result.includes(ansiBackground(DIFF_BACKGROUND_PALETTE.unknown[1])));
-    assert.ok(result.includes(`${ansiForeground(MUTED_VERSION_COLOR)}  1.0.0`));
-    assert.ok(
-      result.includes(
-        `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.major[1]))}  6.0.0`,
-      ),
+    assertTextExcludes(result, "\n\u001b[48;2;");
+    assertTextIncludes(result, ansiBackground(DIFF_BACKGROUND_PALETTE.major[1]));
+    assertTextIncludes(result, ansiBackground(DIFF_BACKGROUND_PALETTE.minor[1]));
+    assertTextIncludes(result, ansiBackground(DIFF_BACKGROUND_PALETTE.patch[1]));
+    assertTextIncludes(result, ansiBackground(DIFF_BACKGROUND_PALETTE.unknown[1]));
+    assertTextIncludes(result, `${ansiForeground(MUTED_VERSION_COLOR)}  1.0.0`);
+    assertTextIncludes(
+      result,
+      `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.major[1]))}  6.0.0`,
     );
-    assert.ok(
-      result.includes(
-        `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.minor[1]))}  1.12.0`,
-      ),
+    assertTextIncludes(
+      result,
+      `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.minor[1]))}  1.12.0`,
     );
-    assert.ok(
-      result.includes(
-        `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.patch[1]))}  1.0.50`,
-      ),
+    assertTextIncludes(
+      result,
+      `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.patch[1]))}  1.0.50`,
     );
-    assert.ok(
-      result.includes(
-        `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.unknown[1]))}  1.0.0`,
-      ),
+    assertTextIncludes(
+      result,
+      `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.unknown[1]))}  1.0.0`,
     );
   });
 
@@ -304,8 +304,8 @@ describe("formatVersionTable", () => {
 
     const result = formatVersionTableTitle(diffs, "check");
 
-    assert.ok(result.includes(`${ansiForeground(DIFF_FOREGROUND_PALETTE.minor[1])}◆\x1b[0m`));
-    assert.ok(result.includes("\x1b[1m\x1b[36mDependency Updates Available:"));
+    assertTextIncludes(result, `${ansiForeground(DIFF_FOREGROUND_PALETTE.minor[1])}◆\x1b[0m`);
+    assertTextIncludes(result, "\u001b[1m\u001b[36mDependency Updates Available:");
   });
 
   test("uses the upper median semantic diff for even row counts", () => {
@@ -318,7 +318,7 @@ describe("formatVersionTable", () => {
 
     const result = formatVersionTableTitle(diffs, "check");
 
-    assert.ok(result.includes(`${ansiForeground(DIFF_FOREGROUND_PALETTE.minor[1])}◆\x1b[0m`));
+    assertTextIncludes(result, `${ansiForeground(DIFF_FOREGROUND_PALETTE.minor[1])}◆\x1b[0m`);
   });
 
   test("colors table titles from patch risk when patch is highest", () => {
@@ -328,8 +328,8 @@ describe("formatVersionTable", () => {
 
     const result = formatVersionTableTitle(diffs);
 
-    assert.ok(result.includes(`${ansiForeground(DIFF_FOREGROUND_PALETTE.patch[1])}◆\x1b[0m`));
-    assert.ok(result.includes("\x1b[1m\x1b[36mUpdated Dependencies:"));
+    assertTextIncludes(result, `${ansiForeground(DIFF_FOREGROUND_PALETTE.patch[1])}◆\x1b[0m`);
+    assertTextIncludes(result, "\u001b[1m\u001b[36mUpdated Dependencies:");
   });
 
   test("uses semver-shaped values instead of arbitrary digits", () => {
@@ -340,29 +340,27 @@ describe("formatVersionTable", () => {
 
     const result = formatVersionTable(diffs, "check");
 
-    assert.ok(
-      result.includes(
-        `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.minor[1]))}  1.14.0`,
-      ),
+    assertTextIncludes(
+      result,
+      `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.minor[1]))}  1.14.0`,
     );
-    assert.ok(
-      result.includes(
-        `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.unknown[1]))}  1.0.0`,
-      ),
+    assertTextIncludes(
+      result,
+      `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.unknown[1]))}  1.0.0`,
     );
   });
 
   test("uses readable foreground colors in the legend", () => {
     const result = formatCliLegend();
 
-    assert.ok(result.includes(ansiBackground(DIFF_BACKGROUND_PALETTE.patch[1])));
-    assert.ok(
-      result.includes(
-        `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.patch[1]))}  1.2.3 -> 1.2.4`,
-      ),
+    assertTextIncludes(result, ansiBackground(DIFF_BACKGROUND_PALETTE.patch[1]));
+    assertTextIncludes(
+      result,
+      `${ansiForeground(readableForeground(DIFF_FOREGROUND_PALETTE.patch[1]))}  1.2.3 -> 1.2.4`,
     );
-    assert.ok(
-      !result.includes(`${ansiForeground(DIFF_FOREGROUND_PALETTE.patch[1])}  1.2.3 -> 1.2.4`),
+    assertTextExcludes(
+      result,
+      `${ansiForeground(DIFF_FOREGROUND_PALETTE.patch[1])}  1.2.3 -> 1.2.4`,
     );
   });
 });

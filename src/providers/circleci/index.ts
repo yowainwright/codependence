@@ -121,11 +121,11 @@ export class CircleCIProvider implements DependencyProvider {
     versionStrategy: "exact",
   } as const;
 
-  async getLatestVersion(): Promise<string> {
+  getLatestVersion(): Promise<string> {
     return manifestOnlyResolution("CircleCI");
   }
 
-  async getAllVersions(): Promise<string[]> {
+  getAllVersions(): Promise<string[]> {
     return manifestOnlyResolution("CircleCI");
   }
 

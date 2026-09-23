@@ -114,26 +114,29 @@ function mergedVersionResult(
   return ok(JSON.stringify([pullRequest]));
 }
 
+function releaseBranchPullRequests(prUrl: string, state: ReleaseFlowState): GitResult {
+  const headRefOid = state.mismatchedPullRequest ? "b".repeat(40) : MERGE_COMMIT;
+  const pullRequest = {
+    baseRefName: "main",
+    headRefName: state.mismatchedMergedRefs ? "release/v9.9.9" : "release/v1.2.4",
+    headRefOid,
+    mergeCommit: state.mergedPullRequest ? { oid: MERGE_COMMIT } : undefined,
+    mergedAt: state.mergedPullRequest ? "now" : undefined,
+    state: "OPEN",
+    url: prUrl,
+  };
+  const pullRequests = state.existingPullRequest || state.mergedPullRequest ? [pullRequest] : [];
+  return ok(JSON.stringify(pullRequests));
+}
+
 function releaseBranchResult(
   key: string,
   prUrl: string,
   state: ReleaseFlowState,
   runtime: ReleaseFlowRuntimeState,
 ): GitResult | undefined {
-  if (key.startsWith("gh pr list --head release/v1.2.4")) {
-    const headRefOid = state.mismatchedPullRequest ? "b".repeat(40) : MERGE_COMMIT;
-    const pullRequest = {
-      baseRefName: "main",
-      headRefName: state.mismatchedMergedRefs ? "release/v9.9.9" : "release/v1.2.4",
-      headRefOid,
-      mergeCommit: state.mergedPullRequest ? { oid: MERGE_COMMIT } : undefined,
-      mergedAt: state.mergedPullRequest ? "now" : undefined,
-      state: "OPEN",
-      url: prUrl,
-    };
-    const pullRequests = state.existingPullRequest || state.mergedPullRequest ? [pullRequest] : [];
-    return ok(JSON.stringify(pullRequests));
-  }
+  if (key.startsWith("gh pr list --head release/v1.2.4"))
+    return releaseBranchPullRequests(prUrl, state);
   if (key === "git show-ref --verify --quiet refs/heads/release/v1.2.4") {
     if (state.localBranch) return ok();
     return absent();
@@ -149,12 +152,7 @@ function releaseBranchResult(
   if (key === "git rev-parse release/v1.2.4^") return ok("abc\n");
   if (key === "git rev-parse refs/heads/release/v1.2.4") return ok(`${MERGE_COMMIT}\n`);
   if (key === "git diff-tree --no-commit-id --name-only -r release/v1.2.4") {
-    const releaseFiles = "package.json\nsrc/config/schema.json\n";
-    const missingSchema = state.missingReleaseSchema && !runtime.schemaMetadataCompleted;
-    if (missingSchema) return ok("package.json\n");
-
-    const changedFiles = state.extraReleaseFile ? `${releaseFiles}src/index.ts\n` : releaseFiles;
-    return ok(changedFiles);
+    return releaseBranchFiles(state, runtime);
   }
   if (key === "git diff --unified=0 origin/main release/v1.2.4 -- package.json") {
     if (state.mismatchedReleaseDiff) {
@@ -168,6 +166,14 @@ function releaseBranchResult(
     );
   }
   return undefined;
+}
+
+function releaseBranchFiles(state: ReleaseFlowState, runtime: ReleaseFlowRuntimeState): GitResult {
+  const releaseFiles = "package.json\nsrc/config/schema.json\n";
+  const missingSchema = state.missingReleaseSchema && !runtime.schemaMetadataCompleted;
+  if (missingSchema) return ok("package.json\n");
+  const changedFiles = state.extraReleaseFile ? `${releaseFiles}src/index.ts\n` : releaseFiles;
+  return ok(changedFiles);
 }
 
 function mergedCommitResult(key: string, state: ReleaseFlowState): GitResult | undefined {
@@ -211,8 +217,11 @@ function releaseFlowResult(
   if (key === "gh api repos/yowainwright/codependence --jq .allow_auto_merge") {
     return ok(`${state.autoMergeDisabled ? "false" : "true"}\n`);
   }
-  if (key.includes("release-it --release-version")) return ok("1.2.4\n");
-  if (key.includes("rev-parse -q --verify refs/tags/v1.2.4")) return missing();
+  const commandWords = new Set(key.split(" "));
+  const readsReleaseVersion =
+    commandWords.has("./node_modules/.bin/release-it") && commandWords.has("--release-version");
+  if (readsReleaseVersion) return ok("1.2.4\n");
+  if (key.startsWith("git rev-parse -q --verify refs/tags/v1.2.4")) return missing();
   if (key === "git ls-remote --tags origin refs/tags/v1.2.4") return ok();
   if (key.startsWith("gh pr create ")) return ok(`${prUrl}\n`);
   if (key.endsWith("state,mergedAt,mergeCommit,mergeStateStatus")) {
@@ -222,7 +231,7 @@ function releaseFlowResult(
     const state = { mergeCommit: { oid: MERGE_COMMIT }, mergedAt: "now", state: "MERGED" };
     return ok(JSON.stringify(state));
   }
-  if (key.includes("ls-remote --exit-code --tags")) return missing();
+  if (key.startsWith("git ls-remote --exit-code --tags")) return missing();
   return readyMain[key as keyof typeof readyMain] ?? ok();
 }
 
@@ -318,9 +327,9 @@ describe("scripts/release plans", () => {
     const output = formatReleasePlan(plan);
     assert.strictEqual(plan.branch, "release/v1.2.4");
     assert.strictEqual(plan.pullRequestTitle, "chore(release): v1.2.4");
-    assert.ok(output.includes("verify repository auto-merge"));
-    assert.ok(output.includes("stamp schema metadata"));
-    assert.ok(output.includes("queue auto-merge for the release PR"));
+    assert.match(output, /verify repository auto-merge/);
+    assert.match(output, /stamp schema metadata/);
+    assert.match(output, /queue auto-merge for the release PR/);
   });
 
   test("describes tagging an existing prerelease package version", () => {
@@ -329,6 +338,7 @@ describe("scripts/release plans", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("scripts/release versions", () => {
   test("advances stable and prerelease versions", () => {
     assert.strictEqual(incrementStableVersion("1.2.3", "patch"), "1.2.4");
@@ -397,7 +407,7 @@ describe("scripts/release versions", () => {
       mkdirSync(join(directory, "src/config"), { recursive: true });
       writeFileSync(schemaPath, '{\n  "x-revision": "1.2.3",\n  "x-updated": "2026-08-25"\n}\n');
       writeSchemaMetadata(directory, "1.2.4", new Date("2026-08-26T00:00:00.000Z"));
-      assert.ok(readFileSync(schemaPath, "utf8").includes('"x-revision": "1.2.4"'));
+      assert.match(readFileSync(schemaPath, "utf8"), /"x-revision": "1\.2\.4"/);
     } finally {
       rmSync(TEMP_ROOT, { recursive: true, force: true });
     }
@@ -478,6 +488,7 @@ describe("scripts/release versions", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("scripts/release flow", () => {
   test("requires an explicit stable increment", async () => {
     const { runner } = createRunner(readyMain);

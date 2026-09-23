@@ -17,7 +17,7 @@ export class NodeJSProvider implements DependencyProvider {
     this.options = options;
   }
 
-  async getLatestVersion(packageName: string): Promise<string> {
+  getLatestVersion(packageName: string): Promise<string> {
     const shouldUseYarn =
       this.options.packageManager === NODE_PACKAGE_MANAGERS.YARN ||
       (this.options.yarnConfig ?? false);

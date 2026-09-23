@@ -7,6 +7,7 @@ import { KustomizeProvider } from "../../../../src/providers/kustomize";
 const DIGEST = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const NEXT_DIGEST = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("KustomizeProvider", () => {
   const tmpDir = join(import.meta.dirname, ".tmp-kustomize-test");
   const manifestDir = join(tmpDir, "prod");

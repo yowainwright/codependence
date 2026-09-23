@@ -568,8 +568,7 @@ function assertRepositoryAutoMergeEnabled(runner: ReleaseRunner): void {
   const args = ["api", `repos/${RELEASE_REPOSITORY}`, "--jq", ".allow_auto_merge"];
   const setting = commandText(runner, "gh", args);
   if (setting === "true") return;
-  if (setting === "false")
-    throw new Error(`enable "Allow auto-merge" on ${RELEASE_REPOSITORY}`);
+  if (setting === "false") throw new Error(`enable "Allow auto-merge" on ${RELEASE_REPOSITORY}`);
   throw new Error(`Unable to read repository auto-merge setting for ${RELEASE_REPOSITORY}`);
 }
 
@@ -1120,6 +1119,7 @@ async function publishReleasePullRequest(
   return pushVersionTag(context, version, mergeCommit);
 }
 
+// eslint-disable-next-line legibility/no-unnecessary-async -- Keep validation failures as rejected promises for release callers.
 async function runVersionRelease(
   context: ReleaseContext,
   releaseArgs: ReleaseArgs,
@@ -1136,6 +1136,7 @@ async function runVersionRelease(
   return 0;
 }
 
+// eslint-disable-next-line legibility/no-unnecessary-async -- Public callers handle validation failures through the returned promise.
 export async function runRelease(options: ReleaseOptions = {}) {
   const context = createReleaseContext(options);
   const releaseArgs = normalizeOptions(options);
@@ -1256,8 +1257,7 @@ const githubJsonRequest = async (
   url: string,
   token: string,
   fetchImpl: Fetch,
-  method = "GET",
-  body?: unknown,
+  { method = "GET", body }: { method?: string; body?: unknown } = {},
 ): Promise<unknown> => {
   const init = {
     body: body ? JSON.stringify(body) : undefined,
@@ -1376,7 +1376,7 @@ const resetTapBranch = async (
     ? { force: true, sha: baseSha }
     : { ref: `refs/heads/${branch}`, sha: baseSha };
   const url = githubApiUrl(env, `repos/${repository}/${refsPath}`);
-  await githubJsonRequest(url, token, fetchImpl, method, body);
+  await githubJsonRequest(url, token, fetchImpl, { method, body });
 };
 
 const readTapFormulaSha = async (
@@ -1395,8 +1395,7 @@ const readTapFormulaSha = async (
 const writeTapFormula = async (
   env: Record<string, string | undefined>,
   token: string,
-  branch: string,
-  fileSha: string,
+  { branch, fileSha }: { branch: string; fileSha: string },
   fetchImpl: Fetch,
 ): Promise<void> => {
   const repository = tapRepository(env);
@@ -1406,7 +1405,7 @@ const writeTapFormula = async (
   const message = `codependence ${requiredEnv(env, "VERSION")}`;
   const body = { branch, content, message, sha: fileSha };
   const url = githubApiUrl(env, `repos/${repository}/contents/${path}`);
-  await githubJsonRequest(url, token, fetchImpl, "PUT", body);
+  await githubJsonRequest(url, token, fetchImpl, { method: "PUT", body });
 };
 
 const findOpenTapPullRequest = async (
@@ -1436,16 +1435,14 @@ const upsertTapPullRequest = async (
   const existing = await findOpenTapPullRequest(env, token, branch, fetchImpl);
   if (existing) {
     const url = githubApiUrl(env, `repos/${repository}/pulls/${existing.number}`);
-    await githubJsonRequest(url, token, fetchImpl, "PATCH", { body, title });
+    await githubJsonRequest(url, token, fetchImpl, { method: "PATCH", body: { body, title } });
     return existing.url;
   }
 
   const url = githubApiUrl(env, `repos/${repository}/pulls`);
-  const response = await githubJsonRequest(url, token, fetchImpl, "POST", {
-    base: "main",
-    body,
-    head: branch,
-    title,
+  const response = await githubJsonRequest(url, token, fetchImpl, {
+    method: "POST",
+    body: { base: "main", body, head: branch, title },
   });
   const pullRequest = response as { html_url?: unknown };
   if (isString(pullRequest.html_url)) return pullRequest.html_url;
@@ -1467,7 +1464,7 @@ export const updateHomebrewTap = async ({
   const branch = env.TAP_BRANCH || "codependence-release";
   await resetTapBranch(env, token, branch, fetchImpl);
   const fileSha = await readTapFormulaSha(env, token, branch, fetchImpl);
-  await writeTapFormula(env, token, branch, fileSha, fetchImpl);
+  await writeTapFormula(env, token, { branch, fileSha }, fetchImpl);
   const pullRequestUrl = await upsertTapPullRequest(env, token, branch, fetchImpl);
   return { branch, changed: true, pullRequestUrl };
 };
@@ -1725,12 +1722,12 @@ export function releaseE2eScript(): string {
 export function legacyCompatibilityScript(): string {
   return [
     'echo "Testing 0.3.1 compatibility..."',
-    'NODE_PATH="$(npm root -g)" node -e "const { script } = require(\'codependence\'); if (typeof script !== \'function\') process.exit(1)"',
+    "NODE_PATH=\"$(npm root -g)\" node -e \"const { script } = require('codependence'); if (typeof script !== 'function') process.exit(1)\"",
     "mkdir -p /tmp/codependence-legacy",
     "cp /app/tests/fixtures/0.3.1/package.json /tmp/codependence-legacy/package.json",
     "cd /tmp/codependence-legacy",
-    "codependence -s \"$PWD\" -r \"$PWD/\" -f package.json -i '**/node_modules/**' -u --silent",
-    'node -e "const p = require(\'./package.json\'); if (p.dependencies.lodash !== \'^4.17.21\' || p.dependencies[\'fs-extra\'] !== \'10.0.0\') process.exit(1)"',
+    'codependence -s "$PWD" -r "$PWD/" -f package.json -i \'**/node_modules/**\' -u --silent',
+    "node -e \"const p = require('./package.json'); if (p.dependencies.lodash !== '^4.17.21' || p.dependencies['fs-extra'] !== '10.0.0') process.exit(1)\"",
     "cdp --help >/dev/null",
   ].join("\n");
 }
@@ -1885,13 +1882,35 @@ function runNpmSmoke(
       version,
     }),
   );
-  const script = ["set -euo pipefail", "codependence --debug", 'echo "NPM package smoke test passed"'].join("\n");
+  const script = [
+    "set -euo pipefail",
+    "codependence --debug",
+    'echo "NPM package smoke test passed"',
+  ].join("\n");
   runOrThrow(runner, "docker", buildDockerRunShellArgs(npmImage, script));
   return 0;
 }
 
 function formatReportDate(): string {
-  return new Date().toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
+  return new Date()
+    .toISOString()
+    .replace("T", " ")
+    .replace(/\.\d{3}Z$/, " UTC");
+}
+
+function runWaitForNpm(packageName: string, version: string, runner: ReleaseRunner): number {
+  console.log(`Waiting for ${packageSpec(packageName, version)} to be available on npm...`);
+  waitForNpmPackage(packageName, version, runner);
+  console.log(`Package ${packageSpec(packageName, version)} is available on npm`);
+  return 0;
+}
+
+function writePublishedReleaseReport(version: string | undefined): number {
+  const report = formatReport({ date: formatReportDate(), version: version || "unknown" });
+  writeFileSync("test-report.md", report);
+  console.log("Test report created:");
+  console.log(report);
+  return 0;
 }
 
 export function runTestPublishedReleaseCli({
@@ -1908,41 +1927,32 @@ export function runTestPublishedReleaseCli({
   if (command === "resolve-version") return runResolveVersion(env, packageName, runner);
   if (command === "wait-for-npm") {
     requireVersion(version, command);
-    console.log(`Waiting for ${packageSpec(packageName, version)} to be available on npm...`);
-    waitForNpmPackage(packageName, version, runner);
-    console.log(`Package ${packageSpec(packageName, version)} is available on npm`);
-    return 0;
+    return runWaitForNpm(packageName, version, runner);
   }
   if (command === "build-release-image") {
     requireVersion(version, command);
     return runBuildReleaseImage(env, fullImage, version, runner);
   }
   if (command === "verify-installation") return runVerifyInstallation(fullImage, runner);
-  if (command === "run-e2e") {
-    runOrThrow(runner, "docker", buildDockerRunShellArgs(fullImage, releaseE2eScript()));
-    return 0;
-  }
+  if (command === "run-e2e") return runPublishedImageScript(fullImage, releaseE2eScript(), runner);
   if (command === "run-npm-smoke") {
     requireVersion(version, command);
     return runNpmSmoke(env, npmImage, version, runner);
   }
-  if (command === "compatibility-check") {
-    runOrThrow(runner, "docker", buildDockerRunShellArgs(fullImage, compatibilityScript()));
-    return 0;
-  }
+  if (command === "compatibility-check")
+    return runPublishedImageScript(fullImage, compatibilityScript(), runner);
   if (command === "summary") {
     requireVersion(version, command);
     console.log(formatSummary(version));
     return 0;
   }
-  if (command === "write-report") {
-    const report = formatReport({ date: formatReportDate(), version: version || "unknown" });
-    writeFileSync("test-report.md", report);
-    console.log("Test report created:");
-    console.log(report);
-    return 0;
-  }
+  if (command === "write-report") return writePublishedReleaseReport(version);
 
   const commands = Array.from(TEST_PUBLISHED_RELEASE_COMMANDS).join("|");
   throw new Error(`Usage: test-published {${commands}}`);
+}
+
+function runPublishedImageScript(image: string, script: string, runner: ReleaseRunner): number {
+  runOrThrow(runner, "docker", buildDockerRunShellArgs(image, script));
+  return 0;
 }

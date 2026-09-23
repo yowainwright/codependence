@@ -1,7 +1,23 @@
+import { assertTextIncludes } from "../../helpers/assertions";
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { formatCliStyleguide } from "../../../src/dx/output";
 import { runCliStyleguide } from "../../../src/cli/styleguide";
+
+const walksEveryInteractiveSectionAndReturnsPromptResultsSelections = [
+  "brand",
+  "back",
+  "statuses",
+  "back",
+  "tables",
+  "back",
+  "spinner",
+  "back",
+  "prompts",
+  "alpha",
+  "back",
+  "quit",
+];
 
 type StyleguidePrompts = NonNullable<Parameters<typeof runCliStyleguide>[1]>;
 
@@ -46,24 +62,26 @@ const interactivePrompts = (
   const state = { radioMessages: [] as string[], selectCalls: [] as number[] };
   let selectionIndex = 0;
   const prompts: StyleguidePrompts = {
-    radio: async ({ message }) => {
+    radio: ({ message }) => {
       state.radioMessages = state.radioMessages.concat(message);
       const selection = selections[selectionIndex];
       selectionIndex += 1;
-      if (selection instanceof Error) throw selection;
-      return selection ?? "quit";
+      if (selection instanceof Error) return Promise.reject(selection);
+      return Promise.resolve(selection ?? "quit");
     },
-    select: async () => {
+    select: () => {
       state.selectCalls = state.selectCalls.concat(1);
-      if (selected instanceof Error) throw selected;
-      return selected;
+      if (selected instanceof Error) return Promise.reject(selected);
+      return Promise.resolve(selected);
     },
   };
   return { prompts, state };
 };
 
 const withInteractiveStyleguide = async (callback: () => Promise<void>): Promise<void> => {
+  // eslint-disable-next-line legibility/no-single-use-renaming-alias -- Snapshot the original value before the test mutates it.
   const previousCi = process.env.CI;
+  // eslint-disable-next-line legibility/no-single-use-renaming-alias -- Snapshot the original value before the test mutates it.
   const previousGitHubActions = process.env.GITHUB_ACTIONS;
   const restoreInputTTY = setTTY(process.stdin, true);
   const restoreOutputTTY = setTTY(process.stdout, true);
@@ -86,6 +104,7 @@ const promptFailureCases = (failure: Error) => [
   { name: "checkbox demo", selections: ["prompts", "alpha", "quit"], selected: failure },
 ];
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("CLI styleguide", { concurrency: 1 }, () => {
   const failure = new Error("Terminal input unavailable");
   promptFailureCases(failure).forEach(({ name, selections, selected }) => {
@@ -112,6 +131,7 @@ describe("CLI styleguide", { concurrency: 1 }, () => {
   });
 
   test("prints the static guide outside an interactive terminal", async () => {
+    // eslint-disable-next-line legibility/no-single-use-renaming-alias -- Snapshot the original value before the test mutates it.
     const previousCi = process.env.CI;
     process.env.CI = "1";
     const { state, write } = createWriter();
@@ -130,30 +150,19 @@ describe("CLI styleguide", { concurrency: 1 }, () => {
     const { prompts } = interactivePrompts(["statuses", "back", "quit"], []);
     await withInteractiveStyleguide(() => runCliStyleguide(write, prompts));
     const output = state.messages.join("\n");
-    assert.ok(output.includes("\x1b[33m⚠\x1b[0m"), output);
-    assert.ok(output.includes("warning needs review"), output);
-    assert.ok(!output.includes("undefined"), output);
+    assertTextIncludes(output, "\u001b[33m⚠\u001b[0m", output);
+    assert.match(output, /warning needs review/, output);
+    assert.doesNotMatch(output, /undefined/, output);
   });
 
   test("walks every interactive section and returns prompt results", async () => {
+    // eslint-disable-next-line legibility/no-single-use-renaming-alias -- Snapshot the original value before the test mutates it.
     const previousCi = process.env.CI;
+    // eslint-disable-next-line legibility/no-single-use-renaming-alias -- Snapshot the original value before the test mutates it.
     const previousGitHubActions = process.env.GITHUB_ACTIONS;
     const restoreInputTTY = setTTY(process.stdin, true);
     const restoreOutputTTY = setTTY(process.stdout, true);
-    const selections = [
-      "brand",
-      "back",
-      "statuses",
-      "back",
-      "tables",
-      "back",
-      "spinner",
-      "back",
-      "prompts",
-      "alpha",
-      "back",
-      "quit",
-    ];
+    const selections = walksEveryInteractiveSectionAndReturnsPromptResultsSelections;
     const { state: writerState, write } = createWriter();
     const { prompts, state: promptState } = interactivePrompts(selections, ["alpha", "epsilon"]);
     delete process.env.CI;
@@ -172,33 +181,35 @@ describe("CLI styleguide", { concurrency: 1 }, () => {
     assert.strictEqual(promptState.radioMessages.length, selections.length);
     assert.strictEqual(promptState.selectCalls.length, 1);
     assert.ok(promptState.radioMessages.includes("Choose one package"));
-    assert.ok(output.includes("Brand and text"));
-    assert.ok(output.includes("Statuses and legend"));
-    assert.ok(output.includes("Dependency tables"));
-    assert.ok(output.includes("Spinner and glimmer"));
-    assert.ok(output.includes("Radio and checkbox prompts"));
-    assert.ok(output.includes("Radio returned: alpha"));
-    assert.ok(output.includes("Checkbox returned: alpha, epsilon"));
+    assert.match(output, /Brand and text/);
+    assert.match(output, /Statuses and legend/);
+    assert.match(output, /Dependency tables/);
+    assert.match(output, /Spinner and glimmer/);
+    assert.match(output, /Radio and checkbox prompts/);
+    assert.match(output, /Radio returned: alpha/);
+    assert.match(output, /Checkbox returned: alpha, epsilon/);
   });
 
   test("returns to the menu when a component prompt is cancelled", async () => {
+    // eslint-disable-next-line legibility/no-single-use-renaming-alias -- Snapshot the original value before the test mutates it.
     const previousCi = process.env.CI;
+    // eslint-disable-next-line legibility/no-single-use-renaming-alias -- Snapshot the original value before the test mutates it.
     const previousGitHubActions = process.env.GITHUB_ACTIONS;
     const restoreInputTTY = setTTY(process.stdin, true);
     const restoreOutputTTY = setTTY(process.stdout, true);
     const { state, write } = createWriter();
     let isInitialMenu = true;
     const prompts: StyleguidePrompts = {
-      radio: async ({ message }) => {
+      radio: ({ message }) => {
         const isMenuSelection = message === "Choose a component";
         const isFirstMenuSelection = isMenuSelection && isInitialMenu;
         if (isFirstMenuSelection) {
           isInitialMenu = false;
-          return "prompts";
+          return Promise.resolve("prompts");
         }
-        return Promise.reject(cancellation);
+        return Promise.resolve(Promise.reject(cancellation));
       },
-      select: async () => [],
+      select: () => Promise.resolve([]),
     };
     delete process.env.CI;
     delete process.env.GITHUB_ACTIONS;
@@ -213,8 +224,8 @@ describe("CLI styleguide", { concurrency: 1 }, () => {
     }
 
     const output = state.messages.join("\n");
-    assert.ok(output.includes("Codependence CLI Styleguide"));
-    assert.ok(output.includes("Radio and checkbox prompts"));
-    assert.ok(!output.includes("Radio returned"));
+    assert.match(output, /Codependence CLI Styleguide/);
+    assert.match(output, /Radio and checkbox prompts/);
+    assert.doesNotMatch(output, /Radio returned/);
   });
 });

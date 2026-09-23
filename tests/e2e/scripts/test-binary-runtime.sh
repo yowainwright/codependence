@@ -1,16 +1,14 @@
 #!/bin/sh
 set -e
 
-SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
+# shellcheck source=../provider/helpers.sh
 . "$SCRIPT_DIR/../provider/helpers.sh"
 
 trap cleanup_provider_e2e EXIT
 
-require_built_cli
-make_tmp_dir
-mkdir -p "$WORK_DIR/bin"
-
-cat > "$WORK_DIR/bin/npm" <<'SH'
+write_package_manager_subprocess_codependencerc() {
+  cat >"$WORK_DIR/bin/npm" <<'SH'
 #!/bin/sh
 if [ "$*" = "view lodash version latest" ]; then
   printf '4.17.21\n'
@@ -20,9 +18,9 @@ fi
 printf 'Unexpected npm arguments: %s\n' "$*" >&2
 exit 64
 SH
-chmod +x "$WORK_DIR/bin/npm"
+  chmod +x "$WORK_DIR/bin/npm"
 
-cat > "$WORK_DIR/package.json" <<'JSON'
+  cat >"$WORK_DIR/package.json" <<'JSON'
 {
   "name": "binary-child-process-test",
   "version": "1.0.0",
@@ -32,21 +30,28 @@ cat > "$WORK_DIR/package.json" <<'JSON'
 }
 JSON
 
-cat > "$WORK_DIR/.codependencerc" <<'JSON'
+  cat >"$WORK_DIR/.codependencerc" <<'JSON'
 {
   "mode": "verbose",
   "codependencies": ["lodash"]
 }
 JSON
+} # noqa: LEG038 -- Embedded fixture content is separate from shell control flow.
 
-PATH="$WORK_DIR/bin:$PATH"
-export PATH
-run_update "$WORK_DIR"
-assert_file_contains "$WORK_DIR/package.json" '"lodash": "4.17.21"' "binary package-manager subprocess"
+test_package_manager_subprocess() {
+  make_tmp_dir
+  mkdir -p "$WORK_DIR/bin"
 
-make_tmp_dir
-mkdir -p "$WORK_DIR/bin" "$WORK_DIR/running"
-cat > "$WORK_DIR/bin/npm" <<'SH'
+  write_package_manager_subprocess_codependencerc
+
+  PATH="$WORK_DIR/bin:$PATH"
+  export PATH
+  run_update "$WORK_DIR"
+  assert_file_contains "$WORK_DIR/package.json" '"lodash": "4.17.21"' "binary package-manager subprocess"
+}
+
+write_concurrent_subprocesses_codependencerc() {
+  cat >"$WORK_DIR/bin/npm" <<'SH'
 #!/bin/sh
 package="$2"
 other="alpha"
@@ -67,9 +72,9 @@ done
 
 printf '2.0.0\n'
 SH
-chmod +x "$WORK_DIR/bin/npm"
+  chmod +x "$WORK_DIR/bin/npm"
 
-cat > "$WORK_DIR/package.json" <<'JSON'
+  cat >"$WORK_DIR/package.json" <<'JSON'
 {
   "name": "binary-concurrency-test",
   "version": "1.0.0",
@@ -80,23 +85,29 @@ cat > "$WORK_DIR/package.json" <<'JSON'
 }
 JSON
 
-cat > "$WORK_DIR/.codependencerc" <<'JSON'
+  cat >"$WORK_DIR/.codependencerc" <<'JSON'
 {
   "mode": "verbose",
   "codependencies": ["alpha", "beta"]
 }
 JSON
+} # noqa: LEG038 -- Embedded fixture content is separate from shell control flow.
 
-PATH="$WORK_DIR/bin:$PATH"
-BINARY_CONCURRENCY_DIR="$WORK_DIR/running"
-export PATH BINARY_CONCURRENCY_DIR
-run_update "$WORK_DIR"
-assert_file_contains "$WORK_DIR/package.json" '"alpha": "2.0.0"' "binary concurrent subprocesses"
-assert_file_contains "$WORK_DIR/package.json" '"beta": "2.0.0"' "binary concurrent subprocess output"
+test_concurrent_subprocesses() {
+  make_tmp_dir
+  mkdir -p "$WORK_DIR/bin" "$WORK_DIR/running"
+  write_concurrent_subprocesses_codependencerc
 
-make_tmp_dir
-mkdir -p "$WORK_DIR/bin"
-cat > "$WORK_DIR/bin/go" <<'SH'
+  PATH="$WORK_DIR/bin:$PATH"
+  BINARY_CONCURRENCY_DIR="$WORK_DIR/running"
+  export PATH BINARY_CONCURRENCY_DIR
+  run_update "$WORK_DIR"
+  assert_file_contains "$WORK_DIR/package.json" '"alpha": "2.0.0"' "binary concurrent subprocesses"
+  assert_file_contains "$WORK_DIR/package.json" '"beta": "2.0.0"' "binary concurrent subprocess output"
+}
+
+write_go_subprocess_codependencerc() {
+  cat >"$WORK_DIR/bin/go" <<'SH'
 #!/bin/sh
 if [ "$*" = "list -m -versions example.com/dependency" ]; then
   printf 'example.com/dependency v1.0.0 v1.1.0\n'
@@ -111,9 +122,9 @@ fi
 printf 'Unexpected go arguments: %s\n' "$*" >&2
 exit 64
 SH
-chmod +x "$WORK_DIR/bin/go"
+  chmod +x "$WORK_DIR/bin/go"
 
-cat > "$WORK_DIR/go.mod" <<'MOD'
+  cat >"$WORK_DIR/go.mod" <<'MOD'
 module example.com/binary-test
 
 go 1.22
@@ -121,22 +132,29 @@ go 1.22
 require example.com/dependency v1.0.0
 MOD
 
-cat > "$WORK_DIR/.codependencerc" <<'JSON'
+  cat >"$WORK_DIR/.codependencerc" <<'JSON'
 {
   "mode": "verbose",
   "codependencies": ["example.com/dependency"]
 }
 JSON
+} # noqa: LEG038 -- Embedded fixture content is separate from shell control flow.
 
-PATH="$WORK_DIR/bin:$PATH"
-GO_TIDY_LOG="$WORK_DIR/go-tidy.log"
-export PATH GO_TIDY_LOG
-run_update "$WORK_DIR"
-assert_file_contains "$WORK_DIR/go.mod" 'example.com/dependency v1.1.0' "binary Go resolver subprocess"
-assert_file_contains "$WORK_DIR/go-tidy.log" 'tidied' "binary synchronous Go subprocess"
+test_go_subprocess() {
+  make_tmp_dir
+  mkdir -p "$WORK_DIR/bin"
+  write_go_subprocess_codependencerc
 
-make_tmp_dir
-cat > "$WORK_DIR/package.json" <<'JSON'
+  PATH="$WORK_DIR/bin:$PATH"
+  GO_TIDY_LOG="$WORK_DIR/go-tidy.log"
+  export PATH GO_TIDY_LOG
+  run_update "$WORK_DIR"
+  assert_file_contains "$WORK_DIR/go.mod" 'example.com/dependency v1.1.0' "binary Go resolver subprocess"
+  assert_file_contains "$WORK_DIR/go-tidy.log" 'tidied' "binary synchronous Go subprocess"
+}
+
+write_interactive_prompts_package_json() {
+  cat >"$WORK_DIR/package.json" <<'JSON'
 {
   "name": "binary-interactive-test",
   "version": "1.0.0",
@@ -145,7 +163,23 @@ cat > "$WORK_DIR/package.json" <<'JSON'
   }
 }
 JSON
+}
 
-python3 "$SCRIPT_DIR/test-binary-interactive.py" "$BINARY_CLI" "$WORK_DIR"
-assert_file_contains "$WORK_DIR/package.json" '"codependencies"' "binary streaming TTY prompts"
-assert_file_contains "$WORK_DIR/package.json" '"lodash"' "binary streaming TTY output"
+test_interactive_prompts() {
+  make_tmp_dir
+  write_interactive_prompts_package_json
+
+  python3 "$SCRIPT_DIR/test-binary-interactive.py" "$BINARY_CLI" "$WORK_DIR"
+  assert_file_contains "$WORK_DIR/package.json" '"codependencies"' "binary streaming TTY prompts"
+  assert_file_contains "$WORK_DIR/package.json" '"lodash"' "binary streaming TTY output"
+}
+
+main() {
+  require_built_cli
+  test_package_manager_subprocess
+  test_concurrent_subprocesses
+  test_go_subprocess
+  test_interactive_prompts
+}
+
+main

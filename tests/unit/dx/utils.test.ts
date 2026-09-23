@@ -4,6 +4,31 @@ import { assertCalledWith } from "../../helpers/assertions";
 import { Prompt, createPrompt, radio, select } from "../../../src/dx";
 import { createAnsiPattern } from "../../../src/dx/constants";
 
+const interactiveSelectShouldSupportScrollingAndSelectionShortcutsChoices = [
+  { name: "Pinned", value: "pinned", disabled: "pinned" },
+  { name: "Option 1", value: "opt1", checked: true, description: "compatible update" },
+  { name: "Option 2", value: "opt2" },
+  { name: "Option 3", value: "opt3" },
+  { name: "Option 4", value: "opt4" },
+  { name: "Option 5", value: "opt5" },
+  { name: "Option 6", value: "opt6" },
+  { name: "Option 7", value: "opt7" },
+  { name: "Option 8", value: "opt8" },
+  { name: "Option 9", value: "opt9" },
+];
+
+const interactiveSelectShouldSupportScrollingAndSelectionShortcutsExpected = [
+  "opt1",
+  "opt2",
+  "opt3",
+  "opt4",
+  "opt5",
+  "opt6",
+  "opt7",
+  "opt8",
+  "opt9",
+];
+
 type TTYStream = { isTTY?: boolean };
 type PromptKey = { name?: string; ctrl?: boolean };
 
@@ -79,6 +104,7 @@ const emitDown = (count: number): void => {
 
 const signalListeners = () => ["SIGINT", "SIGTERM"].map((signal) => process.listeners(signal));
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("Prompt", { concurrency: false }, () => {
   test("should create readline interface on construction", () => {
     const prompt = new Prompt();
@@ -280,12 +306,12 @@ describe("Prompt", { concurrency: false }, () => {
       { name: "Option 2", value: "opt2" },
     ];
 
-    const result = await withInteractiveTerminal(async () => {
+    const result = await withInteractiveTerminal(() => {
       const resultPromise = radio({ message: "Choose one", choices });
       emitKeypress("", { name: "down" });
       emitKeypress("", { name: "up" });
       emitKeypress("", { name: "return" });
-      return resultPromise;
+      return Promise.resolve(resultPromise);
     });
 
     assert.strictEqual(result, "opt1");
@@ -339,8 +365,9 @@ describe("Prompt", { concurrency: false }, () => {
             assert.deepStrictEqual(await pending, expected);
             const frames = write.mock.calls.map((call) => String(call.arguments[0]));
             const lines = frames.join("\n").replace(createAnsiPattern(), "").split("\n");
-            assert.ok(lines.includes(`› ${mark} abcdefghi...`), lines.join("\n"));
-            assert.ok(lines.includes("✔ Go: abcdefg..."), lines.join("\n"));
+            const outputLines = new Set(lines);
+            assert.ok(outputLines.has(`› ${mark} abcdefghi...`), lines.join("\n"));
+            assert.ok(outputLines.has("✔ Go: abcdefg..."), lines.join("\n"));
           } finally {
             write.mock.restore();
           }
@@ -356,11 +383,11 @@ describe("Prompt", { concurrency: false }, () => {
       { name: "Option 1", value: "opt1", disabled: false },
       { name: "Option 2", value: "opt2", disabled: false },
     ];
-    const result = await withInteractiveTerminal(async () => {
+    const result = await withInteractiveTerminal(() => {
       const pending = radio({ message: "Choose", choices });
       choices[0].disabled = true;
       process.stdin.emit("data", Buffer.from("\r\x1b[B\r"));
-      return pending;
+      return Promise.resolve(pending);
     });
 
     assert.strictEqual(result, "opt2");
@@ -368,10 +395,10 @@ describe("Prompt", { concurrency: false }, () => {
 
   test("interactive select should allow an empty selection when all choices are disabled", async () => {
     const choices = [{ name: "Pinned", value: "pinned", disabled: true, checked: true }];
-    const result = await withInteractiveTerminal(async () => {
+    const result = await withInteractiveTerminal(() => {
       const pending = select({ message: "Choose", choices });
       process.stdin.emit("data", Buffer.from("\r"));
-      return pending;
+      return Promise.resolve(pending);
     });
 
     assert.deepStrictEqual(result, []);
@@ -422,22 +449,13 @@ describe("Prompt", { concurrency: false }, () => {
 
   test("interactive select should support scrolling and selection shortcuts", async () => {
     const restoreColumns = setColumns(120);
-    const choices = [
-      { name: "Pinned", value: "pinned", disabled: "pinned" },
-      { name: "Option 1", value: "opt1", checked: true, description: "compatible update" },
-      { name: "Option 2", value: "opt2" },
-      { name: "Option 3", value: "opt3" },
-      { name: "Option 4", value: "opt4" },
-      { name: "Option 5", value: "opt5" },
-      { name: "Option 6", value: "opt6" },
-      { name: "Option 7", value: "opt7" },
-      { name: "Option 8", value: "opt8" },
-      { name: "Option 9", value: "opt9" },
-    ];
 
     try {
-      const result = await withInteractiveTerminal(async () => {
-        const resultPromise = select({ message: "Choose multiple", choices });
+      const result = await withInteractiveTerminal(() => {
+        const resultPromise = select({
+          message: "Choose multiple",
+          choices: interactiveSelectShouldSupportScrollingAndSelectionShortcutsChoices,
+        });
         process.stdin.emit("data", Buffer.from("x"));
         emitDown(9);
         emitKeypress("a");
@@ -447,20 +465,13 @@ describe("Prompt", { concurrency: false }, () => {
         emitKeypress(" ", { name: "space" });
         emitKeypress("a");
         emitKeypress("", { name: "enter" });
-        return resultPromise;
+        return Promise.resolve(resultPromise);
       });
 
-      assert.deepStrictEqual(result, [
-        "opt1",
-        "opt2",
-        "opt3",
-        "opt4",
-        "opt5",
-        "opt6",
-        "opt7",
-        "opt8",
-        "opt9",
-      ]);
+      assert.deepStrictEqual(
+        result,
+        interactiveSelectShouldSupportScrollingAndSelectionShortcutsExpected,
+      );
     } finally {
       restoreColumns();
     }
@@ -798,7 +809,7 @@ describe("Prompt", { concurrency: false }, () => {
 
 describe("createPrompt", () => {
   test("should create prompt and execute callback", async () => {
-    const result = await createPrompt(async () => "test result");
+    const result = await createPrompt(() => Promise.resolve("test result"));
 
     assert.strictEqual(result, "test result");
   });
@@ -806,9 +817,9 @@ describe("createPrompt", () => {
   test("should close prompt after callback", async () => {
     let promptInstance: Prompt | null = null;
 
-    await createPrompt(async (prompt) => {
+    await createPrompt((prompt) => {
       promptInstance = prompt;
-      return "test";
+      return Promise.resolve("test");
     });
 
     assert.notStrictEqual(promptInstance, undefined);
@@ -816,9 +827,7 @@ describe("createPrompt", () => {
 
   test("should handle callback errors", async () => {
     try {
-      await createPrompt(async () => {
-        throw new Error("Test error");
-      });
+      await createPrompt(() => Promise.reject(new Error("Test error")));
       assert.strictEqual(true, false);
     } catch (err) {
       assert.strictEqual((err as Error).message, "Test error");

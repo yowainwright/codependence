@@ -241,6 +241,11 @@ export interface ParsedCondaDependencyLine {
   readonly suffix: string;
 }
 
+export interface CondaWriteState {
+  inDependencies: boolean;
+  dependencyItemIndent: number | null;
+}
+
 export type PyprojectDependencySection =
   | "dependencies"
   | "devDependencies"

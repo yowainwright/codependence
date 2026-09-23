@@ -6,6 +6,7 @@ import {
   parsePoetryLine,
 } from "../../../../src/providers/python";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("parseRequirementLine", () => {
   test("parses pinned version with ==", () => {
     const result = parseRequirementLine("requests==2.31.0");

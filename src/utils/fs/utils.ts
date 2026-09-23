@@ -7,101 +7,87 @@ import type {
   DirectMatchState,
   DirectMatchStep,
   GlobOptions,
+  PatternMatchContext,
   PatternPlan,
 } from "./types";
 
 const normalizePath = (path: string): string => path.replaceAll("\\", "/");
 
 const matchPatternAt = (
-  value: string,
-  pattern: string,
+  context: PatternMatchContext,
   valueIndex: number,
   patternIndex: number,
-  cache: Map<number, boolean>,
 ): boolean => {
+  const { pattern, cache } = context;
   const cacheKey = valueIndex * (pattern.length + 1) + patternIndex;
   const cached = cache.get(cacheKey);
   if (cached !== undefined) return cached;
 
-  const result = calculatePatternMatch(value, pattern, valueIndex, patternIndex, cache);
+  const result = calculatePatternMatch(context, valueIndex, patternIndex);
   cache.set(cacheKey, result);
   return result;
 };
 
 const matchGlobStarDirectory = (
-  value: string,
-  pattern: string,
+  context: PatternMatchContext,
   valueIndex: number,
   patternIndex: number,
-  cache: Map<number, boolean>,
 ): boolean => {
-  const matchesWithoutDirectory = matchPatternAt(
-    value,
-    pattern,
-    valueIndex,
-    patternIndex + 3,
-    cache,
-  );
+  const matchesWithoutDirectory = matchPatternAt(context, valueIndex, patternIndex + 3);
   if (matchesWithoutDirectory) return true;
 
-  const slashIndex = value.indexOf("/", valueIndex);
+  const slashIndex = context.value.indexOf("/", valueIndex);
   if (slashIndex === -1) return false;
-  return matchPatternAt(value, pattern, slashIndex + 1, patternIndex, cache);
+  return matchPatternAt(context, slashIndex + 1, patternIndex);
 };
 
 const matchGlobStar = (
-  value: string,
-  pattern: string,
+  context: PatternMatchContext,
   valueIndex: number,
   patternIndex: number,
-  cache: Map<number, boolean>,
 ): boolean => {
-  const matchesEmpty = matchPatternAt(value, pattern, valueIndex, patternIndex + 2, cache);
+  const matchesEmpty = matchPatternAt(context, valueIndex, patternIndex + 2);
   if (matchesEmpty) return true;
-  if (valueIndex === value.length) return false;
-  return matchPatternAt(value, pattern, valueIndex + 1, patternIndex, cache);
+  if (valueIndex === context.value.length) return false;
+  return matchPatternAt(context, valueIndex + 1, patternIndex);
 };
 
 const matchStar = (
-  value: string,
-  pattern: string,
+  context: PatternMatchContext,
   valueIndex: number,
   patternIndex: number,
-  cache: Map<number, boolean>,
 ): boolean => {
-  const matchesEmpty = matchPatternAt(value, pattern, valueIndex, patternIndex + 1, cache);
+  const { value } = context;
+  const matchesEmpty = matchPatternAt(context, valueIndex, patternIndex + 1);
   if (matchesEmpty) return true;
   const isAtEnd = valueIndex === value.length;
   const isAtSeparator = value[valueIndex] === "/";
   const cannotConsumeCharacter = isAtEnd || isAtSeparator;
   if (cannotConsumeCharacter) return false;
-  return matchPatternAt(value, pattern, valueIndex + 1, patternIndex, cache);
+  return matchPatternAt(context, valueIndex + 1, patternIndex);
 };
 
 const calculatePatternMatch = (
-  value: string,
-  pattern: string,
+  context: PatternMatchContext,
   valueIndex: number,
   patternIndex: number,
-  cache: Map<number, boolean>,
 ): boolean => {
+  const { value, pattern } = context;
   if (patternIndex === pattern.length) return valueIndex === value.length;
   const character = pattern[patternIndex];
   const isGlobStar = character === "*" && pattern[patternIndex + 1] === "*";
   const isGlobStarDirectory = isGlobStar && pattern[patternIndex + 2] === "/";
   if (isGlobStarDirectory) {
-    return matchGlobStarDirectory(value, pattern, valueIndex, patternIndex, cache);
+    return matchGlobStarDirectory(context, valueIndex, patternIndex);
   }
-  if (isGlobStar) return matchGlobStar(value, pattern, valueIndex, patternIndex, cache);
-  if (character === "*") return matchStar(value, pattern, valueIndex, patternIndex, cache);
+  if (isGlobStar) return matchGlobStar(context, valueIndex, patternIndex);
+  if (character === "*") return matchStar(context, valueIndex, patternIndex);
   const isAtEnd = valueIndex === value.length;
   const isQuestionAtSeparator = value[valueIndex] === "/" && character === "?";
   const cannotMatchCharacter = isAtEnd || isQuestionAtSeparator;
   if (cannotMatchCharacter) return false;
   const matchesCharacter = character === "?" || character === value[valueIndex];
-  return (
-    matchesCharacter && matchPatternAt(value, pattern, valueIndex + 1, patternIndex + 1, cache)
-  );
+  return matchesCharacter && matchPatternAt(context, valueIndex + 1, patternIndex + 1);
 };
 
 const isLiteralPattern = (pattern: string): boolean =>
@@ -114,7 +100,8 @@ const toProjectPattern = (pattern: string, cwd: string): string => {
 
 const matchesPattern = (filePath: string, pattern: string): boolean => {
   if (isLiteralPattern(pattern)) return filePath === pattern;
-  return matchPatternAt(filePath, pattern, 0, 0, new Map());
+  const context = { value: filePath, pattern, cache: new Map<number, boolean>() };
+  return matchPatternAt(context, 0, 0);
 };
 
 const matchesAnyIgnore = (filePath: string, ignorePatterns: string[]): boolean =>
@@ -298,14 +285,11 @@ const collectCandidateMatches = (
 
 const applyDirectMatchStep = (
   state: DirectMatchState,
-  segment: string,
-  index: number,
-  segments: string[],
+  step: DirectMatchStep,
   context: DirectMatchContext,
 ): DirectMatchState => {
   if (state.candidates.length === 0) return state;
 
-  const step = toDirectMatchStep(segment, index, segments);
   const items = state.candidates.flatMap((candidate) =>
     collectCandidateMatches(candidate, step, context),
   );
@@ -319,11 +303,10 @@ const collectDirectMatches = (pattern: string, cwd: string, ignorePatterns: stri
 
   const context = createDirectMatchContext(cwd, ignorePatterns);
   const initialState = createInitialDirectMatchState(plan.root);
-  const finalState = plan.remainingSegments.reduce(
-    (state, segment, index, segments) =>
-      applyDirectMatchStep(state, segment, index, segments, context),
-    initialState,
-  );
+  const finalState = plan.remainingSegments.reduce((state, segment, index, segments) => {
+    const step = toDirectMatchStep(segment, index, segments);
+    return applyDirectMatchStep(state, step, context);
+  }, initialState);
 
   return finalState.results;
 };

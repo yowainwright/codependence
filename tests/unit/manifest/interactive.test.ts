@@ -24,9 +24,9 @@ cases.forEach(({ mode, codependencies }) => {
       filePath: "package.json",
       dependencies: { alpha: "1.0.0", beta: "1.0.0", gamma: "1.0.0" },
     }));
-    mock.method(NodeJSProvider.prototype, "getLatestVersion", async () => "2.0.0");
+    mock.method(NodeJSProvider.prototype, "getLatestVersion", () => Promise.resolve("2.0.0"));
     const write = mock.method(NodeJSProvider.prototype, "writeManifest", () => {});
-    mock.method(Prompt.prototype, "select", async () => ["alpha"]);
+    mock.method(Prompt.prototype, "select", () => Promise.resolve(["alpha"]));
 
     await checkFiles({
       files: ["package.json"],
@@ -53,13 +53,11 @@ test("interactive Docker updates exclude unselected per-tag resolutions", async 
     dependencies: { node: "20-alpine", redis: "7-alpine" },
     dependencyVersions: { node: ["20-slim", "20-alpine"], redis: ["7-slim", "7-alpine"] },
   }));
-  mock.method(
-    DockerProvider.prototype,
-    "getLatestVersion",
-    async (_, tag: string) => `24-${tag.split("-")[1]}`,
+  mock.method(DockerProvider.prototype, "getLatestVersion", (_, tag: string) =>
+    Promise.resolve(`24-${tag.split("-")[1]}`),
   );
   const write = mock.method(DockerProvider.prototype, "writeManifest", () => {});
-  mock.method(Prompt.prototype, "select", async () => ["node"]);
+  mock.method(Prompt.prototype, "select", () => Promise.resolve(["node"]));
 
   await checkFiles({
     files: ["package.json"],

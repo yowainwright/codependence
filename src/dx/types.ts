@@ -37,3 +37,23 @@ export interface PromptDependencies {
   selectPrompt?: SelectPrompt;
   interactive?: boolean;
 }
+
+export type SelectorMode = "radio" | "select";
+export type SelectorState = {
+  cursorIndex: number;
+  selected: boolean[];
+  viewportStart: number;
+};
+export type PromptKey = { name?: string; ctrl?: boolean };
+
+export interface SelectorSession extends ChoicePromptOptions {
+  mode: SelectorMode;
+  state: SelectorState;
+  previousLineCount: number;
+  isFinished: boolean;
+  resolve: (value: string | string[]) => void;
+  reject: (error: unknown) => void;
+  onKeypress: (input?: string, key?: PromptKey) => void;
+  onInterrupt: () => void;
+  onTerminate: () => void;
+}

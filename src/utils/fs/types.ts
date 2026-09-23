@@ -9,6 +9,12 @@ export interface PatternPlan {
   hasGlobStar: boolean;
 }
 
+export interface PatternMatchContext {
+  value: string;
+  pattern: string;
+  cache: Map<number, boolean>;
+}
+
 export interface DirectMatchContext {
   cwd: string;
   ignorePatterns: string[];

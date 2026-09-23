@@ -23,6 +23,7 @@ const providers = (): DependencyProvider[] => [
   new GitHubActionsProvider(),
 ];
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("provider contracts", () => {
   const tmpDir = join(import.meta.dirname, ".tmp-provider-contracts");
 

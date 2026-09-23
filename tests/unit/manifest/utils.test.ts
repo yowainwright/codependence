@@ -13,6 +13,7 @@ import type { VersionDiff } from "../../../src/types";
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("buildVersionDiff", () => {
   test("should build version diffs for dependencies", () => {
     const versionMap = {
@@ -30,7 +31,9 @@ describe("buildVersionDiff", () => {
     const codependencies = ["lodash"];
     const permissive = false;
 
-    const diffs = buildVersionDiff(versionMap, packageJson, codependencies, permissive);
+    const diffs = buildVersionDiff(versionMap, packageJson, codependencies, {
+      permissive: permissive,
+    });
 
     assert.strictEqual(diffs.length, 2);
     assertMatchObject(diffs[0], {
@@ -65,7 +68,9 @@ describe("buildVersionDiff", () => {
     const codependencies = ["lodash"];
     const permissive = true;
 
-    const diffs = buildVersionDiff(versionMap, packageJson, codependencies, permissive);
+    const diffs = buildVersionDiff(versionMap, packageJson, codependencies, {
+      permissive: permissive,
+    });
 
     assert.strictEqual(diffs[0].willUpdate, false);
     assert.strictEqual(diffs[1].willUpdate, true);
@@ -81,7 +86,7 @@ describe("buildVersionDiff", () => {
         },
       },
       [],
-      true,
+      { permissive: true },
     );
 
     assert.strictEqual(diffs[0].willUpdate, false);
@@ -97,7 +102,7 @@ describe("buildVersionDiff", () => {
         },
       },
       ["lodash"],
-      false,
+      { permissive: false },
     );
 
     assert.strictEqual(diffs[0].willUpdate, true);
@@ -113,7 +118,7 @@ describe("buildVersionDiff", () => {
         },
       },
       ["lodash"],
-      false,
+      { permissive: false },
     );
 
     assert.strictEqual(diffs[0].willUpdate, true);
@@ -134,7 +139,9 @@ describe("buildVersionDiff", () => {
     const codependencies = ["jest"];
     const permissive = false;
 
-    const diffs = buildVersionDiff(versionMap, packageJson, codependencies, permissive);
+    const diffs = buildVersionDiff(versionMap, packageJson, codependencies, {
+      permissive: permissive,
+    });
 
     assert.strictEqual(diffs.length, 1);
     assert.strictEqual(diffs[0].package, "jest");
@@ -154,7 +161,9 @@ describe("buildVersionDiff", () => {
     const codependencies = [];
     const permissive = false;
 
-    const diffs = buildVersionDiff(versionMap, packageJson, codependencies, permissive);
+    const diffs = buildVersionDiff(versionMap, packageJson, codependencies, {
+      permissive: permissive,
+    });
 
     assert.strictEqual(diffs.length, 1);
     assert.strictEqual(diffs[0].package, "react");
@@ -170,7 +179,7 @@ describe("buildVersionDiff", () => {
         versionStrategy: "exact",
       },
       ["action"],
-      false,
+      { permissive: false },
     );
 
     assert.strictEqual(diffs[0].current, "1.0.0");
@@ -185,7 +194,7 @@ describe("buildVersionDiff", () => {
         dependencyVersions: { action: ["1.0.0", "1.5.0", "2.0.0"] },
       },
       ["action"],
-      false,
+      { permissive: false },
     );
 
     assert.strictEqual(diffs[0].current, "1.5.0");
@@ -205,7 +214,7 @@ describe("buildVersionDiff", () => {
         versionStrategy: "exact",
       },
       ["node"],
-      false,
+      { permissive: false },
     );
 
     assert.deepStrictEqual(diffs, [
@@ -243,13 +252,16 @@ describe("buildVersionDiff", () => {
     const codependencies = [];
     const permissive = false;
 
-    const diffs = buildVersionDiff(versionMap, packageJson, codependencies, permissive);
+    const diffs = buildVersionDiff(versionMap, packageJson, codependencies, {
+      permissive: permissive,
+    });
 
     assert.strictEqual(diffs.length, 1);
     assert.strictEqual(diffs[0].package, "lodash");
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("displayVersionDiffs", () => {
   test("should display diffs when changes exist", () => {
     const diffs: VersionDiff[] = [
@@ -337,8 +349,8 @@ describe("displayVersionDiffs", () => {
     displayVersionDiffs(diffs);
     const output = consoleSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
 
-    assert.ok(!output.includes("typescript"));
-    assert.ok(output.includes("oxlint"));
+    assert.doesNotMatch(output, /typescript/);
+    assert.match(output, /oxlint/);
     consoleSpy.mock.restore();
   });
 });
@@ -353,13 +365,10 @@ describe("collectDiffsFromManifests", () => {
     test(`keeps actionable duplicates for ${currentVersions.join(", ")}`, () => {
       const manifests = currentVersions.map((current) => ({ dependencies: { lodash: current } }));
 
-      const diffs = collectDiffsFromManifests(
-        { lodash: "2.0.1" },
-        manifests,
-        ["lodash"],
-        false,
-        "patch",
-      );
+      const diffs = collectDiffsFromManifests({ lodash: "2.0.1" }, manifests, ["lodash"], {
+        permissive: false,
+        level: "patch",
+      });
 
       assert.deepStrictEqual(diffs, [
         {
@@ -379,7 +388,7 @@ describe("collectDiffsFromManifests", () => {
       { lodash: "2.0.0" },
       [{ dependencies: { lodash: "2.0.0" }, devDependencies: { lodash: "1.0.0" } }],
       [],
-      true,
+      { permissive: true },
     );
 
     assert.strictEqual(diffs.length, 1);
@@ -408,6 +417,7 @@ describe("deduplicateVersionDiffs", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("collectAllDiffs", () => {
   const testDir = join(process.cwd(), "test-version-diff-temp");
 
@@ -442,17 +452,15 @@ describe("collectAllDiffs", () => {
     const codependencies = ["lodash"];
     const permissive = false;
 
-    const diffs = collectAllDiffs(versionMap, files, testDir + "/", codependencies, permissive);
+    const diffs = collectAllDiffs(versionMap, files, testDir + "/", {
+      codependencies: codependencies,
+      permissive: permissive,
+    });
 
     assert.strictEqual(diffs.length, 2);
-    assert.notStrictEqual(
-      diffs.find((d) => d.package === "lodash"),
-      undefined,
-    );
-    assert.notStrictEqual(
-      diffs.find((d) => d.package === "express"),
-      undefined,
-    );
+    const packages = new Set(diffs.map((diff) => diff.package));
+    assert.ok(packages.has("lodash"));
+    assert.ok(packages.has("express"));
   });
 
   test("should deduplicate packages across files", () => {
@@ -477,7 +485,10 @@ describe("collectAllDiffs", () => {
     const codependencies = [];
     const permissive = false;
 
-    const diffs = collectAllDiffs(versionMap, files, testDir + "/", codependencies, permissive);
+    const diffs = collectAllDiffs(versionMap, files, testDir + "/", {
+      codependencies: codependencies,
+      permissive: permissive,
+    });
 
     assert.strictEqual(diffs.length, 1);
     assert.strictEqual(diffs[0].package, "lodash");
@@ -496,13 +507,10 @@ describe("collectAllDiffs", () => {
 
     writeFileSync(join(testDir, "Dockerfile.json"), JSON.stringify(manifest));
 
-    const diffs = collectAllDiffs(
-      { node: "24-slim" },
-      ["Dockerfile.json"],
-      testDir + "/",
-      ["node"],
-      false,
-    );
+    const diffs = collectAllDiffs({ node: "24-slim" }, ["Dockerfile.json"], testDir + "/", {
+      codependencies: ["node"],
+      permissive: false,
+    });
 
     assert.deepStrictEqual(
       diffs.map(({ current }) => current),
@@ -511,6 +519,7 @@ describe("collectAllDiffs", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("validatePackageName", () => {
   test("rejects missing and non-string package names", () => {
     assertMatchObject(validatePackageName(null), {

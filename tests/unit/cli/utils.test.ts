@@ -2,6 +2,7 @@ import { describe, test, mock } from "node:test";
 import assert from "node:assert/strict";
 import { parseArgs, showHelp } from "../../../src/cli/utils";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("parseArgs", () => {
   const baseArgs = ["node", "script.js"];
 
@@ -439,10 +440,10 @@ describe("showHelp", () => {
 
     assert.ok(consoleSpy.mock.callCount() > 0);
     const callArg = consoleSpy.mock.calls[0].arguments[0] as string;
-    assert.ok(callArg.includes("Codependence"));
-    assert.ok(callArg.includes("Usage:"));
-    assert.ok(callArg.includes("Commands:"));
-    assert.ok(callArg.includes("Options:"));
+    assert.match(callArg, /Codependence/);
+    assert.match(callArg, /Usage:/);
+    assert.match(callArg, /Commands:/);
+    assert.match(callArg, /Options:/);
 
     consoleSpy.mock.restore();
   });
@@ -452,12 +453,12 @@ describe("showHelp", () => {
     showHelp();
 
     const callArg = consoleSpy.mock.calls[0].arguments[0] as string;
-    assert.ok(callArg.includes("--dryRun"));
-    assert.ok(callArg.includes("--interactive"));
-    assert.ok(callArg.includes("--watch"));
-    assert.ok(callArg.includes("--noCache"));
-    assert.ok(callArg.includes("--styleguide"));
-    assert.ok(callArg.includes("--legend"));
+    assert.match(callArg, /--dryRun/);
+    assert.match(callArg, /--interactive/);
+    assert.match(callArg, /--watch/);
+    assert.match(callArg, /--noCache/);
+    assert.match(callArg, /--styleguide/);
+    assert.match(callArg, /--legend/);
 
     consoleSpy.mock.restore();
   });

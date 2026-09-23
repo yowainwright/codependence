@@ -155,6 +155,17 @@ const normalizeLockfile = (options: Record<string, unknown>): Record<string, unk
   return options;
 };
 
+const argumentValue = (
+  args: string[],
+  index: number,
+  def: OptionDefinition,
+  inlineValue: string | undefined,
+): CollectedValue => {
+  if (inlineValue !== undefined) return { value: inlineValue, consumed: 0 };
+  if (!def.hasValue) return { value: true, consumed: 0 };
+  return collectValue(args, index, def);
+};
+
 const processArgument = (args: string[], index: number, state: ArgumentState): ArgumentResult => {
   const arg = args[index];
   const isPositionalArg = !isFlag(arg);
@@ -176,29 +187,7 @@ const processArgument = (args: string[], index: number, state: ArgumentState): A
   }
 
   const key = getOptionKey(def);
-  const hasInlineValue = inlineValue !== undefined;
-
-  if (hasInlineValue) {
-    const updatedOptions = Object.assign({}, state.options, { [key]: inlineValue });
-    return {
-      nextIndex: index + 1,
-      options: updatedOptions,
-      command: state.command,
-    };
-  }
-
-  const isBooleanFlag = !def.hasValue;
-
-  if (isBooleanFlag) {
-    const updatedOptions = Object.assign({}, state.options, { [key]: true });
-    return {
-      nextIndex: index + 1,
-      options: updatedOptions,
-      command: state.command,
-    };
-  }
-
-  const { value, consumed } = collectValue(args, index, def);
+  const { value, consumed } = argumentValue(args, index, def, inlineValue);
   const updatedOptions = Object.assign({}, state.options, { [key]: value });
   const nextIndex = index + consumed + 1;
 

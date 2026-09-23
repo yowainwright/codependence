@@ -24,9 +24,9 @@ const mockDocker = () => {
     dependencies: { node: "20-alpine" },
     dependencyVersions: { node: ["20-slim", "20-alpine"] },
   }));
-  return mock.method(DockerProvider.prototype, "getLatestVersion", async (_, tag: string) => {
-    if (tag === "20-slim") return "24-slim";
-    return "24-alpine";
+  return mock.method(DockerProvider.prototype, "getLatestVersion", (_, tag: string) => {
+    if (tag === "20-slim") return Promise.resolve("24-slim");
+    return Promise.resolve("24-alpine");
   });
 };
 

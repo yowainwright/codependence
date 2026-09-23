@@ -34,6 +34,11 @@ interface KustomizeUpdate {
   readonly line: number;
 }
 
+interface KustomizeCollection {
+  manifest: DependencyManifest;
+  updates: KustomizeUpdate[];
+}
+
 const isIgnoredLine = (line: string): boolean => {
   const trimmed = line.trim();
   if (!trimmed) return true;
@@ -46,7 +51,8 @@ const exitsImages = (state: KustomizeState, line: string): boolean => {
 
   const indent = line.search(/\S/);
   const isListItem = line.trimStart().startsWith("-");
-  return indent <= state.imagesIndent && !isListItem;
+  const isOutsideImages = indent <= state.imagesIndent && !isListItem;
+  return isOutsideImages;
 };
 
 const imageName = (draft: KustomizeImageDraft): string | null => {
@@ -59,8 +65,8 @@ const imageVersion = (draft: KustomizeImageDraft): string | null => {
   const hasTag = Boolean(draft.newTag);
   const hasDigest = Boolean(draft.digest);
   if (hasTag === hasDigest) return null;
-  if (hasTag && isSafeImageVersion(draft.newTag)) return draft.newTag;
-  if (hasDigest && isSafeDigest(draft.digest)) return draft.digest;
+  if (isSafeImageVersion(draft.newTag)) return draft.newTag;
+  if (isSafeDigest(draft.digest)) return draft.digest;
   return null;
 };
 
@@ -79,11 +85,12 @@ const finalizeImage = (
 
   const name = imageName(draft);
   const version = imageVersion(draft);
-  if (!name || !version) return;
+  const hasDependency = name !== null && version !== null;
+  if (!hasDependency) return;
 
   appendDependencyVersion(manifest, name, version);
   const line = imageUpdateLine(draft);
-  if (line !== null) updates.push({ line, name });
+  if (line !== null) updates[updates.length] = { line, name };
 };
 
 const assignImageField = (
@@ -102,21 +109,24 @@ const assignImageField = (
 
 const readImageLine = (
   state: KustomizeState,
-  manifest: DependencyManifest,
-  updates: KustomizeUpdate[],
+  collection: KustomizeCollection,
   line: string,
   lineIndex: number,
 ): KustomizeState => {
+  const { manifest, updates } = collection;
   const exited = exitsImages(state, line);
   const base = exited ? Object.assign({}, state, { current: null, inImages: false }) : state;
   if (exited) finalizeImage(manifest, updates, state.current);
 
   const field = readYamlFieldLine(line);
-  if (field?.key === "images" && field.indent === 0 && !field.listItem) {
+  const isRootImages = field?.key === "images" && field.indent === 0;
+  const opensImages = isRootImages && !field.listItem;
+  if (opensImages) {
     finalizeImage(manifest, updates, base.current);
     return { current: null, imagesIndent: field.indent, inImages: true };
   }
-  if (!base.inImages || !field) return base;
+  if (!base.inImages) return base;
+  if (!field) return base;
 
   const current = field.listItem ? {} : base.current;
   if (field.listItem) finalizeImage(manifest, updates, base.current);
@@ -133,10 +143,11 @@ const collectImages = (
 ): { manifest: DependencyManifest; updates: KustomizeUpdate[] } => {
   const manifest = emptyInfraManifest(filePath);
   const updates: KustomizeUpdate[] = [];
+  const collection = { manifest, updates };
   const initial = { current: null, imagesIndent: -1, inImages: false };
   const state = content
     .split("\n")
-    .reduce((acc, line, index) => readImageLine(acc, manifest, updates, line, index), initial);
+    .reduce((acc, line, index) => readImageLine(acc, collection, line, index), initial);
   finalizeImage(manifest, updates, state.current);
   return { manifest, updates };
 };
@@ -149,11 +160,11 @@ export class KustomizeProvider implements DependencyProvider {
     versionStrategy: "exact",
   } as const;
 
-  async getLatestVersion(): Promise<string> {
+  getLatestVersion(): Promise<string> {
     return manifestOnlyResolution("Kustomize");
   }
 
-  async getAllVersions(): Promise<string[]> {
+  getAllVersions(): Promise<string[]> {
     return manifestOnlyResolution("Kustomize");
   }
 
@@ -176,7 +187,5 @@ export class KustomizeProvider implements DependencyProvider {
     writeFileSync(filePath, lines.join("\n"));
   }
 
-  validatePackageName(packageName: string): boolean {
-    return isSafeImageName(packageName);
-  }
+  validatePackageName = isSafeImageName;
 }

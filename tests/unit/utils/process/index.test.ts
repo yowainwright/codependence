@@ -3,19 +3,19 @@ import assert from "node:assert/strict";
 import { assertCalledWith, assertNthCalledWith } from "../../../helpers/assertions";
 import { exec } from "../../../../src/utils/process";
 
-const makeExecFileFn = (result: { stdout: string; stderr: string }) => mock.fn(async () => result);
+const makeExecFileFn = (result: { stdout: string; stderr: string }) =>
+  mock.fn(() => Promise.resolve(result));
 
-const makeSleepFn = () => mock.fn(async () => undefined);
+const makeSleepFn = () => mock.fn(() => Promise.resolve(undefined));
 
 const rejectOnceThenResolve = <T>(error: unknown, result: T) => {
   const execFileFn = mock.fn();
-  execFileFn.mock.mockImplementationOnce(async () => {
-    throw error;
-  });
-  execFileFn.mock.mockImplementationOnce(async () => result, 1);
+  execFileFn.mock.mockImplementationOnce(() => Promise.reject(error));
+  execFileFn.mock.mockImplementationOnce(() => Promise.resolve(result), 1);
   return execFileFn;
 };
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("exec", () => {
   describe("success path", () => {
     it("returns stdout and stderr from execFileFn", async () => {
@@ -26,7 +26,7 @@ describe("exec", () => {
     });
 
     it("normalizes undefined stdout/stderr to empty string", async () => {
-      const execFileFn = mock.fn(async () => ({ stdout: undefined, stderr: undefined }));
+      const execFileFn = mock.fn(() => Promise.resolve({ stdout: undefined, stderr: undefined }));
       const sleepFn = makeSleepFn();
       const result = await exec("npm", ["view"], { execFileFn, sleepFn });
       assert.deepStrictEqual(result, { stdout: "", stderr: "" });
@@ -43,12 +43,11 @@ describe("exec", () => {
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("non-retryable errors", () => {
     it("throws immediately on ENOENT without sleeping", async () => {
       const error = Object.assign(new Error("not found"), { code: "ENOENT" });
-      const execFileFn = mock.fn(async () => {
-        throw error;
-      });
+      const execFileFn = mock.fn(() => Promise.reject(error));
       const sleepFn = makeSleepFn();
       await assert.rejects(exec("npm", ["view"], { execFileFn, sleepFn }), (error) => {
         assert.strictEqual(error, error);
@@ -59,9 +58,7 @@ describe("exec", () => {
 
     it("throws immediately on generic error message without sleeping", async () => {
       const error = new Error("something went wrong");
-      const execFileFn = mock.fn(async () => {
-        throw error;
-      });
+      const execFileFn = mock.fn(() => Promise.reject(error));
       const sleepFn = makeSleepFn();
       await assert.rejects(exec("npm", ["view"], { execFileFn, sleepFn }), (error) => {
         assert.strictEqual(error, error);
@@ -71,9 +68,7 @@ describe("exec", () => {
     });
 
     it("throws immediately for non-object error (string)", async () => {
-      const execFileFn = mock.fn(async () => {
-        throw "string error";
-      });
+      const execFileFn = mock.fn(() => Promise.reject("string error"));
       const sleepFn = makeSleepFn();
       await assert.rejects(exec("npm", ["view"], { execFileFn, sleepFn }), (error) => {
         assert.strictEqual(error, "string error");
@@ -83,9 +78,7 @@ describe("exec", () => {
     });
 
     it("throws immediately for empty object error", async () => {
-      const execFileFn = mock.fn(async () => {
-        throw {};
-      });
+      const execFileFn = mock.fn(() => Promise.reject({}));
       const sleepFn = makeSleepFn();
       await assert.rejects(exec("npm", ["view"], { execFileFn, sleepFn }), (error) => {
         assert.deepStrictEqual(error, {});
@@ -139,9 +132,7 @@ describe("exec", () => {
   describe("retry exhaustion", () => {
     it("throws after maxRetries attempts", async () => {
       const error = Object.assign(new Error("timeout"), { code: "ETIMEDOUT" });
-      const execFileFn = mock.fn(async () => {
-        throw error;
-      });
+      const execFileFn = mock.fn(() => Promise.reject(error));
       const sleepFn = makeSleepFn();
       await assert.rejects(
         exec("npm", ["view"], { execFileFn, sleepFn, maxRetries: 3, retryDelay: 0 }),
@@ -158,9 +149,7 @@ describe("exec", () => {
   describe("backoff timing", () => {
     it("calls sleepFn with exponential backoff based on retryDelay", async () => {
       const error = Object.assign(new Error("timeout"), { code: "ETIMEDOUT" });
-      const execFileFn = mock.fn(async () => {
-        throw error;
-      });
+      const execFileFn = mock.fn(() => Promise.reject(error));
       const sleepFn = makeSleepFn();
       await assert.rejects(
         exec("npm", ["view"], { execFileFn, sleepFn, maxRetries: 3, retryDelay: 100 }),
@@ -195,9 +184,7 @@ describe("exec", () => {
 
     it("defaults maxRetries to 3 (verified by exhaustion call count)", async () => {
       const error = Object.assign(new Error("timeout"), { code: "ETIMEDOUT" });
-      const execFileFn = mock.fn(async () => {
-        throw error;
-      });
+      const execFileFn = mock.fn(() => Promise.reject(error));
       const sleepFn = makeSleepFn();
       await assert.rejects(
         exec("npm", ["view"], { execFileFn, sleepFn, retryDelay: 0 }),

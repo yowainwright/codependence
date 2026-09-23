@@ -17,89 +17,102 @@ cleanup() {
 
 trap cleanup EXIT
 
-echo "=== Testing codependence with Python and Go ==="
+fail() {
+  echo "$1"
+  exit 1
+}
 
-# Test 1: Python requirements.txt
-echo "\n1. Testing Python requirements.txt..."
-cp python-requirements.txt.fixture requirements.txt
-cp .codependencerc-python .codependencerc
-if node ./dist/cli.js --debug 2>&1 | grep -q "requests\|flask\|django"; then
+test_python_requirements() {
+  # Test 1: Python requirements.txt
+  printf '\n%s\n' "1. Testing Python requirements.txt..."
+  cp python-requirements.txt.fixture requirements.txt
+  cp .codependencerc-python .codependencerc
+  node ./dist/cli.js --debug 2>&1 | grep -q "requests\|flask\|django" || fail "✗ Python requirements.txt test failed"
   echo "✓ Python requirements.txt test passed"
-else
-  echo "✗ Python requirements.txt test failed"
-  exit 1
-fi
-rm -f requirements.txt .codependencerc
+  rm -f requirements.txt .codependencerc
+}
 
-# Test 2: Python pyproject.toml (poetry)
-echo "\n2. Testing Python pyproject.toml (poetry)..."
-cp python-pyproject.toml.fixture pyproject.toml
-cp .codependencerc-python .codependencerc
-if node ./dist/cli.js --debug 2>&1 | grep -q "requests\|flask\|django"; then
+test_python_poetry() {
+  # Test 2: Python pyproject.toml (poetry)
+  printf '\n%s\n' "2. Testing Python pyproject.toml (poetry)..."
+  cp python-pyproject.toml.fixture pyproject.toml
+  cp .codependencerc-python .codependencerc
+  node ./dist/cli.js --debug 2>&1 | grep -q "requests\|flask\|django" || fail "✗ Python pyproject.toml test failed"
   echo "✓ Python pyproject.toml test passed"
-else
-  echo "✗ Python pyproject.toml test failed"
-  exit 1
-fi
-rm -f pyproject.toml .codependencerc
+  rm -f pyproject.toml .codependencerc
+}
 
-# Test 3: Python Pipfile (pipenv)
-echo "\n3. Testing Python Pipfile..."
-cp python-Pipfile.fixture Pipfile
-cp .codependencerc-python .codependencerc
-if node ./dist/cli.js --debug 2>&1 | grep -q "requests\|flask\|django"; then
+test_python_pipenv() {
+  # Test 3: Python Pipfile (pipenv)
+  printf '\n%s\n' "3. Testing Python Pipfile..."
+  cp python-Pipfile.fixture Pipfile
+  cp .codependencerc-python .codependencerc
+  node ./dist/cli.js --debug 2>&1 | grep -q "requests\|flask\|django" || fail "✗ Python Pipfile test failed"
   echo "✓ Python Pipfile test passed"
-else
-  echo "✗ Python Pipfile test failed"
-  exit 1
-fi
-rm -f Pipfile .codependencerc
+  rm -f Pipfile .codependencerc
+}
 
-# Test 4: Go go.mod
-echo "\n4. Testing Go go.mod..."
-cp go.mod.fixture go.mod
-cp .codependencerc-go .codependencerc
-if node ./dist/cli.js --debug 2>&1 | grep -q "gin-gonic\|lib/pq\|golang.org"; then
+test_go_modules() {
+  # Test 4: Go go.mod
+  printf '\n%s\n' "4. Testing Go go.mod..."
+  cp go.mod.fixture go.mod
+  cp .codependencerc-go .codependencerc
+  node ./dist/cli.js --debug 2>&1 | grep -q "gin-gonic\|lib/pq\|golang.org" || fail "✗ Go go.mod test failed"
   echo "✓ Go go.mod test passed"
-else
-  echo "✗ Go go.mod test failed"
-  exit 1
-fi
-rm -f go.mod .codependencerc
+  rm -f go.mod .codependencerc
+}
 
-# Test 5: Detection without language flag
-echo "\n5. Testing automatic language detection..."
+test_auto_detection() {
+  # Test 5: Detection without language flag
+  printf '\n%s\n' "5. Testing automatic language detection..."
 
-PYTHON_AUTO_DIR="$(make_tmp_dir)"
-cp python-requirements.txt.fixture "$PYTHON_AUTO_DIR/requirements.txt"
-echo '{"codependencies":["requests"],"mode":"verbose"}' > "$PYTHON_AUTO_DIR/.codependencerc"
-if node ./dist/cli.js --debug --rootDir "$PYTHON_AUTO_DIR" --searchPath "$PYTHON_AUTO_DIR" 2>&1 | grep -q "requests"; then
+  PYTHON_AUTO_DIR="$(make_tmp_dir)"
+  cp python-requirements.txt.fixture "$PYTHON_AUTO_DIR/requirements.txt"
+  echo '{"codependencies":["requests"],"mode":"verbose"}' >"$PYTHON_AUTO_DIR/.codependencerc"
+  node ./dist/cli.js --debug --rootDir "$PYTHON_AUTO_DIR" --searchPath "$PYTHON_AUTO_DIR" 2>&1 | grep -q "requests" || fail "✗ Python auto-detection test failed"
   echo "✓ Python auto-detection test passed"
-else
-  echo "✗ Python auto-detection test failed"
-  exit 1
-fi
 
-GO_AUTO_DIR="$(make_tmp_dir)"
-cp go.mod.fixture "$GO_AUTO_DIR/go.mod"
-echo '{"codependencies":["github.com/gin-gonic/gin"],"mode":"verbose"}' > "$GO_AUTO_DIR/.codependencerc"
-if node ./dist/cli.js --debug --rootDir "$GO_AUTO_DIR" --searchPath "$GO_AUTO_DIR" 2>&1 | grep -q "gin"; then
-  echo "✓ Go auto-detection test passed"
-else
-  echo "✗ Go auto-detection test failed - this is expected if go is not installed"
-fi
+  test_go_auto_detection
 
-# Test 6: Mixed project (Node.js + Python)
-echo "\n6. Testing polyglot project (Node.js + Python)..."
-MIXED_DIR="$(make_tmp_dir)"
-cp test-package.json.fixture "$MIXED_DIR/package.json"
-cp python-requirements.txt.fixture "$MIXED_DIR/requirements.txt"
-echo '{"codependencies":["lodash"],"mode":"verbose"}' > "$MIXED_DIR/.codependencerc"
-if node ./dist/cli.js --debug --rootDir "$MIXED_DIR" --searchPath "$MIXED_DIR" 2>&1 | grep -q "lodash"; then
+}
+
+test_mixed_project() {
+  # Test 6: Mixed project (Node.js + Python)
+  printf '\n%s\n' "6. Testing polyglot project (Node.js + Python)..."
+  MIXED_DIR="$(make_tmp_dir)"
+  cp test-package.json.fixture "$MIXED_DIR/package.json"
+  cp python-requirements.txt.fixture "$MIXED_DIR/requirements.txt"
+  echo '{"codependencies":["lodash"],"mode":"verbose"}' >"$MIXED_DIR/.codependencerc"
+  node ./dist/cli.js --debug --rootDir "$MIXED_DIR" --searchPath "$MIXED_DIR" 2>&1 | grep -q "lodash" || fail "✗ Polyglot project test failed"
   echo "✓ Polyglot project test passed (prioritizes Node.js)"
-else
-  echo "✗ Polyglot project test failed"
-  exit 1
-fi
 
-echo "\n=== All Python and Go tests passed! ==="
+  printf '\n%s\n' "=== All Python and Go tests passed! ==="
+}
+
+test_go_auto_detection() {
+  GO_AUTO_DIR="$(make_tmp_dir)"
+  cp go.mod.fixture "$GO_AUTO_DIR/go.mod"
+  echo '{"codependencies":["github.com/gin-gonic/gin"],"mode":"verbose"}' >"$GO_AUTO_DIR/.codependencerc"
+  condition_status=0
+  node ./dist/cli.js --debug --rootDir "$GO_AUTO_DIR" --searchPath "$GO_AUTO_DIR" 2>&1 | grep -q "gin" || condition_status=$?
+  case "$condition_status" in
+  0)
+    echo "✓ Go auto-detection test passed"
+    ;;
+  *)
+    echo "✗ Go auto-detection test failed - this is expected if go is not installed"
+    ;;
+  esac
+}
+
+main() {
+  echo "=== Testing codependence with Python and Go ==="
+  test_python_requirements
+  test_python_poetry
+  test_python_pipenv
+  test_go_modules
+  test_auto_detection
+  test_mixed_project
+}
+
+main

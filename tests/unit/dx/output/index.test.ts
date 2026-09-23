@@ -1,3 +1,4 @@
+import { assertTextIncludes } from "../../../helpers/assertions";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createAnsiPattern } from "../../../../src/dx/constants";
@@ -15,6 +16,7 @@ import {
 } from "../../../../src/dx/output";
 import { SHORT_STATUS_FOREGROUND } from "../../../../src/dx/output/constants";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("colors", () => {
   it("should apply green color", () => {
     const result = green("test");
@@ -49,9 +51,9 @@ describe("colors", () => {
   it("should apply gradient", () => {
     const result = gradient("codependence");
     const plain = result.replace(createAnsiPattern(), "");
-    assert.ok(result.includes("\x1b[38;2;0;194;255m"));
-    assert.ok(result.includes("\x1b[38;2;188;92;255m"));
-    assert.ok(result.includes("\x1b[1m"));
+    assertTextIncludes(result, "\u001b[38;2;0;194;255m");
+    assertTextIncludes(result, "\u001b[38;2;188;92;255m");
+    assertTextIncludes(result, "\u001b[1m");
     assert.strictEqual(plain, "codependence");
   });
 
@@ -140,16 +142,16 @@ describe("colors", () => {
       const successResult = success();
       const errorResult = error();
 
-      assert.ok(successResult.includes("\x1b[32m")); // green
-      assert.ok(errorResult.includes("\x1b[31m")); // red
+      assertTextIncludes(successResult, "\u001b[32m");
+      assertTextIncludes(errorResult, "\u001b[31m");
     });
 
     it("should use different symbols for success and error", () => {
       const successResult = success();
       const errorResult = error();
 
-      assert.ok(successResult.includes("✓"));
-      assert.ok(errorResult.includes("✗"));
+      assert.match(successResult, /✓/);
+      assert.match(errorResult, /✗/);
     });
   });
 });

@@ -13,12 +13,12 @@ const bearerChallenge = (realm: string, service: string, scope: string): string 
 
 const mockFetch = (responses: Response[]) => {
   const requests: DockerRequest[] = [];
-  const fetch: DockerFetch = async (url, init) => {
+  const fetch: DockerFetch = (url, init) => {
     requests[requests.length] = { url, init };
     const response = responses[0];
     responses = responses.slice(1);
-    if (!response) throw new Error(`Unexpected request: ${url}`);
-    return response;
+    if (!response) return Promise.reject(new Error(`Unexpected request: ${url}`));
+    return Promise.resolve(response);
   };
 
   return { fetch, requests };
@@ -29,6 +29,13 @@ const authorizationFor = (request: DockerRequest): string | null =>
 
 const responseWithStatus = (status: number): Response => new Response(null, { status });
 
+const providerWithChallenge = (challenge: string): DockerProvider => {
+  const headers = { "WWW-Authenticate": challenge };
+  const response = new Response(null, { status: 401, headers });
+  return new DockerProvider({ fetch: mockFetch([response]).fetch });
+};
+
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("DockerProvider", () => {
   const tmpDir = join(import.meta.dirname, ".tmp-docker-test");
   const dockerfilePath = join(tmpDir, "Dockerfile");
@@ -294,22 +301,10 @@ describe("DockerProvider", () => {
       dockerHubCredentials: incompleteCredentials,
     });
     const invalid = new DockerProvider({ fetch: mockFetch(invalidFetchResponses).fetch });
-    const invalidChallenge = new DockerProvider({
-      fetch: mockFetch([
-        new Response(null, {
-          status: 401,
-          headers: { "WWW-Authenticate": "Basic realm=registry" },
-        }),
-      ]).fetch,
-    });
-    const incompleteChallenge = new DockerProvider({
-      fetch: mockFetch([
-        new Response(null, {
-          status: 401,
-          headers: { "WWW-Authenticate": 'Bearer realm="https://auth.docker.io/token"' },
-        }),
-      ]).fetch,
-    });
+    const invalidChallenge = providerWithChallenge("Basic realm=registry");
+    const incompleteChallenge = providerWithChallenge(
+      'Bearer realm="https://auth.docker.io/token"',
+    );
 
     await assertRejects(
       incomplete.getAllVersions("node"),
@@ -379,13 +374,13 @@ FROM scratch
 
     const updated = readFileSync(dockerfilePath, "utf8");
 
-    assert.ok(updated.includes("FROM node:22.0.0 AS build"));
-    assert.ok(updated.includes("FROM --platform=linux/amd64 nginx:1.27"));
-    assert.ok(updated.includes("ARG ALPINE_VERSION=3.20"));
-    assert.ok(updated.includes("FROM alpine:${ALPINE_VERSION}"));
-    assert.ok(updated.includes("FROM debian:${DEBIAN_VERSION}"));
-    assert.ok(updated.includes("FROM alpine@sha256:abc123"));
-    assert.ok(updated.includes("FROM scratch"));
+    assert.match(updated, /FROM node:22\.0\.0 AS build/);
+    assert.match(updated, /FROM --platform=linux\/amd64 nginx:1\.27/);
+    assert.match(updated, /ARG ALPINE_VERSION=3\.20/);
+    assert.match(updated, /FROM alpine:\$\{ALPINE_VERSION\}/);
+    assert.match(updated, /FROM debian:\$\{DEBIAN_VERSION\}/);
+    assert.match(updated, /FROM alpine@sha256:abc123/);
+    assert.match(updated, /FROM scratch/);
   });
 
   test("should preserve ARG formatting and static tag suffixes", () => {
@@ -404,8 +399,8 @@ FROM node:\${NODE_VERSION}-slim AS build
     });
 
     const updated = readFileSync(dockerfilePath, "utf8");
-    assert.ok(updated.includes('ARG NODE_VERSION = "24.0.0" # shared runtime'));
-    assert.ok(updated.includes("FROM node:${NODE_VERSION}-slim AS build"));
+    assert.match(updated, /ARG NODE_VERSION = "24\.0\.0" # shared runtime/);
+    assert.match(updated, /FROM node:\$\{NODE_VERSION\}-slim AS build/);
   });
 
   test("should leave conflicting Docker ARG families unchanged", () => {

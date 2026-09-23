@@ -64,6 +64,12 @@ import type {
   PreciseModeOptions,
   ProviderResolution,
   VersionResolver,
+  VersionMapResolverOptions,
+  UpdateVersionOptions,
+  NormalizedCheckFiles,
+  FileCheckContext,
+  FileCheckVersions,
+  FileCheckPreview,
 } from "./types";
 import type {
   CheckFiles,
@@ -229,6 +235,16 @@ const resolvePythonManager = (
   return detectPythonPackageManagerForManifest(filePath) as PythonPackageManager;
 };
 
+const infrastructureProviders = () => ({
+  docker: DockerProvider,
+  circleci: CircleCIProvider,
+  "github-actions": GitHubActionsProvider,
+  helm: HelmProvider,
+  kubernetes: KubernetesProvider,
+  kustomize: KustomizeProvider,
+  terraform: TerraformProvider,
+});
+
 const createProvider = (
   language: SupportedLanguage,
   filePath: string,
@@ -250,56 +266,20 @@ const createProvider = (
       };
     }
     case LANGUAGES.GO:
-      return {
-        provider: new GoProvider(providerOptions),
-        packageManager: LANGUAGES.GO,
-      };
-    case LANGUAGES.RUST:
-      return {
-        provider: new RustProvider(providerOptions),
-        packageManager: LANGUAGES.RUST,
-      };
-    case LANGUAGES.DOCKER:
-      return {
-        provider: new DockerProvider(),
-        packageManager: LANGUAGES.DOCKER,
-      };
-    case LANGUAGES.CIRCLECI:
-      return {
-        provider: new CircleCIProvider(),
-        packageManager: LANGUAGES.CIRCLECI,
-      };
-    case LANGUAGES.GITHUB_ACTIONS:
-      return {
-        provider: new GitHubActionsProvider(),
-        packageManager: LANGUAGES.GITHUB_ACTIONS,
-      };
-    case LANGUAGES.HELM:
-      return {
-        provider: new HelmProvider(),
-        packageManager: LANGUAGES.HELM,
-      };
-    case LANGUAGES.KUBERNETES:
-      return {
-        provider: new KubernetesProvider(),
-        packageManager: LANGUAGES.KUBERNETES,
-      };
-    case LANGUAGES.KUSTOMIZE:
-      return {
-        provider: new KustomizeProvider(),
-        packageManager: LANGUAGES.KUSTOMIZE,
-      };
-    case LANGUAGES.TERRAFORM:
-      return {
-        provider: new TerraformProvider(),
-        packageManager: LANGUAGES.TERRAFORM,
-      };
+    case LANGUAGES.RUST: {
+      const Provider = language === LANGUAGES.GO ? GoProvider : RustProvider;
+      return { provider: new Provider(providerOptions), packageManager: language };
+    }
     case LANGUAGES.PYTHON: {
       const packageManager = resolvePythonManager(filePath, options.packageManager);
       return {
         provider: new PythonProvider(filePath, packageManager, providerOptions),
         packageManager,
       };
+    }
+    default: {
+      const Provider = infrastructureProviders()[language];
+      return { provider: new Provider(), packageManager: language };
     }
   }
 };
@@ -794,60 +774,59 @@ const cachedVersionResolution = async (
   return result;
 };
 
-export const constructVersionMap = async ({
-  codependencies,
-  exec: execFn = exec,
-  debug = false,
-  yarnConfig = false,
-  isTesting = false,
-  validate = validatePackageName,
-  noCache = false,
-  onProgress,
-  resolveVersion,
-  cachePrefix,
-  resolvedDependencyVersions,
-}: ConstructVersionMapOptions) => {
+const resolveVersionMapEntry = async (
+  dep: ConstructVersionMapOptions["codependencies"][number],
+  options: VersionMapResolverOptions,
+  onResolved: (name: string) => void,
+): Promise<Record<string, string>> => {
+  const isObjectType = typeof dep === "object";
+  if (isObjectType) {
+    const resolved = resolveObjectDep(dep as Record<string, string>);
+    if (resolved) return resolved;
+  }
+  const stringDep = dep as string;
+  validateStringDep(stringDep, options.validate ?? validatePackageName);
+  const cacheKey = `${options.cachePrefix}:${stringDep}`;
+  const result = await cachedVersionResolution(
+    cacheKey,
+    stringDep,
+    options.resolveVersion,
+    options.noCache ?? false,
+  );
+  const resolvedVersions = options.resolvedDependencyVersions;
+  const hasResolvedVersions = resolvedVersions && result.resolvedVersions;
+  if (hasResolvedVersions) resolvedVersions[stringDep] = result.resolvedVersions;
+  onResolved(stringDep);
+  return { [stringDep]: result.version };
+};
+
+const createVersionMapResolver = (options: ConstructVersionMapOptions) => {
+  const { exec: execFn = exec, yarnConfig = false, debug = false, isTesting = false } = options;
+  const resolveVersion =
+    options.resolveVersion || ((name: string) => resolveFromRegistry(name, yarnConfig, execFn));
+  const cachePrefix =
+    options.cachePrefix || `${yarnConfig ? NODE_PACKAGE_MANAGERS.YARN : NODE_PACKAGE_MANAGERS.NPM}`;
+  const resolverOptions = { ...options, resolveVersion, cachePrefix };
   let current = 0;
-  const resolveLatestVersion =
-    resolveVersion ||
-    ((packageName: string) => resolveFromRegistry(packageName, yarnConfig, execFn));
-  const cacheNamespace =
-    cachePrefix || `${yarnConfig ? NODE_PACKAGE_MANAGERS.YARN : NODE_PACKAGE_MANAGERS.NPM}`;
+  const onResolved = (name: string) => {
+    current++;
+    options.onProgress?.(current, options.codependencies.length, name);
+  };
+  return async (dep: ConstructVersionMapOptions["codependencies"][number]) => {
+    try {
+      return await resolveVersionMapEntry(dep, resolverOptions, onResolved);
+    } catch (err) {
+      return handleVersionMapError(err, dep, debug, isTesting);
+    }
+  };
+};
 
+export const constructVersionMap = async (options: ConstructVersionMapOptions) => {
+  const resolveEntry = createVersionMapResolver(options);
   const updatedCodeDependencies = await mapWithConcurrency(
-    codependencies,
+    options.codependencies,
     VERSION_RESOLUTION_CONCURRENCY,
-    async (dep) => {
-      try {
-        const isObjectType = typeof dep === "object";
-        if (isObjectType) {
-          const resolved = resolveObjectDep(dep as Record<string, string>);
-          if (resolved) return resolved;
-        }
-
-        const stringDep = dep as string;
-        validateStringDep(stringDep, validate);
-
-        const cacheKey = `${cacheNamespace}:${stringDep}`;
-        const result = await cachedVersionResolution(
-          cacheKey,
-          stringDep,
-          resolveLatestVersion,
-          noCache,
-        );
-        const hasResolvedVersions = resolvedDependencyVersions && result.resolvedVersions;
-        if (hasResolvedVersions) {
-          resolvedDependencyVersions[stringDep] = result.resolvedVersions;
-        }
-
-        current++;
-        if (onProgress) onProgress(current, codependencies.length, stringDep);
-
-        return { [stringDep]: result.version };
-      } catch (err) {
-        return handleVersionMapError(err, dep, debug, isTesting);
-      }
-    },
+    resolveEntry,
   );
 
   const versionMap: Record<string, string> = {};
@@ -865,12 +844,12 @@ export const constructVersionMap = async ({
 
 const isUpdatableDep = (
   name: string,
-  currentVersion: string,
-  exactVersion: string,
+  versions: { currentVersion: string; exactVersion: string },
   versionMap: Record<string, string>,
-  level: Level,
-  versionStrategy: VersionStrategy,
+  options: Required<UpdateVersionOptions>,
 ): boolean => {
+  const { currentVersion, exactVersion } = versions;
+  const { level, versionStrategy } = options;
   const latestVersion = versionMap[name];
   if (!latestVersion) return false;
   const normalizedLatestVersion = constructVersionTypes(latestVersion).exactVersion;
@@ -887,9 +866,9 @@ export const constructPermissiveDepsToUpdateList = (
   dep = {} as Record<string, string>,
   codependencies: Array<string> = [],
   versionMap: Record<string, string> = {},
-  level: Level = "major",
-  versionStrategy: VersionStrategy = "semver",
+  options: UpdateVersionOptions = {},
 ): Array<DepToUpdateItem> => {
+  const { level = "major", versionStrategy = "semver" } = options;
   if (!Object.keys(dep).length) return [];
 
   const unpinnedDependencies = Object.entries(dep).filter(
@@ -900,7 +879,10 @@ export const constructPermissiveDepsToUpdateList = (
     return { name, version, exactVersion, bumpCharacter };
   });
   const updatableDependencies = normalizedDependencies.filter(({ name, version, exactVersion }) =>
-    isUpdatableDep(name, version, exactVersion, versionMap, level, versionStrategy),
+    isUpdatableDep(name, { currentVersion: version, exactVersion }, versionMap, {
+      level,
+      versionStrategy,
+    }),
   );
 
   return updatableDependencies.map(({ name, version, bumpCharacter }) => ({
@@ -925,7 +907,10 @@ export const constructDepsToUpdateList = (
   });
   const updatableDependencies = normalizedDependencies.filter(
     ({ name, bumpVersion, exactVersion }) =>
-      isUpdatableDep(name, bumpVersion, exactVersion, versionMap, level, versionStrategy),
+      isUpdatableDep(name, { currentVersion: bumpVersion, exactVersion }, versionMap, {
+        level,
+        versionStrategy,
+      }),
   );
 
   return updatableDependencies.map(({ name, bumpVersion, bumpCharacter }) => ({
@@ -1033,13 +1018,10 @@ const resolvedUpdateForVersion = (
   const current = { [name]: currentVersion };
   const latest = { [name]: latestVersion };
   if (permissive) {
-    return constructPermissiveDepsToUpdateList(
-      current,
-      codependencies,
-      latest,
-      level,
-      versionStrategy,
-    );
+    return constructPermissiveDepsToUpdateList(current, codependencies, latest, {
+      level: level,
+      versionStrategy: versionStrategy,
+    });
   }
   return constructDepsToUpdateList(current, latest, level, versionStrategy);
 };
@@ -1075,13 +1057,10 @@ const standardUpdatesForSection = (
 ): DepToUpdateItem[] => {
   const { codependencies, permissive, level, versionStrategy } = context;
   if (permissive) {
-    return constructPermissiveDepsToUpdateList(
-      dependencies,
-      codependencies,
-      versionMap,
-      level,
-      versionStrategy,
-    );
+    return constructPermissiveDepsToUpdateList(dependencies, codependencies, versionMap, {
+      level: level,
+      versionStrategy: versionStrategy,
+    });
   }
   return constructDepsToUpdateList(dependencies, versionMap, level, versionStrategy);
 };
@@ -1090,10 +1069,14 @@ const buildSectionUpdateList = (
   dependencies: Record<string, string> | undefined,
   json: DependencySections,
   versionMap: Record<string, string>,
-  options: CheckDependenciesForVersionOptions,
-  codependencies: string[],
+  options: CheckDependenciesForVersionOptions & { codependencies: string[] },
 ): DepToUpdateItem[] => {
-  const { level = "major", permissive = false, versionStrategy = "semver" } = options;
+  const {
+    codependencies,
+    level = "major",
+    permissive = false,
+    versionStrategy = "semver",
+  } = options;
   const context = { codependencies, permissive, level, versionStrategy };
   const unresolved = dependenciesWithoutResolvedVersions(
     dependencies,
@@ -1116,19 +1099,13 @@ export const buildUpdateLists = <T extends DependencySections>(
   codependencies?: Array<string>,
 ): DepsToUpdate => {
   const { dependencies, devDependencies, peerDependencies, optionalDependencies } = json;
-  const coDeps = codependencies || [];
+  const sectionOptions = { ...options, codependencies: codependencies || [] };
 
   return {
-    depList: buildSectionUpdateList(dependencies, json, versionMap, options, coDeps),
-    devDepList: buildSectionUpdateList(devDependencies, json, versionMap, options, coDeps),
-    peerDepList: buildSectionUpdateList(peerDependencies, json, versionMap, options, coDeps),
-    optionalDepList: buildSectionUpdateList(
-      optionalDependencies,
-      json,
-      versionMap,
-      options,
-      coDeps,
-    ),
+    depList: buildSectionUpdateList(dependencies, json, versionMap, sectionOptions),
+    devDepList: buildSectionUpdateList(devDependencies, json, versionMap, sectionOptions),
+    peerDepList: buildSectionUpdateList(peerDependencies, json, versionMap, sectionOptions),
+    optionalDepList: buildSectionUpdateList(optionalDependencies, json, versionMap, sectionOptions),
   };
 };
 
@@ -1275,51 +1252,42 @@ const processMatchedFile = (
   file: string,
   rootDir: string,
   versionMap: Record<string, string>,
-  options: MatchedFileOptions,
-  codependencies?: Array<string>,
+  options: MatchedFileOptions & { codependencies?: string[] },
 ): boolean => {
   const path = resolve(rootDir, file);
   const packageJson = fs.readFileSync(path, "utf8");
   const json = JSON.parse(packageJson);
   const jsonWithPath = Object.assign({}, json, { path });
 
-  return checkDependenciesForVersion(versionMap, jsonWithPath, options, codependencies);
+  return checkDependenciesForVersion(versionMap, jsonWithPath, options, options.codependencies);
 };
 
-export const checkMatches = ({
-  versionMap,
-  rootDir,
-  files,
-  isUpdating = false,
-  isDebugging = false,
-  isSilent = true,
-  isVerbose = false,
-  isQuiet = false,
-  isTesting = false,
-  permissive = false,
-  codependencies,
-  level = "major",
-}: CheckMatches & {
-  permissive?: boolean;
-  codependencies?: Array<string>;
-  level?: Level;
-}): void => {
-  const options = {
-    isUpdating,
-    isDebugging,
-    isSilent,
-    isVerbose,
-    isQuiet,
-    isTesting,
-    permissive,
-    level,
-  };
+const matchedFileOptions = (config: CheckDependenciesForVersionOptions): MatchedFileOptions => {
+  const {
+    isUpdating = false,
+    isDebugging = false,
+    isSilent = true,
+    isVerbose = false,
+    isQuiet = false,
+    isTesting = false,
+    permissive = false,
+    level = "major",
+  } = config;
+  return { isUpdating, isDebugging, isSilent, isVerbose, isQuiet, isTesting, permissive, level };
+};
 
-  const packagesNeedingUpdate = files.filter((file) =>
-    processMatchedFile(file, rootDir, versionMap, options, codependencies),
+export const checkMatches = (
+  config: CheckMatches & {
+    permissive?: boolean;
+    codependencies?: string[];
+  },
+): void => {
+  const options = { ...matchedFileOptions(config), codependencies: config.codependencies };
+  const packagesNeedingUpdate = config.files.filter((file) =>
+    processMatchedFile(file, config.rootDir, config.versionMap, options),
   );
 
-  if (isDebugging) {
+  if (options.isDebugging) {
     logger.debug("see updates", { packagesNeedingUpdate });
   }
 
@@ -1328,7 +1296,7 @@ export const checkMatches = ({
     logger.info("No dependency issues found!");
     return;
   }
-  if (isUpdating) {
+  if (options.isUpdating) {
     logger.info("Dependencies were not correct but should be updated! Check your git status.");
     return;
   }
@@ -1337,65 +1305,25 @@ export const checkMatches = ({
   throw new Error("Dependencies are not correct.");
 };
 
-const checkLoadedManifests = async ({
-  manifests,
-  versionMap,
-  isUpdating = false,
-  isDebugging = false,
-  isSilent = true,
-  isVerbose = false,
-  isQuiet = false,
-  isTesting = false,
-  permissive = false,
-  codependencies,
-  level = "major",
-  deferFailure = false,
-  onBeforeOutput,
-}: CheckLoadedManifestsOptions): Promise<boolean> => {
-  const options = {
-    isUpdating,
-    isDebugging,
-    isSilent,
-    isVerbose,
-    isQuiet,
-    isTesting,
-    permissive,
-    level,
-    onBeforeOutput,
-  };
-
-  let packagesNeedingUpdate: string[] = [];
-  for (const manifest of manifests) {
-    const manifestOptions = Object.assign({}, options, {
-      versionStrategy: manifest.provider.capabilities.versionStrategy,
-    });
-    const effectiveVersionMap = aliasVersionMapForManifest(versionMap, manifest);
-    const effectiveCodependencies = aliasCodependenciesForManifest(codependencies, manifest);
-    const needsUpdate = await checkManifestDependenciesForVersion(
-      effectiveVersionMap,
-      manifest,
-      manifestOptions,
-      effectiveCodependencies,
-    );
-    packagesNeedingUpdate = needsUpdate
-      ? packagesNeedingUpdate.concat(manifest.file)
-      : packagesNeedingUpdate;
-  }
-
-  if (isDebugging) {
+const reportManifestCheck = (
+  packagesNeedingUpdate: string[],
+  config: CheckLoadedManifestsOptions,
+): boolean => {
+  const options = matchedFileOptions(config);
+  if (options.isDebugging) {
     logger.debug("see updates", { packagesNeedingUpdate });
   }
 
   const isOutOfDate = packagesNeedingUpdate.length > 0;
-  const isOutputEnabled = !isSilent && !isQuiet;
-  const shouldLogSuccess = isOutputEnabled && !isUpdating;
+  const isOutputEnabled = !options.isSilent && !options.isQuiet;
+  const shouldLogSuccess = isOutputEnabled && !options.isUpdating;
   if (!isOutOfDate) {
     if (shouldLogSuccess) {
       logger.info("No dependency issues found!");
     }
     return false;
   }
-  if (isUpdating) {
+  if (options.isUpdating) {
     if (isOutputEnabled) {
       logger.info("Dependencies were not correct but should be updated! Check your git status.");
     }
@@ -1404,11 +1332,32 @@ const checkLoadedManifests = async ({
   if (isOutputEnabled) {
     logger.error("Dependencies are not correct.");
   }
-  if (!deferFailure) {
+  if (!config.deferFailure) {
     throw new Error("Dependencies are not correct.");
   }
 
   return true;
+};
+
+const checkLoadedManifests = async (config: CheckLoadedManifestsOptions): Promise<boolean> => {
+  const options = { ...matchedFileOptions(config), onBeforeOutput: config.onBeforeOutput };
+  const packagesNeedingUpdate: string[] = [];
+  for (const manifest of config.manifests) {
+    const manifestOptions = {
+      ...options,
+      versionStrategy: manifest.provider.capabilities.versionStrategy,
+    };
+    const versionMap = aliasVersionMapForManifest(config.versionMap, manifest);
+    const codependencies = aliasCodependenciesForManifest(config.codependencies, manifest);
+    const needsUpdate = await checkManifestDependenciesForVersion(
+      versionMap,
+      manifest,
+      manifestOptions,
+      codependencies,
+    );
+    if (needsUpdate) packagesNeedingUpdate[packagesNeedingUpdate.length] = manifest.file;
+  }
+  return reportManifestCheck(packagesNeedingUpdate, config);
 };
 
 const extractDepNamesFromFile = (rootDir: string, file: string): string[] => {
@@ -1575,203 +1524,190 @@ const selectedVersionResolutions = (
   return Object.fromEntries(entries);
 };
 
-export const checkFiles = async ({
-  codependencies,
-  files: matchers,
-  rootDir = "./",
-  ignore = DEFAULT_IGNORE_PATTERNS.slice(),
-  update = false,
-  debug = false,
-  silent = false,
-  verbose = false,
-  quiet = false,
-  isCLI = false,
-  yarnConfig = false,
-  isTesting = false,
-  permissive,
-  language,
-  dryRun = false,
-  interactive = false,
-  noCache = false,
-  format,
-  onProgress,
-  onBeforeOutput,
-  level = "major",
-  mode,
-  lockfile,
-  packageManager,
-  deferFailure = false,
-  onDeferredFailure,
-}: CheckFiles): Promise<VersionDiff[] | void> => {
+const normalizeCheckFiles = (options: CheckFiles): NormalizedCheckFiles => {
+  const definedOptions = Object.fromEntries(
+    Object.entries(options).filter(([, value]) => value !== undefined),
+  );
+  return Object.assign(
+    {
+      rootDir: "./",
+      ignore: DEFAULT_IGNORE_PATTERNS.slice(),
+      update: false,
+      debug: false,
+      silent: false,
+      verbose: false,
+      quiet: false,
+      isCLI: false,
+      yarnConfig: false,
+      isTesting: false,
+      dryRun: false,
+      interactive: false,
+      noCache: false,
+      level: "major" as const,
+      deferFailure: false,
+    },
+    definedOptions,
+  );
+};
+
+const prepareFileCheck = (input: CheckFiles): FileCheckContext => {
+  const options = normalizeCheckFiles(input);
+  const rootDir = resolve(options.rootDir);
+  const matchers = resolveMatchers(rootDir, options.files, options.language);
+  const files = glob(matchers, { cwd: rootDir, ignore: options.ignore });
+  const manifests = loadManifests(files, rootDir, options);
+  const versionResolver = createVersionResolver(manifests, rootDir, options);
+  const isPreciseMode = resolveEffectiveMode(options) === "precise";
+  assertRequiredLockfiles(manifests, options.lockfile, rootDir);
+  assertProviderResolutionSupport(
+    manifests,
+    versionResolver.provider,
+    options.codependencies,
+    isPreciseMode,
+  );
+  const hasDepsOrIsPrecise = Boolean(options.codependencies) || isPreciseMode;
+  if (!hasDepsOrIsPrecise) throw '"codependencies" are required (unless using precise mode)';
+  return { options, manifests, versionResolver, isPreciseMode };
+};
+
+const reportStaleDependencies = ({ options, manifests }: FileCheckContext): void => {
+  const shouldReport = Boolean(options.codependencies?.length) && !options.silent && !options.quiet;
+  if (!shouldReport) return;
+  const stale = detectStaleCodependenciesFromManifests(options.codependencies, manifests);
+  if (stale.length === 0) return;
+  options.onBeforeOutput?.();
+  const label = stale.length === 1 ? "codependency" : "codependencies";
+  logger.warn(`${stale.length} stale ${label} not found in any manifest:`);
+  stale.forEach((name) => logger.warn(`  - ${name}`));
+};
+
+const fileVersionOptions = ({
+  options,
+  versionResolver,
+}: FileCheckContext): PreciseModeOptions => ({
+  debug: options.debug,
+  yarnConfig: options.yarnConfig,
+  isTesting: options.isTesting,
+  noCache: options.noCache,
+  onProgress: options.onProgress,
+  resolveVersion: versionResolver.resolveVersion,
+  cachePrefix: versionResolver.cachePrefix,
+  resolvedDependencyVersions: versionResolver.resolvedDependencyVersions,
+  validate: createPackageValidator(versionResolver.provider),
+});
+
+const resolveFileCheckVersions = async (context: FileCheckContext): Promise<FileCheckVersions> => {
+  const { options, manifests, versionResolver, isPreciseMode } = context;
+  reportStaleDependencies(context);
+  const codependencies = options.codependencies || [];
+  const resolutionOptions = fileVersionOptions(context);
+  const hasDependencies = codependencies.length > 0;
+  let versionMap = hasDependencies
+    ? await constructVersionMap({ ...resolutionOptions, codependencies })
+    : {};
+  const depNames = codependencies
+    .map((dep) => (typeof dep === "string" ? dep : Object.keys(dep)[0]))
+    .filter(Boolean);
+  if (isPreciseMode)
+    versionMap = await resolvePreciseModeDeps(manifests, versionMap, resolutionOptions);
+  const resolvedManifests = withResolvedDependencyVersions(
+    manifests,
+    versionResolver.resolvedDependencyVersions,
+  );
+  return {
+    versionMap: aliasVersionMapForManifests(versionMap, resolvedManifests),
+    depNames: aliasCodependenciesForManifests(depNames, resolvedManifests),
+  };
+};
+
+const previewFileCheck = (
+  context: FileCheckContext,
+  versions: FileCheckVersions,
+): FileCheckPreview => {
+  const { options, manifests, versionResolver, isPreciseMode } = context;
+  const isOutputEnabled = !options.silent && !options.quiet;
+  const hasPreviewOutput = !options.update || options.dryRun;
+  const hasOutputChanges = hasPreviewOutput && isOutputEnabled;
+  const canPromptInteractively = !options.dryRun && !options.isTesting;
+  const isInteractiveUpdate = options.interactive && options.update && canPromptInteractively;
+  const shouldCollectDiffs =
+    options.format !== undefined || hasOutputChanges || isInteractiveUpdate;
+  const resolvedManifests = withResolvedDependencyVersions(
+    manifests,
+    versionResolver.resolvedDependencyVersions,
+  );
+  const comparableManifests = resolvedManifests.map(({ manifest, provider }) => ({
+    ...manifest,
+    versionStrategy: provider.capabilities.versionStrategy,
+  }));
+  const diffOptions = { permissive: isPreciseMode, level: options.level };
+  const allDiffs = shouldCollectDiffs
+    ? collectDiffsFromManifests(
+        versions.versionMap,
+        comparableManifests,
+        versions.depNames,
+        diffOptions,
+      )
+    : [];
+  const shouldShowDiffs = hasOutputChanges && options.format === undefined;
+  const hasActionableDiffs = allDiffs.some((diff) => diff.willUpdate);
+  const shouldDisplayDiffs = shouldShowDiffs && hasActionableDiffs;
+  if (shouldDisplayDiffs) {
+    options.onBeforeOutput?.();
+    displayVersionDiffs(allDiffs);
+  }
+  return { allDiffs, shouldDisplayDiffs, isInteractiveUpdate };
+};
+
+const applyFileCheck = async (
+  context: FileCheckContext,
+  preview: FileCheckPreview,
+  selection: InteractiveResult,
+): Promise<void> => {
+  const { options, manifests, versionResolver, isPreciseMode } = context;
+  const hasFormatOutput = options.format !== undefined;
+  const shouldDeferFailure = hasFormatOutput || options.deferFailure;
+  const shouldSilenceCheckOutput = options.silent || hasFormatOutput || preview.shouldDisplayDiffs;
+  const resolutions = selectedVersionResolutions(
+    versionResolver.resolvedDependencyVersions,
+    selection.versionMap,
+  );
+  const updateManifests = withResolvedDependencyVersions(manifests, resolutions);
+  const isOutOfDate = await checkLoadedManifests({
+    manifests: updateManifests,
+    versionMap: selection.versionMap,
+    isSilent: shouldSilenceCheckOutput,
+    isVerbose: options.verbose,
+    isQuiet: options.quiet,
+    isUpdating: selection.shouldUpdate,
+    isDebugging: options.debug,
+    isTesting: options.isTesting,
+    permissive: isPreciseMode,
+    codependencies: selection.depNames,
+    level: options.level,
+    deferFailure: shouldDeferFailure,
+    onBeforeOutput: options.onBeforeOutput,
+  });
+  const shouldReportDeferredFailure =
+    shouldDeferFailure && options.isCLI && isOutOfDate && !selection.shouldUpdate;
+  if (!shouldReportDeferredFailure) return;
+  options.onDeferredFailure?.();
+  process.exitCode = 1;
+};
+
+export const checkFiles = async (options: CheckFiles): Promise<VersionDiff[] | void> => {
   try {
-    const resolvedRootDir = resolve(rootDir);
-    const effectiveMatchers = resolveMatchers(resolvedRootDir, matchers, language);
-    const files = glob(effectiveMatchers, {
-      cwd: resolvedRootDir,
-      ignore,
-    });
-    const manifests = loadManifests(files, resolvedRootDir, {
-      language,
-      debug,
-      yarnConfig,
-      isTesting,
-      packageManager,
-      lockfile,
-    });
-    const versionResolver = createVersionResolver(manifests, resolvedRootDir, {
-      language,
-      debug,
-      yarnConfig,
-      isTesting,
-      packageManager,
-      lockfile,
-    });
-    const validate = createPackageValidator(versionResolver.provider);
-    const effectiveMode = resolveEffectiveMode({
-      codependencies,
-      mode,
-      permissive,
-    });
-    assertRequiredLockfiles(manifests, lockfile, resolvedRootDir);
-    const isPreciseMode = effectiveMode === "precise";
-    assertProviderResolutionSupport(
-      manifests,
-      versionResolver.provider,
-      codependencies,
-      isPreciseMode,
-    );
-
-    const hasDepsOrIsPrecise = Boolean(codependencies) || isPreciseMode;
-    if (!hasDepsOrIsPrecise) {
-      throw '"codependencies" are required (unless using precise mode)';
-    }
-
-    let versionMap: Record<string, string> = {};
-    let depNames: string[] = [];
-
-    const hasDependencies = Boolean(codependencies?.length);
-    const shouldReportStale = hasDependencies && !silent && !quiet;
-
-    if (shouldReportStale) {
-      const stale = detectStaleCodependenciesFromManifests(codependencies, manifests);
-      if (stale.length > 0) {
-        onBeforeOutput?.();
-        const label = stale.length === 1 ? "codependency" : "codependencies";
-        logger.warn(`${stale.length} stale ${label} not found in any manifest:`);
-        stale.forEach((name) => logger.warn(`  - ${name}`));
-      }
-    }
-
-    if (hasDependencies) {
-      versionMap = await constructVersionMap({
-        codependencies,
-        debug,
-        yarnConfig,
-        isTesting,
-        noCache,
-        onProgress,
-        resolveVersion: versionResolver.resolveVersion,
-        cachePrefix: versionResolver.cachePrefix,
-        resolvedDependencyVersions: versionResolver.resolvedDependencyVersions,
-        validate,
-      });
-      depNames = codependencies
-        .map((dep) => (typeof dep === "string" ? dep : Object.keys(dep)[0]))
-        .filter(Boolean);
-    }
-
-    if (isPreciseMode) {
-      versionMap = await resolvePreciseModeDeps(manifests, versionMap, {
-        debug,
-        yarnConfig,
-        isTesting,
-        noCache,
-        onProgress,
-        resolveVersion: versionResolver.resolveVersion,
-        cachePrefix: versionResolver.cachePrefix,
-        resolvedDependencyVersions: versionResolver.resolvedDependencyVersions,
-        validate,
-      });
-    }
-
-    const resolvedManifests = withResolvedDependencyVersions(
-      manifests,
-      versionResolver.resolvedDependencyVersions,
-    );
-    versionMap = aliasVersionMapForManifests(versionMap, resolvedManifests);
-    depNames = aliasCodependenciesForManifests(depNames, resolvedManifests);
-
-    const isOutputEnabled = !silent && !quiet;
-    const hasPreviewOutput = !update || dryRun;
-    const hasOutputChanges = hasPreviewOutput && isOutputEnabled;
-    const canPromptInteractively = !dryRun && !isTesting;
-    const isInteractiveUpdate = interactive && update && canPromptInteractively;
-    const shouldCollectDiffs = format !== undefined || hasOutputChanges || isInteractiveUpdate;
-    const allDiffs = shouldCollectDiffs
-      ? collectDiffsFromManifests(
-          versionMap,
-          resolvedManifests.map(({ manifest, provider }) =>
-            Object.assign({}, manifest, {
-              versionStrategy: provider.capabilities.versionStrategy,
-            }),
-          ),
-          depNames,
-          isPreciseMode,
-          level,
-        )
-      : [];
-
-    const shouldShowDiffs = hasOutputChanges && format === undefined;
-    const hasActionableDiffs = allDiffs.some((diff) => diff.willUpdate);
-    const shouldDisplayDiffs = shouldShowDiffs && hasActionableDiffs;
-    if (shouldDisplayDiffs) {
-      onBeforeOutput?.();
-      displayVersionDiffs(allDiffs);
-    }
-
-    let shouldUpdate = update && !dryRun;
-    if (isInteractiveUpdate) {
-      const result = await applyInteractiveSelection(allDiffs, depNames, versionMap);
-      shouldUpdate = result.shouldUpdate;
-      depNames = result.depNames;
-      versionMap = result.versionMap;
-    }
-
-    const shouldDeferFailure = format !== undefined || deferFailure;
-    const hasFormatOutput = format !== undefined;
-    const shouldSilenceCheckOutput = silent || hasFormatOutput || shouldDisplayDiffs;
-    const selectedResolutions = selectedVersionResolutions(
-      versionResolver.resolvedDependencyVersions,
-      versionMap,
-    );
-    const updateManifests = withResolvedDependencyVersions(manifests, selectedResolutions);
-    const isOutOfDate = await checkLoadedManifests({
-      manifests: updateManifests,
-      versionMap,
-      isSilent: shouldSilenceCheckOutput,
-      isVerbose: verbose,
-      isQuiet: quiet,
-      isUpdating: shouldUpdate,
-      isDebugging: debug,
-      isTesting,
-      permissive: isPreciseMode,
-      codependencies: depNames,
-      level,
-      deferFailure: shouldDeferFailure,
-      onBeforeOutput,
-    });
-
-    const shouldReportDeferredFailure = shouldDeferFailure && isCLI && isOutOfDate && !shouldUpdate;
-    if (shouldReportDeferredFailure) {
-      onDeferredFailure?.();
-      process.exitCode = 1;
-    }
-
-    return allDiffs;
+    const context = prepareFileCheck(options);
+    const versions = await resolveFileCheckVersions(context);
+    const preview = previewFileCheck(context, versions);
+    const shouldUpdate = context.options.update && !context.options.dryRun;
+    const selection = preview.isInteractiveUpdate
+      ? await applyInteractiveSelection(preview.allDiffs, versions.depNames, versions.versionMap)
+      : { ...versions, shouldUpdate };
+    await applyFileCheck(context, preview, selection);
+    return preview.allDiffs;
   } catch (err) {
-    if (debug) {
-      logger.debug((err as string).toString());
-    }
+    if (options.debug) logger.debug((err as string).toString());
     throw err;
   }
 };

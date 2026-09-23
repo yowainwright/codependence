@@ -1,8 +1,7 @@
 module.exports = {
   git: {
     commitMessage: "chore(release): ${version}",
-    // The publish workflow validates before packaging; avoid rerunning local hooks
-    // when release-it creates the version commit in CI.
+    /** CI validates before packaging, so release commits skip local hooks. */
     commitArgs: ["--no-verify"],
     tagName: "v${version}",
   },

@@ -17,6 +17,7 @@ import {
   select,
 } from "../../../src/dx";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("DX Utilities", () => {
   describe("Output", () => {
     let mockStream: any;
@@ -78,6 +79,7 @@ describe("DX Utilities", () => {
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("Format Utilities", () => {
     it("should get terminal width", () => {
       const width = getTerminalWidth();

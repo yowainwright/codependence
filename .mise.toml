@@ -1,3 +1,4 @@
 [tools]
 node = "26.7.0"
 nub = "0.7.5"
+"github:yowainwright/shellcheck_legibility" = { version = "0.2.3", checksum = "sha256:161c38c8c78ab8e8af4bfb0667b02cb78d09bfe999f4b70c6f512b8e989f8b09" }

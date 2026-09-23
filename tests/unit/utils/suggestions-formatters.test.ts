@@ -81,20 +81,20 @@ describe("isTimeout", () => {
 describe("formatValidationError", () => {
   test("includes package name", () => {
     const result = formatValidationError("bad-pkg");
-    assert.ok(result.includes('Failed to fetch version for "bad-pkg"'));
+    assert.match(result, /Failed to fetch version for "bad-pkg"/);
   });
 
   test("includes validation-specific guidance", () => {
     const result = formatValidationError("bad-pkg");
-    assert.ok(result.includes("Invalid package name format"));
-    assert.ok(result.includes("Package name contains invalid characters"));
-    assert.ok(result.includes("Check the package name spelling"));
+    assert.match(result, /Invalid package name format/);
+    assert.match(result, /Package name contains invalid characters/);
+    assert.match(result, /Check the package name spelling/);
   });
 
   test("uses special characters instead of emojis", () => {
     const result = formatValidationError("bad-pkg");
-    assert.ok(result.includes("[x]"));
-    assert.ok(result.includes(">"));
+    assert.match(result, /\[x\]/);
+    assert.match(result, />/);
     assert.doesNotMatch(result, /[\u{1F600}-\u{1F64F}]/u);
   });
 });
@@ -102,85 +102,85 @@ describe("formatValidationError", () => {
 describe("formatPrivatePackageError", () => {
   test("includes package name", () => {
     const result = formatPrivatePackageError("@org/pkg");
-    assert.ok(result.includes('Failed to fetch version for "@org/pkg"'));
+    assert.match(result, /Failed to fetch version for "@org\/pkg"/);
   });
 
   test("identifies as private package", () => {
     const result = formatPrivatePackageError("@org/pkg");
-    assert.ok(result.includes("PRIVATE PACKAGE"));
+    assert.match(result, /PRIVATE PACKAGE/);
   });
 
   test("provides all three fix options", () => {
     const result = formatPrivatePackageError("@org/pkg");
-    assert.ok(result.includes("Option 1: Add .npmrc with auth token"));
-    assert.ok(result.includes("Option 2: Configure custom registry"));
-    assert.ok(result.includes("Option 3: Exclude from codependencies"));
+    assert.match(result, /Option 1: Add \.npmrc with auth token/);
+    assert.match(result, /Option 2: Configure custom registry/);
+    assert.match(result, /Option 3: Exclude from codependencies/);
   });
 
   test("includes npmrc auth token example", () => {
     const result = formatPrivatePackageError("@org/pkg");
-    assert.ok(result.includes("//registry.npmjs.org/:_authToken="));
+    assert.match(result, /\/\/registry\.npmjs\.org\/:_authToken=/);
   });
 
   test("includes package-specific removal suggestion", () => {
     const result = formatPrivatePackageError("@org/my-lib");
-    assert.ok(result.includes('Remove "@org/my-lib" from your config'));
+    assert.match(result, /Remove "@org\/my-lib" from your config/);
   });
 });
 
 describe("formatRegistryError", () => {
   test("includes package name", () => {
     const result = formatRegistryError("lodash");
-    assert.ok(result.includes('Failed to fetch version for "lodash"'));
+    assert.match(result, /Failed to fetch version for "lodash"/);
   });
 
   test("mentions registry mismatch", () => {
     const result = formatRegistryError("lodash");
-    assert.ok(result.includes("Package found in npm but not your registry"));
-    assert.ok(result.includes("custom registry"));
+    assert.match(result, /Package found in npm but not your registry/);
+    assert.match(result, /custom registry/);
   });
 
   test("provides fix suggestions", () => {
     const result = formatRegistryError("lodash");
-    assert.ok(result.includes("Add package to your internal registry"));
-    assert.ok(result.includes("npm config set registry https://registry.npmjs.org"));
-    assert.ok(result.includes("codependence --registry"));
+    assert.match(result, /Add package to your internal registry/);
+    assert.match(result, /npm config set registry https:\/\/registry\.npmjs\.org/);
+    assert.match(result, /codependence --registry/);
   });
 });
 
 describe("formatTimeoutError", () => {
   test("includes package name", () => {
     const result = formatTimeoutError("slow-pkg", 0);
-    assert.ok(result.includes('Failed to fetch version for "slow-pkg"'));
+    assert.match(result, /Failed to fetch version for "slow-pkg"/);
   });
 
   test("shows network timeout message", () => {
     const result = formatTimeoutError("slow-pkg", 0);
-    assert.ok(result.includes("Network timeout"));
+    assert.match(result, /Network timeout/);
   });
 
   test("shows retry message on first attempt", () => {
     const result = formatTimeoutError("slow-pkg", 0);
-    assert.ok(result.includes("Retrying automatically..."));
+    assert.match(result, /Retrying automatically\.\.\./);
   });
 
   test("shows attempt count on retries", () => {
     const result = formatTimeoutError("slow-pkg", 2);
-    assert.ok(result.includes("Attempt 2/3"));
-    assert.ok(!result.includes("Retrying automatically"));
+    assert.match(result, /Attempt 2\/3/);
+    assert.doesNotMatch(result, /Retrying automatically/);
   });
 
   test("provides troubleshooting suggestions", () => {
     const result = formatTimeoutError("slow-pkg", 0);
-    assert.ok(result.includes("Check internet connection"));
-    assert.ok(result.includes("If behind proxy"));
-    assert.ok(result.includes("--timeout 30000"));
-    assert.ok(result.includes("npm cache clean"));
+    assert.match(result, /Check internet connection/);
+    assert.match(result, /If behind proxy/);
+    assert.match(result, /--timeout 30000/);
+    assert.match(result, /npm cache clean/);
   });
 
   test("uses special characters instead of emojis", () => {
     const result = formatTimeoutError("slow-pkg", 0);
-    assert.ok(result.includes("[!]"));
+    assert.match(result, /\[!\]/);
     assert.doesNotMatch(result, /[\u{1F600}-\u{1F64F}]/u);
   });
 });
@@ -188,52 +188,52 @@ describe("formatTimeoutError", () => {
 describe("formatNetworkError", () => {
   test("includes package name", () => {
     const result = formatNetworkError("lodash");
-    assert.ok(result.includes('Failed to fetch version for "lodash"'));
+    assert.match(result, /Failed to fetch version for "lodash"/);
   });
 
   test("lists network-related issues", () => {
     const result = formatNetworkError("lodash");
-    assert.ok(result.includes("Network connection issue"));
-    assert.ok(result.includes("npm registry is unreachable"));
-    assert.ok(result.includes("Firewall or proxy blocking request"));
+    assert.match(result, /Network connection issue/);
+    assert.match(result, /npm registry is unreachable/);
+    assert.match(result, /Firewall or proxy blocking request/);
   });
 
   test("provides suggestion", () => {
     const result = formatNetworkError("lodash");
-    assert.ok(result.includes("Check your internet connection and try again"));
+    assert.match(result, /Check your internet connection and try again/);
   });
 });
 
 describe("formatGenericError", () => {
   test("includes package name", () => {
     const result = formatGenericError("some-pkg", "Not found");
-    assert.ok(result.includes('Failed to fetch version for "some-pkg"'));
+    assert.match(result, /Failed to fetch version for "some-pkg"/);
   });
 
   test("includes suggestion for known typo", () => {
     const result = formatGenericError("loadsh", "Not found");
-    assert.ok(result.includes('Did you mean "lodash"?'));
+    assert.match(result, /Did you mean "lodash"\?/);
   });
 
   test("shows generic issues for unknown package", () => {
     const result = formatGenericError("zzz-unknown-pkg-zzz", "Not found");
-    assert.ok(result.includes("Private package? (configure .npmrc)"));
-    assert.ok(result.includes("Package doesn't exist on npm registry"));
-    assert.ok(result.includes("Network issue? Check your connection"));
+    assert.match(result, /Private package\? \(configure \.npmrc\)/);
+    assert.match(result, /Package doesn't exist on npm registry/);
+    assert.match(result, /Network issue\? Check your connection/);
   });
 
   test("includes npm view suggestion", () => {
     const result = formatGenericError("test-pkg", "Not found");
-    assert.ok(result.includes("npm view test-pkg"));
+    assert.match(result, /npm view test-pkg/);
   });
 
   test("appends error string for non-special cases", () => {
     const result = formatGenericError("test-pkg", "Some error detail");
-    assert.ok(result.includes("Error: Some error detail"));
+    assert.match(result, /Error: Some error detail/);
   });
 
   test("omits error string when error contains registry mention", () => {
     const result = formatGenericError("some-pkg", "Package not found in registry");
-    assert.ok(!result.includes("Error: Package not found in registry"));
+    assert.doesNotMatch(result, /Error: Package not found in registry/);
   });
 });

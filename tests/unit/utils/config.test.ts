@@ -6,6 +6,7 @@ import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("Config Loading", () => {
   const tmpDir = join(
     tmpdir(),
@@ -17,6 +18,7 @@ describe("Config Loading", () => {
     mkdirSync(tmpDir, { recursive: true });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("loadConfig", () => {
     test("should load config from .codependencerc file", () => {
       const rcPath = join(tmpDir, ".codependencerc");
@@ -351,6 +353,7 @@ describe("Config Loading", () => {
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("searchForConfig behavior", () => {
     test("should find .codependencerc in current directory", () => {
       writeFileSync(join(tmpDir, ".codependencerc"), JSON.stringify({}));

@@ -114,6 +114,7 @@ describe("resolveFromRegistry", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("buildUpdateLists", () => {
   test("returns update lists for standard mode", () => {
     const versionMap = { react: "18.3.0", lodash: "4.17.21" };

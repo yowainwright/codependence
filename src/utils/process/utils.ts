@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { RETRYABLE_ERROR_CODES } from "./constants";
-import type { ExecFileFn, ExecResult, RetryableError, SleepFn } from "./types";
+import type { ExecFileFn, ExecResult, RetryableError, RetryOptions, SleepFn } from "./types";
 
 export const execFileAsync = promisify(execFile) as ExecFileFn;
 export const sleep: SleepFn = (milliseconds) =>
@@ -22,13 +22,10 @@ const isRetryableError = (error: unknown): boolean => {
 export const executeWithRetry = async (
   command: string,
   args: string[],
-  cwd: string | undefined,
-  attempt: number,
-  maxRetries: number,
-  retryDelay: number,
-  execFileFn: ExecFileFn,
-  sleepFn: SleepFn,
+  options: RetryOptions,
+  attempt = 0,
 ): Promise<ExecResult> => {
+  const { cwd, maxRetries, retryDelay, execFileFn, sleepFn } = options;
   try {
     const { stdout, stderr } = await execFileFn(command, args, { cwd, encoding: "utf8" });
     return { stdout: stdout || "", stderr: stderr || "" };
@@ -37,15 +34,6 @@ export const executeWithRetry = async (
     if (!shouldRetry) throw error;
     const backoffDelay = retryDelay * Math.pow(2, attempt);
     await sleepFn(backoffDelay);
-    return executeWithRetry(
-      command,
-      args,
-      cwd,
-      attempt + 1,
-      maxRetries,
-      retryDelay,
-      execFileFn,
-      sleepFn,
-    );
+    return executeWithRetry(command, args, options, attempt + 1);
   }
 };

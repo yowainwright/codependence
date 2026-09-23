@@ -1,25 +1,26 @@
+# shellcheck shell=sh
+# Shared variables are consumed by the provider test scripts.
+# shellcheck disable=SC2034
 WORK_DIR=""
 TMP_DIRS=""
 
 resolve_root_dir() {
   for candidate in "$SCRIPT_DIR/.." "$SCRIPT_DIR/../.." "$SCRIPT_DIR/../../.."; do
-    if [ -f "$candidate/dist/cli.js" ]; then
-      cd "$candidate" && pwd
-      return
-    fi
+    [ -f "$candidate/dist/cli.js" ] || continue
+    cd "$candidate" && pwd
+    return
   done
 
   cd "$SCRIPT_DIR/../../.." && pwd
 }
 
 resolve_fixture_dir() {
-  root="$1"
+  root="${1:?root is required}"
 
   for candidate in "$SCRIPT_DIR" "$SCRIPT_DIR/.." "$SCRIPT_DIR/../fixtures" "$root/tests/e2e/fixtures"; do
-    if [ -f "$candidate/rust-Cargo.toml.fixture" ]; then
-      cd "$candidate" && pwd
-      return
-    fi
+    [ -f "$candidate/rust-Cargo.toml.fixture" ] || continue
+    cd "$candidate" && pwd
+    return
   done
 
   printf '%s\n' "$root/tests/e2e/fixtures"
@@ -63,191 +64,159 @@ cleanup_provider_e2e() {
 }
 
 require_built_cli() {
-  if [ -n "$BINARY_CLI" ]; then
-    if [ -x "$BINARY_CLI" ]; then
-      return
-    fi
-
-    fail "$BINARY_CLI not found or not executable"
-  fi
-
-  if [ -f "$CLI" ]; then
-    return
-  fi
-
-  fail "dist/cli.js not found - run nub run build-dist first"
+  case "$BINARY_CLI" in
+  "") [ -f "$CLI" ] || fail "dist/cli.js not found - run nub run build-dist first" ;;
+  *) [ -x "$BINARY_CLI" ] || fail "$BINARY_CLI not found or not executable" ;;
+  esac
 }
 
 run_cli() {
-  if [ -n "$BINARY_CLI" ]; then
-    "$BINARY_CLI" "$@"
-    return
-  fi
-
-  node "$CLI" "$@"
+  case "$BINARY_CLI" in
+  "") node "$CLI" "$@" ;;
+  *) "$BINARY_CLI" "$@" ;;
+  esac
 }
 
 assert_file_contains() {
-  file="$1"
-  pattern="$2"
-  label="$3"
+  file="${1:?file is required}"
+  pattern="${2:?pattern is required}"
+  label="${3:?label is required}"
 
-  if grep -Fq -- "$pattern" "$file"; then
-    pass "$label"
-    return
-  fi
-
-  printf 'Expected to find: %s\n' "$pattern"
-  printf 'In file: %s\n' "$file"
-  fail "$label"
+  grep -Fq -- "$pattern" "$file" || report_missing_pattern
+  pass "$label"
 }
 
 assert_file_not_contains() {
-  file="$1"
-  pattern="$2"
-  label="$3"
+  file="${1:?file is required}"
+  pattern="${2:?pattern is required}"
+  label="${3:?label is required}"
 
-  if grep -Fq -- "$pattern" "$file"; then
-    printf 'Expected not to find: %s\n' "$pattern"
-    fail "$label"
-  fi
+  ! grep -Fq -- "$pattern" "$file" || report_unexpected_pattern
 
   pass "$label"
 }
 
 assert_file_equals() {
-  expected="$1"
-  actual="$2"
-  label="$3"
+  expected="${1:?expected is required}"
+  actual="${2:?actual is required}"
+  label="${3:?label is required}"
 
-  if cmp -s "$expected" "$actual"; then
-    pass "$label"
-    return
-  fi
-
-  printf 'Expected file to match: %s\n' "$expected"
-  printf 'Actual file: %s\n' "$actual"
-  diff -u "$expected" "$actual" || true
-  fail "$label"
+  cmp -s "$expected" "$actual" || report_file_mismatch
+  pass "$label"
 }
 
 assert_file_unchanged_after_update() {
-  root="$1"
-  file="$2"
-  label="$3"
+  root="${1:?root is required}"
+  file="${2:?file is required}"
+  label="${3:?label is required}"
   before_file="$(make_tmp_file)"
   cp "$file" "$before_file"
-
   run_update "$root"
-
-  if cmp -s "$before_file" "$file"; then
-    rm -f "$before_file"
-    pass "$label"
-    return
-  fi
-
-  printf 'Expected file to remain unchanged after second update: %s\n' "$file"
-  diff -u "$before_file" "$file" || true
-  rm -f "$before_file"
-  fail "$label"
+  assert_snapshot_unchanged "$before_file" "$file" "$label" "Expected file to remain unchanged after second update"
 }
 
 assert_update_fails_unchanged() {
-  root="$1"
-  file="$2"
-  expected_message="$3"
-  label="$4"
+  root="${1:?root is required}"
+  file="${2:?file is required}"
+  expected_message="${3:?expected_message is required}"
+  label="${4:?label is required}"
   before_file="$(make_tmp_file)"
   cp "$file" "$before_file"
-
   run_update_expect_failure "$root" "$expected_message" "$label"
-
-  if cmp -s "$before_file" "$file"; then
-    rm -f "$before_file"
-    pass "$label leaves file unchanged"
-    return
-  fi
-
-  printf 'Expected file to remain unchanged after failed update: %s\n' "$file"
-  diff -u "$before_file" "$file" || true
-  rm -f "$before_file"
-  fail "$label leaves file unchanged"
+  assert_snapshot_unchanged "$before_file" "$file" "$label leaves file unchanged" "Expected file to remain unchanged after failed update"
 }
 
 run_update() {
-  root="$1"
-  output=""
+  root="${1:?root is required}"
   exit_code=0
-
   output=$(run_cli --rootDir "$root" --config "$root/.codependencerc" --update --quiet 2>&1) || exit_code=$?
-  if [ "$exit_code" -ne 0 ]; then
-    printf '%s\n' "$output"
-    fail "codependence --update exited with $exit_code"
-  fi
-
-  if printf '%s\n' "$output" | grep -q "Failed to fetch version\|Error: Command failed"; then
-    printf '%s\n' "$output"
-    fail "codependence --update had resolver errors"
-  fi
+  assert_update_succeeded
 }
 
 run_update_from_root() {
-  root="$1"
-  output=""
+  root="${1:?root is required}"
   exit_code=0
-
   output=$(cd "$root" && run_cli --config .codependencerc --update --quiet 2>&1) || exit_code=$?
-  if [ "$exit_code" -ne 0 ]; then
-    printf '%s\n' "$output"
-    fail "codependence --update exited with $exit_code"
-  fi
-
-  if printf '%s\n' "$output" | grep -q "Failed to fetch version\|Error: Command failed"; then
-    printf '%s\n' "$output"
-    fail "codependence --update had resolver errors"
-  fi
+  assert_update_succeeded
 }
 
 assert_file_unchanged_after_update_from_root() {
-  root="$1"
-  file="$2"
-  label="$3"
+  root="${1:?root is required}"
+  file="${2:?file is required}"
+  label="${3:?label is required}"
   before_file="$(make_tmp_file)"
   cp "$file" "$before_file"
-
   run_update_from_root "$root"
-
-  if cmp -s "$before_file" "$file"; then
-    rm -f "$before_file"
-    pass "$label"
-    return
-  fi
-
-  printf 'Expected file to remain unchanged after second update: %s\n' "$file"
-  diff -u "$before_file" "$file" || true
-  rm -f "$before_file"
-  fail "$label"
+  assert_snapshot_unchanged "$before_file" "$file" "$label" "Expected file to remain unchanged after second update"
 }
 
 run_update_expect_failure() {
-  root="$1"
-  expected_message="$2"
-  label="$3"
-  output=""
+  root="${1:?root is required}"
+  expected_message="${2:?expected_message is required}"
+  label="${3:?label is required}"
   exit_code=0
-
   output=$(run_cli --rootDir "$root" --config "$root/.codependencerc" --update 2>&1) || exit_code=$?
-  if [ "$exit_code" -eq 0 ]; then
-    printf '%s\n' "$output"
-    fail "$label should fail"
-  fi
+  [ "$exit_code" -ne 0 ] || report_unexpected_success
+  printf '%s\n' "$output" | grep -Fq "$expected_message" || report_missing_error
+  pass "$label fails with expected error"
+}
 
-  if printf '%s\n' "$output" | grep -Fq "$expected_message"; then
-    pass "$label fails with expected error"
-    return
-  fi
+assert_snapshot_unchanged() {
+  snapshot="${1:?snapshot is required}"
+  file="${2:?file is required}"
+  label="${3:?label is required}"
+  diagnostic="${4:?diagnostic is required}"
+  cmp -s "$snapshot" "$file" || report_changed_snapshot
+  rm -f "$snapshot"
+  pass "$label"
+}
 
+assert_update_succeeded() {
+  [ "$exit_code" -eq 0 ] || report_update_failure
+  ! printf '%s\n' "$output" | grep -q "Failed to fetch version\|Error: Command failed" || report_resolver_failure
+}
+
+report_missing_pattern() {
+  printf 'Expected to find: %s\n' "$pattern"
+  printf 'In file: %s\n' "$file"
+  fail "$label"
+}
+
+report_unexpected_pattern() {
+  printf 'Expected not to find: %s\n' "$pattern"
+  fail "$label"
+}
+
+report_file_mismatch() {
+  printf 'Expected file to match: %s\n' "$expected"
+  printf 'Actual file: %s\n' "$actual"
+  diff -u "$expected" "$actual" || :
+  fail "$label"
+}
+
+report_unexpected_success() {
   printf '%s\n' "$output"
-  printf 'Expected failure message: %s\n' "$expected_message"
+  fail "$label should fail"
+}
+
+report_missing_error() {
+  printf '%s\nExpected failure message: %s\n' "$output" "$expected_message"
   fail "$label failure message"
+}
+
+report_changed_snapshot() {
+  printf '%s: %s\n' "$diagnostic" "$file"
+  diff -u "$snapshot" "$file" || :
+  rm -f "$snapshot"
+  fail "$label"
+}
+
+report_update_failure() {
+  printf '%s\n' "$output"
+  fail "codependence --update exited with $exit_code"
+}
+
+report_resolver_failure() {
+  printf '%s\n' "$output"
+  fail "codependence --update had resolver errors"
 }

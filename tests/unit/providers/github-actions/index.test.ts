@@ -1,6 +1,6 @@
 import { beforeEach, describe, test, mock } from "node:test";
 import assert from "node:assert/strict";
-import { assertRejects } from "../../../helpers/assertions";
+import { assertRejects, assertTextIncludes } from "../../../helpers/assertions";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import {
@@ -14,6 +14,7 @@ const jsonResponse = (value: unknown, status = 200): Response =>
     headers: { "Content-Type": "application/json" },
   });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("GitHubActionsProvider", () => {
   const tmpDir = join(import.meta.dirname, ".tmp-github-actions-test");
   const workflowPath = join(tmpDir, "ci.yml");
@@ -41,11 +42,11 @@ describe("GitHubActionsProvider", () => {
   });
 
   test("should resolve the latest GitHub release", async () => {
-    const fetch = mock.fn(async (url: string) => {
+    const fetch = mock.fn((url: string) => {
       const isCommitRequest = url.endsWith("/commits/v5.0.0");
-      if (isCommitRequest) return jsonResponse({ sha: latestSha });
+      if (isCommitRequest) return Promise.resolve(jsonResponse({ sha: latestSha }));
 
-      return jsonResponse({ tag_name: "v5.0.0" });
+      return Promise.resolve(jsonResponse({ tag_name: "v5.0.0" }));
     });
     const token = crypto.randomUUID();
     const authorization = `Bearer ${token}`;
@@ -76,23 +77,25 @@ describe("GitHubActionsProvider", () => {
 
   test("should fall back to the newest stable repository tag", async () => {
     let requestCount = 0;
-    const fetch = mock.fn(async () => {
+    const fetch = mock.fn(() => {
       requestCount += 1;
       const isReleaseRequest = requestCount === 1;
-      if (isReleaseRequest) return jsonResponse({}, 404);
+      if (isReleaseRequest) return Promise.resolve(jsonResponse({}, 404));
 
       const isTagsRequest = requestCount === 2;
       if (isTagsRequest) {
-        return jsonResponse([
-          { name: "nightly" },
-          { name: "v5" },
-          { name: "v5.0.0-beta.1" },
-          { name: "v5.0.0" },
-          { name: "v4.2.2" },
-        ]);
+        return Promise.resolve(
+          jsonResponse([
+            { name: "nightly" },
+            { name: "v5" },
+            { name: "v5.0.0-beta.1" },
+            { name: "v5.0.0" },
+            { name: "v4.2.2" },
+          ]),
+        );
       }
 
-      return jsonResponse({ sha: latestSha });
+      return Promise.resolve(jsonResponse({ sha: latestSha }));
     });
     const provider = new GitHubActionsProvider({ fetch });
 
@@ -104,10 +107,10 @@ describe("GitHubActionsProvider", () => {
 
   test("should reject a release without a stable fallback tag", async () => {
     let requestCount = 0;
-    const fetch = mock.fn(async () => {
+    const fetch = mock.fn(() => {
       requestCount += 1;
-      if (requestCount === 1) return jsonResponse({}, 200);
-      return jsonResponse([{ name: "nightly" }]);
+      if (requestCount === 1) return Promise.resolve(jsonResponse({}, 200));
+      return Promise.resolve(jsonResponse([{ name: "nightly" }]));
     });
     const provider = new GitHubActionsProvider({ fetch });
 
@@ -118,8 +121,8 @@ describe("GitHubActionsProvider", () => {
   });
 
   test("should list repository tags", async () => {
-    const fetch = mock.fn(async () =>
-      jsonResponse([{ name: "v5" }, { name: "v4" }, { invalid: true }]),
+    const fetch = mock.fn(() =>
+      Promise.resolve(jsonResponse([{ name: "v5" }, { name: "v4" }, { invalid: true }])),
     );
     const provider = new GitHubActionsProvider({ fetch });
 
@@ -129,7 +132,9 @@ describe("GitHubActionsProvider", () => {
   });
 
   test("should report GitHub API failures", async () => {
-    const fetch = mock.fn(async () => new Response(null, { status: 403, statusText: "Forbidden" }));
+    const fetch = mock.fn(() =>
+      Promise.resolve(new Response(null, { status: 403, statusText: "Forbidden" })),
+    );
     const provider = new GitHubActionsProvider({ fetch });
 
     await assertRejects(
@@ -186,11 +191,11 @@ jobs:
   - uses: actions/checkout@${sha1Ref} # v4.0.0
 `;
     writeFileSync(workflowPath, content);
-    const fetch = mock.fn(async (url: string) => {
+    const fetch = mock.fn((url: string) => {
       const isCommitRequest = url.endsWith("/commits/v5.0.0");
-      if (isCommitRequest) return jsonResponse({ sha: latestSha });
+      if (isCommitRequest) return Promise.resolve(jsonResponse({ sha: latestSha }));
 
-      return jsonResponse({ tag_name: "v5.0.0" });
+      return Promise.resolve(jsonResponse({ tag_name: "v5.0.0" }));
     });
     const provider = new GitHubActionsProvider({ fetch });
     const version = await provider.getLatestVersion("actions/checkout");
@@ -201,7 +206,7 @@ jobs:
     });
 
     const updated = readFileSync(workflowPath, "utf8");
-    assert.ok(updated.includes(`uses: actions/checkout@${latestSha} # v5.0.0`));
+    assertTextIncludes(updated, `uses: actions/checkout@${latestSha} # v5.0.0`);
   });
 
   test("should update external action refs", () => {
@@ -227,11 +232,11 @@ jobs:
 
     const updated = readFileSync(workflowPath, "utf8");
 
-    assert.ok(updated.includes("uses: actions/checkout@v4"));
-    assert.ok(updated.includes('uses: "actions/setup-node@v4"'));
-    assert.ok(updated.includes(`uses: actions/cache@${sha1Ref}`));
-    assert.ok(updated.includes(`uses: actions/upload-artifact@${sha256Ref}`));
-    assert.ok(updated.includes("uses: ./local-action"));
+    assert.match(updated, /uses: actions\/checkout@v4/);
+    assert.match(updated, /uses: "actions\/setup-node@v4"/);
+    assertTextIncludes(updated, `uses: actions/cache@${sha1Ref}`);
+    assertTextIncludes(updated, `uses: actions/upload-artifact@${sha256Ref}`);
+    assert.match(updated, /uses: \.\/local-action/);
   });
 
   test("should refresh safe release labels in action refs", () => {
