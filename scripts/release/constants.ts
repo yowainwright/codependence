@@ -20,16 +20,11 @@ export const PACKAGE_RELEASE_FILES = [PACKAGE_JSON_PATH];
 export const RELEASE_FILES = [CONFIG_SCHEMA_PATH, PACKAGE_JSON_PATH].sort();
 export const SCHEMA_REVISION_LINE_PATTERN = /^[+-]\s*"x-revision":/;
 export const SCHEMA_UPDATED_LINE_PATTERN = /^[+-]\s*"x-updated":/;
-export const REMOVED_SCHEMA_REVISION_LINE_PATTERN =
-  /^-\s*"x-revision":\s*(?:"[^"]+"|\d+),?\s*$/;
-export const ADDED_SCHEMA_REVISION_LINE_PATTERN =
-  /^\+\s*"x-revision":\s*"([^"]+)",?\s*$/;
-export const REMOVED_SCHEMA_UPDATED_LINE_PATTERN =
-  /^-\s*"x-updated":\s*"\d{4}-\d{2}-\d{2}",?\s*$/;
-export const ADDED_SCHEMA_UPDATED_LINE_PATTERN =
-  /^\+\s*"x-updated":\s*"\d{4}-\d{2}-\d{2}",?\s*$/;
-export const HOMEBREW_STABLE_VERSION_PATTERN =
-  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+export const REMOVED_SCHEMA_REVISION_LINE_PATTERN = /^-\s*"x-revision":\s*(?:"[^"]+"|\d+),?\s*$/;
+export const ADDED_SCHEMA_REVISION_LINE_PATTERN = /^\+\s*"x-revision":\s*"([^"]+)",?\s*$/;
+export const REMOVED_SCHEMA_UPDATED_LINE_PATTERN = /^-\s*"x-updated":\s*"\d{4}-\d{2}-\d{2}",?\s*$/;
+export const ADDED_SCHEMA_UPDATED_LINE_PATTERN = /^\+\s*"x-updated":\s*"\d{4}-\d{2}-\d{2}",?\s*$/;
+export const HOMEBREW_STABLE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 export const FORMULA_HEADER = [
   "class Codependence < Formula",
   '  desc "Enforce dependency version policy across projects, workspaces, and CI"',

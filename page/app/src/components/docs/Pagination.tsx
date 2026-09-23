@@ -20,8 +20,7 @@ function getPagination(slug: string): PaginationResult {
   if (index === -1) return {};
 
   const prevItem = index > 0 ? allItems[index - 1] : undefined;
-  const nextItem =
-    index < allItems.length - 1 ? allItems[index + 1] : undefined;
+  const nextItem = index < allItems.length - 1 ? allItems[index + 1] : undefined;
   return {
     prevItem,
     nextItem,
@@ -40,9 +39,7 @@ export function Pagination({ slug }: PaginationProps) {
           className="mr-auto btn btn-ghost rounded-full border-none hover:bg-base-200"
         >
           <ChevronLeftIcon className="w-5 h-5" />
-          <span className="text-xs md:text-sm font-medium">
-            {prevItem.title}
-          </span>
+          <span className="text-xs md:text-sm font-medium">{prevItem.title}</span>
         </Link>
       )}
       {nextItem && (
@@ -51,9 +48,7 @@ export function Pagination({ slug }: PaginationProps) {
           params={{ slug: getSlugFromHref(nextItem.href) }}
           className="ml-auto btn btn-ghost rounded-full border-none hover:bg-base-200"
         >
-          <span className="text-xs md:text-sm font-medium">
-            {nextItem.title}
-          </span>
+          <span className="text-xs md:text-sm font-medium">{nextItem.title}</span>
           <ChevronRightIcon className="w-5 h-5" />
         </Link>
       )}

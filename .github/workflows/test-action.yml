@@ -9,15 +9,6 @@ on:
       - "tests/e2e/**"
       - "tests/integration/**"
       - ".github/workflows/test-action.yml"
-  push:
-    branches: [main]
-    paths:
-      - "action.yml"
-      - "src/**"
-      - "package.json"
-      - "tests/e2e/**"
-      - "tests/integration/**"
-      - ".github/workflows/test-action.yml"
   workflow_dispatch:
 
 permissions:

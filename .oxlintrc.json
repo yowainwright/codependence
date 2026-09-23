@@ -46,10 +46,7 @@
     "legibility/no-small-collection-conversion": "error",
     "legibility/no-standalone-array-mutations": "error",
     "legibility/no-unnecessary-async": "error",
-    "complexity": [
-      "error",
-      20
-    ],
+    "complexity": ["error", 20],
     "max-lines-per-function": [
       "error",
       {
@@ -62,17 +59,13 @@
   },
   "overrides": [
     {
-      "files": [
-        "scripts/**/*.{js,ts}"
-      ],
+      "files": ["scripts/**/*.{js,ts}"],
       "rules": {
         "no-console": "off"
       }
     },
     {
-      "files": [
-        "src/observability/utils.ts"
-      ],
+      "files": ["src/observability/utils.ts"],
       "rules": {
         "no-console": "off"
       }

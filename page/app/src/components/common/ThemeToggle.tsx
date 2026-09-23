@@ -5,9 +5,7 @@ import { DARK_THEME, LIGHT_THEME, THEME_STORAGE_KEY } from "@/constants";
 function getInitialTheme(): string {
   const saved = localStorage.getItem(THEME_STORAGE_KEY);
   if (saved) return saved;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? DARK_THEME
-    : LIGHT_THEME;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? DARK_THEME : LIGHT_THEME;
 }
 
 export function ThemeToggle() {

@@ -1,8 +1,6 @@
 name: codependence ci 🤼‍♀️
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   repository_dispatch:

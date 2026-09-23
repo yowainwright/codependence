@@ -1,7 +1,7 @@
 packages:
   - page/app
 allowBuilds:
-  '@nubjs/nub': true
+  "@nubjs/nub": true
   esbuild: true
   scriptc: true
 minimumReleaseAgeExclude:

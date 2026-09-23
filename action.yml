@@ -1,129 +1,129 @@
-name: 'Codependence'
-description: 'Enforce dependency version policy in CI and optionally update mismatched versions'
-author: 'Jeff Wainwright'
+name: "Codependence"
+description: "Enforce dependency version policy in CI and optionally update mismatched versions"
+author: "Jeff Wainwright"
 branding:
-  icon: 'package'
-  color: 'blue'
+  icon: "package"
+  color: "blue"
 
 inputs:
   codependencies:
     description: 'Space-separated list of dependencies to check (e.g., "lodash react")'
     required: false
   config:
-    description: 'Path to config file'
+    description: "Path to config file"
     required: false
   files:
-    description: 'File glob patterns (space-separated)'
+    description: "File glob patterns (space-separated)"
     required: false
   targets:
-    description: 'Configured manager targets to run (space-separated)'
+    description: "Configured manager targets to run (space-separated)"
     required: false
   version:
-    description: 'Exact tool version override; Node package manager versions can be inferred from package.json when omitted'
+    description: "Exact tool version override; Node package manager versions can be inferred from package.json when omitted"
     required: false
   lockfile:
-    description: 'Require lockfiles for selected targets (true/false)'
+    description: "Require lockfiles for selected targets (true/false)"
     required: false
-    default: 'true'
+    default: "true"
   pull-request:
-    description: 'Create or update a pull request (true/false)'
+    description: "Create or update a pull request (true/false)"
     required: false
-    default: 'false'
+    default: "false"
   token:
-    description: 'Fine-grained PAT used to create pull requests'
+    description: "Fine-grained PAT used to create pull requests"
     required: false
   dockerhub-username:
-    description: 'Docker Hub username for private image metadata'
+    description: "Docker Hub username for private image metadata"
     required: false
   dockerhub-token:
-    description: 'Docker Hub read-only PAT or organization access token'
+    description: "Docker Hub read-only PAT or organization access token"
     required: false
   ghcr-username:
-    description: 'GitHub username for private GHCR image metadata'
+    description: "GitHub username for private GHCR image metadata"
     required: false
   ghcr-token:
-    description: 'GitHub token with read access to GHCR packages'
+    description: "GitHub token with read access to GHCR packages"
     required: false
   post-update-command:
-    description: 'Trusted command that regenerates lockfiles after updates'
+    description: "Trusted command that regenerates lockfiles after updates"
     required: false
   draft:
-    description: 'Create a draft pull request (true/false)'
+    description: "Create a draft pull request (true/false)"
     required: false
-    default: 'false'
+    default: "false"
   branch-prefix:
-    description: 'Stable pull request branch prefix'
+    description: "Stable pull request branch prefix"
     required: false
-    default: 'update-dependencies'
+    default: "update-dependencies"
   update:
-    description: 'Update dependencies based on check (true/false)'
+    description: "Update dependencies based on check (true/false)"
     required: false
-    default: 'false'
+    default: "false"
   dryRun:
-    description: 'Preview changes without modifying files (true/false)'
+    description: "Preview changes without modifying files (true/false)"
     required: false
-    default: 'false'
+    default: "false"
   permissive:
-    description: 'Update all dependencies to latest except those in codependencies (true/false)'
+    description: "Update all dependencies to latest except those in codependencies (true/false)"
     required: false
-    default: 'false'
+    default: "false"
   mode:
-    description: 'Policy mode: verbose checks listed packages; precise updates all except listed packages'
+    description: "Policy mode: verbose checks listed packages; precise updates all except listed packages"
     required: false
   level:
-    description: 'Allowed update level: patch, minor, or major'
+    description: "Allowed update level: patch, minor, or major"
     required: false
   language:
-    description: 'Target language: nodejs (stable), or experimental go, python, rust, circleci, docker, github-actions, helm, kubernetes, kustomize, terraform'
+    description: "Target language: nodejs (stable), or experimental go, python, rust, circleci, docker, github-actions, helm, kubernetes, kustomize, terraform"
     required: false
   fail-on-outdated:
-    description: 'Fail the action if dependencies are outdated (true/false)'
+    description: "Fail the action if dependencies are outdated (true/false)"
     required: false
-    default: 'true'
+    default: "true"
   rootDir:
-    description: 'Root directory to start search'
+    description: "Root directory to start search"
     required: false
   ignore:
-    description: 'Ignore glob patterns (space-separated)'
+    description: "Ignore glob patterns (space-separated)"
     required: false
   silent:
-    description: 'Enable silent logging (true/false)'
+    description: "Enable silent logging (true/false)"
     required: false
-    default: 'false'
+    default: "false"
   debug:
-    description: 'Enable debug logging (true/false)'
+    description: "Enable debug logging (true/false)"
     required: false
-    default: 'false'
+    default: "false"
   yarnConfig:
-    description: 'Enable yarn config support (true/false)'
+    description: "Enable yarn config support (true/false)"
     required: false
-    default: 'false'
+    default: "false"
   noCache:
-    description: 'Disable version cache for fresh registry results (true/false)'
+    description: "Disable version cache for fresh registry results (true/false)"
     required: false
-    default: 'false'
+    default: "false"
   format:
-    description: 'Output format: json, markdown, or table'
+    description: "Output format: json, markdown, or table"
     required: false
   outputFile:
-    description: 'Write formatted output to this file path'
+    description: "Write formatted output to this file path"
     required: false
 
 outputs:
   outdated:
-    description: 'Whether any dependencies were outdated (true/false)'
+    description: "Whether any dependencies were outdated (true/false)"
     value: ${{ steps.codependence.outputs.outdated }}
   pull-request-url:
-    description: 'Created or updated pull request URL'
+    description: "Created or updated pull request URL"
     value: ${{ steps.create-pull-request.outputs.pull-request-url }}
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Setup Node.js
       uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
       with:
-        node-version: '26'
+        node-version: "26"
 
     - name: Prepare targets
       id: targets

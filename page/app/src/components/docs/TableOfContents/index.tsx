@@ -19,11 +19,7 @@ function HeadingLink({ heading, activeId }: HeadingLinkProps) {
       {heading.subheadings && heading.subheadings.length > 0 && (
         <ul className="ml-4">
           {heading.subheadings.map((subheading) => (
-            <HeadingLink
-              key={subheading.slug}
-              heading={subheading}
-              activeId={activeId}
-            />
+            <HeadingLink key={subheading.slug} heading={subheading} activeId={activeId} />
           ))}
         </ul>
       )}
@@ -58,11 +54,7 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
       <h2 className="mb-4 text-lg font-bold font-sans">On this page</h2>
       <ul className="space-y-1">
         {headings.map((heading) => (
-          <HeadingLink
-            key={heading.slug}
-            heading={heading}
-            activeId={activeId}
-          />
+          <HeadingLink key={heading.slug} heading={heading} activeId={activeId} />
         ))}
       </ul>
     </div>

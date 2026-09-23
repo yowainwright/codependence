@@ -70,45 +70,45 @@ The default secret name is `CODEPENDENCE_TOKEN`; change it with
 
 ## Inputs
 
-| Input | Description | Required | Default |
-|-------|-------------|----------|---------|
-| `codependencies` | Space-separated dependencies to check | No | - |
-| `config` | Path to an alternate config file; root `.codependencerc` is auto-discovered | No | - |
-| `files` | File glob patterns (space-separated) | No | - |
-| `targets` | Configured manager targets to run | No | - |
-| `version` | Exact tool version override; Node package manager versions can be inferred from `package.json#packageManager` when omitted | No for discoverable Node targets; otherwise required for versioned targets | - |
-| `lockfile` | Require lockfiles for selected targets | No | `true` |
-| `pull-request` | Create or update a pull request | No | `false` |
-| `token` | Fine-grained PAT used for pull requests | In PR mode | - |
-| `dockerhub-username` | Docker Hub username for private image metadata | No | - |
-| `dockerhub-token` | Docker Hub read-only PAT or organization access token | No | - |
-| `ghcr-username` | GitHub username for private GHCR image metadata | No | `${{ github.actor }}` |
-| `ghcr-token` | GitHub token with read access to GHCR packages | No | `${{ github.token }}` |
-| `post-update-command` | Trusted lockfile regeneration command | In PR mode | - |
-| `draft` | Create a draft pull request | No | `false` |
-| `branch-prefix` | Stable pull request branch prefix | No | `update-dependencies` |
-| `update` | Update dependencies | No | `false` |
-| `dryRun` | Preview changes without modifying files | No | `false` |
-| `permissive` | Update all except pinned | No | `false` |
-| `mode` | Policy mode: `verbose` or `precise` | No | - |
-| `level` | Allowed update level: `patch`, `minor`, or `major` | No | - |
-| `language` | Target language: `nodejs` (stable), or experimental `go`, `python`, `rust`, `docker`, `github-actions`, `helm` | No | - |
-| `fail-on-outdated` | Fail if outdated | No | `true` |
-| `rootDir` | Root directory | No | - |
-| `ignore` | Ignore patterns (space-separated) | No | - |
-| `silent` | Silent logging | No | `false` |
-| `debug` | Debug logging | No | `false` |
-| `yarnConfig` | Yarn config support | No | `false` |
-| `noCache` | Disable version cache | No | `false` |
-| `format` | Output format: `json`, `markdown`, or `table` | No | - |
-| `outputFile` | Write formatted output to a file | No | - |
+| Input                 | Description                                                                                                                | Required                                                                   | Default               |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------- |
+| `codependencies`      | Space-separated dependencies to check                                                                                      | No                                                                         | -                     |
+| `config`              | Path to an alternate config file; root `.codependencerc` is auto-discovered                                                | No                                                                         | -                     |
+| `files`               | File glob patterns (space-separated)                                                                                       | No                                                                         | -                     |
+| `targets`             | Configured manager targets to run                                                                                          | No                                                                         | -                     |
+| `version`             | Exact tool version override; Node package manager versions can be inferred from `package.json#packageManager` when omitted | No for discoverable Node targets; otherwise required for versioned targets | -                     |
+| `lockfile`            | Require lockfiles for selected targets                                                                                     | No                                                                         | `true`                |
+| `pull-request`        | Create or update a pull request                                                                                            | No                                                                         | `false`               |
+| `token`               | Fine-grained PAT used for pull requests                                                                                    | In PR mode                                                                 | -                     |
+| `dockerhub-username`  | Docker Hub username for private image metadata                                                                             | No                                                                         | -                     |
+| `dockerhub-token`     | Docker Hub read-only PAT or organization access token                                                                      | No                                                                         | -                     |
+| `ghcr-username`       | GitHub username for private GHCR image metadata                                                                            | No                                                                         | `${{ github.actor }}` |
+| `ghcr-token`          | GitHub token with read access to GHCR packages                                                                             | No                                                                         | `${{ github.token }}` |
+| `post-update-command` | Trusted lockfile regeneration command                                                                                      | In PR mode                                                                 | -                     |
+| `draft`               | Create a draft pull request                                                                                                | No                                                                         | `false`               |
+| `branch-prefix`       | Stable pull request branch prefix                                                                                          | No                                                                         | `update-dependencies` |
+| `update`              | Update dependencies                                                                                                        | No                                                                         | `false`               |
+| `dryRun`              | Preview changes without modifying files                                                                                    | No                                                                         | `false`               |
+| `permissive`          | Update all except pinned                                                                                                   | No                                                                         | `false`               |
+| `mode`                | Policy mode: `verbose` or `precise`                                                                                        | No                                                                         | -                     |
+| `level`               | Allowed update level: `patch`, `minor`, or `major`                                                                         | No                                                                         | -                     |
+| `language`            | Target language: `nodejs` (stable), or experimental `go`, `python`, `rust`, `docker`, `github-actions`, `helm`             | No                                                                         | -                     |
+| `fail-on-outdated`    | Fail if outdated                                                                                                           | No                                                                         | `true`                |
+| `rootDir`             | Root directory                                                                                                             | No                                                                         | -                     |
+| `ignore`              | Ignore patterns (space-separated)                                                                                          | No                                                                         | -                     |
+| `silent`              | Silent logging                                                                                                             | No                                                                         | `false`               |
+| `debug`               | Debug logging                                                                                                              | No                                                                         | `false`               |
+| `yarnConfig`          | Yarn config support                                                                                                        | No                                                                         | `false`               |
+| `noCache`             | Disable version cache                                                                                                      | No                                                                         | `false`               |
+| `format`              | Output format: `json`, `markdown`, or `table`                                                                              | No                                                                         | -                     |
+| `outputFile`          | Write formatted output to a file                                                                                           | No                                                                         | -                     |
 
 ## Outputs
 
-| Output | Description |
-|--------|-------------|
-| `outdated` | Whether dependencies were outdated (`true`/`false`) |
-| `pull-request-url` | Created or updated pull request URL |
+| Output             | Description                                         |
+| ------------------ | --------------------------------------------------- |
+| `outdated`         | Whether dependencies were outdated (`true`/`false`) |
+| `pull-request-url` | Created or updated pull request URL                 |
 
 ## Experimental Language Providers
 
@@ -151,7 +151,7 @@ unversioned dependencies, and `appVersion` are left unchanged.
 ```yaml
 - uses: yowainwright/codependence@84b52d79ab0cf2430370c27a6a99a18273a1ac68 # v1.0.2
   with:
-    config: 'config/dependency-policy.json'
+    config: "config/dependency-policy.json"
 ```
 
 ### Python, Go, and other managers

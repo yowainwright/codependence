@@ -21,11 +21,7 @@ export function DocsHeader() {
           <Search />
         </div>
         <div className="navbar-end">
-          <a
-            className="btn btn-sm btn-ghost"
-            href={GITHUB_URL}
-            aria-label="github"
-          >
+          <a className="btn btn-sm btn-ghost" href={GITHUB_URL} aria-label="github">
             <FaGithub size={16} />
           </a>
           <ThemeToggle />

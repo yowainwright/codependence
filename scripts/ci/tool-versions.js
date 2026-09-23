@@ -163,11 +163,13 @@ export function runToolVersionsCli({
   if (mode === "package-manager-version") {
     const manager = argv[1];
     if (!manager) throw new Error("A package manager is required");
-    output(resolveNodePackageManagerVersion({
-      manager,
-      rootDir: argv[2],
-      workspace: env.GITHUB_WORKSPACE || process.cwd(),
-    }));
+    output(
+      resolveNodePackageManagerVersion({
+        manager,
+        rootDir: argv[2],
+        workspace: env.GITHUB_WORKSPACE || process.cwd(),
+      }),
+    );
     return 0;
   }
 

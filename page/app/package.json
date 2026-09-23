@@ -1,11 +1,8 @@
 {
   "name": "@codependence/docs",
+  "version": "1.1.0",
   "description": "Documentation site for Codependence dependency version policy.",
   "type": "module",
-  "version": "1.1.0",
-  "engines": {
-    "node": ">=22.12.0"
-  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -35,5 +32,8 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.2.1"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }
