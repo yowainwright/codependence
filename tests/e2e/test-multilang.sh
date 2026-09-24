@@ -33,11 +33,11 @@ run_step() {
   shift
 
   "$@" || step_failed "$label"
-  print_success "$label"
+  print_success "$label succeeded"
 }
 
 build_init_image() {
-  run_step "Built Node.js init test image" docker build \
+  run_step "Node.js init image build" docker build \
     --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" \
     --target test \
     -t "$INIT_IMAGE" \
@@ -45,11 +45,11 @@ build_init_image() {
 }
 
 run_init_tests() {
-  run_step "Node.js init tests passed!" docker run --rm "$INIT_IMAGE"
+  run_step "Node.js init tests" docker run --rm "$INIT_IMAGE"
 }
 
 build_multilang_image() {
-  run_step "Built multi-language test image" docker build \
+  run_step "Multi-language image build" docker build \
     --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" \
     --target multilang-test \
     -t "$MULTILANG_IMAGE" \
@@ -57,63 +57,63 @@ build_multilang_image() {
 }
 
 run_multilang_tests() {
-  run_step "Multi-language tests passed!" docker run --rm "$MULTILANG_IMAGE"
+  run_step "Multi-language tests" docker run --rm "$MULTILANG_IMAGE"
 }
 
 run_go_update_tests() {
-  run_step "Go update tests passed!" docker run --rm "$MULTILANG_IMAGE" ./test-go-update.sh
+  run_step "Go update tests" docker run --rm "$MULTILANG_IMAGE" ./test-go-update.sh
 }
 
 run_provider_update_tests() {
-  run_step "Provider update tests passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-all.sh
+  run_step "Provider update tests" docker run --rm "$MULTILANG_IMAGE" ./test-provider-all.sh
 }
 
 run_new_package_manager_tests() {
-  run_step "New package manager e2es passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-new-package-managers.sh
+  run_step "New package manager e2es" docker run --rm "$MULTILANG_IMAGE" ./test-provider-new-package-managers.sh
 }
 
 run_provider_rust_tests() {
-  run_step "Rust provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-rust.sh
+  run_step "Rust provider e2e" docker run --rm "$MULTILANG_IMAGE" ./test-provider-rust.sh
 }
 
 run_provider_docker_tests() {
-  run_step "Docker provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-docker.sh
+  run_step "Docker provider e2e" docker run --rm "$MULTILANG_IMAGE" ./test-provider-docker.sh
 }
 
 run_provider_circleci_tests() {
-  run_step "CircleCI provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-circleci.sh
+  run_step "CircleCI provider e2e" docker run --rm "$MULTILANG_IMAGE" ./test-provider-circleci.sh
 }
 
 run_provider_github_actions_tests() {
-  run_step "GitHub Actions provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-github-actions.sh
+  run_step "GitHub Actions provider e2e" docker run --rm "$MULTILANG_IMAGE" ./test-provider-github-actions.sh
 }
 
 run_provider_helm_tests() {
-  run_step "Helm provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-helm.sh
+  run_step "Helm provider e2e" docker run --rm "$MULTILANG_IMAGE" ./test-provider-helm.sh
 }
 
 run_provider_kubernetes_tests() {
-  run_step "Kubernetes provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-kubernetes.sh
+  run_step "Kubernetes provider e2e" docker run --rm "$MULTILANG_IMAGE" ./test-provider-kubernetes.sh
 }
 
 run_provider_kustomize_tests() {
-  run_step "Kustomize provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-kustomize.sh
+  run_step "Kustomize provider e2e" docker run --rm "$MULTILANG_IMAGE" ./test-provider-kustomize.sh
 }
 
 run_provider_terraform_tests() {
-  run_step "Terraform provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-terraform.sh
+  run_step "Terraform provider e2e" docker run --rm "$MULTILANG_IMAGE" ./test-provider-terraform.sh
 }
 
 run_provider_uv_tests() {
-  run_step "uv pyproject provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-uv.sh
+  run_step "uv pyproject provider e2e" docker run --rm "$MULTILANG_IMAGE" ./test-provider-uv.sh
 }
 
 run_agent_skill_tests() {
-  run_step "Agent skill install tests passed!" docker run --rm "$MULTILANG_IMAGE" node --test ./tests/e2e/scripts/install/index.test.ts
+  run_step "Agent skill install tests" docker run --rm "$MULTILANG_IMAGE" node --test ./tests/e2e/scripts/install/index.test.ts
 }
 
 run_packed_install_tests() {
-  run_step "Packed install smoke tests passed!" docker run --rm "$MULTILANG_IMAGE" ./test-packed-install.sh
+  run_step "Packed install smoke tests" docker run --rm "$MULTILANG_IMAGE" ./test-packed-install.sh
 }
 
 verify_init_environment() {
@@ -333,7 +333,7 @@ require_docker_error() {
 }
 
 step_failed() {
-  print_error "${1:?label is required}"
+  print_error "${1:?label is required} failed"
   exit 1
 }
 
