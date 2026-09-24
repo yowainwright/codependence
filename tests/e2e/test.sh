@@ -95,27 +95,16 @@ command_clean() {
 }
 
 command_help() {
-  cat <<EOF
-Usage: $0 [command]
-
-Commands:
-  test       Run init tests (default)
-  level-mode Run level and mode feature tests
-  all        Run all e2e test suites
-  dev        Start interactive development environment
-  build      Build the project in Docker
-  clean      Clean up Docker resources
-  help       Show this help message
-
-Examples:
-  $0                    # Run init tests
-  $0 level-mode        # Run level/mode tests
-  $0 all               # Run all tests
-  $0 dev               # Interactive testing
-  $0 build             # Build project
-  $0 clean             # Clean up
-EOF
-} # noqa: LEG038 -- This function only prints literal usage text.
+  printf 'Usage: %s [command]\n\n' "$0"
+  cat "$SCRIPT_DIR/fixtures/test-help.txt"
+  printf '\nExamples:\n'
+  printf '  %s                    # Run init tests\n' "$0"
+  printf '  %s level-mode        # Run level/mode tests\n' "$0"
+  printf '  %s all               # Run all tests\n' "$0"
+  printf '  %s dev               # Interactive testing\n' "$0"
+  printf '  %s build             # Build project\n' "$0"
+  printf '  %s clean             # Clean up\n' "$0"
+}
 
 command_unknown() {
   print_error "Unknown command: $COMMAND"

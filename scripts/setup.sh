@@ -3,6 +3,8 @@
 set -eu
 
 PROJECT_ROOT="${1:-.}"
+SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
+TEMPLATE_DIR="$SCRIPT_DIR/templates"
 CLAUDE_DIR="${CLAUDE_DIR:-.claude}"
 CODEX_DIR="${CODEX_DIR:-.codex}"
 
@@ -89,34 +91,11 @@ EOF
   log "Created post-checkout hook"
 }
 
-write_commit_msg_hook_template() {
-  cat >"$path" <<'EOF'
-#!/bin/sh
-commit_msg=$(cat "$1")
-pattern="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .{1,}"
-
-if ! echo "$commit_msg" | grep -qE "$pattern"; then
-  echo "Error: Commit message does not follow conventional commits format"
-  echo "Expected: <type>[optional scope]: <description>"
-  echo "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
-  echo ""
-  echo "Your commit message:"
-  echo "$commit_msg"
-  exit 1
-fi
-
-if [ ${#commit_msg} -gt 120 ]; then
-  echo "Error: Commit message header exceeds 120 characters"
-  exit 1
-fi
-EOF
-} # noqa: LEG038 -- This function only writes a literal configuration template.
-
 install_commit_msg_hook() {
   path="$HOOKS_DIR/commit-msg"
   skip_existing "$path" "commit-msg hook" && return
 
-  write_commit_msg_hook_template
+  cp "$TEMPLATE_DIR/commit-msg.sh" "$path"
   chmod +x "$path"
   log "Created commit-msg hook"
 }
@@ -128,37 +107,10 @@ install_git_hooks() {
   install_commit_msg_hook
 }
 
-write_agents_md_template() {
-  cat >AGENTS.md <<'EOF'
-# Codependence Docs
-
-For README updates, use the `technical-writing` skill.
-
-Use these style references:
-
-- https://github.com/yowainwright/shellcheck_legibility
-- Node.js docs
-- Mini Cookies README API section
-
-Document schema, CLI, API, and Action surfaces by execution type: CLI, CI, or Node.
-
-For each approved section:
-
-1. Title with the option or API name in code, including type.
-2. Short summary.
-3. CLI or CI example when applicable.
-4. Output block when the command or Action produces output.
-
-Use `jsonc` for JSON examples and `diff` for changed output or behavior.
-
-Write one section at a time and wait for approval before editing the next section.
-EOF
-} # noqa: LEG038 -- This function only writes a literal configuration template.
-
 install_agents_md() {
   skip_existing "AGENTS.md" "AGENTS.md" && return
 
-  write_agents_md_template
+  cp "$TEMPLATE_DIR/agents.md.template" AGENTS.md
   log "Created AGENTS.md"
 }
 
@@ -173,59 +125,12 @@ EOF
   log "Created CLAUDE.md"
 }
 
-write_claude_settings_template() {
-  cat >"$path" <<'EOF'
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "test ! -x \"$HOME/.agents/bin/agent-sync\" || \"$HOME/.agents/bin/agent-sync\" hook git --claude",
-            "timeout": 5,
-            "statusMessage": "Checking Git permissions"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|MultiEdit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "test ! -f package.json || nub run lint:agent",
-            "timeout": 120,
-            "statusMessage": "Checking agent lint"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "test ! -x \"$HOME/.agents/bin/agent-sync\" || \"$HOME/.agents/bin/agent-sync\" hook git --claude --prompt",
-            "timeout": 5,
-            "statusMessage": "Checking Greploop activation"
-          }
-        ]
-      }
-    ]
-  }
-}
-EOF
-} # noqa: LEG038 -- This function only writes a literal configuration template.
-
 install_claude_settings() {
   path="$CLAUDE_DIR/settings.json"
   skip_existing "$path" "Claude settings" && return
 
   mkdir -p "$CLAUDE_DIR"
-  write_claude_settings_template
+  cp "$TEMPLATE_DIR/claude-settings.json.template" "$path"
   log "Created Claude settings"
 }
 
@@ -245,59 +150,12 @@ EOF
   log "Created Codex config"
 }
 
-write_codex_hooks_template() {
-  cat >"$path" <<'EOF'
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash|exec_command",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "test ! -x \"$HOME/.agents/bin/agent-sync\" || \"$HOME/.agents/bin/agent-sync\" hook git --codex",
-            "timeout": 5,
-            "statusMessage": "Checking Git permissions"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "apply_patch|Edit|MultiEdit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "test ! -f package.json || nub run lint:agent",
-            "timeout": 120,
-            "statusMessage": "Checking agent lint"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "test ! -x \"$HOME/.agents/bin/agent-sync\" || \"$HOME/.agents/bin/agent-sync\" hook git --codex --prompt",
-            "timeout": 5,
-            "statusMessage": "Checking Greploop activation"
-          }
-        ]
-      }
-    ]
-  }
-}
-EOF
-} # noqa: LEG038 -- This function only writes a literal configuration template.
-
 install_codex_hooks() {
   path="$CODEX_DIR/hooks.json"
   skip_existing "$path" "Codex hooks" && return
 
   mkdir -p "$CODEX_DIR"
-  write_codex_hooks_template
+  cp "$TEMPLATE_DIR/codex-hooks.json.template" "$path"
   log "Created Codex hooks"
 }
 

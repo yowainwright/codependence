@@ -121,7 +121,7 @@
     "precoverage": "mkdir -p coverage",
     "lint:changed": "NODE_OPTIONS= node --preserve-symlinks-main node_modules/eslint-plugin-legibility/bin/lint-changed.js",
     "lint:js": "NODE_OPTIONS= oxlint . --deny-warnings",
-    "lint:shell": "mise exec -- shellcheck-legibility check scripts --config scripts/.shellcheck-legibility.toml && mise exec -- shellcheck-legibility check tests --config scripts/.shellcheck-legibility.toml --ignore LEG025"
+    "lint:shell": "mise exec -- shellcheck-legibility check scripts tests --config scripts/.shellcheck-legibility.toml"
   },
   "devDependencies": {
     "@nubjs/nub": "0.9.2",

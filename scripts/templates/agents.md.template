@@ -1,0 +1,22 @@
+# Codependence Docs
+
+For README updates, use the `technical-writing` skill.
+
+Use these style references:
+
+- https://github.com/yowainwright/shellcheck_legibility
+- Node.js docs
+- Mini Cookies README API section
+
+Document schema, CLI, API, and Action surfaces by execution type: CLI, CI, or Node.
+
+For each approved section:
+
+1. Title with the option or API name in code, including type.
+2. Short summary.
+3. CLI or CI example when applicable.
+4. Output block when the command or Action produces output.
+
+Use `jsonc` for JSON examples and `diff` for changed output or behavior.
+
+Write one section at a time and wait for approval before editing the next section.

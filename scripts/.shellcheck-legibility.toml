@@ -4,4 +4,3 @@ max-expression-operators = 4
 max-if-operators = 0
 max-control-flow-depth = 3
 max-function-lines = 20
-# lint:shell exempts LEG025 only for tests, whose filenames identify grouped test cases.

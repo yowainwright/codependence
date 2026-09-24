@@ -5,19 +5,19 @@ WORK_DIR=""
 TMP_DIRS=""
 
 resolve_root_dir() {
-  for candidate in "$SCRIPT_DIR/.." "$SCRIPT_DIR/../.." "$SCRIPT_DIR/../../.."; do
+  for candidate in "$SCRIPT_DIR" "$SCRIPT_DIR/.." "$SCRIPT_DIR/../.." "$SCRIPT_DIR/../../.."; do
     [ -f "$candidate/dist/cli.js" ] || continue
     cd "$candidate" && pwd
     return
   done
 
-  cd "$SCRIPT_DIR/../../.." && pwd
+  cd "$SCRIPT_DIR/../.." && pwd
 }
 
 resolve_fixture_dir() {
   root="${1:?root is required}"
 
-  for candidate in "$SCRIPT_DIR" "$SCRIPT_DIR/.." "$SCRIPT_DIR/../fixtures" "$root/tests/e2e/fixtures"; do
+  for candidate in "$SCRIPT_DIR" "$SCRIPT_DIR/.." "$SCRIPT_DIR/fixtures" "$root/tests/e2e/fixtures"; do
     [ -f "$candidate/rust-Cargo.toml.fixture" ] || continue
     cd "$candidate" && pwd
     return

@@ -1,0 +1,8 @@
+Commands:
+  test       Run init tests (default)
+  level-mode Run level and mode feature tests
+  all        Run all e2e test suites
+  dev        Start interactive development environment
+  build      Build the project in Docker
+  clean      Clean up Docker resources
+  help       Show this help message

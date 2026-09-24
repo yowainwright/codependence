@@ -94,10 +94,12 @@ COPY tests/fixtures/ ./tests/fixtures/
 COPY tests/e2e/test-go-update.sh ./
 COPY tests/e2e/test-packed-install.sh ./
 COPY tests/e2e/scripts/ ./tests/e2e/scripts/
-COPY tests/e2e/provider/ ./provider/
+COPY tests/e2e/test-provider-*.sh ./
+COPY tests/e2e/test-python-go.sh ./
+COPY tests/e2e/helpers.sh ./
 
 # Make all test scripts executable
-RUN chmod +x *.sh provider/*.sh
+RUN chmod +x *.sh
 
 # Change ownership
 RUN chown -R testuser:testuser /test

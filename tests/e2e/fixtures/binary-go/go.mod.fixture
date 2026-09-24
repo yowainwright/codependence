@@ -1,0 +1,5 @@
+module example.com/binary-test
+
+go 1.22
+
+require example.com/dependency v1.0.0

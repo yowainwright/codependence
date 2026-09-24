@@ -8,29 +8,11 @@ SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
 trap cleanup_provider_e2e EXIT
 
 write_terraform_dependencies_codependencerc() {
-  cat >"$WORK_DIR/main.tf" <<'HCL'
-terraform {
-  required_providers {
-    aws = {
-      source = "hashicorp/aws"
-      version = "~> 5.30" # provider
-    }
-  }
-}
-
-module "vpc" {
-  source = "terraform-aws-modules/vpc/aws"
-  version = "5.8.1" # module
-}
-
-module "app" {
-  source = "git::https://github.com/acme/app.git?ref=v1.2.3" # git module
-}
-HCL
+  cp "$FIXTURE_DIR/terraform-main.tf.fixture" "$WORK_DIR/main.tf"
   cat >"$WORK_DIR/.codependencerc" <<'JSON'
 {"targets":[{"manager":"terraform","mode":"verbose","codependencies":[{"hashicorp/aws":"~> 5.31"},{"terraform-aws-modules/vpc/aws":"5.9.0"},{"github.com/acme/app":"v1.2.4"}]}]}
 JSON
-} # noqa: LEG038 -- This function only writes literal fixture data.
+}
 
 test_terraform_dependencies() {
   make_tmp_dir

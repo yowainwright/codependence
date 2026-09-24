@@ -37,6 +37,7 @@ RUN if node -e "const pkg = require('./package.json'); process.exit(Object.keys(
     fi
 
 COPY tests/e2e/fixtures/ ./
+COPY tests/e2e/test-level-mode.sh ./
 
 RUN chmod +x *.sh
 

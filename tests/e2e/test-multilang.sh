@@ -65,47 +65,47 @@ run_go_update_tests() {
 }
 
 run_provider_update_tests() {
-  run_step "Provider update tests passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/all.sh
+  run_step "Provider update tests passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-all.sh
 }
 
 run_new_package_manager_tests() {
-  run_step "New package manager e2es passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/new-package-managers.sh
+  run_step "New package manager e2es passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-new-package-managers.sh
 }
 
 run_provider_rust_tests() {
-  run_step "Rust provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/rust.sh
+  run_step "Rust provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-rust.sh
 }
 
 run_provider_docker_tests() {
-  run_step "Docker provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/docker.sh
+  run_step "Docker provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-docker.sh
 }
 
 run_provider_circleci_tests() {
-  run_step "CircleCI provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/circleci.sh
+  run_step "CircleCI provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-circleci.sh
 }
 
 run_provider_github_actions_tests() {
-  run_step "GitHub Actions provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/github-actions.sh
+  run_step "GitHub Actions provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-github-actions.sh
 }
 
 run_provider_helm_tests() {
-  run_step "Helm provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/helm.sh
+  run_step "Helm provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-helm.sh
 }
 
 run_provider_kubernetes_tests() {
-  run_step "Kubernetes provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/kubernetes.sh
+  run_step "Kubernetes provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-kubernetes.sh
 }
 
 run_provider_kustomize_tests() {
-  run_step "Kustomize provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/kustomize.sh
+  run_step "Kustomize provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-kustomize.sh
 }
 
 run_provider_terraform_tests() {
-  run_step "Terraform provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/terraform.sh
+  run_step "Terraform provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-terraform.sh
 }
 
 run_provider_uv_tests() {
-  run_step "uv pyproject provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./provider/uv.sh
+  run_step "uv pyproject provider e2e passed!" docker run --rm "$MULTILANG_IMAGE" ./test-provider-uv.sh
 }
 
 run_agent_skill_tests() {
@@ -312,41 +312,14 @@ command_clean() {
 }
 
 command_help() {
-  cat <<EOF
-Usage: $0 [command]
-
-Commands:
-  all         Run all e2e tests (default)
-  init        Run Node.js init tests only
-  multilang   Run Python + Go tests only
-  python      Run Python + Go tests only (alias)
-  go          Run Python + Go tests only (alias)
-  go-update   Run Go update/preserve tests only
-  provider-updates Run provider update tests
-  new-package-managers Run new package manager e2es
-  rust             Run Rust provider e2e only
-  docker           Run Docker provider e2e only
-  circleci         Run CircleCI provider e2e only
-  github-actions   Run GitHub Actions provider e2e only
-  helm             Run Helm provider e2e only
-  kubernetes       Run Kubernetes provider e2e only
-  kustomize        Run Kustomize provider e2e only
-  terraform        Run Terraform provider e2e only
-  uv               Run uv pyproject provider e2e only
-  agent-skills     Run packaged agent skill install tests
-  packed-install   Run packed package install smoke tests
-  verify-init-env       Verify the Node.js init Docker image
-  verify-multilang-env  Verify the Python + Go Docker image
-  clean       Clean up Docker resources
-  help        Show this help message
-
-Examples:
-  $0                 # Run all tests
-  $0 init           # Run Node.js tests
-  $0 multilang      # Run Python/Go tests
-  $0 clean          # Clean up
-EOF
-} # noqa: LEG038 -- This function only prints literal usage text.
+  printf 'Usage: %s [command]\n\n' "$0"
+  cat "$SCRIPT_DIR/fixtures/test-multilang-help.txt"
+  printf '\nExamples:\n'
+  printf '  %s                 # Run all tests\n' "$0"
+  printf '  %s init           # Run Node.js tests\n' "$0"
+  printf '  %s multilang      # Run Python/Go tests\n' "$0"
+  printf '  %s clean          # Clean up\n' "$0"
+}
 
 command_unknown() {
   print_error "Unknown command: $COMMAND"

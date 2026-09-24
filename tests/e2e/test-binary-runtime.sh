@@ -2,41 +2,19 @@
 set -e
 
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
-# shellcheck source=../provider/helpers.sh
-. "$SCRIPT_DIR/../provider/helpers.sh"
+# shellcheck source=helpers.sh
+. "$SCRIPT_DIR/helpers.sh"
 
 trap cleanup_provider_e2e EXIT
 
 write_package_manager_subprocess_codependencerc() {
-  cat >"$WORK_DIR/bin/npm" <<'SH'
-#!/bin/sh
-if [ "$*" = "view lodash version latest" ]; then
-  printf '4.17.21\n'
-  exit 0
-fi
-
-printf 'Unexpected npm arguments: %s\n' "$*" >&2
-exit 64
-SH
+  cp "$FIXTURE_DIR/binary-package-manager/binary-package-manager.sh" "$WORK_DIR/bin/npm"
   chmod +x "$WORK_DIR/bin/npm"
 
-  cat >"$WORK_DIR/package.json" <<'JSON'
-{
-  "name": "binary-child-process-test",
-  "version": "1.0.0",
-  "dependencies": {
-    "lodash": "4.17.20"
-  }
-}
-JSON
+  cp "$FIXTURE_DIR/binary-package-manager/package.json.fixture" "$WORK_DIR/package.json"
 
-  cat >"$WORK_DIR/.codependencerc" <<'JSON'
-{
-  "mode": "verbose",
-  "codependencies": ["lodash"]
+  cp "$FIXTURE_DIR/binary-package-manager/codependencerc.fixture" "$WORK_DIR/.codependencerc"
 }
-JSON
-} # noqa: LEG038 -- Embedded fixture content is separate from shell control flow.
 
 test_package_manager_subprocess() {
   make_tmp_dir
@@ -51,47 +29,13 @@ test_package_manager_subprocess() {
 }
 
 write_concurrent_subprocesses_codependencerc() {
-  cat >"$WORK_DIR/bin/npm" <<'SH'
-#!/bin/sh
-package="$2"
-other="alpha"
-if [ "$package" = "alpha" ]; then
-  other="beta"
-fi
-
-touch "$BINARY_CONCURRENCY_DIR/$package"
-attempt=0
-while [ ! -f "$BINARY_CONCURRENCY_DIR/$other" ]; do
-  attempt=$((attempt + 1))
-  if [ "$attempt" -ge 20 ]; then
-    printf 'Package-manager resolution did not run concurrently\n' >&2
-    exit 70
-  fi
-  sleep 0.05
-done
-
-printf '2.0.0\n'
-SH
+  cp "$FIXTURE_DIR/binary-concurrency/binary-concurrency.sh" "$WORK_DIR/bin/npm"
   chmod +x "$WORK_DIR/bin/npm"
 
-  cat >"$WORK_DIR/package.json" <<'JSON'
-{
-  "name": "binary-concurrency-test",
-  "version": "1.0.0",
-  "dependencies": {
-    "alpha": "1.0.0",
-    "beta": "1.0.0"
-  }
-}
-JSON
+  cp "$FIXTURE_DIR/binary-concurrency/package.json.fixture" "$WORK_DIR/package.json"
 
-  cat >"$WORK_DIR/.codependencerc" <<'JSON'
-{
-  "mode": "verbose",
-  "codependencies": ["alpha", "beta"]
+  cp "$FIXTURE_DIR/binary-concurrency/codependencerc.fixture" "$WORK_DIR/.codependencerc"
 }
-JSON
-} # noqa: LEG038 -- Embedded fixture content is separate from shell control flow.
 
 test_concurrent_subprocesses() {
   make_tmp_dir
@@ -107,38 +51,13 @@ test_concurrent_subprocesses() {
 }
 
 write_go_subprocess_codependencerc() {
-  cat >"$WORK_DIR/bin/go" <<'SH'
-#!/bin/sh
-if [ "$*" = "list -m -versions example.com/dependency" ]; then
-  printf 'example.com/dependency v1.0.0 v1.1.0\n'
-  exit 0
-fi
-
-if [ "$*" = "mod tidy" ]; then
-  printf 'tidied\n' > "$GO_TIDY_LOG"
-  exit 0
-fi
-
-printf 'Unexpected go arguments: %s\n' "$*" >&2
-exit 64
-SH
+  cp "$FIXTURE_DIR/binary-go/binary-go.sh" "$WORK_DIR/bin/go"
   chmod +x "$WORK_DIR/bin/go"
 
-  cat >"$WORK_DIR/go.mod" <<'MOD'
-module example.com/binary-test
+  cp "$FIXTURE_DIR/binary-go/go.mod.fixture" "$WORK_DIR/go.mod"
 
-go 1.22
-
-require example.com/dependency v1.0.0
-MOD
-
-  cat >"$WORK_DIR/.codependencerc" <<'JSON'
-{
-  "mode": "verbose",
-  "codependencies": ["example.com/dependency"]
+  cp "$FIXTURE_DIR/binary-go/codependencerc.fixture" "$WORK_DIR/.codependencerc"
 }
-JSON
-} # noqa: LEG038 -- Embedded fixture content is separate from shell control flow.
 
 test_go_subprocess() {
   make_tmp_dir
@@ -169,7 +88,7 @@ test_interactive_prompts() {
   make_tmp_dir
   write_interactive_prompts_package_json
 
-  python3 "$SCRIPT_DIR/test-binary-interactive.py" "$BINARY_CLI" "$WORK_DIR"
+  python3 "$SCRIPT_DIR/scripts/test-binary-interactive.py" "$BINARY_CLI" "$WORK_DIR"
   assert_file_contains "$WORK_DIR/package.json" '"codependencies"' "binary streaming TTY prompts"
   assert_file_contains "$WORK_DIR/package.json" '"lodash"' "binary streaming TTY output"
 }

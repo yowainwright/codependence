@@ -1,0 +1,24 @@
+Commands:
+  all         Run all e2e tests (default)
+  init        Run Node.js init tests only
+  multilang   Run Python + Go tests only
+  python      Run Python + Go tests only (alias)
+  go          Run Python + Go tests only (alias)
+  go-update   Run Go update/preserve tests only
+  provider-updates Run provider update tests
+  new-package-managers Run new package manager e2es
+  rust             Run Rust provider e2e only
+  docker           Run Docker provider e2e only
+  circleci         Run CircleCI provider e2e only
+  github-actions   Run GitHub Actions provider e2e only
+  helm             Run Helm provider e2e only
+  kubernetes       Run Kubernetes provider e2e only
+  kustomize        Run Kustomize provider e2e only
+  terraform        Run Terraform provider e2e only
+  uv               Run uv pyproject provider e2e only
+  agent-skills     Run packaged agent skill install tests
+  packed-install   Run packed package install smoke tests
+  verify-init-env       Verify the Node.js init Docker image
+  verify-multilang-env  Verify the Python + Go Docker image
+  clean       Clean up Docker resources
+  help        Show this help message
