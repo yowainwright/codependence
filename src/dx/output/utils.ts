@@ -1,4 +1,5 @@
 import { ANSI, createAnsiPattern, DEFAULT_WIDTH } from "../constants";
+import { truncate, visibleLength } from "../utils";
 import {
   CODEPENDENCE_GRADIENT_END,
   CODEPENDENCE_GRADIENT_START,
@@ -533,16 +534,6 @@ const applyCellStyle = (value: string, style?: TableCellStyle): string => {
   return `${prefix}${value}${ANSI.RESET}`;
 };
 
-const visibleLength = (value: string): number => value.replace(createAnsiPattern(), "").length;
-
-const truncateString = (value: string, width: number): string => {
-  if (visibleLength(value) <= width) return value;
-
-  const plainValue = value.replace(createAnsiPattern(), "");
-  if (width <= 3) return ".".repeat(width);
-  return `${plainValue.slice(0, width - 3)}...`;
-};
-
 const cellPadding = (): string => " ".repeat(TABLE_CELL_PADDING);
 
 const paddedCellWidth = (width: number): number => width + TABLE_CELL_PADDING * 2;
@@ -597,7 +588,7 @@ const tableCell = (
   row: TableRow,
   rowStyle: TableRowStyle,
 ): string => {
-  const value = truncateString(row[header] || "", width);
+  const value = truncate(row[header] || "", width);
   const paddedValue = padString(value, width, align);
   const cell = `${cellPadding()}${paddedValue}${cellPadding()}`;
   return applyCellStyle(cell, rowStyle[header]);

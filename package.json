@@ -2,31 +2,50 @@
   "name": "codependence",
   "version": "1.0.15",
   "description": "Enforce dependency version policy across projects, workspaces, and CI.",
+  "keywords": [
+    "ci",
+    "dependencies",
+    "dependency-policy",
+    "devDependencies",
+    "monorepo",
+    "optional-dependencies",
+    "optionalDependencies",
+    "peerDependencies",
+    "semver",
+    "version-policy",
+    "versioning",
+    "versions"
+  ],
   "homepage": "https://jeffry.in/codependence",
   "bugs": {
     "url": "https://github.com/yowainwright/codependence/issues"
   },
+  "license": "MIT",
+  "author": "Jeff Wainwright <yowainwright@gmail.com> (https://jeffry.in)",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/yowainwright/codependence.git"
   },
-  "author": "Jeff Wainwright <yowainwright@gmail.com> (https://jeffry.in)",
+  "bin": {
+    "cdp": "dist/cli.js",
+    "codependence": "dist/cli.js"
+  },
+  "workspaces": [
+    "page/app"
+  ],
+  "files": [
+    "dist/cli.js",
+    "dist/index.js",
+    "dist/index.cjs",
+    "src/types.ts",
+    "src/constants.ts",
+    "src/providers/constants.ts",
+    "src/config/schema.json"
+  ],
+  "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
-  "devDependencies": {
-    "@inquirer/checkbox": "^5.2.1",
-    "@inquirer/select": "^5.2.1",
-    "@nubjs/nub": "0.7.5",
-    "@types/node": "26.2.0",
-    "eslint-plugin-legibility": "^0.3.3",
-    "oxfmt": "^0.63.0",
-    "oxlint": "^1.78.0",
-    "pastoralist": "1.13.0",
-    "prettier": "^3.9.6",
-    "release-it": "21.0.2",
-    "rolldown": "1.2.3",
-    "scriptc": "0.0.26"
-  },
+  "types": "src/types.ts",
   "exports": {
     ".": {
       "types": "./src/types.ts",
@@ -35,33 +54,6 @@
     },
     "./schema.json": "./src/config/schema.json"
   },
-  "bin": {
-    "codependence": "dist/cli.js",
-    "cdp": "dist/cli.js"
-  },
-  "engines": {
-    "node": ">=20"
-  },
-  "files": [
-    "dist",
-    "src",
-    "scripts/install"
-  ],
-  "keywords": [
-    "peerDependencies",
-    "optionalDependencies",
-    "optional-dependencies",
-    "dependencies",
-    "devDependencies",
-    "dependency-policy",
-    "version-policy",
-    "versioning",
-    "versions",
-    "monorepo",
-    "ci",
-    "semver"
-  ],
-  "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
@@ -81,20 +73,20 @@
     "deps:audit": "nub audit",
     "deps:overrides": "pastoralist --remove-unused --summary -d page/app/package.json",
     "deps:security": "pastoralist --dry-run --checkSecurity --summary -d page/app/package.json",
+    "fmt:check": "oxfmt --check",
     "format-src": "oxfmt --write src",
     "format-test": "oxfmt --write tests",
     "format-app": "prettier --write page/app",
     "format": "oxfmt --write src && oxfmt --write tests && prettier --write page/app",
-    "lint": "NODE_OPTIONS= node --preserve-symlinks-main node_modules/eslint-plugin-legibility/bin/lint-changed.js",
-    "lint:agent": "NODE_OPTIONS= node --preserve-symlinks-main node_modules/eslint-plugin-legibility/bin/lint-changed.js --comments=forbid",
-    "lint:all": "NODE_OPTIONS= oxlint .",
-    "lint:agent:all": "NODE_OPTIONS= oxlint . --deny-warnings --deny legibility/no-unmatched-comments",
+    "lint": "nub run lint:strict",
+    "lint:agent": "NODE_OPTIONS= node --preserve-symlinks-main node_modules/eslint-plugin-legibility/bin/lint-changed.js --comments=forbid && nub run lint:shell",
+    "lint:all": "nub run lint:strict",
+    "lint:agent:all": "NODE_OPTIONS= oxlint . --deny-warnings --deny legibility/no-unmatched-comments && nub run lint:shell",
     "lint-fix": "NODE_OPTIONS= oxlint . --fix",
-    "lint-src": "NODE_OPTIONS= node --preserve-symlinks-main node_modules/eslint-plugin-legibility/bin/lint-changed.js",
-    "lint:strict": "NODE_OPTIONS= oxlint . --deny-warnings --deny legibility/no-unmatched-comments",
+    "lint-src": "nub run lint:changed",
+    "lint:strict": "nub run lint:js && nub run lint:shell",
     "lint:fix": "NODE_OPTIONS= oxlint src --fix",
     "hooks:setup": "sh scripts/setup.sh",
-    "prepare": "sh scripts/setup.sh",
     "prepublishOnly": "rm -rf dist && nub scripts/build/index.ts dist",
     "preview:styleguide": "nub src/cli/index.ts --styleguide",
     "preview": "cd page/app && nub run preview",
@@ -118,24 +110,48 @@
     "test": "nub scripts/run/index.ts",
     "test:e2e:binary": "./tests/e2e/test-binary.sh",
     "update": "nub update",
-    "validate": "NODE_OPTIONS= node --preserve-symlinks-main node_modules/eslint-plugin-legibility/bin/lint-changed.js && nub scripts/run/index.ts",
-    "validate:full": "NODE_OPTIONS= node --preserve-symlinks-main node_modules/eslint-plugin-legibility/bin/lint-changed.js && nub scripts/run/index.ts && ./tests/e2e/test-multilang.sh all",
+    "validate": "nub run lint:strict && nub scripts/run/index.ts",
+    "validate:full": "nub run validate && ./tests/e2e/test-multilang.sh all",
     "skills:install": "node scripts/install/index.js agents",
     "skills:install:claude": "node scripts/install/index.js claude",
     "skills:install:claude:local": "node scripts/install/index.js claude --local",
     "skills:install:codex": "node scripts/install/index.js codex",
     "skills:install:codex:local": "node scripts/install/index.js codex --local",
     "skills:install:local": "node scripts/install/index.js agents --local",
-    "precoverage": "mkdir -p coverage"
+    "precoverage": "mkdir -p coverage",
+    "lint:changed": "NODE_OPTIONS= node --preserve-symlinks-main node_modules/eslint-plugin-legibility/bin/lint-changed.js",
+    "lint:js": "NODE_OPTIONS= oxlint . --deny-warnings",
+    "lint:shell": "mise exec -- shellcheck-legibility check scripts tests --config scripts/.shellcheck-legibility.toml"
   },
-  "type": "module",
-  "types": "src/types.ts",
+  "devDependencies": {
+    "@nubjs/nub": "0.9.2",
+    "@types/node": "26.6.2",
+    "eslint-plugin-legibility": "^0.4.0",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
+    "pastoralist": "1.13.4",
+    "prettier": "^3.9.8",
+    "release-it": "21.1.0",
+    "rolldown": "1.2.9",
+    "scriptc": "0.1.3",
+    "turbo": "2.11.2"
+  },
+  "overrides": {
+    "ip-address": "10.3.1",
+    "nanoid": "3.3.18",
+    "postcss": "8.5.23",
+    "undici": "7.29.0",
+    "vite": "8.2.1"
+  },
   "devEngines": {
     "runtime": {
       "name": "node",
       "version": "26.7.0",
       "onFail": "warn"
     }
+  },
+  "engines": {
+    "node": ">=20"
   },
   "packageManager": "pnpm@11.21.0+sha512.521705bce689924eac72f5a3587122f362689ef6571e55ba80076fd637c11132ecffada26fad4ea79c485bfddbfd3d5a2a5b05805a77e893de71ec8a6cca3bb1",
   "pastoralist": {
@@ -233,15 +249,5 @@
     "npm": {
       "publish": false
     }
-  },
-  "workspaces": [
-    "page/app"
-  ],
-  "overrides": {
-    "ip-address": "10.3.1",
-    "nanoid": "3.3.18",
-    "postcss": "8.5.23",
-    "undici": "7.29.0",
-    "vite": "8.2.1"
   }
 }

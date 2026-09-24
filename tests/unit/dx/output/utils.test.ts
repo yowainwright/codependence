@@ -1,3 +1,4 @@
+import { assertTextIncludes } from "../../../helpers/assertions";
 import { afterEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import { createAnsiPattern } from "../../../../src/dx/constants";
@@ -14,6 +15,7 @@ afterEach(() => {
   mock.restoreAll();
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("createSpinner", () => {
   it("should create a spinner with text", () => {
     const spinner = createSpinner("Loading...");
@@ -78,7 +80,7 @@ describe("createSpinner", () => {
     started.stop();
 
     const output = writeSpy.mock.calls.flatMap((call) => call.arguments).join("");
-    assert.ok(output.includes("Loading..."));
+    assert.match(output, /Loading\.\.\./);
   });
 
   it("renders the first frame immediately", () => {
@@ -89,7 +91,7 @@ describe("createSpinner", () => {
     createSpinner("Loading...").start();
 
     const output = writeSpy.mock.calls.flatMap((call) => call.arguments).join("");
-    assert.ok(output.includes("Loading..."));
+    assert.match(output, /Loading\.\.\./);
   });
 
   it("keeps frames on one line", () => {
@@ -102,7 +104,7 @@ describe("createSpinner", () => {
     spinner.stop();
 
     const output = writeSpy.mock.calls.flatMap((call) => call.arguments).join("");
-    assert.ok(!output.includes("\n"));
+    assert.doesNotMatch(output, /\n/);
   });
 
   it("does not animate non-interactive output", () => {
@@ -153,7 +155,7 @@ describe("glimmer", () => {
     const result = glimmer("codependence", { frameIndex: 3 });
 
     assert.strictEqual(result.replace(createAnsiPattern(), ""), "codependence");
-    assert.ok(result.includes("\x1b[38;2;"));
+    assertTextIncludes(result, "\u001b[38;2;");
   });
 
   it("loops after the final character", () => {
@@ -175,11 +177,11 @@ describe("formatVersionTable", () => {
 
     const result = formatVersionTable(diffs, "check");
 
-    assert.ok(result.includes("premajor"));
-    assert.ok(result.includes("preminor"));
-    assert.ok(result.includes("prepatch"));
-    assert.ok(result.includes("prerelease"));
-    assert.ok(result.includes("1.2.3-beta.1"));
+    assert.match(result, /premajor/);
+    assert.match(result, /preminor/);
+    assert.match(result, /prepatch/);
+    assert.match(result, /prerelease/);
+    assert.match(result, /1\.2\.3-beta\.1/);
   });
 
   it("colors release-to-prerelease transitions as release diffs", () => {
@@ -189,7 +191,7 @@ describe("formatVersionTable", () => {
 
     const result = formatVersionTable(diffs, "check");
 
-    assert.ok(result.includes("rollback"));
-    assert.ok(result.includes("1.0.0-beta.1"));
+    assert.match(result, /rollback/);
+    assert.match(result, /1\.0\.0-beta\.1/);
   });
 });

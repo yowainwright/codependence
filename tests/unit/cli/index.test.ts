@@ -7,6 +7,7 @@ import {
   assertRejects,
   assertThrows,
   match,
+  assertTextIncludes,
 } from "../../helpers/assertions";
 import { spawn } from "node:child_process";
 import type { Options } from "../../../src/types";
@@ -30,6 +31,67 @@ import {
   run,
 } from "../../../src/cli";
 
+const runsEachNamedManifestConfigIndependentlyManifestConfig = {
+  package: {
+    path: "package.json",
+    manager: "bun",
+    codependencies: ["typescript"],
+  },
+  workflows: {
+    path: ".github/workflows/update.yml",
+    manager: "github-actions",
+    mode: "precise",
+  },
+};
+
+const runsEachNamedManifestConfigIndependentlyExpected = {
+  language: "nodejs",
+  packageManager: "bun",
+  files: ["package.json"],
+  codependencies: ["typescript"],
+  update: true,
+};
+
+const preservesExistingNamedConfigWhileUpdatingDetectedManifestsExisting = {
+  $schema: "https://unpkg.com/codependence/src/config/schema.json",
+  update: true,
+  config: {
+    web: {
+      name: "web",
+      path: "package.json",
+      manager: "npm",
+      mode: "verbose",
+      codependencies: ["react"],
+    },
+    api: { path: "services/api/go.mod", manager: "go", mode: "precise" },
+  },
+};
+
+const writesLocalAndGitHubSetupWithoutInstallingWhenPackageJson = {
+  name: "workspace",
+  packageManager: "pnpm@9.15.0",
+  workspaces: ["packages/*"],
+  dependencies: { react: "^19.0.0" },
+};
+
+const localAndGithubSetupArgs = (rootDir: string) => [
+  "node",
+  "script.js",
+  "init",
+  "--rootDir",
+  rootDir,
+  "--mode",
+  "precise",
+  "--codependencies",
+  "react",
+  "--enforcement",
+  "both",
+  "--repository",
+  "acme/workspace",
+  "--non-interactive",
+  "--skip-install",
+];
+
 const checkFilesMock = mock.fn(programDependencies.checkFiles);
 const loadConfigMock = mock.fn(programDependencies.loadConfig);
 const execMock = mock.fn(programDependencies.exec);
@@ -48,7 +110,9 @@ const restoreEnv = (name: string, value: string | undefined): void => {
 };
 
 const withoutCiOutput = async (callback: () => Promise<void>): Promise<void> => {
+  // eslint-disable-next-line legibility/no-single-use-renaming-alias -- Snapshot the original value before the test mutates it.
   const previousCi = process.env.CI;
+  // eslint-disable-next-line legibility/no-single-use-renaming-alias -- Snapshot the original value before the test mutates it.
   const previousGitHubActions = process.env.GITHUB_ACTIONS;
   delete process.env.CI;
   delete process.env.GITHUB_ACTIONS;
@@ -61,6 +125,7 @@ const withoutCiOutput = async (callback: () => Promise<void>): Promise<void> => 
   }
 };
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("Action Function Tests (Fast)", () => {
   let scriptSpy = checkFilesMock;
   let previousLifecycleEvent: string | undefined;
@@ -69,7 +134,7 @@ describe("Action Function Tests (Fast)", () => {
     previousLifecycleEvent = process.env.npm_lifecycle_event;
     delete process.env.npm_lifecycle_event;
     checkFilesMock.mock.resetCalls();
-    checkFilesMock.mock.mockImplementation(async () => undefined);
+    checkFilesMock.mock.mockImplementation(() => Promise.resolve(undefined));
     scriptSpy = checkFilesMock;
   });
 
@@ -245,19 +310,11 @@ describe("Action Function Tests (Fast)", () => {
   test("runs each named manifest config independently", async () => {
     const workDir = fs.mkdtempSync(join(tmpdir(), "codependence-targets-"));
     const configPath = join(workDir, ".codependencerc");
-    const manifestConfig = {
-      package: {
-        path: "package.json",
-        manager: "bun",
-        codependencies: ["typescript"],
-      },
-      workflows: {
-        path: ".github/workflows/update.yml",
-        manager: "github-actions",
-        mode: "precise",
-      },
-    };
-    fs.writeFileSync(configPath, JSON.stringify({ config: manifestConfig }));
+
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({ config: runsEachNamedManifestConfigIndependentlyManifestConfig }),
+    );
 
     try {
       await action({ config: configPath, update: true, silent: true });
@@ -266,13 +323,7 @@ describe("Action Function Tests (Fast)", () => {
       assertNthCalledWith(
         scriptSpy,
         1,
-        match.objectContaining({
-          language: "nodejs",
-          packageManager: "bun",
-          files: ["package.json"],
-          codependencies: ["typescript"],
-          update: true,
-        }),
+        match.objectContaining(runsEachNamedManifestConfigIndependentlyExpected),
       );
       assertNthCalledWith(
         scriptSpy,
@@ -312,11 +363,11 @@ describe("Action Function Tests (Fast)", () => {
 
   test("reports deferred target failures without a success message", async () => {
     const stdoutSpy = mock.method(process.stdout, "write", () => true);
-    scriptSpy.mock.mockImplementationOnce(async (options) => {
+    scriptSpy.mock.mockImplementationOnce((options) => {
       options.onDeferredFailure?.();
-      return [];
+      return Promise.resolve([]);
     });
-    scriptSpy.mock.mockImplementationOnce(async () => [], 1);
+    scriptSpy.mock.mockImplementationOnce(() => Promise.resolve([]), 1);
 
     try {
       await action({
@@ -327,8 +378,8 @@ describe("Action Function Tests (Fast)", () => {
       });
 
       const output = stdoutSpy.mock.calls.flatMap((call) => call.arguments).join("");
-      assert.ok(output.includes("found dependency issues"));
-      assert.ok(!output.includes("pinned!"));
+      assert.match(output, /found dependency issues/);
+      assert.doesNotMatch(output, /pinned!/);
     } finally {
       stdoutSpy.mock.restore();
     }
@@ -375,7 +426,7 @@ describe("Action Function Tests (Fast)", () => {
       await action({ config: configPath });
 
       const errorCalls = errorSpy.mock.calls.flatMap((call) => call.arguments).join(" ");
-      assert.ok(errorCalls.includes("exactly one key"));
+      assert.match(errorCalls, /exactly one key/);
       assertCalledWith(exitSpy, 2);
       assert.strictEqual(scriptSpy.mock.callCount(), 0);
     } finally {
@@ -478,7 +529,7 @@ describe("Action Function Tests (Fast)", () => {
   test("should handle error when codependencies are missing", async () => {
     scriptSpy.mock.restore();
     loadConfigMock.mock.mockImplementation(() => null);
-    const configSpy = loadConfigMock;
+
     const errorSpy = mock.method(console, "error", () => {});
     const exitSpy = mock.method(process, "exit", (() => {}) as () => never);
 
@@ -488,25 +539,24 @@ describe("Action Function Tests (Fast)", () => {
       });
 
       const errorCalls = errorSpy.mock.calls.flatMap((call) => call.arguments).join(" ");
-      assert.ok(errorCalls.includes("codependencies"));
+      assert.match(errorCalls, /codependencies/);
       assertCalledWith(exitSpy, 2);
     } finally {
       errorSpy.mock.restore();
       exitSpy.mock.restore();
-      configSpy.mock.restore();
-      checkFilesMock.mock.mockImplementation(async () => undefined);
+      loadConfigMock.mock.restore();
+      checkFilesMock.mock.mockImplementation(() => Promise.resolve(undefined));
       scriptSpy = checkFilesMock;
     }
   });
 
   test("should run in permissive mode when no options provided", async () => {
     loadConfigMock.mock.mockImplementation(() => null);
-    const configSpy = loadConfigMock;
 
     await action({});
 
     assert.ok(scriptSpy.mock.callCount() > 0);
-    configSpy.mock.restore();
+    loadConfigMock.mock.restore();
   });
 
   test("should default listed codependencies to 0.x compatible verbose mode", async () => {
@@ -514,8 +564,7 @@ describe("Action Function Tests (Fast)", () => {
       codependencies: ["lodash"],
     });
 
-    const callArgs = scriptSpy.mock.calls[0].arguments[0];
-    assert.strictEqual(callArgs.mode, "verbose");
+    assert.strictEqual(scriptSpy.mock.calls[0].arguments[0].mode, "verbose");
   });
 
   test("should use precise mode when permissive is explicit", async () => {
@@ -524,8 +573,7 @@ describe("Action Function Tests (Fast)", () => {
       permissive: true,
     });
 
-    const callArgs = scriptSpy.mock.calls[0].arguments[0];
-    assert.strictEqual(callArgs.mode, "precise");
+    assert.strictEqual(scriptSpy.mock.calls[0].arguments[0].mode, "precise");
   });
 
   test("should execute script with dry-run mode", async () => {
@@ -543,15 +591,17 @@ describe("Action Function Tests (Fast)", () => {
 
   test("prints the checking status once", async () => {
     const consoleSpy = mock.method(console, "log", () => {});
-    scriptSpy.mock.mockImplementation(async () => [
-      {
-        package: "lodash",
-        current: "4.17.0",
-        latest: "4.17.21",
-        isPinned: true,
-        willUpdate: true,
-      },
-    ]);
+    scriptSpy.mock.mockImplementation(() =>
+      Promise.resolve([
+        {
+          package: "lodash",
+          current: "4.17.0",
+          latest: "4.17.21",
+          isPinned: true,
+          willUpdate: true,
+        },
+      ]),
+    );
 
     await action({
       codependencies: ["lodash"],
@@ -576,9 +626,9 @@ describe("Action Function Tests (Fast)", () => {
       "clearInterval",
       (() => {}) as typeof clearInterval,
     );
-    scriptSpy.mock.mockImplementationOnce(async (options) => {
+    scriptSpy.mock.mockImplementationOnce((options) => {
       options.onProgress?.(1, 1, "lodash");
-      return undefined;
+      return Promise.resolve(undefined);
     });
 
     try {
@@ -591,10 +641,10 @@ describe("Action Function Tests (Fast)", () => {
 
       const spinnerOutput = writeSpy.mock.calls.flatMap((call) => call.arguments).join("");
       const finalOutput = consoleSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
-      assert.ok(spinnerOutput.includes("wrestling"));
-      assert.ok(spinnerOutput.includes("checking lodash (1/1)"));
-      assert.ok(finalOutput.includes("pinned!"));
-      assert.ok(!finalOutput.includes("codependence pinned!"));
+      assert.match(spinnerOutput, /wrestling/);
+      assert.match(spinnerOutput, /checking lodash \(1\/1\)/);
+      assert.match(finalOutput, /pinned!/);
+      assert.doesNotMatch(finalOutput, /codependence pinned!/);
     } finally {
       delete (process.stdout as { isTTY?: boolean }).isTTY;
       setIntervalSpy.mock.restore();
@@ -630,7 +680,7 @@ describe("Action Function Tests (Fast)", () => {
       const spinnerOutput = writeSpy.mock.calls.flatMap((call) => call.arguments).join("");
       const finalOutput = consoleSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
       assert.strictEqual(spinnerOutput.includes("wrestling"), false);
-      assert.ok(finalOutput.includes("pinned!"));
+      assert.match(finalOutput, /pinned!/);
     } finally {
       if (previousLifecycleEvent) {
         process.env.npm_lifecycle_event = previousLifecycleEvent;
@@ -679,9 +729,9 @@ describe("Action Function Tests (Fast)", () => {
         .join("\n")
         .replace(createAnsiPattern(), "");
       const codependenceMentions = output.match(/codependence/g) || [];
-      assert.ok(output.includes("✓ pinned!"));
-      assert.ok(!output.includes("codependence pinned!"));
-      assert.ok(output.includes("codependence wrestling"));
+      assert.match(output, /✓ pinned!/);
+      assert.doesNotMatch(output, /codependence pinned!/);
+      assert.match(output, /codependence wrestling/);
       assert.strictEqual(codependenceMentions.length, 1);
     } finally {
       consoleSpy.mock.restore();
@@ -690,15 +740,17 @@ describe("Action Function Tests (Fast)", () => {
 
   test("prints short pinned status after applying updates", async () => {
     const consoleSpy = mock.method(console, "log", () => {});
-    scriptSpy.mock.mockImplementation(async () => [
-      {
-        package: "lodash",
-        current: "^4.17.0",
-        latest: "4.17.21",
-        isPinned: true,
-        willUpdate: true,
-      },
-    ]);
+    scriptSpy.mock.mockImplementation(() =>
+      Promise.resolve([
+        {
+          package: "lodash",
+          current: "^4.17.0",
+          latest: "4.17.21",
+          isPinned: true,
+          willUpdate: true,
+        },
+      ]),
+    );
 
     try {
       await action({
@@ -711,9 +763,9 @@ describe("Action Function Tests (Fast)", () => {
         .join("\n")
         .replace(createAnsiPattern(), "");
       const codependenceMentions = output.match(/codependence/g) || [];
-      assert.ok(output.includes("✓ pinned!"));
-      assert.ok(!output.includes("codependence pinned!"));
-      assert.ok(output.includes("codependence wrestling"));
+      assert.match(output, /✓ pinned!/);
+      assert.doesNotMatch(output, /codependence pinned!/);
+      assert.match(output, /codependence wrestling/);
       assert.strictEqual(codependenceMentions.length, 1);
     } finally {
       consoleSpy.mock.restore();
@@ -753,7 +805,7 @@ describe("Action Function Tests (Fast)", () => {
       resolveSecondRun = resolve;
     });
 
-    scriptSpy.mock.mockImplementationOnce(async () => undefined);
+    scriptSpy.mock.mockImplementationOnce(() => Promise.resolve(undefined));
     scriptSpy.mock.mockImplementationOnce(() => secondRun, 1);
 
     await action({ codependencies: ["lodash"], watch: true });
@@ -781,10 +833,8 @@ describe("Action Function Tests (Fast)", () => {
     const consoleLogSpy = mock.method(console, "log", () => {});
     const consoleErrorSpy = mock.method(console, "error", () => {});
 
-    scriptSpy.mock.mockImplementationOnce(async () => undefined);
-    scriptSpy.mock.mockImplementationOnce(async () => {
-      throw new Error("watch mode failure");
-    }, 1);
+    scriptSpy.mock.mockImplementationOnce(() => Promise.resolve(undefined));
+    scriptSpy.mock.mockImplementationOnce(() => Promise.reject(new Error("watch mode failure")), 1);
 
     await action({ codependencies: ["lodash"], watch: true });
     await intervalCallback?.();
@@ -800,9 +850,9 @@ describe("Action Function Tests (Fast)", () => {
     const setIntervalSpy = mock.method(globalThis, "setInterval", (() => 0) as typeof setInterval);
     const consoleLogSpy = mock.method(console, "log", () => {});
     const consoleErrorSpy = mock.method(console, "error", () => {});
-    scriptSpy.mock.mockImplementationOnce(async (options) => {
+    scriptSpy.mock.mockImplementationOnce((options) => {
       options.onDeferredFailure?.();
-      return [];
+      return Promise.resolve([]);
     });
 
     await action({ codependencies: ["lodash"], watch: true });
@@ -815,6 +865,7 @@ describe("Action Function Tests (Fast)", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("initAction", () => {
   test("should handle existing .codependencerc", async () => {
     const existsSyncSpy = mock.method(fs, "existsSync", () => true);
@@ -888,8 +939,8 @@ describe("initAction", () => {
     await initAction("rc");
 
     assert.ok(writeFileSyncSpy.mock.callCount() > 0);
-    const callArgs = writeFileSyncSpy.mock.calls[0].arguments;
-    assert.strictEqual(callArgs[0], ".codependencerc");
+
+    assert.strictEqual(writeFileSyncSpy.mock.calls[0].arguments[0], ".codependencerc");
 
     existsSyncSpy.mock.restore();
     readFileSyncSpy.mock.restore();
@@ -959,8 +1010,8 @@ describe("initAction", () => {
     await initAction("package");
 
     assert.ok(writeFileSyncSpy.mock.callCount() > 0);
-    const callArgs = writeFileSyncSpy.mock.calls[0].arguments;
-    assert.strictEqual(callArgs[0], "package.json");
+
+    assert.strictEqual(writeFileSyncSpy.mock.calls[0].arguments[0], "package.json");
 
     existsSyncSpy.mock.restore();
     readFileSyncSpy.mock.restore();
@@ -1005,9 +1056,9 @@ describe("initAction", () => {
   test("should handle interactive mode - permissive with selected deps", async () => {
     const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
     const radioSpy = mock.method(Prompt.prototype, "radio");
-    radioSpy.mock.mockImplementationOnce(async () => "permissive");
-    radioSpy.mock.mockImplementationOnce(async () => "rc", 1);
-    const selectSpy = mock.method(Prompt.prototype, "select", async () => ["lodash"]);
+    radioSpy.mock.mockImplementationOnce(() => Promise.resolve("permissive"));
+    radioSpy.mock.mockImplementationOnce(() => Promise.resolve("rc"), 1);
+    const selectSpy = mock.method(Prompt.prototype, "select", () => Promise.resolve(["lodash"]));
     const closeSpy = mock.method(Prompt.prototype, "close");
 
     await initAction();
@@ -1025,9 +1076,9 @@ describe("initAction", () => {
   test("should handle interactive mode - permissive with no deps selected", async () => {
     const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
     const radioSpy = mock.method(Prompt.prototype, "radio");
-    radioSpy.mock.mockImplementationOnce(async () => "permissive");
-    radioSpy.mock.mockImplementationOnce(async () => "rc", 1);
-    const selectSpy = mock.method(Prompt.prototype, "select", async () => []);
+    radioSpy.mock.mockImplementationOnce(() => Promise.resolve("permissive"));
+    radioSpy.mock.mockImplementationOnce(() => Promise.resolve("rc"), 1);
+    const selectSpy = mock.method(Prompt.prototype, "select", () => Promise.resolve([]));
     const closeSpy = mock.method(Prompt.prototype, "close");
 
     await initAction();
@@ -1045,8 +1096,8 @@ describe("initAction", () => {
   test("should handle interactive mode - pin all deps", async () => {
     const { existsSyncSpy, readFileSyncSpy, writeFileSyncSpy, consoleSpy } = mockFsForInteractive();
     const radioSpy = mock.method(Prompt.prototype, "radio");
-    radioSpy.mock.mockImplementationOnce(async () => "all");
-    radioSpy.mock.mockImplementationOnce(async () => "rc", 1);
+    radioSpy.mock.mockImplementationOnce(() => Promise.resolve("all"));
+    radioSpy.mock.mockImplementationOnce(() => Promise.resolve("rc"), 1);
     const closeSpy = mock.method(Prompt.prototype, "close");
 
     await initAction();
@@ -1061,6 +1112,7 @@ describe("initAction", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("run", () => {
   let scriptSpy = checkFilesMock;
   let previousLifecycleEvent: string | undefined;
@@ -1069,7 +1121,7 @@ describe("run", () => {
     previousLifecycleEvent = process.env.npm_lifecycle_event;
     delete process.env.npm_lifecycle_event;
     checkFilesMock.mock.resetCalls();
-    checkFilesMock.mock.mockImplementation(async () => undefined);
+    checkFilesMock.mock.mockImplementation(() => Promise.resolve(undefined));
     scriptSpy = checkFilesMock;
   });
 
@@ -1123,19 +1175,17 @@ describe("run", () => {
 
       const output = printSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
       assertCalledWith(printSpy, match.stringContaining("Codependence CLI Styleguide"));
-      assert.ok(output.includes("Loader"));
-      assert.ok(output.includes("wrestling"));
+      assert.match(output, /Loader/);
+      assert.match(output, /wrestling/);
     } finally {
       delete (process.stdout as { isTTY?: boolean }).isTTY;
       printSpy.mock.restore();
     }
   });
 
-  test("stops the direct styleguide loader after a termination signal", async () => {
+  test("prints the static styleguide for direct non-interactive execution", async () => {
     const code = [
-      "delete process.env.CI;",
-      "delete process.env.GITHUB_ACTIONS;",
-      'Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: true });',
+      'process.env.CI = "1";',
       'process.argv = [process.argv[0], "src/cli/index.ts", "--styleguide"];',
       'await import("./src/cli/index.ts");',
     ].join("\n");
@@ -1145,20 +1195,15 @@ describe("run", () => {
       { cwd: PROJECT_ROOT },
     );
     let output = "";
-    let signalSent = false;
 
     const result = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
       (resolveResult, reject) => {
         const timeout = setTimeout(() => {
           child.kill("SIGKILL");
-          reject(new Error("Timed out waiting for direct styleguide loader"));
+          reject(new Error("Timed out waiting for direct styleguide output"));
         }, 2000);
         const readOutput = (chunk: Buffer): void => {
           output += chunk.toString();
-          const shouldStop = output.includes("\x1B[?25l") && !signalSent;
-          if (!shouldStop) return;
-          signalSent = true;
-          setTimeout(() => child.kill("SIGTERM"), 20);
         };
         child.stdout.on("data", readOutput);
         child.stderr.on("data", readOutput);
@@ -1172,8 +1217,8 @@ describe("run", () => {
 
     assert.strictEqual(result.code, 0);
     assert.strictEqual(result.signal, null);
-    assert.ok(output.includes("\x1B[?25l"));
-    assert.ok(output.includes("\x1B[?25h"));
+    assert.match(output, /Codependence CLI Styleguide/);
+    assert.match(output, /Prompts/);
   });
 
   test("should show legend when --legend flag is provided", async () => {
@@ -1396,6 +1441,7 @@ const createOnboardingProject = (
   return rootDir;
 };
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("onboardAction", () => {
   test("routes init config to configuration-only setup", async () => {
     const rootDir = createOnboardingProject(
@@ -1468,27 +1514,14 @@ describe("onboardAction", () => {
       ]);
 
       const workflowPath = join(rootDir, ".github/workflows/codependence-go.yml");
-      assert.ok(fs.readFileSync(workflowPath, "utf8").includes("targets: go"));
+      assert.match(fs.readFileSync(workflowPath, "utf8"), /targets: go/);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
   });
 
   test("preserves existing named config while updating detected manifests", async () => {
-    const existing = {
-      $schema: "https://unpkg.com/codependence/src/config/schema.json",
-      update: true,
-      config: {
-        web: {
-          name: "web",
-          path: "package.json",
-          manager: "npm",
-          mode: "verbose",
-          codependencies: ["react"],
-        },
-        api: { path: "services/api/go.mod", manager: "go", mode: "precise" },
-      },
-    };
+    const existing = preservesExistingNamedConfigWhileUpdatingDetectedManifestsExisting;
     const rootDir = createOnboardingProject(
       { name: "web", packageManager: "pnpm@9.15.0" },
       { ".codependencerc.yml": JSON.stringify(existing) },
@@ -1598,39 +1631,20 @@ describe("onboardAction", () => {
   });
 
   test("writes local and GitHub setup without installing when configured", async () => {
-    const packageJson = {
-      name: "workspace",
-      packageManager: "pnpm@9.15.0",
-      workspaces: ["packages/*"],
-      dependencies: { react: "^19.0.0" },
-    };
     const files = {
       "pnpm-lock.yaml": "",
       "pnpm-workspace.yaml": "packages:\n  - packages/*\n",
       "packages/ui/package.json": JSON.stringify({ dependencies: { react: "^19.0.0" } }),
     };
-    const rootDir = createOnboardingProject(packageJson, files);
+    const rootDir = createOnboardingProject(
+      writesLocalAndGitHubSetupWithoutInstallingWhenPackageJson,
+      files,
+    );
     const printSpy = mock.method(logger, "print", () => {});
     const closeSpy = mock.method(Prompt.prototype, "close");
 
     try {
-      await run([
-        "node",
-        "script.js",
-        "init",
-        "--rootDir",
-        rootDir,
-        "--mode",
-        "precise",
-        "--codependencies",
-        "react",
-        "--enforcement",
-        "both",
-        "--repository",
-        "acme/workspace",
-        "--non-interactive",
-        "--skip-install",
-      ]);
+      await run(localAndGithubSetupArgs(rootDir));
 
       assert.strictEqual(fs.existsSync(join(rootDir, ".codependencerc")), true);
       assert.strictEqual(
@@ -1640,27 +1654,20 @@ describe("onboardAction", () => {
       assertCalledWith(printSpy, "Configured 2 manifest(s).");
       assert.ok(closeSpy.mock.callCount() > 0);
 
-      await assertRejects(
-        onboardAction({
-          rootDir,
-          mode: "precise",
-          enforcement: "both",
-          repository: "acme/workspace",
-          nonInteractive: true,
-          skipInstall: true,
-        }),
-        "Refusing to overwrite onboarding files",
-      );
-
-      await onboardAction({
+      const onboardingOptions = {
         rootDir,
         mode: "precise",
         enforcement: "both",
         repository: "acme/workspace",
         nonInteractive: true,
         skipInstall: true,
-        force: true,
-      });
+      };
+      await assertRejects(
+        onboardAction(onboardingOptions),
+        "Refusing to overwrite onboarding files",
+      );
+
+      await onboardAction({ ...onboardingOptions, force: true });
     } finally {
       printSpy.mock.restore();
       closeSpy.mock.restore();
@@ -1672,12 +1679,12 @@ describe("onboardAction", () => {
     const packageJson = { dependencies: { react: "^19.0.0" } };
     const rootDir = createOnboardingProject(packageJson, { "package-lock.json": "" });
     const radioSpy = mock.method(Prompt.prototype, "radio");
-    radioSpy.mock.mockImplementationOnce(async () => "verbose");
-    radioSpy.mock.mockImplementationOnce(async () => "local", 1);
-    const selectSpy = mock.method(Prompt.prototype, "select", async () => ["react"]);
+    radioSpy.mock.mockImplementationOnce(() => Promise.resolve("verbose"));
+    radioSpy.mock.mockImplementationOnce(() => Promise.resolve("local"), 1);
+    const selectSpy = mock.method(Prompt.prototype, "select", () => Promise.resolve(["react"]));
     const closeSpy = mock.method(Prompt.prototype, "close");
     const printSpy = mock.method(logger, "print", () => {});
-    execMock.mock.mockImplementation(async () => ({ stdout: "", stderr: "" }));
+    execMock.mock.mockImplementation(() => Promise.resolve({ stdout: "", stderr: "" }));
     const execSpy = execMock;
 
     try {
@@ -1704,12 +1711,12 @@ describe("onboardAction", () => {
     const packageJson = { dependencies: { react: "^19.0.0" } };
     const rootDir = createOnboardingProject(packageJson, { "package-lock.json": "" });
     const radioSpy = mock.method(Prompt.prototype, "radio");
-    radioSpy.mock.mockImplementationOnce(async () => "precise");
-    radioSpy.mock.mockImplementationOnce(async () => "github", 1);
-    const selectSpy = mock.method(Prompt.prototype, "select", async () => []);
+    radioSpy.mock.mockImplementationOnce(() => Promise.resolve("precise"));
+    radioSpy.mock.mockImplementationOnce(() => Promise.resolve("github"), 1);
+    const selectSpy = mock.method(Prompt.prototype, "select", () => Promise.resolve([]));
     const inputSpy = mock.method(Prompt.prototype, "input");
-    inputSpy.mock.mockImplementationOnce(async () => "acme/web");
-    inputSpy.mock.mockImplementationOnce(async () => "10.9.2", 1);
+    inputSpy.mock.mockImplementationOnce(() => Promise.resolve("acme/web"));
+    inputSpy.mock.mockImplementationOnce(() => Promise.resolve("10.9.2"), 1);
     const closeSpy = mock.method(Prompt.prototype, "close");
     const printSpy = mock.method(logger, "print", () => {});
 
@@ -1717,7 +1724,7 @@ describe("onboardAction", () => {
       await onboardAction({ rootDir });
 
       const workflowPath = join(rootDir, ".github/workflows/codependence-node.yml");
-      assert.ok(fs.readFileSync(workflowPath, "utf8").includes("version: 10.9.2"));
+      assert.match(fs.readFileSync(workflowPath, "utf8"), /version: 10\.9\.2/);
       assert.strictEqual(inputSpy.mock.callCount(), 2);
     } finally {
       printSpy.mock.restore();
@@ -1745,7 +1752,7 @@ describe("onboardAction", () => {
       });
 
       const workflowPath = join(rootDir, ".github/workflows/codependence-node.yml");
-      assert.ok(fs.readFileSync(workflowPath, "utf8").includes("version: 10.9.2"));
+      assert.match(fs.readFileSync(workflowPath, "utf8"), /version: 10\.9\.2/);
     } finally {
       printSpy.mock.restore();
       closeSpy.mock.restore();
@@ -1769,7 +1776,7 @@ describe("onboardAction", () => {
       });
 
       const workflowPath = join(rootDir, ".github/workflows/codependence-node.yml");
-      assert.ok(fs.readFileSync(workflowPath, "utf8").includes("version: 10.9.2"));
+      assert.match(fs.readFileSync(workflowPath, "utf8"), /version: 10\.9\.2/);
     } finally {
       printSpy.mock.restore();
       closeSpy.mock.restore();
@@ -1819,6 +1826,7 @@ describe("onboardAction", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("mergeConfigs", () => {
   test("should merge base config with options", () => {
     const options: Options = {
@@ -2012,6 +2020,7 @@ describe("mergeConfigs", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("formatPerformanceMetrics", () => {
   test("should format metrics with cache hits", () => {
     const duration = 1500;
@@ -2021,10 +2030,10 @@ describe("formatPerformanceMetrics", () => {
     const result = formatPerformanceMetrics(duration, stats, hitRate);
     const joined = result.join("\n");
 
-    assert.ok(joined.includes("Performance:"));
-    assert.ok(joined.includes("Completed in 1500ms"));
-    assert.ok(joined.includes("Cache: 10 hits, 2 misses (83.3% hit rate)"));
-    assert.ok(joined.includes("12 packages cached"));
+    assert.match(joined, /Performance:/);
+    assert.match(joined, /Completed in 1500ms/);
+    assert.match(joined, /Cache: 10 hits, 2 misses \(83\.3% hit rate\)/);
+    assert.match(joined, /12 packages cached/);
   });
 
   test("should format metrics with no cache", () => {
@@ -2035,10 +2044,10 @@ describe("formatPerformanceMetrics", () => {
     const result = formatPerformanceMetrics(duration, stats, hitRate);
     const joined = result.join("\n");
 
-    assert.ok(joined.includes("Performance:"));
-    assert.ok(joined.includes("Completed in 3000ms"));
-    assert.ok(joined.includes("No cache hits (first run)"));
-    assert.ok(!joined.includes("% hit rate"));
+    assert.match(joined, /Performance:/);
+    assert.match(joined, /Completed in 3000ms/);
+    assert.match(joined, /No cache hits \(first run\)/);
+    assert.doesNotMatch(joined, /% hit rate/);
   });
 
   test("should format hit rate with one decimal place", () => {
@@ -2049,7 +2058,7 @@ describe("formatPerformanceMetrics", () => {
     const result = formatPerformanceMetrics(duration, stats, hitRate);
 
     const joinedResult = result.join("\n");
-    assert.ok(joinedResult.includes("70.0% hit rate"));
+    assert.match(joinedResult, /70\.0% hit rate/);
   });
 
   test("should handle 100% hit rate", () => {
@@ -2060,8 +2069,8 @@ describe("formatPerformanceMetrics", () => {
     const result = formatPerformanceMetrics(duration, stats, hitRate);
 
     const joinedResult = result.join("\n");
-    assert.ok(joinedResult.includes("100.0% hit rate"));
-    assert.ok(joinedResult.includes("15 packages cached"));
+    assert.match(joinedResult, /100\.0% hit rate/);
+    assert.match(joinedResult, /15 packages cached/);
   });
 
   test("should return array of strings", () => {
@@ -2079,6 +2088,7 @@ describe("formatPerformanceMetrics", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("Format and Output File Tests", () => {
   let writeFileSpy: ReturnType<typeof mock.method>;
   let consoleLogSpy: ReturnType<typeof mock.method>;
@@ -2165,6 +2175,7 @@ describe("Format and Output File Tests", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("Format Integration Tests", () => {
   let scriptSpy = checkFilesMock;
   let writeFileSpy: ReturnType<typeof mock.method>;
@@ -2173,22 +2184,24 @@ describe("Format Integration Tests", () => {
   beforeEach(() => {
     checkFilesMock.mock.restore();
     checkFilesMock.mock.resetCalls();
-    checkFilesMock.mock.mockImplementation(async () => [
-      {
-        package: "react",
-        current: "17.0.0",
-        latest: "18.0.0",
-        isPinned: false,
-        willUpdate: true,
-      },
-      {
-        package: "lodash",
-        current: "4.17.21",
-        latest: "4.17.21",
-        isPinned: false,
-        willUpdate: false,
-      },
-    ]);
+    checkFilesMock.mock.mockImplementation(() =>
+      Promise.resolve([
+        {
+          package: "react",
+          current: "17.0.0",
+          latest: "18.0.0",
+          isPinned: false,
+          willUpdate: true,
+        },
+        {
+          package: "lodash",
+          current: "4.17.21",
+          latest: "4.17.21",
+          isPinned: false,
+          willUpdate: false,
+        },
+      ]),
+    );
     scriptSpy = checkFilesMock;
 
     writeFileSpy = mock.method(fs, "writeFileSync", () => {});
@@ -2281,7 +2294,7 @@ describe("Format Integration Tests", () => {
   });
 
   test("should handle empty diffs with formatters", async () => {
-    scriptSpy.mock.mockImplementation(async () => []);
+    scriptSpy.mock.mockImplementation(() => Promise.resolve([]));
 
     await action({
       codependencies: [],
@@ -2351,36 +2364,37 @@ const readGeneratedWorkflows = (rootDir: string): string[] =>
   workflowAreas.map((area) => readWorkflow(rootDir, area));
 
 const expectWorkflowTargets = (workflows: string[]): void => {
-  assert.ok(workflows[0].includes("targets: bun\n          version: 1.3.14"));
-  assert.ok(workflows[1].includes("targets: uv\n          version: 0.8.0"));
-  assert.ok(workflows[2].includes("targets: go\n          version: 1.26.4"));
-  assert.ok(workflows[3].includes("targets: rust\n          version: 1.88.0"));
-  assert.ok(workflows[4].includes("targets: docker"));
-  assert.ok(workflows[5].includes("circleci"));
-  assert.ok(workflows[5].includes("github-actions"));
-  assert.ok(workflows[5].includes("helm"));
-  assert.ok(workflows[5].includes("kubernetes"));
-  assert.ok(workflows[5].includes("kustomize"));
-  assert.ok(workflows[5].includes("terraform"));
+  assert.match(workflows[0], /targets: bun\n          version: 1\.3\.14/);
+  assert.match(workflows[1], /targets: uv\n          version: 0\.8\.0/);
+  assert.match(workflows[2], /targets: go\n          version: 1\.26\.4/);
+  assert.match(workflows[3], /targets: rust\n          version: 1\.88\.0/);
+  assert.match(workflows[4], /targets: docker/);
+  assert.match(workflows[5], /circleci/);
+  assert.match(workflows[5], /github-actions/);
+  assert.match(workflows[5], /helm/);
+  assert.match(workflows[5], /kubernetes/);
+  assert.match(workflows[5], /kustomize/);
+  assert.match(workflows[5], /terraform/);
 };
 
 const expectWorkflowCommands = (workflows: string[]): void => {
-  assert.ok(workflows[0].includes("post-update-command: 'bun install'"));
-  assert.ok(workflows[1].includes("post-update-command: 'uv lock'"));
-  assert.ok(workflows[2].includes("post-update-command: 'go mod tidy'"));
-  assert.ok(workflows[3].includes("post-update-command: 'cargo generate-lockfile'"));
-  assert.ok(workflows[4].includes("post-update-command: 'git diff --check'"));
-  assert.ok(workflows[5].includes("post-update-command: 'git diff --check'"));
+  assert.match(workflows[0], /post-update-command: 'bun install'/);
+  assert.match(workflows[1], /post-update-command: 'uv lock'/);
+  assert.match(workflows[2], /post-update-command: 'go mod tidy'/);
+  assert.match(workflows[3], /post-update-command: 'cargo generate-lockfile'/);
+  assert.match(workflows[4], /post-update-command: 'git diff --check'/);
+  assert.match(workflows[5], /post-update-command: 'git diff --check'/);
 };
 
 const expectWorkflowDefaults = (workflows: string[]): void => {
   const hasDefaultSchedule = workflows.every((workflow) => workflow.includes('cron: "0 9 * * 1"'));
   assert.strictEqual(hasDefaultSchedule, true);
-  assert.ok(workflows[0].includes("uses: yowainwright/codependence@v1"));
-  assert.ok(workflows[0].includes("secrets.CODEPENDENCE_TOKEN"));
-  assert.ok(workflows[4].includes("pull-request: true"));
+  assert.match(workflows[0], /uses: yowainwright\/codependence@v1/);
+  assert.match(workflows[0], /secrets\.CODEPENDENCE_TOKEN/);
+  assert.match(workflows[4], /pull-request: true/);
 };
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("GitHub Actions initializer", () => {
   beforeEach(() => {
     loadConfigMock.mock.resetCalls();
@@ -2399,10 +2413,10 @@ describe("GitHub Actions initializer", () => {
       assertThrows(() => initGitHubActions({ rootDir }), "Refusing to overwrite");
       initGitHubActions({ force: true, rootDir });
       const infrastructureWorkflow = fs.readFileSync(legacyPath, "utf8");
-      assert.ok(infrastructureWorkflow.includes("targets: |\n  github-actions"));
-      assert.ok(!infrastructureWorkflow.includes("\n  docker\n"));
-      assert.ok(infrastructureWorkflow.includes(`cron: "${schedule}"`));
-      assert.ok(readWorkflow(rootDir, "docker").includes("targets: docker"));
+      assert.match(infrastructureWorkflow, /targets: \|\n  github-actions/);
+      assert.doesNotMatch(infrastructureWorkflow, /\n  docker\n/);
+      assertTextIncludes(infrastructureWorkflow, `cron: "${schedule}"`);
+      assert.match(readWorkflow(rootDir, "docker"), /targets: docker/);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2432,7 +2446,7 @@ describe("GitHub Actions initializer", () => {
     try {
       initGitHubActions({ force: true, rootDir });
       assert.strictEqual(fs.readFileSync(legacyPath, "utf8"), workflow);
-      assert.ok(readWorkflow(rootDir, "docker").includes("targets: docker"));
+      assert.match(readWorkflow(rootDir, "docker"), /targets: docker/);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2487,10 +2501,10 @@ describe("GitHub Actions initializer", () => {
       });
 
       const workflow = readWorkflow(rootDir, "go");
-      assert.ok(workflow.includes('cron: "30 7 * * 5"'));
-      assert.ok(workflow.includes("version: 1.25.3"));
-      assert.ok(workflow.includes("post-update-command: 'task go:tidy'"));
-      assert.ok(workflow.includes(`secrets.${credentialName}`));
+      assert.match(workflow, /cron: "30 7 \* \* 5"/);
+      assert.match(workflow, /version: 1\.25\.3/);
+      assert.match(workflow, /post-update-command: 'task go:tidy'/);
+      assertTextIncludes(workflow, `secrets.${credentialName}`);
       assert.strictEqual(
         fs.existsSync(join(rootDir, ".github/workflows/codependence-node.yml")),
         false,
@@ -2510,7 +2524,7 @@ describe("GitHub Actions initializer", () => {
       });
 
       const workflow = readWorkflow(rootDir, "infrastructure");
-      assert.ok(workflow.includes("post-update-command: 'echo ready'"));
+      assert.match(workflow, /post-update-command: 'echo ready'/);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2544,10 +2558,10 @@ describe("GitHub Actions initializer", () => {
     try {
       initGitHubActions({ rootDir });
 
-      assert.ok(readWorkflow(rootDir, "node").includes("version: 10.12.1"));
-      assert.ok(readWorkflow(rootDir, "python").includes("version: 0.8.2"));
-      assert.ok(readWorkflow(rootDir, "go").includes("version: 1.25.4"));
-      assert.ok(readWorkflow(rootDir, "rust").includes("version: 1.88.0"));
+      assert.match(readWorkflow(rootDir, "node"), /version: 10\.12\.1/);
+      assert.match(readWorkflow(rootDir, "python"), /version: 0\.8\.2/);
+      assert.match(readWorkflow(rootDir, "go"), /version: 1\.25\.4/);
+      assert.match(readWorkflow(rootDir, "rust"), /version: 1\.88\.0/);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2564,7 +2578,7 @@ describe("GitHub Actions initializer", () => {
     try {
       initGitHubActions({ rootDir });
 
-      assert.ok(readWorkflow(rootDir, "rust").includes("version: 1.87.0"));
+      assert.match(readWorkflow(rootDir, "rust"), /version: 1\.87\.0/);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2610,20 +2624,17 @@ describe("GitHub Actions initializer", () => {
       initGitHubActions({ rootDir });
 
       const workflow = readWorkflow(rootDir, "go");
-      assert.ok(workflow.includes("version: 1.24.0"));
-      assert.ok(
-        workflow.includes("post-update-command: '(cd -- ''services/api'' && go mod tidy)'"),
-      );
+      assert.match(workflow, /version: 1\.24\.0/);
+      assert.match(workflow, /post-update-command: '\(cd -- ''services\/api'' && go mod tidy\)'/);
 
       initGitHubActions({
         force: true,
         postUpdateCommands: ["go=task go:tidy"],
         rootDir,
       });
-      assert.ok(
-        readWorkflow(rootDir, "go").includes(
-          "post-update-command: '(cd -- ''services/api'' && task go:tidy)'",
-        ),
+      assert.match(
+        readWorkflow(rootDir, "go"),
+        /post-update-command: '\(cd -- ''services\/api'' && task go:tidy\)'/,
       );
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
@@ -2642,7 +2653,7 @@ describe("GitHub Actions initializer", () => {
     try {
       initGitHubActions({ rootDir });
 
-      assert.ok(readWorkflow(rootDir, "go").includes("version: 1.24.0"));
+      assert.match(readWorkflow(rootDir, "go"), /version: 1\.24\.0/);
 
       fs.writeFileSync(
         join(rootDir, "go.mod"),
@@ -2650,7 +2661,7 @@ describe("GitHub Actions initializer", () => {
       );
       initGitHubActions({ force: true, rootDir });
 
-      assert.ok(readWorkflow(rootDir, "go").includes("version: 1.25.4"));
+      assert.match(readWorkflow(rootDir, "go"), /version: 1\.25\.4/);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2668,9 +2679,9 @@ describe("GitHub Actions initializer", () => {
       });
 
       const workflow = readWorkflow(rootDir, "node");
-      assert.ok(workflow.includes("targets: |\n            bun\n            npm"));
-      assert.ok(workflow.includes("version: |\n            bun=1.3.14\n            npm=11.4.2"));
-      assert.ok(workflow.includes("post-update-command: 'bun install && npm install'"));
+      assert.match(workflow, /targets: \|\n            bun\n            npm/);
+      assert.match(workflow, /version: \|\n            bun=1\.3\.14\n            npm=11\.4\.2/);
+      assert.match(workflow, /post-update-command: 'bun install && npm install'/);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2689,8 +2700,8 @@ describe("GitHub Actions initializer", () => {
       });
 
       const workflow = readWorkflow(rootDir, "go");
-      assert.ok(workflow.includes("version: v1.25.3-rc.1"));
-      assert.ok(workflow.includes("post-update-command: 'echo it''s ready'"));
+      assert.match(workflow, /version: v1\.25\.3-rc\.1/);
+      assert.match(workflow, /post-update-command: 'echo it''s ready'/);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2815,7 +2826,7 @@ describe("GitHub Actions initializer", () => {
       assert.strictEqual(fs.readFileSync(workflowPath, "utf8"), "existing\n");
 
       initGitHubActions({ rootDir, versions: ["uv=0.8.1"], force: true });
-      assert.ok(fs.readFileSync(workflowPath, "utf8").includes("version: 0.8.1"));
+      assert.match(fs.readFileSync(workflowPath, "utf8"), /version: 0\.8\.1/);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }

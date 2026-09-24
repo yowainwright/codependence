@@ -5,6 +5,7 @@ import {
   emptyInfraManifest,
   isSafeImageName,
   isSafeImageVersion,
+  manifestOnlyResolution,
   readYamlImageLine,
   updateScalarLine,
   updateYamlImageLine,
@@ -68,12 +69,6 @@ interface HelmDependencyUpdate {
 interface HelmDependencyUpdateState extends HelmDependencySectionState<HelmDependencyUpdateDraft> {
   readonly updates: HelmDependencyUpdate[];
 }
-
-const unsupportedResolution = (): never => {
-  throw new Error(
-    "Helm provider requires explicit version pins and does not support latest resolution yet",
-  );
-};
 
 const readFieldLine = (line: string): HelmFieldLine | null => {
   const match = line.match(HELM_PATTERNS.FIELD_LINE);
@@ -256,12 +251,15 @@ const readDependencyDraftField = <
 >(
   state: State,
   field: HelmFieldLine | null,
-  finalize: (state: State) => State,
-  createDraft: () => Draft,
-  assignField: (draft: Draft, field: HelmFieldLine) => Draft,
+  reader: {
+    finalize: (state: State) => State;
+    createDraft: () => Draft;
+    assignField: (draft: Draft, field: HelmFieldLine) => Draft;
+  },
 ): State => {
   if (!field) return state;
 
+  const { finalize, createDraft, assignField } = reader;
   const base = field.listItem ? finalize(state) : state;
   const current = field.listItem ? createDraft() : base.current;
   if (!current) return base;
@@ -271,7 +269,11 @@ const readDependencyDraftField = <
 };
 
 const assignDependency = (state: HelmReadState, field: HelmFieldLine | null): HelmReadState =>
-  readDependencyDraftField(state, field, finalizeDependency, () => ({}), assignDependencyField);
+  readDependencyDraftField(state, field, {
+    finalize: finalizeDependency,
+    createDraft: () => ({}),
+    assignField: assignDependencyField,
+  });
 
 const readHelmLine = (state: HelmReadState, line: string): HelmReadState => {
   const base = leaveDependencySection(state, line, finalizeDependency);
@@ -485,7 +487,7 @@ const readDependencyUpdateField = (
   const assignField = (draft: HelmDependencyUpdateDraft, nextField: HelmFieldLine) =>
     assignDependencyUpdateField(draft, nextField, lineIndex);
 
-  return readDependencyDraftField(state, field, finalize, () => ({}), assignField);
+  return readDependencyDraftField(state, field, { finalize, createDraft: () => ({}), assignField });
 };
 
 const readHelmUpdateLine = (
@@ -560,12 +562,12 @@ export class HelmProvider implements DependencyProvider {
     versionStrategy: "semver",
   } as const;
 
-  async getLatestVersion(): Promise<string> {
-    return unsupportedResolution();
+  getLatestVersion(): Promise<string> {
+    return manifestOnlyResolution("Helm");
   }
 
-  async getAllVersions(): Promise<string[]> {
-    return unsupportedResolution();
+  getAllVersions(): Promise<string[]> {
+    return manifestOnlyResolution("Helm");
   }
 
   readManifest(filePath: string): DependencyManifest {

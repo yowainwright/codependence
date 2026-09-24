@@ -5,8 +5,7 @@ const INTRODUCTION_DESCRIPTION =
   "Enforce dependency version policy locally, in CI, and across workspaces.";
 const POLICY_SURFACE_DESCRIPTION =
   "What Codependence checks today and where version policy can expand next.";
-const WHY_USE_DESCRIPTION =
-  "Codependence enforces dependency version policy where your code runs.";
+const WHY_USE_DESCRIPTION = "Codependence enforces dependency version policy where your code runs.";
 const WHY_NOT_USE_DESCRIPTION =
   "Reasons why Codependence might not be the right choice for your project.";
 
@@ -89,8 +88,7 @@ export const SEARCH_DATA: SearchResult[] = [
   {
     title: "CLI Usage",
     description: "Learn how to use the Codependence CLI",
-    content:
-      "The Codependence CLI checks, reports, and applies dependency version policy.",
+    content: "The Codependence CLI checks, reports, and applies dependency version policy.",
     slug: "cli",
   },
   {
@@ -103,8 +101,7 @@ export const SEARCH_DATA: SearchResult[] = [
   {
     title: "Options",
     description: "Configuration options for Codependence",
-    content:
-      "Customize Codependence behavior with various configuration options.",
+    content: "Customize Codependence behavior with various configuration options.",
     slug: "options",
   },
   {
@@ -122,15 +119,13 @@ export const SEARCH_DATA: SearchResult[] = [
   {
     title: "Policy Surface",
     description: "Current and planned version policy surfaces",
-    content:
-      "Understand what Codependence checks today and where version policy can expand next.",
+    content: "Understand what Codependence checks today and where version policy can expand next.",
     slug: "policy-surface",
   },
   {
     title: "Main Use Case",
     description: "Primary use cases for Codependence",
-    content:
-      "Use Codependence to keep important dependency versions intentional.",
+    content: "Use Codependence to keep important dependency versions intentional.",
     slug: "main-usecase",
   },
   {
@@ -148,8 +143,7 @@ export const SEARCH_DATA: SearchResult[] = [
   {
     title: "Badges",
     description: "Display Codependence status badges",
-    content:
-      "Add status badges to your README to show Codependence compliance.",
+    content: "Add status badges to your README to show Codependence compliance.",
     slug: "badges",
   },
   {
@@ -161,8 +155,7 @@ export const SEARCH_DATA: SearchResult[] = [
   {
     title: "Usage",
     description: "Detailed usage instructions",
-    content:
-      "Comprehensive guide to using Codependence in project policy checks.",
+    content: "Comprehensive guide to using Codependence in project policy checks.",
     slug: "usage",
   },
 ];

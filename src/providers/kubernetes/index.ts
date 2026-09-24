@@ -18,11 +18,11 @@ export class KubernetesProvider implements DependencyProvider {
     versionStrategy: "exact",
   } as const;
 
-  async getLatestVersion(): Promise<string> {
+  getLatestVersion(): Promise<string> {
     return manifestOnlyResolution("Kubernetes");
   }
 
-  async getAllVersions(): Promise<string[]> {
+  getAllVersions(): Promise<string[]> {
     return manifestOnlyResolution("Kubernetes");
   }
 
@@ -47,7 +47,5 @@ export class KubernetesProvider implements DependencyProvider {
     writeFileSync(filePath, output);
   }
 
-  validatePackageName(packageName: string): boolean {
-    return isSafeImageName(packageName);
-  }
+  validatePackageName = isSafeImageName;
 }

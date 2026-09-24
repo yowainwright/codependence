@@ -14,14 +14,12 @@ export function getDocBySlug(slug: string): DocMeta | undefined {
   return DOCS.find((doc) => doc.slug === slug);
 }
 
-export async function getDocContent(slug: string): Promise<string | undefined> {
+export function getDocContent(slug: string): Promise<string | undefined> {
   const p = `./docs/${slug}.mdx`;
-  return rawDocModules[p]?.();
+  return Promise.resolve(rawDocModules[p]?.());
 }
 
-export async function getDocComponent(
-  slug: string,
-): Promise<DocComponent | undefined> {
+export async function getDocComponent(slug: string): Promise<DocComponent | undefined> {
   const p = `./docs/${slug}.mdx`;
   const mod = await docModules[p]?.();
   return mod?.default;

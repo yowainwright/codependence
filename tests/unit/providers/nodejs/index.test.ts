@@ -13,17 +13,19 @@ const runExecMock = async (command: string, args: string[]): Promise<string> =>
 const restoreBinaryHost = configureBinaryHost(
   runExecMock,
   () => "{}",
-  async () => "",
+  () => Promise.resolve(""),
 );
 
 after(restoreBinaryHost);
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("NodeJSProvider", () => {
   afterEach(() => {
     execMock.mock.restore();
     execMock.mock.resetCalls();
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("getLatestVersion", () => {
     test("should get version using npm", async () => {
       execMock.mock.mockImplementation(() => ({
@@ -115,6 +117,7 @@ describe("NodeJSProvider", () => {
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("readManifest", () => {
     const tmpDir = join(import.meta.dirname, ".tmp-nodejs-test");
 
@@ -184,6 +187,7 @@ describe("NodeJSProvider", () => {
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("writeManifest", () => {
     const tmpDir = join(import.meta.dirname, ".tmp-nodejs-write-test");
 

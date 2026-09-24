@@ -4,3 +4,7 @@ export interface BuildBundle {
   args: string[];
   outputFile: string;
 }
+
+export interface BuildReport {
+  header: { glibcVersionRuntime?: string };
+}

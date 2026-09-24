@@ -230,7 +230,7 @@ export class GitHubActionsProvider implements DependencyProvider {
     throw new Error(`No stable GitHub Action tag found for ${repository}`);
   }
 
-  async getAllVersions(packageName: string): Promise<string[]> {
+  getAllVersions(packageName: string): Promise<string[]> {
     const repository = actionRepository(packageName);
     return this.getRepositoryTags(repository);
   }

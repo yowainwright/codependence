@@ -4,6 +4,57 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { HelmProvider } from "../../../../src/providers/helm";
 
+const readAndUpdateExplicitValuesImageTagsContent = `image:
+  registry: docker.io
+  repository: bitnami/nginx
+  tag: "1.27.0" # deployed image
+sidecar:
+  image:
+    repository: redis
+    tag: 7.2.4
+templated:
+  image:
+    repository: "{{ .Values.image.repository }}"
+    tag: latest
+`;
+
+const readAndUpdateExplicitValuesImageTagsExpected = `image:
+  registry: docker.io
+  repository: bitnami/nginx
+  tag: "1.27.1" # deployed image
+sidecar:
+  image:
+    repository: redis
+    tag: 7.2.5
+templated:
+  image:
+    repository: "{{ .Values.image.repository }}"
+    tag: latest
+`;
+
+const ignoreNonImageRepositoryTagMappingsInValuesContent = `chartRepository:
+  repository: https://charts.bitnami.com/bitnami
+  tag: stable
+image:
+  repository: bitnami/nginx
+  tag: "1.27.0"
+  metadata:
+    repository: ignored/repo
+    tag: 9.9.9
+`;
+
+const ignoreNonImageRepositoryTagMappingsInValuesExpected = `chartRepository:
+  repository: https://charts.bitnami.com/bitnami
+  tag: stable
+image:
+  repository: bitnami/nginx
+  tag: "1.27.1"
+  metadata:
+    repository: ignored/repo
+    tag: 9.9.9
+`;
+
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("HelmProvider", () => {
   const tmpDir = join(import.meta.dirname, ".tmp-helm-test");
   const chartDir = join(tmpDir, "payments");
@@ -162,20 +213,8 @@ maintainers:
 
   test("should read and update explicit values image tags", () => {
     const valuesPath = join(chartDir, "values.yaml");
-    const content = `image:
-  registry: docker.io
-  repository: bitnami/nginx
-  tag: "1.27.0" # deployed image
-sidecar:
-  image:
-    repository: redis
-    tag: 7.2.4
-templated:
-  image:
-    repository: "{{ .Values.image.repository }}"
-    tag: latest
-`;
-    writeFileSync(valuesPath, content);
+
+    writeFileSync(valuesPath, readAndUpdateExplicitValuesImageTagsContent);
     const provider = new HelmProvider();
 
     assert.deepStrictEqual(provider.readManifest(valuesPath), {
@@ -201,35 +240,14 @@ templated:
 
     assert.strictEqual(
       readFileSync(valuesPath, "utf8"),
-      `image:
-  registry: docker.io
-  repository: bitnami/nginx
-  tag: "1.27.1" # deployed image
-sidecar:
-  image:
-    repository: redis
-    tag: 7.2.5
-templated:
-  image:
-    repository: "{{ .Values.image.repository }}"
-    tag: latest
-`,
+      readAndUpdateExplicitValuesImageTagsExpected,
     );
   });
 
   test("should ignore non-image repository tag mappings in values", () => {
     const valuesPath = join(chartDir, "values.yaml");
-    const content = `chartRepository:
-  repository: https://charts.bitnami.com/bitnami
-  tag: stable
-image:
-  repository: bitnami/nginx
-  tag: "1.27.0"
-  metadata:
-    repository: ignored/repo
-    tag: 9.9.9
-`;
-    writeFileSync(valuesPath, content);
+
+    writeFileSync(valuesPath, ignoreNonImageRepositoryTagMappingsInValuesContent);
     const provider = new HelmProvider();
 
     assert.deepStrictEqual(provider.readManifest(valuesPath), {
@@ -254,16 +272,7 @@ image:
 
     assert.strictEqual(
       readFileSync(valuesPath, "utf8"),
-      `chartRepository:
-  repository: https://charts.bitnami.com/bitnami
-  tag: stable
-image:
-  repository: bitnami/nginx
-  tag: "1.27.1"
-  metadata:
-    repository: ignored/repo
-    tag: 9.9.9
-`,
+      ignoreNonImageRepositoryTagMappingsInValuesExpected,
     );
   });
 

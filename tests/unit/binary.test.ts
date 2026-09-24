@@ -6,8 +6,9 @@ import { normalizeBinaryArgv } from "../../src/cli/utils";
 import * as binary from "../../src/cli";
 import { logger } from "../../src/observability";
 
-const runMock = mock.fn(async () => undefined);
+const runMock = mock.fn(() => Promise.resolve(undefined));
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("binary host", () => {
   let restoreHost: (() => void) | undefined;
 
@@ -24,9 +25,9 @@ describe("binary host", () => {
   });
 
   test("bridges async, sync, and prompt calls", async () => {
-    const exec = mock.fn(async () => '{"stdout":"1.2.3","stderr":"warning"}');
+    const exec = mock.fn(() => Promise.resolve('{"stdout":"1.2.3","stderr":"warning"}'));
     const execSync = mock.fn(() => '{"stdout":"done","stderr":""}');
-    const question = mock.fn(async () => "yes");
+    const question = mock.fn(() => Promise.resolve("yes"));
     restoreHost = host.configureBinaryHost(exec, execSync, question);
 
     const execFile = host.binaryExecFile();
@@ -41,7 +42,7 @@ describe("binary host", () => {
   });
 
   test("normalizes missing output fields", async () => {
-    const exec = mock.fn(async () => "{}");
+    const exec = mock.fn(() => Promise.resolve("{}"));
     restoreHost = host.configureBinaryHost(exec, mock.fn(), mock.fn());
 
     const result = await host.binaryExecFile()?.("npm", [], { encoding: "utf8" });
@@ -53,7 +54,7 @@ describe("binary host", () => {
   test("throws host errors from async and sync calls", async () => {
     const failure = '{"stdout":"","stderr":"","error":"command failed"}';
     restoreHost = host.configureBinaryHost(
-      mock.fn(async () => failure),
+      mock.fn(() => Promise.resolve(failure)),
       mock.fn(() => failure),
       mock.fn(),
     );
@@ -63,6 +64,7 @@ describe("binary host", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("binary utilities", () => {
   afterEach(() => {
     runMock.mock.restore();
@@ -101,7 +103,7 @@ describe("binary utilities", () => {
   });
 
   test("runs the CLI with normalized arguments", async () => {
-    runMock.mock.mockImplementation(async () => undefined);
+    runMock.mock.mockImplementation(() => Promise.resolve(undefined));
 
     await binary.runBinary(["/usr/local/bin/codependence", "--help"], runMock);
 
@@ -109,9 +111,7 @@ describe("binary utilities", () => {
   });
 
   test("logs CLI failures and exits with status 2", async () => {
-    runMock.mock.mockImplementation(async () => {
-      throw new Error("broken CLI");
-    });
+    runMock.mock.mockImplementation(() => Promise.reject(new Error("broken CLI")));
     const logError = mock.method(logger, "error", () => {});
     const exit = mock.method(process, "exit", (() => {}) as () => never);
 

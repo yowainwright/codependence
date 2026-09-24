@@ -333,9 +333,8 @@ export class RustProvider implements DependencyProvider {
     return latestVersion;
   }
 
-  async getAllVersions(_packageName: string): Promise<string[]> {
-    const versions: string[] = [];
-    return versions;
+  getAllVersions(_packageName: string): Promise<string[]> {
+    return Promise.resolve([]);
   }
 
   readManifest(filePath: string): DependencyManifest {

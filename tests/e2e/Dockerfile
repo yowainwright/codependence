@@ -50,7 +50,8 @@ RUN if node -e "const pkg = require('./package.json'); process.exit(Object.keys(
     fi
 
 # Copy test fixtures
-COPY tests/e2e/fixtures/* ./
+COPY tests/e2e/fixtures/ ./
+COPY tests/e2e/test-init.sh ./
 
 # Make test script executable
 RUN chmod +x test-init.sh

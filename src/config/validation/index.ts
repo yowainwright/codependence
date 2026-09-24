@@ -513,6 +513,29 @@ const conflictingShapeErrors = (): ValidationError[] => [
   },
 ];
 
+const validateFlatConfig = (
+  config: Record<string, unknown>,
+  requirePolicy: boolean,
+): ValidationError[] =>
+  concat(
+    ...(requirePolicy ? [validateRequiredFields(config)] : []),
+    validateSchema(config),
+    validateCodependencies(config),
+    validatePermissive(config),
+    validateLanguage(config),
+    validateLevel(config),
+    validateMode(config),
+    validateExplicitPinManager(config),
+    validateFiles(config),
+    validateIgnore(config),
+    validateLockfile(config),
+    validateRootDir(config),
+    validateOutputFile(config),
+    validateFormat(config),
+    ...validateBooleanOptions.map((validate) => validate(config)),
+    validateUnknownFields(config),
+  );
+
 export const validateConfig = (
   config: unknown,
   options: ValidationOptions = {},
@@ -541,24 +564,7 @@ export const validateConfig = (
     return { valid: errors.length === 0, errors };
   }
 
-  const errors = concat(
-    ...(requirePolicy ? [validateRequiredFields(typedConfig)] : []),
-    validateSchema(typedConfig),
-    validateCodependencies(typedConfig),
-    validatePermissive(typedConfig),
-    validateLanguage(typedConfig),
-    validateLevel(typedConfig),
-    validateMode(typedConfig),
-    validateExplicitPinManager(typedConfig),
-    validateFiles(typedConfig),
-    validateIgnore(typedConfig),
-    validateLockfile(typedConfig),
-    validateRootDir(typedConfig),
-    validateOutputFile(typedConfig),
-    validateFormat(typedConfig),
-    ...validateBooleanOptions.map((validate) => validate(typedConfig)),
-    validateUnknownFields(typedConfig),
-  );
+  const errors = validateFlatConfig(typedConfig, requirePolicy);
 
   return { valid: errors.length === 0, errors };
 };

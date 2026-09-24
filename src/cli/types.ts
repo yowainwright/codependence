@@ -1,4 +1,4 @@
-import type { DependencyManager } from "../types";
+import type { DependencyManager, ProgressHandler } from "../types";
 import type { ExecResult } from "../utils/process";
 
 export type BinaryArgv = readonly string[];
@@ -71,4 +71,16 @@ export interface RenderWorkflowOptions extends WorkflowDefinition {
   postUpdateCommand: string;
   tokenSecret: string;
   versions: Map<DependencyManager, string>;
+}
+
+export interface ActionStatus {
+  show: boolean;
+  stop: () => void;
+  onProgress: ProgressHandler;
+}
+
+export interface InitSelection {
+  pinnedDeps: string[];
+  outputType: "rc" | "package";
+  usePermissive: boolean;
 }

@@ -2,11 +2,7 @@ import type { Heading } from "./types";
 import { HEADING_REGEX, SLUG_STRIP_REGEX, SLUG_SPACE_REGEX } from "./constants";
 
 function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(SLUG_STRIP_REGEX, "")
-    .trim()
-    .replace(SLUG_SPACE_REGEX, "-");
+  return text.toLowerCase().replace(SLUG_STRIP_REGEX, "").trim().replace(SLUG_SPACE_REGEX, "-");
 }
 
 function buildTree(flat: Heading[]): Heading[] {

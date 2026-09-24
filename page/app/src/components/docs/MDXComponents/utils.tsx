@@ -1,8 +1,6 @@
 import type { ComponentPropsWithoutRef } from "react";
 
-function externalAnchorProps(
-  isExternal: boolean,
-): ComponentPropsWithoutRef<"a"> {
+function externalAnchorProps(isExternal: boolean): ComponentPropsWithoutRef<"a"> {
   if (!isExternal) return {};
 
   return {
@@ -11,11 +9,7 @@ function externalAnchorProps(
   };
 }
 
-export function Anchor({
-  href,
-  children,
-  ...props
-}: ComponentPropsWithoutRef<"a">) {
+export function Anchor({ href, children, ...props }: ComponentPropsWithoutRef<"a">) {
   const isExternal = href?.startsWith("http") ?? false;
   const externalProps = externalAnchorProps(isExternal);
 

@@ -3,7 +3,7 @@ name: update codependencies
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 5 * * 1'
+    - cron: "0 5 * * 1"
 
 permissions:
   contents: read
@@ -52,7 +52,7 @@ jobs:
         with:
           token: ${{ secrets.PR_CREATE_TOKEN }}
           commit-message: Update dependencies
-          title: '[Codependence] update dependencies'
+          title: "[Codependence] update dependencies"
           body: |
             ## Dependency updates
 

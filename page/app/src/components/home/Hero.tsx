@@ -25,9 +25,7 @@ function InstallSnippet() {
   return (
     <div className="flex items-center bg-base-300 rounded-lg shadow-sm justify-between">
       <ChevronRightIcon className="ml-4 mr-2 w-4 h-4" />
-      <code className="flex-1 text-left leading-none mr-4">
-        {HERO_INSTALL_COMMAND}
-      </code>
+      <code className="flex-1 text-left leading-none mr-4">{HERO_INSTALL_COMMAND}</code>
       <CopyButton />
     </div>
   );
@@ -67,8 +65,8 @@ export function Hero() {
           </h1>
           <div className="flex justify-center items-center">
             <p className="py-7 max-w-4xl text-md md:text-xl lg:text-2xl">
-              Codependence keeps dependency versions intentional across local
-              development, monorepos, and CI.
+              Codependence keeps dependency versions intentional across local development,
+              monorepos, and CI.
             </p>
           </div>
           <HeroActions />

@@ -251,13 +251,10 @@ const isCircleCIManifest = (path: string): boolean =>
 
 const isKubernetesManifest = (path: string): boolean => {
   const directory = onboardingDirectory(path);
-  const isKnownDirectory =
-    directory === "k8s" ||
-    directory.startsWith("k8s/") ||
-    directory === "kubernetes" ||
-    directory.startsWith("kubernetes/") ||
-    directory === "manifests" ||
-    directory.startsWith("manifests/");
+  const manifestDirectories = ["k8s", "kubernetes", "manifests"];
+  const isKnownDirectory = manifestDirectories.some(
+    (root) => directory === root || directory.startsWith(`${root}/`),
+  );
   const isYaml = path.endsWith(".yml") || path.endsWith(".yaml");
   return isKnownDirectory && isYaml;
 };

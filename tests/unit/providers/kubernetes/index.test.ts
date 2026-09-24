@@ -4,6 +4,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { KubernetesProvider } from "../../../../src/providers/kubernetes";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("KubernetesProvider", () => {
   const tmpDir = join(import.meta.dirname, ".tmp-kubernetes-test");
   const projectDir = join(tmpDir, "api");

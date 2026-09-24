@@ -6,20 +6,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORK_DIR="$(mktemp -d)"
 
 resolve_root_dir() {
-  if [ -f "$SCRIPT_DIR/dist/cli.js" ]; then
-    echo "$SCRIPT_DIR"
-  else
-    echo "$(dirname "$(dirname "$SCRIPT_DIR")")"
-  fi
+  root="$(dirname "$(dirname "$SCRIPT_DIR")")"
+  [ ! -f "$SCRIPT_DIR/dist/cli.js" ] || root="$SCRIPT_DIR"
+  printf '%s\n' "$root"
 }
 
 resolve_fixture_dir() {
-  local root="$1"
-  if [ -f "$SCRIPT_DIR/go.mod-replace.fixture" ]; then
-    echo "$SCRIPT_DIR"
-  else
-    echo "$root/tests/e2e/fixtures"
-  fi
+  root="${1:?root is required}"
+  fixture_dir="$root/tests/e2e/fixtures"
+  [ ! -f "$SCRIPT_DIR/go.mod-replace.fixture" ] || fixture_dir="$SCRIPT_DIR"
+  printf '%s\n' "$fixture_dir"
 }
 
 ROOT_DIR="$(resolve_root_dir)"
@@ -31,7 +27,10 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 pass() { echo -e "${GREEN}[PASS]${NC} $1"; }
-fail() { echo -e "${RED}[FAIL]${NC} $1"; exit 1; }
+fail() {
+  echo -e "${RED}[FAIL]${NC} $1"
+  exit 1
+}
 info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 
 cleanup() { rm -rf "$WORK_DIR"; }
@@ -42,7 +41,7 @@ setup_work_dir() {
 }
 
 write_rc() {
-  echo "$1" > "$WORK_DIR/.codependencerc"
+  echo "$1" >"$WORK_DIR/.codependencerc"
 }
 
 run_update() {
@@ -50,9 +49,7 @@ run_update() {
   local output
   output=$(cd "$WORK_DIR" && node dist/cli.js --update --isTesting 2>&1) || exit_code=$?
   [ "$exit_code" -eq 0 ] || fail "codependence --update exited with unexpected code $exit_code: $output"
-  if echo "$output" | grep -q "Failed to fetch version\|Error: Command failed"; then
-    fail "codependence --update had resolver errors: $output"
-  fi
+  ! echo "$output" | grep -q "Failed to fetch version\|Error: Command failed" || fail "codependence --update had resolver errors: $output"
 }
 
 run_check() {
@@ -60,19 +57,14 @@ run_check() {
   local output
   output=$(cd "$WORK_DIR" && node dist/cli.js --debug 2>&1) || exit_code=$?
   [ "$exit_code" -le 1 ] || fail "codependence --debug exited with unexpected code $exit_code"
-  if echo "$output" | grep -q "Failed to fetch version\|Error: Command failed"; then
-    fail "codependence --debug had resolver errors: $output"
-  fi
+  ! echo "$output" | grep -q "Failed to fetch version\|Error: Command failed" || fail "codependence --debug had resolver errors: $output"
   echo "$output"
 }
 
 assert_file_contains() {
-  local file="$1" pattern="$2" label="$3"
-  if grep -q "$pattern" "$file"; then
-    pass "$label"
-  else
-    fail "$label"
-  fi
+  local file="${1:?file is required}" pattern="${2:?pattern is required}" label="${3:?label is required}"
+  grep -q "$pattern" "$file" || fail "$label"
+  pass "$label"
 }
 
 test_replace_directive_preserved() {
@@ -98,11 +90,8 @@ test_packages_detected() {
   cp "$FIXTURE_DIR/go.mod.fixture" "$WORK_DIR/go.mod"
   write_rc '{"codependencies":[{"github.com/gin-gonic/gin":"v1.9.1"},{"github.com/lib/pq":"v1.10.9"},{"golang.org/x/crypto":"v0.11.0"}],"language":"go","mode":"verbose"}'
   OUTPUT=$(run_check)
-  if echo "$OUTPUT" | grep -q "gin-gonic\|lib/pq\|golang.org"; then
-    pass "go packages detected"
-  else
-    fail "go packages not detected in output"
-  fi
+  echo "$OUTPUT" | grep -q "gin-gonic\|lib/pq\|golang.org" || fail "go packages not detected in output"
+  pass "go packages detected"
 }
 
 main() {

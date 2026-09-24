@@ -6,6 +6,7 @@ import type { DependencyInfo } from "../../../src/types";
 
 const stripAnsi = (str: string): string => str.replace(createAnsiPattern(), "");
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("formatAsJSON", () => {
   it("should format dependencies as JSON with outdated status", () => {
     const dependencies: DependencyInfo[] = [
@@ -173,6 +174,7 @@ describe("formatAsJSON", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("formatAsMarkdown", () => {
   it("should format outdated dependencies as markdown", () => {
     const dependencies: DependencyInfo[] = [
@@ -182,12 +184,12 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    assert.ok(result.includes("# Dependency Status"));
-    assert.ok(result.includes("## ▲ Outdated Dependencies (1)"));
-    assert.ok(result.includes("| Package | Current | Latest | Severity |"));
-    assert.ok(result.includes("| react | 17.0.0 | 18.0.0 | ● major |"));
-    assert.ok(result.includes("## ✓ Up-to-date Dependencies (1)"));
-    assert.ok(result.includes("- lodash @ 4.17.21"));
+    assert.match(result, /# Dependency Status/);
+    assert.match(result, /## ▲ Outdated Dependencies \(1\)/);
+    assert.match(result, /\| Package \| Current \| Latest \| Severity \|/);
+    assert.match(result, /\| react \| 17\.0\.0 \| 18\.0\.0 \| ● major \|/);
+    assert.match(result, /## ✓ Up-to-date Dependencies \(1\)/);
+    assert.match(result, /- lodash @ 4\.17\.21/);
   });
 
   it("should format only up-to-date dependencies", () => {
@@ -197,9 +199,9 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    assert.ok(result.includes("# Dependency Status"));
-    assert.ok(result.includes("## ✓ Up-to-date Dependencies (1)"));
-    assert.ok(!result.includes("▲ Outdated Dependencies"));
+    assert.match(result, /# Dependency Status/);
+    assert.match(result, /## ✓ Up-to-date Dependencies \(1\)/);
+    assert.doesNotMatch(result, /▲ Outdated Dependencies/);
   });
 
   it("should include summary section", () => {
@@ -210,10 +212,10 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    assert.ok(result.includes("## Summary"));
-    assert.ok(result.includes("- Total packages: 2"));
-    assert.ok(result.includes("- Outdated: 1"));
-    assert.ok(result.includes("- Up-to-date: 1"));
+    assert.match(result, /## Summary/);
+    assert.match(result, /- Total packages: 2/);
+    assert.match(result, /- Outdated: 1/);
+    assert.match(result, /- Up-to-date: 1/);
   });
 
   it("should include duration when provided", () => {
@@ -223,7 +225,7 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies, 2500);
 
-    assert.ok(result.includes("- Duration: 2500ms"));
+    assert.match(result, /- Duration: 2500ms/);
   });
 
   it("should not include duration when not provided", () => {
@@ -233,7 +235,7 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    assert.ok(!result.includes("Duration:"));
+    assert.doesNotMatch(result, /Duration:/);
   });
 
   it("should use correct severity emojis for major", () => {
@@ -243,7 +245,7 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    assert.ok(result.includes("● major"));
+    assert.match(result, /● major/);
   });
 
   it("should use correct severity emojis for minor", () => {
@@ -253,7 +255,7 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    assert.ok(result.includes("● minor"));
+    assert.match(result, /● minor/);
   });
 
   it("should use correct severity emojis for patch", () => {
@@ -263,7 +265,7 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    assert.ok(result.includes("● patch"));
+    assert.match(result, /● patch/);
   });
 
   it("should handle empty dependencies array", () => {
@@ -271,9 +273,9 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    assert.ok(result.includes("# Dependency Status"));
-    assert.ok(result.includes("## Summary"));
-    assert.ok(result.includes("- Total packages: 0"));
+    assert.match(result, /# Dependency Status/);
+    assert.match(result, /## Summary/);
+    assert.match(result, /- Total packages: 0/);
   });
 
   it("should format multiple outdated dependencies", () => {
@@ -285,13 +287,14 @@ describe("formatAsMarkdown", () => {
 
     const result = formatAsMarkdown(dependencies);
 
-    assert.ok(result.includes("## ▲ Outdated Dependencies (3)"));
-    assert.ok(result.includes("| react | 17.0.0 | 18.0.0 | ● major |"));
-    assert.ok(result.includes("| vue | 2.6.0 | 3.0.0 | ● major |"));
-    assert.ok(result.includes("| angular | 12.0.0 | 13.0.0 | ● major |"));
+    assert.match(result, /## ▲ Outdated Dependencies \(3\)/);
+    assert.match(result, /\| react \| 17\.0\.0 \| 18\.0\.0 \| ● major \|/);
+    assert.match(result, /\| vue \| 2\.6\.0 \| 3\.0\.0 \| ● major \|/);
+    assert.match(result, /\| angular \| 12\.0\.0 \| 13\.0\.0 \| ● major \|/);
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("formatAsTable", () => {
   it("should format outdated dependencies as table", () => {
     const dependencies: DependencyInfo[] = [
@@ -301,16 +304,16 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    assert.ok(result.includes("▲  Outdated Dependencies:"));
-    assert.ok(result.includes("Package"));
-    assert.ok(result.includes("Current"));
-    assert.ok(result.includes("Latest"));
-    assert.ok(result.includes("Severity"));
-    assert.ok(result.includes("react"));
-    assert.ok(result.includes("17.0.0"));
-    assert.ok(result.includes("18.0.0"));
-    assert.ok(result.includes("● major"));
-    assert.ok(result.includes("1 outdated of 2 total"));
+    assert.match(result, /▲  Outdated Dependencies:/);
+    assert.match(result, /Package/);
+    assert.match(result, /Current/);
+    assert.match(result, /Latest/);
+    assert.match(result, /Severity/);
+    assert.match(result, /react/);
+    assert.match(result, /17\.0\.0/);
+    assert.match(result, /18\.0\.0/);
+    assert.match(result, /● major/);
+    assert.match(result, /1 outdated of 2 total/);
   });
 
   it("should show success message when all up-to-date", () => {
@@ -321,7 +324,7 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    assert.ok(result.includes("All dependencies are up-to-date!"));
+    assert.match(result, /All dependencies are up-to-date!/);
   });
 
   it("should handle empty dependencies array", () => {
@@ -329,7 +332,7 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    assert.ok(result.includes("All dependencies are up-to-date!"));
+    assert.match(result, /All dependencies are up-to-date!/);
   });
 
   it("should use correct severity indicators for major", () => {
@@ -339,7 +342,7 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    assert.ok(result.includes("● major"));
+    assert.match(result, /● major/);
   });
 
   it("should use correct severity indicators for minor", () => {
@@ -349,7 +352,7 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    assert.ok(result.includes("● minor"));
+    assert.match(result, /● minor/);
   });
 
   it("should use correct severity indicators for patch", () => {
@@ -359,7 +362,7 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    assert.ok(result.includes("● patch"));
+    assert.match(result, /● patch/);
   });
 
   it("should align columns correctly with varying lengths", () => {
@@ -370,9 +373,9 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    assert.ok(result.includes("very-long-package-name"));
-    assert.ok(result.includes("react"));
-    assert.ok(result.includes("2 outdated of 2 total"));
+    assert.match(result, /very-long-package-name/);
+    assert.match(result, /react/);
+    assert.match(result, /2 outdated of 2 total/);
   });
 
   it("should show count summary", () => {
@@ -384,10 +387,11 @@ describe("formatAsTable", () => {
 
     const result = stripAnsi(formatAsTable(dependencies));
 
-    assert.ok(result.includes("2 outdated of 3 total"));
+    assert.match(result, /2 outdated of 3 total/);
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("format", () => {
   const dependencies: DependencyInfo[] = [
     { name: "react", current: "17.0.0", latest: "18.0.0", isPinned: false },
@@ -404,22 +408,22 @@ describe("format", () => {
   it("should format as markdown when type is markdown", () => {
     const result = format(dependencies, "markdown");
 
-    assert.ok(result.includes("# Dependency Status"));
-    assert.ok(result.includes("| Package | Current | Latest | Severity |"));
+    assert.match(result, /# Dependency Status/);
+    assert.match(result, /\| Package \| Current \| Latest \| Severity \|/);
   });
 
   it("should format as table when type is table", () => {
     const result = stripAnsi(format(dependencies, "table"));
 
-    assert.ok(result.includes("▲  Outdated Dependencies:"));
-    assert.ok(result.includes("Package"));
+    assert.match(result, /▲  Outdated Dependencies:/);
+    assert.match(result, /Package/);
   });
 
   it("should default to table format", () => {
     const result = stripAnsi(format(dependencies));
 
-    assert.ok(result.includes("▲  Outdated Dependencies:"));
-    assert.ok(result.includes("Package"));
+    assert.match(result, /▲  Outdated Dependencies:/);
+    assert.match(result, /Package/);
   });
 
   it("should pass duration to JSON formatter", () => {
@@ -432,14 +436,14 @@ describe("format", () => {
   it("should pass duration to markdown formatter", () => {
     const result = format(dependencies, "markdown", 3000);
 
-    assert.ok(result.includes("- Duration: 3000ms"));
+    assert.match(result, /- Duration: 3000ms/);
   });
 
   it("should not pass duration to table formatter", () => {
     const result = format(dependencies, "table", 3000);
 
-    assert.ok(!result.includes("Duration"));
-    assert.ok(!result.includes("3000"));
+    assert.doesNotMatch(result, /Duration/);
+    assert.doesNotMatch(result, /3000/);
   });
 
   it("should handle all formats with empty dependencies", () => {
@@ -450,7 +454,7 @@ describe("format", () => {
     const tableResult = format(emptyDeps, "table");
 
     assert.strictEqual(JSON.parse(jsonResult).status, "up-to-date");
-    assert.ok(markdownResult.includes("# Dependency Status"));
-    assert.ok(stripAnsi(tableResult).includes("✓ All dependencies are up-to-date!"));
+    assert.match(markdownResult, /# Dependency Status/);
+    assert.match(stripAnsi(tableResult), /✓ All dependencies are up-to-date!/);
   });
 });

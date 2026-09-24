@@ -4,6 +4,7 @@ import { assertCalledWith, match } from "../../helpers/assertions";
 import { createLogger } from "../../../src/observability";
 import { createAnsiPattern } from "../../../src/dx/constants";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("Logger", () => {
   let consoleSpy: {
     log: ReturnType<typeof mock.method>;
@@ -49,8 +50,8 @@ describe("Logger", () => {
       logger.info("Test info");
       assert.ok(consoleSpy.log.mock.callCount() > 0);
       const call = stripAnsi(consoleSpy.log.mock.calls[0].arguments[0]);
-      assert.ok(call.includes("codependence"));
-      assert.ok(call.includes("Test info"));
+      assert.match(call, /codependence/);
+      assert.match(call, /Test info/);
     });
 
     it("should log debug messages when level is debug", () => {
@@ -129,6 +130,7 @@ describe("Logger", () => {
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("utility methods", () => {
     it("should print plain messages", () => {
       const logger = createLogger();
@@ -201,8 +203,7 @@ describe("Logger", () => {
 
       assertCalledWith(consoleSpy.log, match.stringMatching(/^\{.*\}$/));
 
-      const logCall = consoleSpy.log.mock.calls[0].arguments[0];
-      const parsedLog = JSON.parse(logCall as string);
+      const parsedLog = JSON.parse(consoleSpy.log.mock.calls[0].arguments[0] as string);
       assert.strictEqual(parsedLog.level, "info");
       assert.strictEqual(parsedLog.message, "Test message");
       assert.notStrictEqual(parsedLog.timestamp, undefined);
@@ -212,8 +213,7 @@ describe("Logger", () => {
       const logger = createLogger({ structured: true, level: "debug" });
       logger.debug("Debug test", { key: "value" });
 
-      const logCall = consoleSpy.debug.mock.calls[0].arguments[0];
-      const parsedLog = JSON.parse(logCall as string);
+      const parsedLog = JSON.parse(consoleSpy.debug.mock.calls[0].arguments[0] as string);
       assert.deepStrictEqual(parsedLog.data, { key: "value" });
     });
   });
@@ -224,7 +224,7 @@ describe("Logger", () => {
       logger.info("");
       assert.ok(consoleSpy.log.mock.callCount() > 0);
       const call = stripAnsi(consoleSpy.log.mock.calls[0].arguments[0]);
-      assert.ok(call.includes("codependence"));
+      assert.match(call, /codependence/);
     });
 
     it("should handle undefined error", () => {

@@ -27,7 +27,6 @@ export const LINE_BREAKS = /[\r\n]+/g;
 export const GLIMMER_HIGHLIGHT_COLOR: Rgb = [255, 255, 255];
 export const GLIMMER_HIGHLIGHT_WIDTH = 2;
 export const CLI_STYLEGUIDE_GLIMMER_FRAME = 5;
-export const CLI_STYLEGUIDE_LOADER_INTERVAL_MS = 80;
 export const CLI_STYLEGUIDE_LOADER_TITLE = "Loader";
 export const TABLE_CELL_PADDING = 2;
 export const MIN_DIFF_INTENSITY = 0.38;

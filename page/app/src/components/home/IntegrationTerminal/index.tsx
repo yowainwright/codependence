@@ -1,10 +1,5 @@
 import React from "react";
-import type {
-  SegmentProps,
-  SpinnerProps,
-  TerminalContentProps,
-  TypingContentProps,
-} from "./types";
+import type { SegmentProps, SpinnerProps, TerminalContentProps, TypingContentProps } from "./types";
 import { SPINNER_FRAMES } from "./constants";
 import { useIntersectionObserver, useTerminalAnimation } from "./hooks";
 
@@ -16,9 +11,7 @@ function TerminalHeader() {
         <div className="w-3 h-3 rounded-full bg-warning/80" />
         <div className="w-3 h-3 rounded-full bg-success/80" />
       </div>
-      <span className="text-xs text-base-content/50 font-mono">
-        ~/my-project
-      </span>
+      <span className="text-xs text-base-content/50 font-mono">~/my-project</span>
       <div className="w-[52px]" />
     </div>
   );
@@ -26,19 +19,14 @@ function TerminalHeader() {
 
 function Segment({ segment, keyPrefix, index }: SegmentProps) {
   return (
-    <span
-      key={`${keyPrefix}-${index}`}
-      className={segment.color || "text-base-content"}
-    >
+    <span key={`${keyPrefix}-${index}`} className={segment.color || "text-base-content"}>
       {segment.text}
     </span>
   );
 }
 
 function Cursor() {
-  return (
-    <span className="inline-block w-2 h-4 ml-0.5 bg-primary animate-pulse" />
-  );
+  return <span className="inline-block w-2 h-4 ml-0.5 bg-primary animate-pulse" />;
 }
 
 function Spinner({ frame, text }: SpinnerProps) {
@@ -62,10 +50,7 @@ function TypingContent({ step, charIndex }: TypingContentProps) {
     remaining -= segment.text.length;
 
     elements = elements.concat(
-      <span
-        key={`typing-${i}`}
-        className={segment.color || "text-base-content"}
-      >
+      <span key={`typing-${i}`} className={segment.color || "text-base-content"}>
         {visibleText}
       </span>,
     );
@@ -94,12 +79,7 @@ function TerminalContent({
       <pre className="text-sm font-mono leading-relaxed">
         <code>
           {displayedContent.map((segment, i) => (
-            <Segment
-              key={`displayed-${i}`}
-              segment={segment}
-              keyPrefix="displayed"
-              index={i}
-            />
+            <Segment key={`displayed-${i}`} segment={segment} keyPrefix="displayed" index={i} />
           ))}
 
           {isShowingSpinner && currentStep?.type === "spinner" && (
@@ -117,19 +97,11 @@ function TerminalContent({
 
 export default function IntegrationTerminal() {
   const { containerRef, isVisible } = useIntersectionObserver();
-  const {
-    currentStep,
-    displayedContent,
-    charIndex,
-    spinnerFrame,
-    isShowingSpinner,
-  } = useTerminalAnimation(isVisible);
+  const { currentStep, displayedContent, charIndex, spinnerFrame, isShowingSpinner } =
+    useTerminalAnimation(isVisible);
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full max-w-3xl xl:w-[48rem] mt-10 xl:mt-0"
-    >
+    <div ref={containerRef} className="w-full max-w-3xl xl:w-[48rem] mt-10 xl:mt-0">
       <div className="relative overflow-hidden rounded-xl border border-base-content/10 shadow-2xl">
         <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-accent/20 to-secondary/20 rounded-xl blur-xl opacity-50" />
 

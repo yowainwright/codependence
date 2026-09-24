@@ -49,7 +49,7 @@ React stays pinned while lodash updates:
  }
 ```
 
-The policy runs the same thing everywhere!—Locally in scripts or in CI; it's the same and you own it. 
+The policy runs the same thing everywhere!—Locally in scripts or in CI; it's the same and you own it.
 See more [recipes below](#recipes)!
 
 ---
@@ -66,17 +66,23 @@ Node.js 20 and 22 are best-effort compatible: the CLI may work there, and CI run
 non-blocking smoke checks, but failures below Node.js 24 do not block releases.
 
 via npm in the project
+
 ```sh
 npm install codependence
 ```
+
 For direct CLI use:
+
 ```sh
 npm install --global codependence
 ```
+
 or via brew
+
 ```sh
 brew install yowainwright/tap/codependence
 ```
+
 It is a top priority to make this official to brew as quickly as possible for your security benefit!
 
 ---
@@ -109,7 +115,7 @@ That's it!
 > [!NOTE]
 > Use `init config [directory]` for configuration only and `init actions` to generate GitHub Actions workflows.
 >
-> For a JavaScript project, you can use a `codependence` dependency policy object in `package.json`. 
+> For a JavaScript project, you can use a `codependence` dependency policy object in `package.json`.
 > For larger or mixed-language projects, you can create Codependence config files for your project's dependency needs:
 
 ```diff
@@ -161,12 +167,12 @@ Commands:
   init actions [managers...]        Generate GitHub Actions workflows
 ```
 
-Init has sub commands and there are options but that's it. 
-This also hopefully feels pretty simple and understantable. 
+Init has sub commands and there are options but that's it.
+This also hopefully feels pretty simple and understantable.
 
 ### Option Reference
 
-Configuration can live in `package.json` or a referenced `.codependencerc`. 
+Configuration can live in `package.json` or a referenced `.codependencerc`.
 Use CLI flags for execution choices such as checking, updating, and output formatting.
 
 ### From policy to result
@@ -1229,7 +1235,7 @@ codependence --permissive --codependencies 'react' 'lodash' --update
 
 You can configure multiple project manifests via a single or multiple codependence policy files.
 
-1. Use a skey for each manifest. 
+1. Use a skey for each manifest.
 2. `name` can distinguish manifests in the same directory.
 
 ```diff
@@ -1270,22 +1276,22 @@ Use one supported language per run: `nodejs`, `python`, `go`, `rust`,
 #### Languages
 
 > ##### Language manifest updates
-> 
+>
 > - Non-Node providers remain experimental, but all managers can share one `config` dictionary.
-> - Python requirements updates preserve comments, markers, hashes, and include directives. 
+> - Python requirements updates preserve comments, markers, hashes, and include directives.
 > - Unversioned and URL-based requirements are left unchanged. After updating manifests, regenerate and commit ecosystem lockfiles with their native package managers.
 
-| Language | Package managers | Status | Manifest files |
-| --- | --- | --- | --- |
-| JavaScript | <ul><li>[bun](https://bun.sh/)</li><li>[npm](https://www.npmjs.com/)</li><li>[pnpm](https://pnpm.io/)</li><li>[yarn](https://yarnpkg.com/)</li></ul> | Supported | `package.json` |
-| Python | <ul><li>[conda](https://conda.org/)</li><li>[pip](https://pip.pypa.io/)</li><li>[pipenv](https://pipenv.pypa.io/)</li><li>[poetry](https://python-poetry.org/)</li><li>[uv](https://docs.astral.sh/uv/)</li></ul> | Experimental | `requirements.txt`, `pyproject.toml`, `Pipfile`, `environment.yml` |
-| Go | [golang](https://go.dev/) | Experimental | `go.mod` |
-| Rust | [cargo](https://doc.rust-lang.org/cargo/) | Experimental | `Cargo.toml` |
+| Language   | Package managers                                                                                                                                                                                                  | Status       | Manifest files                                                     |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ------------------------------------------------------------------ |
+| JavaScript | <ul><li>[bun](https://bun.sh/)</li><li>[npm](https://www.npmjs.com/)</li><li>[pnpm](https://pnpm.io/)</li><li>[yarn](https://yarnpkg.com/)</li></ul>                                                              | Supported    | `package.json`                                                     |
+| Python     | <ul><li>[conda](https://conda.org/)</li><li>[pip](https://pip.pypa.io/)</li><li>[pipenv](https://pipenv.pypa.io/)</li><li>[poetry](https://python-poetry.org/)</li><li>[uv](https://docs.astral.sh/uv/)</li></ul> | Experimental | `requirements.txt`, `pyproject.toml`, `Pipfile`, `environment.yml` |
+| Go         | [golang](https://go.dev/)                                                                                                                                                                                         | Experimental | `go.mod`                                                           |
+| Rust       | [cargo](https://doc.rust-lang.org/cargo/)                                                                                                                                                                         | Experimental | `Cargo.toml`                                                       |
 
 #### Operations
 
-| Containers | CI | Infrastructure |
-| --- | --- | --- |
+| Containers                                                        | CI                                                                                                                             | Infrastructure                                                            |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
 | [docker](https://www.docker.com/)<br>Experimental<br>`Dockerfile` | [github-actions](https://github.com/features/actions)<br>Experimental<br>`.github/workflows/*.yml`, `.github/workflows/*.yaml` | [helm](https://helm.sh/)<br>Experimental<br>`Chart.yaml`, `**/Chart.yaml` |
 
 > [!NOTE]
@@ -1326,17 +1332,17 @@ object pins in `mode: "verbose"`. It ignores `appVersion`, local `file://`
 dependencies, templates, digest refs, and dependencies without a version.
 
 > [!NOTE]
-> Execution options such as `update`, `dryRun`, `format`, and `noCache` stay at the root. 
+> Execution options such as `update`, `dryRun`, `format`, and `noCache` stay at the root.
 >
 > Use `--target pnpm` or `--target go` to run only entries for those managers.
 
 <!-- provider capabilities from src/providers/*/index.ts -->
 
---- 
+---
 
 ## Policy Surface
 
-Codependence currently focuses on package manifests and dependency sections. 
+Codependence currently focuses on package manifests and dependency sections.
 The same policy model can expand to other version surfaces over time.
 
 | Surface                        | Status       | Purpose                                                                    |
@@ -1353,8 +1359,9 @@ The same policy model can expand to other version surfaces over time.
 ---
 
 > [!NOTE]
+>
 > ### Codependencies are project dependencies that must stay current or match a specified version.
-> 
+>
 > When a manifest cannot use `latest` directly, Codependence writes the resolved version required by its policy. Exact versions and supported ranges remain explicit in `.codependencerc`.
 
 ---
@@ -1368,7 +1375,7 @@ The same policy model can expand to other version surfaces over time.
 Traditional providers optimize for immediate update discovery. Codependence
 optimizes for one intentional policy check.
 
-| Traditional providers                     | Codependence                                  |
+| Traditional providers                     | Codependence                                 |
 | ----------------------------------------- | -------------------------------------------- |
 | Open PRs as dependency versions appear    | Runs when the team chooses                   |
 | Create a stream of provider-specific work | Reads one policy across supported manifests  |

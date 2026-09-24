@@ -99,8 +99,8 @@ function runE2eWithFakeDocker(runner: E2eRunner, overrides: NodeJS.ProcessEnv = 
     const result = spawnSync("bash", args, spawnOptions);
     const log = readFileSync(logPath, "utf8").trim();
     const commands = log.split("\n");
-    const status = result.status;
-    return { commands, status };
+
+    return { commands, status: result.status };
   } finally {
     rmSync(fixturePath, REMOVE_FIXTURE_OPTIONS);
   }
@@ -122,6 +122,7 @@ function resolveVersions(overrides = {}) {
   });
 }
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("scripts/ci/tool-versions", () => {
   test("parseMiseTool reads quoted tool versions", () => {
     assert.strictEqual(parseMiseTool(miseToml, "node"), "26.7.0");
@@ -331,19 +332,19 @@ nub = "0.7.5"
 
     assert.deepStrictEqual(supportedVersions, ["24", "26"]);
     assert.deepStrictEqual(legacyVersions, ["20", "22"]);
-    assert.ok(legacyJob.includes("continue-on-error: true"));
-    assert.ok(legacyJob.includes("name: node ${{ matrix.node-version }}"));
-    assert.ok(
-      workflow.includes("uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"),
+    assert.match(legacyJob, /continue-on-error: true/);
+    assert.match(legacyJob, /name: node \$\{\{ matrix\.node-version \}\}/);
+    assert.match(
+      workflow,
+      /uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a/,
     );
-    assert.ok(
-      legacyJob.includes(
-        "uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
-      ),
+    assert.match(
+      legacyJob,
+      /uses: actions\/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c/,
     );
-    assert.ok(legacyJob.includes('install: "false"'));
-    assert.ok(!legacyJob.includes("nub run build"));
-    assert.ok(legacyJob.includes("node dist/cli.js --help"));
+    assert.match(legacyJob, /install: "false"/);
+    assert.doesNotMatch(legacyJob, /nub run build/);
+    assert.match(legacyJob, /node dist\/cli\.js --help/);
   });
 
   test("published package allows best-effort Node 20 compatibility", () => {
@@ -360,7 +361,7 @@ nub = "0.7.5"
       "utf8",
     );
 
-    assert.ok(contributing.includes("npm install --global @nubjs/nub@0.7.5"));
+    assert.match(contributing, /npm install --global @nubjs\/nub@0\.7\.5/);
     const installLink = /^\[nub-install\]: (.+)$/m.exec(contributing);
     assert.ok(installLink);
     assert.strictEqual(installLink[1], "https://nubjs.com/docs/install");

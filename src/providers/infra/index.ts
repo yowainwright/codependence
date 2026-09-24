@@ -46,10 +46,11 @@ export const emptyInfraManifest = (filePath: string): DependencyManifest => ({
   name: infraManifestName(filePath),
 });
 
-export const manifestOnlyResolution = (provider: string): never => {
-  throw new Error(
+export const manifestOnlyResolution = (provider: string): Promise<never> => {
+  const error = new Error(
     `${provider} provider requires explicit version pins and does not support latest resolution yet`,
   );
+  return Promise.reject(error);
 };
 
 export const hasTemplate = (value: string | undefined): boolean => {

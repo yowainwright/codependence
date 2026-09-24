@@ -70,6 +70,7 @@ WORKDIR /test
 
 # Copy built distribution from builder
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src ./src
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
@@ -94,10 +95,12 @@ COPY tests/fixtures/ ./tests/fixtures/
 COPY tests/e2e/test-go-update.sh ./
 COPY tests/e2e/test-packed-install.sh ./
 COPY tests/e2e/scripts/ ./tests/e2e/scripts/
-COPY tests/e2e/provider/ ./provider/
+COPY tests/e2e/test-provider-*.sh ./
+COPY tests/e2e/test-python-go.sh ./
+COPY tests/e2e/helpers.sh ./
 
 # Make all test scripts executable
-RUN chmod +x *.sh provider/*.sh
+RUN chmod +x *.sh
 
 # Change ownership
 RUN chown -R testuser:testuser /test

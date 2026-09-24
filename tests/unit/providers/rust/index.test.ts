@@ -13,11 +13,12 @@ const runExecMock = async (command: string, args: string[]): Promise<string> =>
 const restoreBinaryHost = configureBinaryHost(
   runExecMock,
   () => "{}",
-  async () => "",
+  () => Promise.resolve(""),
 );
 
 after(restoreBinaryHost);
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("RustProvider", () => {
   const tmpDir = join(import.meta.dirname, ".tmp-rust-test");
   const cargoPath = join(tmpDir, "Cargo.toml");
@@ -147,12 +148,13 @@ pretty_assertions = "1.4.0"
 
     const updated = readFileSync(cargoPath, "utf8");
 
-    assert.ok(updated.includes('serde = "1.0.200"'));
-    assert.ok(updated.includes('version = "1.35.0"'));
-    assert.ok(
-      updated.includes('serde_json_renamed = { package = "serde_json", version = "1.0.145" }'),
+    assert.match(updated, /serde = "1\.0\.200"/);
+    assert.match(updated, /version = "1\.35\.0"/);
+    assert.match(
+      updated,
+      /serde_json_renamed = \{ package = "serde_json", version = "1\.0\.145" \}/,
     );
-    assert.ok(updated.includes('local = { path = "../local" }'));
-    assert.ok(updated.includes('pretty_assertions = "1.4.1"'));
+    assert.match(updated, /local = \{ path = "\.\.\/local" \}/);
+    assert.match(updated, /pretty_assertions = "1\.4\.1"/);
   });
 });

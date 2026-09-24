@@ -34,11 +34,7 @@ function MobileMenu({ pathname }: MobileMenuProps) {
         className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52"
       >
         {NAVIGATION.map((item) => (
-          <NavItem
-            key={item.href}
-            {...item}
-            isActive={pathname === item.href}
-          />
+          <NavItem key={item.href} {...item} isActive={pathname === item.href} />
         ))}
       </ul>
     </div>
@@ -55,20 +51,14 @@ export function Header() {
 
         <div className="navbar-start">
           <Link to="/" className="px-2">
-            <h1 className="text-xl md:text-2xl font-bold text-primary">
-              Codependence
-            </h1>
+            <h1 className="text-xl md:text-2xl font-bold text-primary">Codependence</h1>
           </Link>
         </div>
 
         <div className="navbar-center hidden lg:flex">
           <ul className="menu menu-horizontal text-base font-medium">
             {NAVIGATION.map((item) => (
-              <NavItem
-                key={item.href}
-                {...item}
-                isActive={pathname === item.href}
-              />
+              <NavItem key={item.href} {...item} isActive={pathname === item.href} />
             ))}
           </ul>
         </div>

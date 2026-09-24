@@ -189,6 +189,11 @@ export type ValidateFunction = (packageName: string) => {
   errors?: string[];
 };
 
+export type VersionResolution = {
+  version: string;
+  resolvedVersions?: Record<string, string>;
+};
+
 export type ConstructVersionMapOptions = {
   codependencies: CodeDependencies;
   exec?: ExecFunction;
@@ -198,8 +203,9 @@ export type ConstructVersionMapOptions = {
   validate?: ValidateFunction;
   noCache?: boolean;
   onProgress?: (current: number, total: number, packageName: string) => void;
-  resolveVersion?: (packageName: string) => Promise<string>;
+  resolveVersion?: (packageName: string) => Promise<string | VersionResolution>;
   cachePrefix?: string;
+  resolvedDependencyVersions?: Record<string, Record<string, string>>;
 };
 
 export type PerformanceMetrics = {

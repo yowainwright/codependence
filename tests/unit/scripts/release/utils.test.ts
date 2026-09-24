@@ -77,16 +77,20 @@ const createCommandRecorder = () => {
 };
 
 const brewTapResponse = (url: string, method: string): Response => {
-  const isFormulaRead =
-    method === "GET" && url.includes("contents/Formula/codependence.rb") && !url.includes("ref=");
+  const { pathname, searchParams } = new URL(url);
+  const isFormula = pathname.endsWith("/contents/Formula/codependence.rb");
+  const hasRef = searchParams.has("ref");
+  const isFormulaRead = method === "GET" && isFormula && !hasRef;
   if (isFormulaRead) return new Response("old formula");
-  if (url.includes("git/ref/heads/main")) return jsonResponse({ object: { sha: "main-sha" } });
-  if (url.includes("git/ref/heads/codependence-release")) {
+  if (pathname.endsWith("/git/ref/heads/main"))
+    return jsonResponse({ object: { sha: "main-sha" } });
+  if (pathname.endsWith("/git/ref/heads/codependence-release")) {
     return jsonResponse({ object: { sha: "branch-sha" } });
   }
-  const isFormulaRefRead = url.includes("contents/Formula/codependence.rb") && url.includes("ref=");
+  const isFormulaRefRead = isFormula && hasRef;
   if (isFormulaRefRead) return jsonResponse({ sha: "formula-sha" });
-  if (url.includes("pulls?")) {
+  const listsPullRequests = pathname.endsWith("/pulls") && searchParams.size > 0;
+  if (listsPullRequests) {
     return jsonResponse([
       { html_url: "https://github.com/yowainwright/homebrew-tap/pull/10", number: 10 },
     ]);
@@ -137,23 +141,23 @@ const releaseBranchResult = (key: string, state: ReleaseFlowState): GitResult | 
   return undefined;
 };
 
-const releaseFlowResult = (
+const releaseRepositoryResult = (
   key: string,
   prUrl: string,
   state: ReleaseFlowState,
-  runtime: ReleaseFlowRuntimeState,
-): GitResult => {
-  const branchResult = releaseBranchResult(key, state);
-  if (branchResult) return branchResult;
+): GitResult | undefined => {
   if (key === "gh api repos/yowainwright/codependence --jq .allow_auto_merge") {
     if (state.unknownAutoMergeSetting) return ok("null\n");
     return ok("true\n");
   }
-  if (key.includes("release-it --release-version")) return ok("1.2.4\n");
-  if (key.includes("rev-parse -q --verify refs/tags/v1.2.4")) return missing();
-  if (key.includes("rev-parse -q --verify refs/tags/v1.2.4-rc.0")) return missing();
-  if (key.includes("rev-parse -q --verify refs/tags/v1.2.3-rc.0")) return missing();
-  if (key.includes("ls-remote --exit-code --tags")) return missing();
+  const commandWords = new Set(key.split(" "));
+  const readsReleaseVersion =
+    commandWords.has("./node_modules/.bin/release-it") && commandWords.has("--release-version");
+  if (readsReleaseVersion) return ok("1.2.4\n");
+  if (key.startsWith("git rev-parse -q --verify refs/tags/v1.2.4")) return missing();
+  if (key.startsWith("git rev-parse -q --verify refs/tags/v1.2.4-rc.0")) return missing();
+  if (key.startsWith("git rev-parse -q --verify refs/tags/v1.2.3-rc.0")) return missing();
+  if (key.startsWith("git ls-remote --exit-code --tags")) return missing();
   if (key === "git ls-remote --tags origin refs/tags/v1.2.4") return ok();
   if (key === "git ls-remote --tags origin refs/tags/v1.2.4-rc.0") return ok();
   if (key.startsWith("gh pr create ")) {
@@ -164,6 +168,14 @@ const releaseFlowResult = (
     const result = state.missingFallbackPullRequestUrl ? {} : { url: prUrl };
     return ok(JSON.stringify(result));
   }
+  return undefined;
+};
+
+const releasePullRequestResult = (
+  key: string,
+  state: ReleaseFlowState,
+  runtime: ReleaseFlowRuntimeState,
+): GitResult | undefined => {
   if (key.endsWith("state,mergedAt,mergeCommit,mergeStateStatus")) {
     if (state.closedPullRequest) return ok(JSON.stringify({ state: "CLOSED" }));
     if (state.dirtyPullRequest) {
@@ -185,6 +197,10 @@ const releaseFlowResult = (
     const merged = { mergeCommit: { oid: MERGE_COMMIT }, mergedAt: "now", state: "MERGED" };
     return ok(JSON.stringify(merged));
   }
+  return undefined;
+};
+
+const releaseMergedCommitResult = (key: string, state: ReleaseFlowState): GitResult | undefined => {
   if (key === "git rev-list --first-parent --parents origin/main") {
     return ok(`${MERGE_COMMIT} abc\nabc def\n`);
   }
@@ -211,6 +227,14 @@ const releaseFlowResult = (
       '-  "x-revision": "1.2.3",\n+  "x-revision": "1.2.4",\n-  "x-updated": "2026-08-25",\n+  "x-updated": "2026-08-26",\n',
     );
   }
+  return undefined;
+};
+
+const releaseMainResult = (
+  key: string,
+  prUrl: string,
+  state: ReleaseFlowState,
+): GitResult | undefined => {
   if (key === "git branch --show-current") return ok("main\n");
   if (key === "git status --short") return ok();
   if (key === "git fetch origin main --tags") return ok();
@@ -239,7 +263,24 @@ const releaseFlowResult = (
     return ok("chore(release): 1.2.3-rc.0\n");
   if (key === "git rev-parse release/v1.2.3-rc.0^") return ok("abc\n");
   if (key === "git rev-parse refs/heads/release/v1.2.3-rc.0") return ok(`${MERGE_COMMIT}\n`);
-  return ok();
+  return undefined;
+};
+
+const releaseFlowResult = (
+  key: string,
+  prUrl: string,
+  state: ReleaseFlowState,
+  runtime: ReleaseFlowRuntimeState,
+): GitResult => {
+  const branch = releaseBranchResult(key, state);
+  if (branch) return branch;
+  const repository = releaseRepositoryResult(key, prUrl, state);
+  if (repository) return repository;
+  const pullRequest = releasePullRequestResult(key, state, runtime);
+  if (pullRequest) return pullRequest;
+  const mergedCommit = releaseMergedCommitResult(key, state);
+  if (mergedCommit) return mergedCommit;
+  return releaseMainResult(key, prUrl, state) ?? ok();
 };
 
 const createReleaseFlowRunner = (prUrl: string, state: ReleaseFlowState = {}) => {
@@ -254,6 +295,7 @@ const createReleaseFlowRunner = (prUrl: string, state: ReleaseFlowState = {}) =>
   return { calls, runner };
 };
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("scripts/release/utils", () => {
   test("compares equal Homebrew versions", () => {
     assert.strictEqual(compareStableVersions("1.0.11", "1.0.11"), 0);
@@ -261,7 +303,7 @@ describe("scripts/release/utils", () => {
 
   test("writes Homebrew release state to stdout without an output path", async () => {
     const formula = 'url "https://registry.npmjs.org/codependence/-/codependence-1.0.12.tgz"';
-    const fetchImpl = async () => new Response(formula);
+    const fetchImpl = () => Promise.resolve(new Response(formula));
     let output = "";
     const writeSpy = mock.method(process.stdout, "write", (value: string) => {
       output += value;
@@ -277,7 +319,7 @@ describe("scripts/release/utils", () => {
         VERSION: "1.0.11",
       };
       await writeHomebrewReleaseState({ arch: "arm64", env, fetchImpl });
-      assert.ok(output.includes("skip=true\n"));
+      assert.match(output, /skip=true\n/);
     } finally {
       writeSpy.mock.restore();
     }
@@ -302,7 +344,7 @@ describe("scripts/release/utils", () => {
         TAP_TOKEN: "tap-token",
         VERSION: "1.0.11",
       };
-      const fetchImpl = async () => new Response("same formula");
+      const fetchImpl = () => Promise.resolve(new Response("same formula"));
       await writeHomebrewTapUpdate({ env, fetchImpl });
       assert.strictEqual(output, "::notice::Homebrew tap formula already current\n");
     } finally {
@@ -325,12 +367,12 @@ describe("scripts/release/utils", () => {
         TAP_TOKEN: "tap-token",
         VERSION: "1.0.11",
       };
-      const fetchImpl = async (url: URL | RequestInfo, init?: RequestInit) => {
+      const fetchImpl = (url: URL | RequestInfo, init?: RequestInit) => {
         const method = init?.method || "GET";
         const isFormulaRead =
           String(url).includes("contents/Formula/codependence.rb") && method === "GET";
-        if (isFormulaRead) return new Response("old formula");
-        return jsonResponse({});
+        if (isFormulaRead) return Promise.resolve(new Response("old formula"));
+        return Promise.resolve(jsonResponse({}));
       };
 
       await assertRejects(
@@ -536,8 +578,8 @@ describe("scripts/release/utils", () => {
 
     try {
       writeFileSync(formulaPath, "new formula");
-      const fetchImpl = async (url: URL | RequestInfo, init?: RequestInit) =>
-        brewTapResponse(String(url), init?.method || "GET");
+      const fetchImpl = (url: URL | RequestInfo, init?: RequestInit) =>
+        Promise.resolve(brewTapResponse(String(url), init?.method || "GET"));
 
       await writeHomebrewTapUpdate({ env, fetchImpl });
     } finally {

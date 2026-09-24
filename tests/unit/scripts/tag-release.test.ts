@@ -30,6 +30,7 @@ function createGit(overrides: Record<string, GitResult> = {}) {
   return { calls: () => calls, git };
 }
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("scripts/release tag", () => {
   test("parseArgs detects dry run", () => {
     assert.deepStrictEqual(parseTagArgs(["--dry-run"]), { dryRun: true });

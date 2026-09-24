@@ -20,6 +20,7 @@ import { TerraformProvider } from "../../../src/providers/terraform";
 import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("Language Detection", () => {
   const tmpDir = join(import.meta.dirname, ".tmp-detection-test");
 
@@ -28,6 +29,7 @@ describe("Language Detection", () => {
     mkdirSync(tmpDir, { recursive: true });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("detectLanguage - Node.js", () => {
     test("should detect Node.js with npm", () => {
       writeFileSync(join(tmpDir, "package.json"), "{}");
@@ -237,6 +239,7 @@ describe("Language Detection", () => {
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("detectLanguage - Python", () => {
     test("should detect Python with requirements.txt", () => {
       writeFileSync(join(tmpDir, "requirements.txt"), "requests==2.31.0");
@@ -308,8 +311,9 @@ describe("Language Detection", () => {
 
       const result = detectLanguage(tmpDir);
 
-      assert.ok(result[0].manifestFiles.includes("requirements.txt"));
-      assert.ok(result[0].manifestFiles.includes("pyproject.toml"));
+      const manifestFiles = new Set(result[0].manifestFiles);
+      assert.ok(manifestFiles.has("requirements.txt"));
+      assert.ok(manifestFiles.has("pyproject.toml"));
     });
 
     test("should detect pyproject.toml without poetry as pip", () => {
@@ -331,10 +335,10 @@ describe("Language Detection", () => {
 
       assert.strictEqual(result.length, 3);
 
-      const languages = result.map((r) => r.language);
-      assert.ok(languages.includes("nodejs"));
-      assert.ok(languages.includes("go"));
-      assert.ok(languages.includes("python"));
+      const languages = new Set(result.map((r) => r.language));
+      assert.ok(languages.has("nodejs"));
+      assert.ok(languages.has("go"));
+      assert.ok(languages.has("python"));
     });
 
     test("should detect Node.js + Go polyglot", () => {
@@ -417,6 +421,7 @@ describe("Language Detection", () => {
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("getLanguageProvider", () => {
     test("should get NodeJSProvider for nodejs", () => {
       const Provider = getLanguageProvider("nodejs");

@@ -5,6 +5,7 @@ import { RAW_SYMBOLS, SYMBOLS } from "../../../src/dx/report/constants";
 
 const stripAnsi = (str: string): string => str.replace(createAnsiPattern(), "");
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("SYMBOLS", () => {
   test("success contains checkmark with ANSI color", () => {
     assert.strictEqual(stripAnsi(SYMBOLS.success), "✓");

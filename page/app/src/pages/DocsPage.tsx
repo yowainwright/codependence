@@ -1,11 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, Navigate } from "@tanstack/react-router";
-import {
-  getDocBySlug,
-  getDocComponent,
-  getDocContent,
-  type DocComponent,
-} from "@/content";
+import { getDocBySlug, getDocComponent, getDocContent, type DocComponent } from "@/content";
 import { extractHeadings } from "@/lib/mdx/extractHeadings";
 import { TableOfContents } from "@/components/docs/TableOfContents";
 import { mdxComponents } from "@/components/docs/MDXComponents";
@@ -13,8 +8,7 @@ import { Pagination } from "@/components/docs/Pagination";
 import type { Heading } from "@/components/docs/TableOfContents/types";
 import type { BreadcrumbsProps, MdxContentProps } from "@/types";
 
-export function DocsPage() {
-  const { slug } = useParams({ from: "/docs/$slug" });
+function useDocContent(slug: string) {
   const doc = getDocBySlug(slug);
 
   const [Content, setContent] = useState<DocComponent | null>(null);
@@ -56,8 +50,14 @@ export function DocsPage() {
     };
   }, [slug, doc]);
 
-  if (!doc)
-    return <Navigate to="/docs/$slug" params={{ slug: "introduction" }} />;
+  return { doc, Content, headings, loading };
+}
+
+export function DocsPage() {
+  const { slug } = useParams({ from: "/docs/$slug" });
+  const { doc, Content, headings, loading } = useDocContent(slug);
+
+  if (!doc) return <Navigate to="/docs/$slug" params={{ slug: "introduction" }} />;
 
   return (
     <div className="flex p-5 md:p-10 md:pt-10 xl:gap-20 font-sans">
@@ -107,11 +107,5 @@ function MDXContent({ loading, Content }: MdxContentProps) {
 
   if (!Content) return null;
 
-  return (
-    <Content
-      components={
-        mdxComponents as unknown as Record<string, React.ComponentType>
-      }
-    />
-  );
+  return <Content components={mdxComponents as unknown as Record<string, React.ComponentType>} />;
 }

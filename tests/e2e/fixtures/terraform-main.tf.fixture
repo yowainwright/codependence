@@ -1,0 +1,17 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "~> 5.30" # provider
+    }
+  }
+}
+
+module "vpc" {
+  source = "terraform-aws-modules/vpc/aws"
+  version = "5.8.1" # module
+}
+
+module "app" {
+  source = "git::https://github.com/acme/app.git?ref=v1.2.3" # git module
+}

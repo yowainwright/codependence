@@ -1,11 +1,4 @@
-import {
-  Gauge,
-  GitBranch,
-  Package,
-  RefreshCw,
-  Search,
-  Terminal,
-} from "lucide-react";
+import { Gauge, GitBranch, Package, RefreshCw, Search, Terminal } from "lucide-react";
 import type { CodeSnippet, Feature, NavigationItem } from "@/types";
 import { resolveDocsUrl, resolveUrl } from "@/utils/urlResolver";
 

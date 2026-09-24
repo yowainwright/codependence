@@ -6,6 +6,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 
 const cliPath = join(process.cwd(), "src/cli/index.ts");
+const runnerPath = join(process.cwd(), "scripts/run/index.ts");
 
 const createOutdatedProject = (): string => {
   const workDir = mkdtempSync(join(tmpdir(), "codependence-cli-json-"));
@@ -40,14 +41,24 @@ const createOutdatedProject = (): string => {
   return workDir;
 };
 
-const runCli = (workDir: string, args: string[]) =>
-  spawnSync("nub", [cliPath, "--rootDir", workDir, "--searchPath", workDir, ...args], {
-    encoding: "utf8",
-  });
+const runCli = (workDir: string, args: string[]) => {
+  const nodeArgs = [
+    "--import",
+    runnerPath,
+    cliPath,
+    "--rootDir",
+    workDir,
+    "--searchPath",
+    workDir,
+    ...args,
+  ];
+  return spawnSync(process.execPath, nodeArgs, { encoding: "utf8" });
+};
 
 const readPackageJson = (workDir: string) =>
   JSON.parse(readFileSync(join(workDir, "package.json"), "utf8"));
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("CLI JSON output contract", () => {
   test("reports outdated dependencies as JSON and exits 1 without writing files", () => {
     const workDir = createOutdatedProject();

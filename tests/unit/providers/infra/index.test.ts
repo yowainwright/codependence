@@ -23,7 +23,7 @@ describe("infra provider helpers", () => {
     });
   });
 
-  test("should reject automatic provider resolution", () => {
-    assert.throws(() => manifestOnlyResolution("Infra"), /Infra provider requires/);
+  test("should reject automatic provider resolution", async () => {
+    await assert.rejects(manifestOnlyResolution("Infra"), /Infra provider requires/);
   });
 });

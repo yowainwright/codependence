@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { DependencyManifest, VersionStrategy } from "../providers/types";
-import type { Level, VersionDiff, VersionDiffContext } from "../types";
+import type { Level, VersionDiff, VersionDiffContext, VersionResolution } from "../types";
 import { logger } from "../observability";
 import { DEP_SECTIONS } from "./constants";
 import { SYMBOLS } from "../dx/report/constants";
@@ -14,7 +14,7 @@ import {
   VERSION_COMPARISON_PREFIXES,
   VERSION_PREFIXES,
 } from "./constants";
-import type { CacheEntry, CacheStats, ValidationResult } from "./types";
+import type { CacheEntry, CacheStats, ValidationResult, VersionDiffOptions } from "./types";
 
 export const stripRepeatingVersionPrefixes = (version: string): string => {
   let index = 0;
@@ -172,10 +172,10 @@ const resolvedVersionDiffs = (
 const versionDiffsForDependency = (
   packageJson: Pick<DependencyManifest, "dependencyVersions" | "resolvedDependencyVersions">,
   packageName: string,
-  currentVersion: string,
-  latestVersion: string,
+  versions: { current: string; latest: string },
   context: VersionDiffContext,
 ): VersionDiff[] => {
+  const { current: currentVersion, latest: latestVersion } = versions;
   const resolvedDiffs = resolvedVersionDiffs(packageJson, packageName, context);
   if (resolvedDiffs.length > 0) return resolvedDiffs;
 
@@ -200,20 +200,25 @@ export const buildVersionDiff = (
     | "optionalDependencies"
   > & { path?: string; versionStrategy?: VersionStrategy },
   codependencies: string[],
-  permissive: boolean,
-  level: Level = "major",
-  versionStrategy: VersionStrategy = packageJson.versionStrategy || "semver",
-): VersionDiff[] =>
-  extractAllDeps(packageJson)
+  options: VersionDiffOptions,
+): VersionDiff[] => {
+  const {
+    permissive,
+    level = "major",
+    versionStrategy = packageJson.versionStrategy || "semver",
+  } = options;
+  const context = { codependencies, permissive, level, versionStrategy };
+  return extractAllDeps(packageJson)
     .filter(([pkgName]) => versionMap[pkgName] !== undefined)
     .flatMap(([pkgName, currentVersion]) =>
-      versionDiffsForDependency(packageJson, pkgName, currentVersion, versionMap[pkgName], {
-        codependencies,
-        permissive,
-        level,
-        versionStrategy,
-      }),
+      versionDiffsForDependency(
+        packageJson,
+        pkgName,
+        { current: currentVersion, latest: versionMap[pkgName] },
+        context,
+      ),
     );
+};
 
 export const displayVersionDiffs = (diffs: VersionDiff[]): void => {
   const diffsToShow = diffs.filter((d) => d.willUpdate);
@@ -255,24 +260,25 @@ export const deduplicateVersionDiffs = (
   diffs: VersionDiff[],
   resolvedPackages: ReadonlySet<string> = new Set(),
 ): VersionDiff[] => {
-  const seen = new Set<string>();
-  return diffs.reduce<VersionDiff[]>((uniqueDiffs, diff) => {
+  const uniqueDiffs = new Map<string, VersionDiff>();
+  diffs.forEach((diff) => {
     const key = versionDiffKey(diff, resolvedPackages);
-    if (seen.has(key)) return uniqueDiffs;
-    seen.add(key);
-    return uniqueDiffs.concat(diff);
-  }, []);
+    const existing = uniqueDiffs.get(key);
+    const hasActionableReplacement = diff.willUpdate && !existing?.willUpdate;
+    const shouldStore = !existing || hasActionableReplacement;
+    if (shouldStore) uniqueDiffs.set(key, diff);
+  });
+  return Array.from(uniqueDiffs.values());
 };
 
 export const collectDiffsFromManifests = (
   versionMap: Record<string, string>,
   manifests: Array<DependencyManifest & { versionStrategy?: VersionStrategy }>,
   codependencies: string[],
-  permissive: boolean,
-  level: Level = "major",
+  options: VersionDiffOptions,
 ): VersionDiff[] => {
   const allDiffs = manifests.flatMap((manifest) =>
-    buildVersionDiff(versionMap, manifest, codependencies, permissive, level),
+    buildVersionDiff(versionMap, manifest, codependencies, options),
   );
   return deduplicateVersionDiffs(allDiffs, resolvedPackageNames(manifests));
 };
@@ -281,14 +287,12 @@ export const collectAllDiffs = (
   versionMap: Record<string, string>,
   files: string[],
   rootDir: string,
-  codependencies: string[],
-  permissive: boolean,
-  level: Level = "major",
+  options: VersionDiffOptions & { codependencies: string[] },
 ): VersionDiff[] => {
   const manifests = files
     .map((file) => readDependencyManifest(file, rootDir))
     .filter((manifest): manifest is DependencyManifest => manifest !== null);
-  return collectDiffsFromManifests(versionMap, manifests, codependencies, permissive, level);
+  return collectDiffsFromManifests(versionMap, manifests, options.codependencies, options);
 };
 
 const buildValidationResult = (warnings: string[], errors: string[]): ValidationResult => {
@@ -364,6 +368,10 @@ export class ResponseCache {
   }
 
   get(key: string): string | null {
+    return this.getResolution(key)?.version ?? null;
+  }
+
+  getResolution(key: string): VersionResolution | null {
     const entry = this.cache.get(key);
     if (!entry) return this.recordMiss();
     const isExpired = Date.now() - entry.timestamp > this.ttl;
@@ -381,6 +389,10 @@ export class ResponseCache {
   }
 
   set(key: string, value: string): void {
+    this.setResolution(key, { version: value });
+  }
+
+  setResolution(key: string, value: VersionResolution): void {
     this.cache.set(key, { value, timestamp: Date.now() });
   }
 

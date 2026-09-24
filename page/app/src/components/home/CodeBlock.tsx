@@ -25,9 +25,8 @@ function CodeBlockCopy() {
         Keep Versions <span className="text-primary">Intentional</span>
       </h1>
       <p className="mt-8 text-lg">
-        Codependence gives your project a small, explicit policy for dependency
-        versions. Check only the packages you care about, or pin selected
-        packages while the rest move forward.
+        Codependence gives your project a small, explicit policy for dependency versions. Check only
+        the packages you care about, or pin selected packages while the rest move forward.
       </p>
       <CodeBlockActions />
     </div>

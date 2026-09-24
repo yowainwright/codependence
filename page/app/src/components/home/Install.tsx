@@ -24,9 +24,7 @@ export function Install() {
           </p>
           <InstallSnippet />
           <a href={resolveDocsUrl("introduction")}>
-            <button className="btn btn-primary mt-7 rounded-lg border-none">
-              Get Started
-            </button>
+            <button className="btn btn-primary mt-7 rounded-lg border-none">Get Started</button>
           </a>
         </div>
       </div>

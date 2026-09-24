@@ -8,6 +8,7 @@ import { loadConfig } from "../../src/config";
 
 const fixtureRoot = join(process.cwd(), "tests/fixtures/0.3.1");
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("0.3.1 compatibility", () => {
   test("keeps the legacy CLI flags", () => {
     const parsed = parseArgs([

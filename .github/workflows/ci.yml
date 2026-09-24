@@ -1,8 +1,6 @@
 name: codependence ci 🤼‍♀️
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   repository_dispatch:
@@ -45,6 +43,11 @@ jobs:
       - name: Setup toolchain
         uses: ./.github/actions/setup-toolchain
 
+      - name: Setup shell legibility
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          install_args: github:yowainwright/shellcheck_legibility
+
       - run: nub run deps:security
       - run: nub run deps:audit
       - run: nub run build
@@ -53,7 +56,7 @@ jobs:
         with:
           name: dist
           path: dist/
-      - run: nub run lint
+      - run: nub run lint:strict
       - run: nub run coverage
         env:
           CI: true

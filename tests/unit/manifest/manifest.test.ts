@@ -1,6 +1,12 @@
 import { after, beforeEach, mock, test } from "node:test";
 import assert from "node:assert/strict";
-import { assertCalledWith, assertRejects, assertThrows, match } from "../../helpers/assertions";
+import {
+  assertCalledWith,
+  assertRejects,
+  assertThrows,
+  match,
+  assertTextExcludes,
+} from "../../helpers/assertions";
 import fs from "node:fs";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "node:os";
@@ -12,6 +18,81 @@ import { NodeJSProvider } from "../../../src/providers/nodejs";
 import { versionCache, requestDeduplicator } from "../../../src/manifest";
 import * as manifest from "../../../src/manifest";
 import { Prompt } from "../../../src/dx";
+
+const constructJsonWithAllDependencyTypesJson = {
+  name: "foo",
+  version: "1.0.0",
+  dependencies: { dep1: "1.0.0", dep2: "1.0.0" },
+  devDependencies: { dev1: "1.0.0", dev2: "1.0.0" },
+  peerDependencies: { peer1: "1.0.0", peer2: "1.0.0" },
+  path: "./test",
+};
+
+const constructJsonWithAllDependencyTypesDepsToUpdate = {
+  depList: [
+    { name: "dep1", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
+    { name: "dep2", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
+  ],
+  devDepList: [
+    { name: "dev1", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
+    { name: "dev2", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
+  ],
+  peerDepList: [
+    { name: "peer1", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
+    { name: "peer2", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
+  ],
+};
+
+const constructJsonWithAllDependencyTypesExpected = {
+  name: "foo",
+  path: "./test",
+  version: "1.0.0",
+  dependencies: {
+    dep1: "2.0.0",
+    dep2: "2.0.0",
+  },
+  devDependencies: {
+    dev1: "2.0.0",
+    dev2: "2.0.0",
+  },
+  peerDependencies: {
+    peer1: "2.0.0",
+    peer2: "2.0.0",
+  },
+};
+
+const checkFilesSkipsInteractivePromptWhenNothingNeedsUpdatingExpected = {
+  name: "interactive-no-diffs",
+  version: "1.0.0",
+  dependencies: {
+    lodash: "1.0.0",
+  },
+};
+
+const checkFilesAppliesProviderBackedManifestUpdatesExpected = {
+  name: "provider-update",
+  version: "1.0.0",
+  dependencies: {
+    lodash: "4.17.0",
+  },
+};
+
+const checkFilesLogsManifestWritesInTestingUpdateModeExpected = {
+  name: "provider-update-testing",
+  version: "1.0.0",
+  dependencies: {
+    lodash: "4.17.0",
+  },
+};
+
+const checkFilesUpdatesHelmChartDependencyPinsExpected = `apiVersion: v2
+name: web
+version: 1.0.0
+dependencies:
+  - name: redis
+    version: 20.6.3
+    repository: https://charts.bitnami.com/bitnami
+`;
 
 const tempDirectories = new Set<string>();
 
@@ -243,8 +324,8 @@ test("constructVersionMap => logs resolver errors in debug mode", async () => {
     isTesting: true,
     noCache: true,
     validate,
-    resolveVersion: async () => {
-      throw new Error("ENOTFOUND registry.npmjs.org");
+    resolveVersion: () => {
+      return Promise.reject(new Error("ENOTFOUND registry.npmjs.org"));
     },
   });
 
@@ -269,8 +350,8 @@ test("constructVersionMap => logs validation-style resolver errors directly", as
     isTesting: true,
     noCache: true,
     validate,
-    resolveVersion: async () => {
-      throw new Error("Invalid package metadata");
+    resolveVersion: () => {
+      return Promise.reject(new Error("Invalid package metadata"));
     },
   });
 
@@ -578,7 +659,7 @@ test("constructDeps => with update", () => {
     dependencies: { bar: "1.0.0" },
     path: "./test",
   };
-  const depName = "bar";
+  const depName = "dependencies";
   const depList = [{ name: "bar", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" }];
   const result = constructDeps(json, depName, depList);
   assert.deepStrictEqual(result, { bar: "2.0.0" });
@@ -591,7 +672,7 @@ test("constructDeps => with no deplist", () => {
     dependencies: { bar: "1.0.0" },
     path: "./test",
   };
-  const depName = "bar";
+  const depName = "dependencies";
   const depList: Array<{
     name: string;
     expected: string;
@@ -599,7 +680,7 @@ test("constructDeps => with no deplist", () => {
     exact: string;
   }> = [];
   const result = constructDeps(json, depName, depList);
-  assert.strictEqual(result, undefined);
+  assert.strictEqual(result, json.dependencies);
 });
 
 test("constructDeps => with more deps", () => {
@@ -609,13 +690,37 @@ test("constructDeps => with more deps", () => {
     dependencies: { bar: "1.0.0", biz: "1.0.0" },
     path: "./test",
   };
-  const depName = "bar";
+  const depName = "dependencies";
   const depList = [
     { name: "bar", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
     { name: "biz", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
   ];
   const result = constructDeps(json, depName, depList);
   assert.deepStrictEqual(result, { bar: "2.0.0", biz: "2.0.0" });
+});
+
+test("constructDeps => preserves inputs and uses the last update for duplicate names", () => {
+  const dependencies = Object.freeze({ bar: "1.0.0", unchanged: "^3.0.0" });
+  const json = Object.freeze({ dependencies });
+  const depList = [
+    { name: "bar", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
+    { name: "added", expected: "1.0.0", actual: "", exact: "1.0.0" },
+    { name: "bar", expected: "3.0.0", actual: "1.0.0", exact: "3.0.0" },
+  ];
+  const originalUpdates = structuredClone(depList);
+  const result = constructDeps(json, "dependencies", depList);
+  assert.deepStrictEqual(result, { bar: "3.0.0", unchanged: "^3.0.0", added: "1.0.0" });
+  assert.notStrictEqual(result, dependencies);
+  assert.deepStrictEqual(depList, originalUpdates);
+});
+
+test("constructDeps => leaves an absent section undefined without updates", () => {
+  assert.strictEqual(constructDeps({}, "dependencies", []), undefined);
+});
+
+test("constructDeps => creates an absent section when updates exist", () => {
+  const depList = [{ name: "bar", expected: "2.0.0", actual: "", exact: "2.0.0" }];
+  assert.deepStrictEqual(constructDeps({}, "dependencies", depList), { bar: "2.0.0" });
 });
 
 test("constructJson => with updates", () => {
@@ -700,46 +805,11 @@ test("constructJson => with peerDependencies", () => {
 });
 
 test("constructJson => with all dependency types", () => {
-  const json = {
-    name: "foo",
-    version: "1.0.0",
-    dependencies: { dep1: "1.0.0", dep2: "1.0.0" },
-    devDependencies: { dev1: "1.0.0", dev2: "1.0.0" },
-    peerDependencies: { peer1: "1.0.0", peer2: "1.0.0" },
-    path: "./test",
-  };
-  const depsToUpdate = {
-    depList: [
-      { name: "dep1", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
-      { name: "dep2", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
-    ],
-    devDepList: [
-      { name: "dev1", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
-      { name: "dev2", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
-    ],
-    peerDepList: [
-      { name: "peer1", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
-      { name: "peer2", expected: "2.0.0", actual: "1.0.0", exact: "2.0.0" },
-    ],
-  };
-  const result = constructJson(json, depsToUpdate);
-  assert.deepStrictEqual(result, {
-    name: "foo",
-    path: "./test",
-    version: "1.0.0",
-    dependencies: {
-      dep1: "2.0.0",
-      dep2: "2.0.0",
-    },
-    devDependencies: {
-      dev1: "2.0.0",
-      dev2: "2.0.0",
-    },
-    peerDependencies: {
-      peer1: "2.0.0",
-      peer2: "2.0.0",
-    },
-  });
+  const result = constructJson(
+    constructJsonWithAllDependencyTypesJson,
+    constructJsonWithAllDependencyTypesDepsToUpdate,
+  );
+  assert.deepStrictEqual(result, constructJsonWithAllDependencyTypesExpected);
 });
 
 test("checkDependenciesForVersion => has updates", () => {
@@ -777,9 +847,9 @@ test("checkDependenciesForVersion => logs dependency issues as a table", () => {
   const output = logSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
 
   assert.deepStrictEqual(result, true);
-  assert.ok(output.includes("┌"));
-  assert.ok(output.includes("eslint-plugin-legibility"));
-  assert.ok(!output.includes("1. eslint-plugin-legibility: found"));
+  assert.match(output, /┌/);
+  assert.match(output, /eslint-plugin-legibility/);
+  assert.doesNotMatch(output, /1\. eslint-plugin-legibility: found/);
   logSpy.mock.restore();
 });
 
@@ -1063,8 +1133,8 @@ test("checkFiles => with updates (verbose mode)", async () => {
     // out-of-date deps throw in non-CLI mode
   }
   const output = logCheckFilesWithUpdates.mock.calls.flatMap((call) => call.arguments).join("\n");
-  assert.ok(output.includes("Dependency Updates Available"));
-  assert.ok(!output.includes("Found 2 dependency issues"));
+  assert.match(output, /Dependency Updates Available/);
+  assert.doesNotMatch(output, /Found 2 dependency issues/);
   logCheckFilesWithUpdates.mock.restore();
 });
 
@@ -1081,6 +1151,7 @@ test("checkFiles => defaults codependencies to 0.x compatible verbose mode", asy
 });
 
 test("checkFiles => sets exit code for formatted CLI failures", async () => {
+  // eslint-disable-next-line legibility/no-single-use-renaming-alias -- Snapshot the original value before the test mutates it.
   const previousExitCode = process.exitCode;
   const onDeferredFailure = mock.fn();
   process.exitCode = undefined;
@@ -1115,7 +1186,7 @@ test("checkFiles => with permissive mode only", async () => {
   const getLatestVersionSpy = mock.method(
     NodeJSProvider.prototype,
     "getLatestVersion",
-    async (packageName: string) => (packageName === "lodash" ? "4.18.0" : "10.1.0"),
+    (packageName: string) => Promise.resolve(packageName === "lodash" ? "4.18.0" : "10.1.0"),
   );
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
@@ -1125,8 +1196,8 @@ test("checkFiles => with permissive mode only", async () => {
     // out-of-date deps throw in non-CLI mode
   }
   const output = logCheckFilesPermissive.mock.calls.flatMap((call) => call.arguments).join("\n");
-  assert.ok(output.includes("Dependency Updates Available"));
-  assert.ok(!output.includes("Found 2 dependency issues"));
+  assert.match(output, /Dependency Updates Available/);
+  assert.doesNotMatch(output, /Found 2 dependency issues/);
   getLatestVersionSpy.mock.restore();
   logCheckFilesPermissive.mock.restore();
 });
@@ -1137,7 +1208,7 @@ test("checkFiles => with permissive mode and codependencies", async () => {
   const getLatestVersionSpy = mock.method(
     NodeJSProvider.prototype,
     "getLatestVersion",
-    async (packageName: string) => (packageName === "fs-extra" ? "10.1.0" : "4.17.21"),
+    (packageName: string) => Promise.resolve(packageName === "fs-extra" ? "10.1.0" : "4.17.21"),
   );
   const rootDir = "./tests/unit/fixtures/";
   const files = ["test-fail-package.json"];
@@ -1149,8 +1220,8 @@ test("checkFiles => with permissive mode and codependencies", async () => {
   const output = logCheckFilesPermissiveWithCodependencies.mock.calls
     .flatMap((call) => call.arguments)
     .join("\n");
-  assert.ok(output.includes("Dependency Updates Available"));
-  assert.ok(!output.includes("Found 1 dependency issue"));
+  assert.match(output, /Dependency Updates Available/);
+  assert.doesNotMatch(output, /Found 1 dependency issue/);
   getLatestVersionSpy.mock.restore();
   logCheckFilesPermissiveWithCodependencies.mock.restore();
 });
@@ -1186,11 +1257,11 @@ test("checkFiles => with dryRun shows diffs", async () => {
     // may throw for out-of-date deps
   }
   const output = logSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
-  assert.ok(output.includes("Dependency Updates Available"));
-  assert.ok(output.includes("Current"));
-  assert.ok(output.includes("Available"));
-  assert.ok(!output.includes("Updated Dependencies"));
-  assert.ok(!output.includes("Found 2 dependency issues"));
+  assert.match(output, /Dependency Updates Available/);
+  assert.match(output, /Current/);
+  assert.match(output, /Available/);
+  assert.doesNotMatch(output, /Updated Dependencies/);
+  assert.doesNotMatch(output, /Found 2 dependency issues/);
   logSpy.mock.restore();
 });
 
@@ -1203,11 +1274,11 @@ test("checkFiles => with update shows dependency issue table only", async () => 
   await checkFiles({ codependencies, rootDir, files, update: true, isTesting: true });
 
   const output = logSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
-  assert.ok(output.includes("Found 2 dependency issues"));
-  assert.ok(output.includes("Updated Dependencies"));
-  assert.ok(output.includes("Previous"));
-  assert.ok(output.includes("Updated"));
-  assert.ok(!output.includes("Dependency Updates Available"));
+  assert.match(output, /Found 2 dependency issues/);
+  assert.match(output, /Updated Dependencies/);
+  assert.match(output, /Previous/);
+  assert.match(output, /Updated/);
+  assert.doesNotMatch(output, /Dependency Updates Available/);
   logSpy.mock.restore();
 });
 
@@ -1220,7 +1291,7 @@ test("checkFiles => update with no issues leaves final success to CLI", async ()
   await checkFiles({ codependencies, rootDir, files, update: true, isTesting: true });
 
   const output = logSpy.mock.calls.flatMap((call) => call.arguments).join("\n");
-  assert.ok(!output.includes("No dependency issues found"));
+  assert.doesNotMatch(output, /No dependency issues found/);
   logSpy.mock.restore();
 });
 
@@ -1306,12 +1377,9 @@ test("constructPermissiveDepsToUpdateList => respects level=minor constraint", (
   const deps = { lodash: "^4.0.0", express: "^3.0.0" };
   const codependencies: string[] = [];
   const versionMap = { lodash: "4.17.21", express: "5.0.0" };
-  const result = manifest.constructPermissiveDepsToUpdateList(
-    deps,
-    codependencies,
-    versionMap,
-    "minor",
-  );
+  const result = manifest.constructPermissiveDepsToUpdateList(deps, codependencies, versionMap, {
+    level: "minor",
+  });
   assert.deepStrictEqual(result, [
     {
       name: "lodash",
@@ -1415,10 +1483,8 @@ test("checkFiles => throws when no codependencies and not precise mode", async (
 });
 
 test("checkFiles => defaults to precise mode without codependencies", async () => {
-  const latestVersionSpy = mock.method(
-    NodeJSProvider.prototype,
-    "getLatestVersion",
-    async (name) => (name === "lodash" ? "4.17.21" : "10.1.0"),
+  const latestVersionSpy = mock.method(NodeJSProvider.prototype, "getLatestVersion", (name) =>
+    Promise.resolve(name === "lodash" ? "4.17.21" : "10.1.0"),
   );
 
   try {
@@ -1435,7 +1501,7 @@ test("checkFiles => defaults to precise mode without codependencies", async () =
 });
 
 test("checkFiles => interactive mode invokes prompt selection", async () => {
-  const selectSpy = mock.method(Prompt.prototype, "select", async () => []);
+  const selectSpy = mock.method(Prompt.prototype, "select", () => Promise.resolve([]));
   const closeSpy = mock.method(Prompt.prototype, "close");
   const codependencies = [{ lodash: "4.18.0" }, { "fs-extra": "5.0.0" }];
   const rootDir = "./tests/unit/fixtures/";
@@ -1458,26 +1524,55 @@ test("checkFiles => interactive mode invokes prompt selection", async () => {
   closeSpy.mock.restore();
 });
 
+test("checkFiles => prompts before updating an outdated duplicate and honors no selection", async () => {
+  const rootDir = createTestDirectory();
+  const currentPath = join(rootDir, "a-current.json");
+  const outdatedPath = join(rootDir, "b-outdated.json");
+  const currentContent = JSON.stringify({ dependencies: { lodash: "2.0.0" } });
+  const outdatedContent = JSON.stringify({ dependencies: { lodash: "1.0.0" } });
+  writeFileSync(currentPath, currentContent);
+  writeFileSync(outdatedPath, outdatedContent);
+  const selectSpy = mock.method(Prompt.prototype, "select", () => Promise.resolve([]));
+  const writeSpy = mock.method(NodeJSProvider.prototype, "writeManifest", () => {});
+
+  try {
+    await assert.rejects(
+      checkFiles({
+        rootDir,
+        files: ["a-current.json", "b-outdated.json"],
+        language: "nodejs",
+        codependencies: [{ lodash: "2.0.0" }],
+        mode: "verbose",
+        interactive: true,
+        update: true,
+        silent: true,
+      }),
+      /Dependencies are not correct/,
+    );
+
+    assert.strictEqual(selectSpy.mock.callCount(), 1);
+    assert.deepStrictEqual(selectSpy.mock.calls[0].arguments[1], [
+      { name: "lodash (1.0.0 -> 2.0.0)", value: "lodash" },
+    ]);
+    assert.strictEqual(writeSpy.mock.callCount(), 0);
+    assert.strictEqual(readFileSync(currentPath, "utf8"), currentContent);
+    assert.strictEqual(readFileSync(outdatedPath, "utf8"), outdatedContent);
+  } finally {
+    selectSpy.mock.restore();
+    writeSpy.mock.restore();
+  }
+});
+
 test("checkFiles => skips interactive prompt when nothing needs updating", async () => {
   const tempDir = createTestDirectory();
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(
     join(tempDir, "package.json"),
-    JSON.stringify(
-      {
-        name: "interactive-no-diffs",
-        version: "1.0.0",
-        dependencies: {
-          lodash: "1.0.0",
-        },
-      },
-      null,
-      2,
-    ),
+    JSON.stringify(checkFilesSkipsInteractivePromptWhenNothingNeedsUpdatingExpected, null, 2),
   );
 
-  const selectSpy = mock.method(Prompt.prototype, "select", async () => ["lodash"]);
+  const selectSpy = mock.method(Prompt.prototype, "select", () => Promise.resolve(["lodash"]));
   const closeSpy = mock.method(Prompt.prototype, "close");
 
   try {
@@ -1588,17 +1683,7 @@ test("checkFiles => applies provider-backed manifest updates", async () => {
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(
     packageJsonPath,
-    JSON.stringify(
-      {
-        name: "provider-update",
-        version: "1.0.0",
-        dependencies: {
-          lodash: "4.17.0",
-        },
-      },
-      null,
-      2,
-    ),
+    JSON.stringify(checkFilesAppliesProviderBackedManifestUpdatesExpected, null, 2),
   );
 
   const debugSpy = mock.method(logger, "debug", () => {});
@@ -1636,17 +1721,7 @@ test("checkFiles => logs manifest writes in testing update mode", async () => {
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(
     packageJsonPath,
-    JSON.stringify(
-      {
-        name: "provider-update-testing",
-        version: "1.0.0",
-        dependencies: {
-          lodash: "4.17.0",
-        },
-      },
-      null,
-      2,
-    ),
+    JSON.stringify(checkFilesLogsManifestWritesInTestingUpdateModeExpected, null, 2),
   );
 
   const infoSpy = mock.method(logger, "info", () => {});
@@ -1774,7 +1849,7 @@ test("checkFiles => updates rust manifests with normalized package names", async
     });
 
     const updated = fs.readFileSync(cargoPath, "utf8");
-    assert.ok(updated.includes('serde_json = "1.0.145"'));
+    assert.match(updated, /serde_json = "1\.0\.145"/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -1886,10 +1961,8 @@ test("checkFiles => supports Docker precise mode", async () => {
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(dockerfilePath, "FROM node:20.11.1\n");
-  const latestVersionSpy = mock.method(
-    DockerProvider.prototype,
-    "getLatestVersion",
-    async () => "24.0.0",
+  const latestVersionSpy = mock.method(DockerProvider.prototype, "getLatestVersion", () =>
+    Promise.resolve("24.0.0"),
   );
 
   try {
@@ -1917,10 +1990,8 @@ test("checkFiles => supports Docker string codependencies", async () => {
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(dockerfilePath, "FROM node:20.11.1\n");
-  const latestVersionSpy = mock.method(
-    DockerProvider.prototype,
-    "getLatestVersion",
-    async () => "24.0.0",
+  const latestVersionSpy = mock.method(DockerProvider.prototype, "getLatestVersion", () =>
+    Promise.resolve("24.0.0"),
   );
 
   try {
@@ -1949,10 +2020,8 @@ test("checkFiles => resolves Docker string codependencies in Node roots", async 
   mkdirSync(tempDir, { recursive: true });
   writeFileSync(join(tempDir, "package.json"), '{"dependencies":{"lodash":"4.17.21"}}\n');
   writeFileSync(dockerfilePath, "FROM node:20.11.1\n");
-  const latestVersionSpy = mock.method(
-    DockerProvider.prototype,
-    "getLatestVersion",
-    async () => "24.0.0",
+  const latestVersionSpy = mock.method(DockerProvider.prototype, "getLatestVersion", () =>
+    Promise.resolve("24.0.0"),
   );
 
   try {
@@ -1983,9 +2052,9 @@ test("checkFiles => resolves multiple current Docker tags independently", async 
   const latestVersionSpy = mock.method(
     DockerProvider.prototype,
     "getLatestVersion",
-    async (_name, currentVersion) => {
-      if (currentVersion === "20-slim") return "24-slim";
-      return "24-alpine";
+    (_name, currentVersion) => {
+      if (currentVersion === "20-slim") return Promise.resolve("24-slim");
+      return Promise.resolve("24-alpine");
     },
   );
 
@@ -2018,17 +2087,7 @@ test("checkFiles => updates Helm chart dependency pins", async () => {
   const chartPath = join(tempDir, "Chart.yaml");
   rmSync(tempDir, { recursive: true, force: true });
   mkdirSync(tempDir, { recursive: true });
-  writeFileSync(
-    chartPath,
-    `apiVersion: v2
-name: web
-version: 1.0.0
-dependencies:
-  - name: redis
-    version: 20.6.3
-    repository: https://charts.bitnami.com/bitnami
-`,
-  );
+  writeFileSync(chartPath, checkFilesUpdatesHelmChartDependencyPinsExpected);
 
   try {
     await assert.deepStrictEqual(
@@ -2116,8 +2175,8 @@ test("checkFiles => updates CircleCI orb and image pins", async () => {
       }),
       [],
     );
-    assert.ok(readFileSync(configPath, "utf8").includes("circleci/node@7.2.0"));
-    assert.ok(readFileSync(configPath, "utf8").includes("cimg/node:22.12"));
+    assert.match(readFileSync(configPath, "utf8"), /circleci\/node@7\.2\.0/);
+    assert.match(readFileSync(configPath, "utf8"), /cimg\/node:22\.12/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -2140,7 +2199,7 @@ test("checkFiles => auto-detects CircleCI config paths", async () => {
       update: true,
     });
 
-    assert.ok(readFileSync(configPath, "utf8").includes("circleci/node@7.2.0"));
+    assert.match(readFileSync(configPath, "utf8"), /circleci\/node@7\.2\.0/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -2166,7 +2225,7 @@ test("checkFiles => updates Kubernetes image pins", async () => {
       }),
       [],
     );
-    assert.ok(readFileSync(manifestPath, "utf8").includes("ghcr.io/acme/web:2.5.0"));
+    assert.match(readFileSync(manifestPath, "utf8"), /ghcr\.io\/acme\/web:2\.5\.0/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -2192,7 +2251,7 @@ test("checkFiles => updates Kustomize image pins", async () => {
       }),
       [],
     );
-    assert.ok(readFileSync(manifestPath, "utf8").includes("newTag: 1.27.1"));
+    assert.match(readFileSync(manifestPath, "utf8"), /newTag: 1\.27\.1/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -2234,8 +2293,8 @@ module "app" {
       [],
     );
     const content = readFileSync(manifestPath, "utf8");
-    assert.ok(content.includes('version = "5.31.0"'));
-    assert.ok(content.includes("github.com/acme/app.git?ref=v1.2.4"));
+    assert.match(content, /version = "5\.31\.0"/);
+    assert.match(content, /github\.com\/acme\/app\.git\?ref=v1\.2\.4/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -2253,9 +2312,9 @@ test("checkFiles => scopes Docker version cache by current tag", async () => {
   const latestVersionSpy = mock.method(
     DockerProvider.prototype,
     "getLatestVersion",
-    async (_name, currentVersion) => {
-      if (currentVersion === "20-slim") return "24-slim";
-      return "24-alpine";
+    (_name, currentVersion) => {
+      if (currentVersion === "20-slim") return Promise.resolve("24-slim");
+      return Promise.resolve("24-alpine");
     },
   );
 
@@ -2314,10 +2373,8 @@ test("checkFiles => supports GitHub Actions precise mode", async () => {
     workflowPath,
     `name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@${currentSha}\n`,
   );
-  const latestVersionSpy = mock.method(
-    GitHubActionsProvider.prototype,
-    "getLatestVersion",
-    async () => latestSha,
+  const latestVersionSpy = mock.method(GitHubActionsProvider.prototype, "getLatestVersion", () =>
+    Promise.resolve(latestSha),
   );
 
   try {
@@ -2357,10 +2414,8 @@ test("checkFiles => updates every repeated GitHub Action ref", async () => {
       - uses: actions/checkout@${latestSha}
 `,
   );
-  const latestVersionSpy = mock.method(
-    GitHubActionsProvider.prototype,
-    "getLatestVersion",
-    async () => latestSha,
+  const latestVersionSpy = mock.method(GitHubActionsProvider.prototype, "getLatestVersion", () =>
+    Promise.resolve(latestSha),
   );
 
   try {
@@ -2373,7 +2428,7 @@ test("checkFiles => updates every repeated GitHub Action ref", async () => {
     });
 
     const updated = readFileSync(workflowPath, "utf8");
-    assert.ok(!updated.includes(staleSha));
+    assertTextExcludes(updated, staleSha);
     assert.strictEqual(updated.match(new RegExp(latestSha, "g")).length, 2);
   } finally {
     latestVersionSpy.mock.restore();
@@ -2391,10 +2446,8 @@ test("checkFiles => supports GitHub Actions string codependencies", async () => 
     workflowPath,
     "name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
   );
-  const latestVersionSpy = mock.method(
-    GitHubActionsProvider.prototype,
-    "getLatestVersion",
-    async () => "v5",
+  const latestVersionSpy = mock.method(GitHubActionsProvider.prototype, "getLatestVersion", () =>
+    Promise.resolve("v5"),
   );
 
   try {
@@ -2409,7 +2462,7 @@ test("checkFiles => supports GitHub Actions string codependencies", async () => 
       }),
       [],
     );
-    assert.ok(readFileSync(workflowPath, "utf8").includes("uses: actions/checkout@v5"));
+    assert.match(readFileSync(workflowPath, "utf8"), /uses: actions\/checkout@v5/);
   } finally {
     latestVersionSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });
@@ -2427,10 +2480,8 @@ test("checkFiles => resolves GitHub Actions dependencies in Node roots", async (
     workflowPath,
     "name: ci\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
   );
-  const latestVersionSpy = mock.method(
-    GitHubActionsProvider.prototype,
-    "getLatestVersion",
-    async () => "v5",
+  const latestVersionSpy = mock.method(GitHubActionsProvider.prototype, "getLatestVersion", () =>
+    Promise.resolve("v5"),
   );
 
   try {
@@ -2445,7 +2496,7 @@ test("checkFiles => resolves GitHub Actions dependencies in Node roots", async (
       }),
       [],
     );
-    assert.ok(readFileSync(workflowPath, "utf8").includes("uses: actions/checkout@v5"));
+    assert.match(readFileSync(workflowPath, "utf8"), /uses: actions\/checkout@v5/);
   } finally {
     latestVersionSpy.mock.restore();
     rmSync(tempDir, { recursive: true, force: true });

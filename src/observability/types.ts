@@ -21,10 +21,4 @@ export interface Logger {
   separator: () => void;
 }
 
-export type Log = (
-  level: LogLevel,
-  icon: string,
-  color: (text: string) => string,
-  message: string,
-  extra?: string | unknown,
-) => void;
+export type Log = (level: LogLevel, message: string, extra?: string | unknown) => void;

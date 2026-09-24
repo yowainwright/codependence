@@ -255,8 +255,7 @@ const assignedDraft = (
 };
 
 const readTerraformLine = (
-  manifest: DependencyManifest,
-  updates: TerraformUpdate[],
+  collection: { manifest: DependencyManifest; updates: TerraformUpdate[] },
   state: TerraformState,
   line: string,
   lineIndex: number,
@@ -265,7 +264,7 @@ const readTerraformLine = (
   const draft = assignedDraft(started, line, lineIndex);
   const depth = started.depth + braceDelta(line);
   const next = Object.assign({}, started, { depth, draft });
-  return closeFinishedBlocks(manifest, updates, next);
+  return closeFinishedBlocks(collection.manifest, collection.updates, next);
 };
 
 const collectTerraform = (
@@ -274,6 +273,7 @@ const collectTerraform = (
 ): { manifest: DependencyManifest; updates: TerraformUpdate[] } => {
   const manifest = emptyInfraManifest(filePath);
   const updates: TerraformUpdate[] = [];
+  const collection = { manifest, updates };
   const initial = {
     block: null,
     blockDepth: -1,
@@ -284,10 +284,7 @@ const collectTerraform = (
   } satisfies TerraformState;
   content
     .split("\n")
-    .reduce(
-      (state, line, index) => readTerraformLine(manifest, updates, state, line, index),
-      initial,
-    );
+    .reduce((state, line, index) => readTerraformLine(collection, state, line, index), initial);
   return { manifest, updates };
 };
 
@@ -315,11 +312,11 @@ export class TerraformProvider implements DependencyProvider {
     versionStrategy: "semver",
   } as const;
 
-  async getLatestVersion(): Promise<string> {
+  getLatestVersion(): Promise<string> {
     return manifestOnlyResolution("Terraform");
   }
 
-  async getAllVersions(): Promise<string[]> {
+  getAllVersions(): Promise<string[]> {
     return manifestOnlyResolution("Terraform");
   }
 

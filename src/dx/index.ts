@@ -1,10 +1,6 @@
 export {
   createOutput,
   defaultOutput,
-  Prompt,
-  createPrompt,
-  radio,
-  select,
   getTerminalWidth,
   visibleLength,
   pad,
@@ -15,5 +11,6 @@ export {
   divider,
   box,
 } from "./utils";
+export { Prompt, createPrompt, radio, select } from "./prompt";
 export * from "./constants";
 export type { Output, BoxOptions, TextAlign } from "./types";

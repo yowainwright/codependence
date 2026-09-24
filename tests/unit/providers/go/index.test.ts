@@ -22,10 +22,11 @@ const configureExecMock = (): void => {
   restoreBinaryHost = configureBinaryHost(
     runExecMock,
     () => "{}",
-    async () => "",
+    () => Promise.resolve(""),
   );
 };
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("GoProvider", () => {
   afterEach(() => {
     restoreBinaryHost?.();
@@ -134,6 +135,7 @@ describe("GoProvider", () => {
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("readManifest", () => {
     const tmpDir = join(import.meta.dirname, ".tmp-go-test");
 
@@ -287,6 +289,7 @@ require github.com/pkg v1.0.0
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("writeManifest", () => {
     const tmpDir = join(import.meta.dirname, ".tmp-go-write-test");
 
@@ -319,12 +322,12 @@ require (
 
       const updated = readFileSync(goModPath, "utf8");
 
-      assert.ok(updated.includes("require ("));
-      assert.ok(updated.includes("github.com/new/pkg v2.0.0"));
-      assert.ok(updated.includes("github.com/another/pkg v1.5.0"));
-      assert.ok(!updated.includes("github.com/old/pkg"));
-      assert.ok(updated.includes("module github.com/example/app"));
-      assert.ok(updated.includes("go 1.21"));
+      assert.match(updated, /require \(/);
+      assert.match(updated, /github\.com\/new\/pkg v2\.0\.0/);
+      assert.match(updated, /github\.com\/another\/pkg v1\.5\.0/);
+      assert.doesNotMatch(updated, /github\.com\/old\/pkg/);
+      assert.match(updated, /module github\.com\/example\/app/);
+      assert.match(updated, /go 1\.21/);
     });
 
     test("should replace single requires with block", async () => {
@@ -349,9 +352,9 @@ require github.com/old/pkg v1.0.0
 
       const updated = readFileSync(goModPath, "utf8");
 
-      assert.ok(updated.includes("require ("));
-      assert.ok(updated.includes("github.com/pkg1 v1.0.0"));
-      assert.ok(updated.includes("github.com/pkg2 v2.0.0"));
+      assert.match(updated, /require \(/);
+      assert.match(updated, /github\.com\/pkg1 v1\.0\.0/);
+      assert.match(updated, /github\.com\/pkg2 v2\.0\.0/);
     });
 
     test("should add require block if none exists", async () => {
@@ -373,9 +376,9 @@ go 1.21
 
       const updated = readFileSync(goModPath, "utf8");
 
-      assert.ok(updated.includes("require ("));
-      assert.ok(updated.includes("github.com/new/pkg v1.0.0"));
-      assert.ok(updated.includes("module github.com/example/app"));
+      assert.match(updated, /require \(/);
+      assert.match(updated, /github\.com\/new\/pkg v1\.0\.0/);
+      assert.match(updated, /module github\.com\/example\/app/);
     });
 
     test("should format require block with proper indentation", async () => {
@@ -401,7 +404,7 @@ require (
 
       const updated = readFileSync(goModPath, "utf8");
 
-      assert.ok(updated.includes("\tgithub.com/pkg v1.0.0"));
+      assert.match(updated, /\tgithub\.com\/pkg v1\.0\.0/);
     });
 
     test("should end file with newline", async () => {
@@ -436,9 +439,9 @@ require (
       });
 
       const updated = readFileSync(goModPath, "utf8");
-      assert.ok(updated.includes("\tgithub.com/pkg v1.2.0 // indirect"));
-      assert.ok(updated.includes("module github.com/example/app"));
-      assert.ok(updated.includes("go 1.21"));
+      assert.match(updated, /\tgithub\.com\/pkg v1\.2\.0 \/\/ indirect/);
+      assert.match(updated, /module github\.com\/example\/app/);
+      assert.match(updated, /go 1\.21/);
     });
 
     test("should not modify replace directive source versions", async () => {
@@ -460,9 +463,10 @@ require (
       });
 
       const updated = readFileSync(goModPath, "utf8");
-      assert.ok(updated.includes("github.com/gin-gonic/gin v1.9.1"));
-      assert.ok(
-        updated.includes("replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0"),
+      assert.match(updated, /github\.com\/gin-gonic\/gin v1\.9\.1/);
+      assert.match(
+        updated,
+        /replace github\.com\/old\/module v1\.0\.0 => github\.com\/fork\/module v2\.0\.0/,
       );
     });
 
@@ -484,7 +488,7 @@ require (
       });
 
       const updated = readFileSync(goModPath, "utf8");
-      assert.ok(updated.includes("\tgithub.com/pkg v1.0.0 // indirect"));
+      assert.match(updated, /\tgithub\.com\/pkg v1\.0\.0 \/\/ indirect/);
     });
 
     test("should preserve exclude block contents", async () => {
@@ -508,9 +512,9 @@ require (
       });
 
       const updated = readFileSync(goModPath, "utf8");
-      assert.ok(updated.includes("github.com/gin-gonic/gin v1.9.1"));
-      assert.ok(updated.includes("exclude ("));
-      assert.ok(updated.includes("github.com/bad/module v0.1.0"));
+      assert.match(updated, /github\.com\/gin-gonic\/gin v1\.9\.1/);
+      assert.match(updated, /exclude \(/);
+      assert.match(updated, /github\.com\/bad\/module v0\.1\.0/);
     });
   });
 
@@ -562,7 +566,7 @@ require (
         deps,
       );
       assert.strictEqual(result.updated, false);
-      assert.ok(result.line.includes("replace github.com/old/module"));
+      assert.match(result.line, /replace github\.com\/old\/module/);
     });
 
     test("should skip unknown deps", () => {
@@ -573,6 +577,7 @@ require (
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("updateExistingRequireLines", () => {
     test("should preserve replace block contents", () => {
       const content =
@@ -584,10 +589,11 @@ require (
         "replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0\n";
       const deps = { "github.com/gin-gonic/gin": "v1.9.1" };
       const { content: result } = updateExistingRequireLines(content, deps);
-      assert.ok(
-        result.includes("replace github.com/old/module v1.0.0 => github.com/fork/module v2.0.0"),
+      assert.match(
+        result,
+        /replace github\.com\/old\/module v1\.0\.0 => github\.com\/fork\/module v2\.0\.0/,
       );
-      assert.ok(result.includes("github.com/gin-gonic/gin v1.9.1"));
+      assert.match(result, /github\.com\/gin-gonic\/gin v1\.9\.1/);
     });
 
     test("should preserve replace block lines", () => {
@@ -602,8 +608,11 @@ require (
         ")\n";
       const deps = { "github.com/gin-gonic/gin": "v1.9.1" };
       const { content: result } = updateExistingRequireLines(content, deps);
-      assert.ok(result.includes("github.com/old/module v1.0.0 => github.com/fork/module v2.0.0"));
-      assert.ok(result.includes("github.com/gin-gonic/gin v1.9.1"));
+      assert.match(
+        result,
+        /github\.com\/old\/module v1\.0\.0 => github\.com\/fork\/module v2\.0\.0/,
+      );
+      assert.match(result, /github\.com\/gin-gonic\/gin v1\.9\.1/);
     });
 
     test("should preserve exclude block contents", () => {
@@ -618,8 +627,8 @@ require (
         ")\n";
       const deps = { "github.com/gin-gonic/gin": "v1.9.1" };
       const { content: result, updatedCount } = updateExistingRequireLines(content, deps);
-      assert.ok(result.includes("exclude ("));
-      assert.ok(result.includes("github.com/bad/module v0.1.0"));
+      assert.match(result, /exclude \(/);
+      assert.match(result, /github\.com\/bad\/module v0\.1\.0/);
       assert.strictEqual(updatedCount, 1);
     });
 
@@ -633,8 +642,8 @@ require (
         ")\n";
       const deps = { "github.com/gin-gonic/gin": "v1.9.1", "github.com/lib/pq": "v1.10.9" };
       const { content: result, updatedCount } = updateExistingRequireLines(content, deps);
-      assert.ok(result.includes("github.com/gin-gonic/gin v1.9.1"));
-      assert.ok(result.includes("github.com/lib/pq v1.10.9"));
+      assert.match(result, /github\.com\/gin-gonic\/gin v1\.9\.1/);
+      assert.match(result, /github\.com\/lib\/pq v1\.10\.9/);
       assert.strictEqual(updatedCount, 2);
     });
 
@@ -687,7 +696,7 @@ require (
       dependencies: { "github.com/example/pkg": "v2.0.0" },
     });
 
-    assert.ok(readFileSync(goModPath, "utf8").includes("github.com/example/pkg v2.0.0"));
+    assert.match(readFileSync(goModPath, "utf8"), /github\.com\/example\/pkg v2\.0\.0/);
     rmSync(join(import.meta.dirname, ".tmp-write"), { recursive: true, force: true });
   });
 

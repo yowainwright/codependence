@@ -16,6 +16,14 @@ export interface ExecOptions {
   sleepFn?: SleepFn;
 }
 
+export interface RetryOptions {
+  cwd?: string;
+  maxRetries: number;
+  retryDelay: number;
+  execFileFn: ExecFileFn;
+  sleepFn: SleepFn;
+}
+
 export type ExecFn = (
   command: string,
   args: string[],

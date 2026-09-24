@@ -22,6 +22,7 @@ import {
 type GithubCall = { body?: unknown; method: string; url: string };
 const TEMP_ROOT = join(import.meta.dirname, ".tmp-brew");
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("scripts/release brew", () => {
   const stateEnv = {
     FORMULA_PATH: "codependence.rb",
@@ -48,8 +49,10 @@ describe("scripts/release brew", () => {
   });
 
   test("skips when the Homebrew tap already has a newer version", async () => {
-    const fetchImpl = async () =>
-      new Response('url "https://registry.npmjs.org/codependence/-/codependence-1.0.12.tgz"');
+    const fetchImpl = () =>
+      Promise.resolve(
+        new Response('url "https://registry.npmjs.org/codependence/-/codependence-1.0.12.tgz"'),
+      );
     const state = await checkHomebrewReleaseState({ arch: "arm64", env: stateEnv, fetchImpl });
     assert.deepStrictEqual(state, {
       reason: "Homebrew tap already has newer codependence 1.0.12; skipping 1.0.11",
@@ -67,8 +70,10 @@ describe("scripts/release brew", () => {
       ],
       draft: false,
     };
-    const fetchImpl = async (url: URL | RequestInfo) =>
-      new Response(String(url).includes("homebrew-tap") ? formula : JSON.stringify(release));
+    const fetchImpl = (url: URL | RequestInfo) =>
+      Promise.resolve(
+        new Response(String(url).includes("homebrew-tap") ? formula : JSON.stringify(release)),
+      );
     const state = await checkHomebrewReleaseState({ arch: "arm64", env: stateEnv, fetchImpl });
     assert.deepStrictEqual(state, {
       reason: "Homebrew formula and release assets already published for 1.0.11",
@@ -78,8 +83,10 @@ describe("scripts/release brew", () => {
 
   test("continues when the tap is behind the requested version", async () => {
     const env = Object.assign({}, stateEnv, { VERSION: "1.0.12" });
-    const fetchImpl = async () =>
-      new Response('url "https://registry.npmjs.org/codependence/-/codependence-1.0.11.tgz"');
+    const fetchImpl = () =>
+      Promise.resolve(
+        new Response('url "https://registry.npmjs.org/codependence/-/codependence-1.0.11.tgz"'),
+      );
     const state = await checkHomebrewReleaseState({ arch: "arm64", env, fetchImpl });
     assert.deepStrictEqual(state, { skip: false });
   });
@@ -87,17 +94,19 @@ describe("scripts/release brew", () => {
   test("continues when the matching release has missing assets", async () => {
     const formula = 'url "https://registry.npmjs.org/codependence/-/codependence-1.0.11.tgz"';
     const release = { assets: [{ name: "codependence.rb" }], draft: false };
-    const fetchImpl = async (url: URL | RequestInfo) =>
-      new Response(String(url).includes("homebrew-tap") ? formula : JSON.stringify(release));
+    const fetchImpl = (url: URL | RequestInfo) =>
+      Promise.resolve(
+        new Response(String(url).includes("homebrew-tap") ? formula : JSON.stringify(release)),
+      );
     const state = await checkHomebrewReleaseState({ arch: "arm64", env: stateEnv, fetchImpl });
     assert.deepStrictEqual(state, { skip: false });
   });
 
   test("continues when the matching release is not found", async () => {
     const formula = 'url "https://registry.npmjs.org/codependence/-/codependence-1.0.11.tgz"';
-    const fetchImpl = async (url: URL | RequestInfo) => {
-      if (String(url).includes("homebrew-tap")) return new Response(formula);
-      return new Response(null, { status: 404 });
+    const fetchImpl = (url: URL | RequestInfo) => {
+      if (String(url).includes("homebrew-tap")) return Promise.resolve(new Response(formula));
+      return Promise.resolve(new Response(null, { status: 404 }));
     };
     const state = await checkHomebrewReleaseState({ arch: "arm64", env: stateEnv, fetchImpl });
     assert.deepStrictEqual(state, { skip: false });
@@ -115,11 +124,11 @@ describe("scripts/release brew", () => {
         TAP_BRANCH: "codependence-release",
         VERSION: "1.0.13",
       });
-      const fetchImpl = async (url: URL | RequestInfo, init?: RequestInit) => {
+      const fetchImpl = (url: URL | RequestInfo, init?: RequestInit) => {
         const body = init?.body ? JSON.parse(String(init.body)) : undefined;
         const method = init?.method || "GET";
         calls = calls.concat({ body, method, url: String(url) });
-        return brewTapResponse(String(url), init?.method || "GET");
+        return Promise.resolve(brewTapResponse(String(url), init?.method || "GET"));
       };
       const result = await updateHomebrewTap({ env, fetchImpl });
 
@@ -128,10 +137,17 @@ describe("scripts/release brew", () => {
         changed: true,
         pullRequestUrl: "https://github.com/yowainwright/homebrew-tap/pull/10",
       });
-      assert.ok(calls.some((call) => call.method === "PATCH" && call.url.includes("git/refs")));
-      assert.ok(calls.some((call) => call.method === "PUT" && call.url.includes("contents")));
-      assert.ok(calls.some((call) => call.method === "PATCH" && call.url.includes("pulls/10")));
-      assert.ok(!calls.some((call) => call.method === "POST" && call.url.endsWith("/pulls")));
+      const requests = new Set(
+        calls.map(({ method, url }) => `${method} ${new URL(url).pathname}`),
+      );
+      assert.ok(
+        requests.has("PATCH /repos/yowainwright/homebrew-tap/git/refs/heads/codependence-release"),
+      );
+      assert.ok(
+        requests.has("PUT /repos/yowainwright/homebrew-tap/contents/Formula/codependence.rb"),
+      );
+      assert.ok(requests.has("PATCH /repos/yowainwright/homebrew-tap/pulls/10"));
+      assert.ok(!requests.has("POST /repos/yowainwright/homebrew-tap/pulls"));
     } finally {
       rmSync(TEMP_ROOT, { recursive: true, force: true });
     }
@@ -149,11 +165,11 @@ describe("scripts/release brew", () => {
         TAP_BRANCH: "codependence-release",
         VERSION: "1.0.13",
       });
-      const fetchImpl = async (url: URL | RequestInfo, init?: RequestInit) => {
+      const fetchImpl = (url: URL | RequestInfo, init?: RequestInit) => {
         const body = init?.body ? JSON.parse(String(init.body)) : undefined;
         const method = init?.method || "GET";
         calls = calls.concat({ body, method, url: String(url) });
-        return brewTapResponseWithoutOpenPr(String(url), method);
+        return Promise.resolve(brewTapResponseWithoutOpenPr(String(url), method));
       };
       const result = await updateHomebrewTap({ env, fetchImpl });
 
@@ -175,7 +191,7 @@ describe("scripts/release brew", () => {
     try {
       writeFileSync(formulaPath, "same formula");
       const env = Object.assign({}, stateEnv, { FORMULA_PATH: formulaPath });
-      const fetchImpl = async () => new Response("same formula");
+      const fetchImpl = () => Promise.resolve(new Response("same formula"));
       const result = await updateHomebrewTap({ env, fetchImpl });
       assert.deepStrictEqual(result, { changed: false });
     } finally {
@@ -189,7 +205,7 @@ describe("scripts/release brew", () => {
   });
 
   test("downloads published tarball bytes", async () => {
-    const fetchImpl = async () => new Response("published tarball");
+    const fetchImpl = () => Promise.resolve(new Response("published tarball"));
     const tarball = await fetchPublishedTarball(npmTarballUrl("1.1.0"), fetchImpl);
     assert.deepStrictEqual(tarball, Buffer.from("published tarball"));
   });
@@ -199,7 +215,7 @@ describe("scripts/release brew", () => {
     const directory = mkdtempSync(join(TEMP_ROOT, "published-"));
     const outputPath = join(directory, "codependence.rb");
     try {
-      const fetchImpl = async () => new Response("published tarball");
+      const fetchImpl = () => Promise.resolve(new Response("published tarball"));
       const formula = await createPublishedFormula({ fetchImpl, outputPath, version: "1.1.0" });
       assert.strictEqual(formula.digest, sha256(Buffer.from("published tarball")));
       assert.ok(readFileSync(outputPath, "utf8").includes(formula.digest));
@@ -209,7 +225,7 @@ describe("scripts/release brew", () => {
   });
 
   test("rejects unavailable published tarballs", async () => {
-    const fetchImpl = async () => new Response(null, { status: 404 });
+    const fetchImpl = () => Promise.resolve(new Response(null, { status: 404 }));
     const download = fetchPublishedTarball(npmTarballUrl("1.1.0"), fetchImpl);
     await assertRejects(download, "Unable to download published tarball: 404");
   });
@@ -223,9 +239,9 @@ describe("scripts/release brew", () => {
   test("renders a Node-backed formula", () => {
     const formula = renderFormula({ digest: "abc123", url: npmTarballUrl("1.1.0") });
     assert.doesNotMatch(formula, /^\s+version\s/m);
-    assert.ok(formula.includes('depends_on "node"'));
-    assert.ok(formula.includes('system bin/"codependence", "--help"'));
-    assert.ok(formula.includes('system bin/"cdp", "--help"'));
+    assert.match(formula, /depends_on "node"/);
+    assert.match(formula, /system bin\/"codependence", "--help"/);
+    assert.match(formula, /system bin\/"cdp", "--help"/);
   });
 
   test("generates a formula from a local tarball", () => {
@@ -265,7 +281,7 @@ describe("scripts/release brew", () => {
     const directory = mkdtempSync(join(TEMP_ROOT, "cli-published-"));
     const outputPath = join(directory, "codependence.rb");
     try {
-      const fetchImpl = async () => new Response("published tarball");
+      const fetchImpl = () => Promise.resolve(new Response("published tarball"));
       await runBrewCli({
         argv: ["generate"],
         env: { FORMULA_PATH: outputPath, VERSION: "1.1.0" },
@@ -282,7 +298,7 @@ describe("scripts/release brew", () => {
     const directory = mkdtempSync(join(TEMP_ROOT, "state-"));
     const outputPath = join(directory, "github-output");
     const formula = 'url "https://registry.npmjs.org/codependence/-/codependence-1.0.12.tgz"';
-    const fetchImpl = async () => new Response(formula);
+    const fetchImpl = () => Promise.resolve(new Response(formula));
     const writeSpy = mock.method(process.stdout, "write", () => true);
     try {
       await writeHomebrewReleaseState({
@@ -311,8 +327,8 @@ describe("scripts/release brew", () => {
         TAP_BRANCH: "codependence-release",
         VERSION: "1.0.13",
       });
-      const fetchImpl = async (url: URL | RequestInfo, init?: RequestInit) =>
-        brewTapResponse(String(url), init?.method || "GET");
+      const fetchImpl = (url: URL | RequestInfo, init?: RequestInit) =>
+        Promise.resolve(brewTapResponse(String(url), init?.method || "GET"));
       await writeHomebrewTapUpdate({ env, fetchImpl });
       assert.strictEqual(
         readFileSync(outputPath, "utf8"),
@@ -336,20 +352,24 @@ const jsonResponse = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status });
 
 const brewTapResponse = (url: string, method: string): Response => {
-  const isFormulaRead =
-    method === "GET" && url.includes("contents/Formula/codependence.rb") && !url.includes("ref=");
+  const { pathname, searchParams } = new URL(url);
+  const isFormula = pathname.endsWith("/contents/Formula/codependence.rb");
+  const hasRef = searchParams.has("ref");
+  const isFormulaRead = method === "GET" && isFormula && !hasRef;
   if (isFormulaRead) {
     return new Response("old formula");
   }
-  if (url.includes("git/ref/heads/main")) return jsonResponse({ object: { sha: "main-sha" } });
-  if (url.includes("git/ref/heads/codependence-release")) {
+  if (pathname.endsWith("/git/ref/heads/main"))
+    return jsonResponse({ object: { sha: "main-sha" } });
+  if (pathname.endsWith("/git/ref/heads/codependence-release")) {
     return jsonResponse({ object: { sha: "branch-sha" } });
   }
-  const isFormulaRefRead = url.includes("contents/Formula/codependence.rb") && url.includes("ref=");
+  const isFormulaRefRead = isFormula && hasRef;
   if (isFormulaRefRead) {
     return jsonResponse({ sha: "formula-sha" });
   }
-  if (url.includes("pulls?")) {
+  const listsPullRequests = pathname.endsWith("/pulls") && searchParams.size > 0;
+  if (listsPullRequests) {
     return jsonResponse([
       { html_url: "https://github.com/yowainwright/homebrew-tap/pull/10", number: 10 },
     ]);
@@ -361,7 +381,8 @@ const brewTapResponse = (url: string, method: string): Response => {
 };
 
 const brewTapResponseWithoutOpenPr = (url: string, method: string): Response => {
-  const isPullsRead = method === "GET" && url.includes("pulls?");
+  const { pathname, searchParams } = new URL(url);
+  const isPullsRead = method === "GET" && pathname.endsWith("/pulls") && searchParams.size > 0;
   if (isPullsRead) return jsonResponse([]);
   const isPullCreate = method === "POST" && url.endsWith("/pulls");
   if (isPullCreate) {

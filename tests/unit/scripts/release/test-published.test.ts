@@ -32,6 +32,7 @@ const createCommandRecorder = () => {
   };
 };
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("scripts/release test-published", () => {
   test("packageSpec formats npm package specs", () => {
     assert.strictEqual(packageSpec("codependence", "1.0.0"), "codependence@1.0.0");
@@ -68,38 +69,38 @@ describe("scripts/release test-published", () => {
   });
 
   test("releaseE2eScript runs Python and Go checks", () => {
-    assert.ok(releaseE2eScript().includes("./test-python-go.sh"));
-    assert.ok(releaseE2eScript().includes("./tests/e2e/test-go-update.sh"));
+    assert.match(releaseE2eScript(), /\.\/test-python-go\.sh/);
+    assert.match(releaseE2eScript(), /\.\/tests\/e2e\/test-go-update\.sh/);
   });
 
   test("compatibilityScript checks debug and JSON output", () => {
-    assert.ok(compatibilityScript().includes("--debug"));
-    assert.ok(compatibilityScript().includes("--format json"));
+    assert.match(compatibilityScript(), /--debug/);
+    assert.match(compatibilityScript(), /--format json/);
   });
 
   test("legacyCompatibilityScript checks the 0.3.1 contract", () => {
     const script = legacyCompatibilityScript();
 
-    assert.ok(script.includes("tests/fixtures/0.3.1/package.json"));
-    assert.ok(script.includes("codependence -s"));
-    assert.ok(script.includes("cdp --help"));
-    assert.ok(script.includes("require('codependence')"));
+    assert.match(script, /tests\/fixtures\/0\.3\.1\/package\.json/);
+    assert.match(script, /codependence -s/);
+    assert.match(script, /cdp --help/);
+    assert.match(script, /require\('codependence'\)/);
   });
 
   test("formatSummary includes the version", () => {
-    assert.ok(formatSummary("1.0.0").includes("Tested codependence version: 1.0.0"));
+    assert.match(formatSummary("1.0.0"), /Tested codependence version: 1\.0\.0/);
   });
 
   test("formatReport includes release test coverage", () => {
     const report = formatReport({ date: "2026-05-25 00:00:00 UTC", version: "1.0.0" });
 
-    assert.ok(report.includes("- Go update preservation tests"));
-    assert.ok(report.includes("- 0.3.1 compatibility contract"));
+    assert.match(report, /- Go update preservation tests/);
+    assert.match(report, /- 0\.3\.1 compatibility contract/);
   });
 
   test("formatReport only claims tests run by this repository", () => {
     const report = formatReport({ date: "2026-05-25 00:00:00 UTC", version: "1.0.0" });
-    assert.ok(!report.includes("External"));
+    assert.doesNotMatch(report, /External/);
   });
 
   test("requireVersion rejects missing versions", () => {
@@ -279,7 +280,7 @@ describe("scripts/release test-published", () => {
       logSpy.mock.restore();
     }
 
-    assert.ok(output.includes("Test Summary"));
+    assert.match(output, /Test Summary/);
   });
 
   test("write-report creates the release test report", () => {
@@ -295,7 +296,7 @@ describe("scripts/release test-published", () => {
         env: { CODEPENDENCE_VERSION: "1.0.0" },
       });
       assert.strictEqual(code, 0);
-      assert.ok(readFileSync("test-report.md", "utf8").includes("1.0.0"));
+      assert.match(readFileSync("test-report.md", "utf8"), /1\.0\.0/);
     } finally {
       process.chdir(cwd);
       logSpy.mock.restore();

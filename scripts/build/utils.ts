@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { delimiter, dirname } from "node:path";
+import { createRequire } from "node:module";
+import { delimiter, dirname, join } from "node:path";
 import {
   BIN_BUILD_ARGS,
   BIN_BUNDLE_ARGS,
@@ -14,7 +15,7 @@ import {
   BIN_RUNTIME_TYPES_FILE,
   DIST_BUNDLES,
 } from "./constants";
-import type { BuildMode } from "./types";
+import type { BuildMode, BuildReport } from "./types";
 
 const createBuildEnvironment = (): NodeJS.ProcessEnv => {
   const nodeDirectory = dirname(process.execPath);
@@ -76,9 +77,30 @@ export const buildDist = (): void => {
   chmodSync("dist/cli.js", 0o755);
 };
 
+export const prepareLinuxCompiler = (compilerPath: string): void => {
+  const compilerRequire = createRequire(compilerPath);
+  const helperManifest = compilerRequire.resolve("@scriptc/llvm-linux-x64-gnu/package.json");
+  const helperPath = join(dirname(helperManifest), "bin", "scriptc-llvm-codegen");
+  const mode = statSync(helperPath).mode;
+  const isExecutable = (mode & 0o111) === 0o111;
+  if (isExecutable) return;
+  chmodSync(helperPath, mode | 0o111);
+};
+
+const prepareBinaryCompiler = (): void => {
+  const isLinuxX64 = process.platform === "linux" && process.arch === "x64";
+  if (!isLinuxX64) return;
+  const report = process.report.getReport() as BuildReport;
+  if (!report.header.glibcVersionRuntime) return;
+  const scriptcRequire = createRequire(import.meta.resolve("scriptc/package.json"));
+  const compilerPath = scriptcRequire.resolve("@scriptc/compiler");
+  prepareLinuxCompiler(compilerPath);
+};
+
 export const buildBin = (): void => {
   mkdirSync(BIN_OUTPUT_DIR, { recursive: true });
   prepareBinaryRuntime();
+  prepareBinaryCompiler();
   runBuildStep("rolldown", BIN_BUNDLE_ARGS);
   runBuildStep("scriptc", BIN_BUILD_ARGS);
   rmSync(BIN_ENTRY_FILE, { force: true });

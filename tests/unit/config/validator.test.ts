@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import { validateConfig, formatValidationErrors } from "../../../src/config/validation";
 import type { ValidationError } from "../../../src/config/types";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("validateConfig", () => {
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("valid configurations", () => {
     it("validates named manifest config", () => {
       const config = {
@@ -135,6 +137,7 @@ describe("validateConfig", () => {
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("root object validation", () => {
     it("accepts manager-only targets that use default policy", () => {
       assert.strictEqual(
@@ -196,12 +199,12 @@ describe("validateConfig", () => {
           unsafe: { name: "", path: "../package.json", manager: "pnpm" },
         },
       });
-      const fields = result.errors.map(({ field }) => field);
+      const fields = new Set(result.errors.map(({ field }) => field));
 
       assert.strictEqual(result.valid, false);
-      assert.ok(fields.includes("config.missing"));
-      assert.ok(fields.includes("config.unsafe"));
-      assert.ok(fields.includes("config.unsafe.path"));
+      assert.ok(fields.has("config.missing"));
+      assert.ok(fields.has("config.unsafe"));
+      assert.ok(fields.has("config.unsafe.path"));
     });
 
     it("should reject non-object config", () => {
@@ -290,6 +293,7 @@ describe("validateConfig", () => {
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("codependencies validation", () => {
     it("should reject non-array codependencies", () => {
       const config = {
@@ -369,7 +373,7 @@ describe("validateConfig", () => {
         result.errors[0].message,
         "Object in codependencies must have exactly one key, found 2",
       );
-      assert.ok(result.errors[0].suggestion.includes("Split into multiple objects"));
+      assert.match(result.errors[0].suggestion, /Split into multiple objects/);
     });
 
     it("should reject non-string version values", () => {
@@ -382,7 +386,7 @@ describe("validateConfig", () => {
       assert.strictEqual(result.valid, false);
       assert.strictEqual(result.errors[0].field, "codependencies[0]");
       assert.strictEqual(result.errors[0].message, "Version value must be a string");
-      assert.ok(result.errors[0].suggestion.includes('Change {"react": 18}'));
+      assert.match(result.errors[0].suggestion, /Change \{"react": 18\}/);
     });
 
     it("should reject number items in codependencies", () => {
@@ -441,6 +445,7 @@ describe("validateConfig", () => {
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("language validation", () => {
     it("should reject non-string language", () => {
       const config = {
@@ -645,6 +650,7 @@ describe("validateConfig", () => {
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("supplemental option validation", () => {
     it("should reject non-string path fields", () => {
       const config = {
@@ -708,9 +714,9 @@ describe("validateConfig", () => {
       assert.strictEqual(result.errors.length, 1);
       assert.strictEqual(result.errors[0].field, "root");
       assert.strictEqual(result.errors[0].message, "Unknown field(s): unknown");
-      assert.ok(result.errors[0].suggestion.includes("Valid fields are:"));
-      assert.ok(result.errors[0].suggestion.includes("codependencies"));
-      assert.ok(result.errors[0].suggestion.includes("outputFile"));
+      assert.match(result.errors[0].suggestion, /Valid fields are:/);
+      assert.match(result.errors[0].suggestion, /codependencies/);
+      assert.match(result.errors[0].suggestion, /outputFile/);
     });
 
     it("should reject multiple unknown fields", () => {
@@ -723,8 +729,8 @@ describe("validateConfig", () => {
       const result = validateConfig(config);
 
       assert.strictEqual(result.valid, false);
-      assert.ok(result.errors[0].message.includes("unknown1"));
-      assert.ok(result.errors[0].message.includes("unknown2"));
+      assert.match(result.errors[0].message, /unknown1/);
+      assert.match(result.errors[0].message, /unknown2/);
     });
 
     it("should not allow random properties", () => {
@@ -736,7 +742,7 @@ describe("validateConfig", () => {
       const result = validateConfig(config);
 
       assert.strictEqual(result.valid, false);
-      assert.ok(result.errors[0].message.includes("randomProperty"));
+      assert.match(result.errors[0].message, /randomProperty/);
     });
   });
 
@@ -816,6 +822,7 @@ describe("validateConfig", () => {
     });
   });
 
+  // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
   describe("manager targets", () => {
     it("accepts independent manager policies", () => {
       const config = {
@@ -873,12 +880,12 @@ describe("validateConfig", () => {
       };
 
       const result = validateConfig(config);
-      const fields = result.errors.map(({ field }) => field);
+      const fields = new Set(result.errors.map(({ field }) => field));
 
       assert.strictEqual(result.valid, false);
-      assert.ok(fields.includes("targets[0].codependencies"));
-      assert.ok(fields.includes("targets[1].codependencies"));
-      assert.ok(fields.includes("targets[2].mode"));
+      assert.ok(fields.has("targets[0].codependencies"));
+      assert.ok(fields.has("targets[1].codependencies"));
+      assert.ok(fields.has("targets[2].mode"));
     });
 
     it("accepts lockfile policies", () => {
@@ -914,7 +921,7 @@ describe("validateConfig", () => {
 
       assert.strictEqual(result.valid, false);
       assert.strictEqual(result.errors[0].field, "targets");
-      assert.ok(result.errors[0].message.includes("must be an array"));
+      assert.match(result.errors[0].message, /must be an array/);
     });
 
     it("rejects empty targets", () => {
@@ -922,7 +929,7 @@ describe("validateConfig", () => {
 
       assert.strictEqual(result.valid, false);
       assert.strictEqual(result.errors[0].field, "targets");
-      assert.ok(result.errors[0].message.includes("at least one target"));
+      assert.match(result.errors[0].message, /at least one target/);
     });
 
     it("rejects non-object targets", () => {
@@ -930,7 +937,7 @@ describe("validateConfig", () => {
 
       assert.strictEqual(result.valid, false);
       assert.strictEqual(result.errors[0].field, "targets[0]");
-      assert.ok(result.errors[0].message.includes("configuration object"));
+      assert.match(result.errors[0].message, /configuration object/);
     });
 
     it("rejects invalid and missing managers", () => {
@@ -954,11 +961,12 @@ describe("validateConfig", () => {
       const result = validateConfig(config);
 
       assert.strictEqual(result.valid, false);
-      assert.ok(result.errors[0].message.includes("cannot be used beside"));
+      assert.match(result.errors[0].message, /cannot be used beside/);
     });
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("formatValidationErrors", () => {
   it("should format single error", () => {
     const errors: ValidationError[] = [
@@ -971,10 +979,10 @@ describe("formatValidationErrors", () => {
 
     const formatted = formatValidationErrors(errors);
 
-    assert.ok(formatted.includes("x"));
-    assert.ok(formatted.includes("Invalid configuration:"));
-    assert.ok(formatted.includes("1. codependencies: Must be an array"));
-    assert.ok(formatted.includes("> Use array format"));
+    assert.match(formatted, /x/);
+    assert.match(formatted, /Invalid configuration:/);
+    assert.match(formatted, /1\. codependencies: Must be an array/);
+    assert.match(formatted, /> Use array format/);
   });
 
   it("should format multiple errors", () => {
@@ -993,10 +1001,10 @@ describe("formatValidationErrors", () => {
 
     const formatted = formatValidationErrors(errors);
 
-    assert.ok(formatted.includes("1. codependencies: Must be an array"));
-    assert.ok(formatted.includes("2. permissive: Must be a boolean"));
-    assert.ok(formatted.includes("> Use array format"));
-    assert.ok(formatted.includes("> Use true or false"));
+    assert.match(formatted, /1\. codependencies: Must be an array/);
+    assert.match(formatted, /2\. permissive: Must be a boolean/);
+    assert.match(formatted, /> Use array format/);
+    assert.match(formatted, /> Use true or false/);
   });
 
   it("should format error without suggestion", () => {
@@ -1009,8 +1017,8 @@ describe("formatValidationErrors", () => {
 
     const formatted = formatValidationErrors(errors);
 
-    assert.ok(formatted.includes("1. root: Config must be an object"));
-    assert.ok(!formatted.includes("undefined"));
+    assert.match(formatted, /1\. root: Config must be an object/);
+    assert.doesNotMatch(formatted, /undefined/);
   });
 
   it("should handle empty errors array", () => {
@@ -1018,7 +1026,7 @@ describe("formatValidationErrors", () => {
 
     const formatted = formatValidationErrors(errors);
 
-    assert.ok(formatted.includes("Invalid configuration:"));
+    assert.match(formatted, /Invalid configuration:/);
   });
 
   it("should number errors correctly", () => {
@@ -1030,8 +1038,8 @@ describe("formatValidationErrors", () => {
 
     const formatted = formatValidationErrors(errors);
 
-    assert.ok(formatted.includes("1. field1: Error 1"));
-    assert.ok(formatted.includes("2. field2: Error 2"));
-    assert.ok(formatted.includes("3. field3: Error 3"));
+    assert.match(formatted, /1\. field1: Error 1/);
+    assert.match(formatted, /2\. field2: Error 2/);
+    assert.match(formatted, /3\. field3: Error 3/);
   });
 });

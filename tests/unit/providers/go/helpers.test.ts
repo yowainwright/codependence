@@ -6,6 +6,7 @@ import {
   buildRequireBlock,
 } from "../../../../src/providers/go";
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("parseRequireBlock", () => {
   test("parses multi-line require block", () => {
     const content = `module example.com/app
@@ -113,10 +114,10 @@ describe("buildRequireBlock", () => {
 
     const result = buildRequireBlock(deps);
 
-    assert.ok(result.includes("require ("));
-    assert.ok(result.includes("\tgithub.com/gin-gonic/gin v1.9.1"));
-    assert.ok(result.includes("\tgithub.com/lib/pq v1.10.9"));
-    assert.ok(result.includes(")"));
+    assert.match(result, /require \(/);
+    assert.match(result, /\tgithub\.com\/gin-gonic\/gin v1\.9\.1/);
+    assert.match(result, /\tgithub\.com\/lib\/pq v1\.10\.9/);
+    assert.match(result, /\)/);
   });
 
   test("builds block with single dependency", () => {

@@ -36,6 +36,7 @@ const runActionScript = (name: string, environment: Record<string, string>): str
   throw new Error(result.stderr);
 };
 
+// eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("composite action", () => {
   test("infers a Node package manager version from package.json", () => {
     const workDir = mkdtempSync(join(tmpdir(), "codependence-action-pnpm-"));
@@ -61,16 +62,16 @@ describe("composite action", () => {
       INPUT_TARGETS: "docker",
       INPUT_VERSION: "",
     });
-    assert.ok(targetOutput.includes("list=docker"));
-    assert.ok(targetOutput.includes("branch-suffix=docker"));
+    assert.match(targetOutput, /list=docker/);
+    assert.match(targetOutput, /branch-suffix=docker/);
 
     const pullRequestOutput = runActionScript("Prepare pull request", {
       BRANCH_PREFIX: "update-dependencies",
       BRANCH_SUFFIX: "docker",
       TARGETS: "docker",
     });
-    assert.ok(pullRequestOutput.includes("branch=update-dependencies/docker"));
-    assert.ok(pullRequestOutput.includes("title=chore: update docker dependencies"));
+    assert.match(pullRequestOutput, /branch=update-dependencies\/docker/);
+    assert.match(pullRequestOutput, /title=chore: update docker dependencies/);
   });
 
   test("accepts infrastructure manifest-only targets", () => {
@@ -79,7 +80,7 @@ describe("composite action", () => {
       INPUT_VERSION: "",
     });
 
-    assert.ok(targetOutput.includes("list=helm kubernetes kustomize terraform circleci"));
-    assert.ok(targetOutput.includes("branch-suffix=circleci-helm-kubernetes-kustomize-terraform"));
+    assert.match(targetOutput, /list=helm kubernetes kustomize terraform circleci/);
+    assert.match(targetOutput, /branch-suffix=circleci-helm-kubernetes-kustomize-terraform/);
   });
 });

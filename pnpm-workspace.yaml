@@ -1,8 +1,9 @@
 packages:
   - page/app
 allowBuilds:
-  '@nubjs/nub': true
+  "@nubjs/nub": true
   esbuild: true
+  scriptc: true
 minimumReleaseAgeExclude:
   - eslint-plugin-legibility@0.3.3
 nodeLinker: isolated
