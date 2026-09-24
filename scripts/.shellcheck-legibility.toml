@@ -1,4 +1,4 @@
-# LEG042 also activates heredoc-aware scanning in shellcheck-legibility 0.2.3.
+# Include the opt-in check against automated attribution comments.
 select = ["LEG", "LEG042"]
 max-expression-operators = 4
 max-if-operators = 0
