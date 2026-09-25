@@ -120,7 +120,6 @@ tests/unit/providers/*/.tmp-*/
 .husky/
 
 # Local agent config
-AGENTS.md
 CLAUDE.md
 .claude/
 .codex/config.toml
@@ -128,3 +127,5 @@ CLAUDE.md
 .codex/agents/
 .agents/skills/
 .codex/skills/
+
+bun.lock

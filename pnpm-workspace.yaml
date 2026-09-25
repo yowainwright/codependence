@@ -6,6 +6,7 @@ allowBuilds:
   scriptc: true
 minimumReleaseAgeExclude:
   - eslint-plugin-legibility@0.3.3
+  - pastoralist@1.13.6-beta.0
 nodeLinker: isolated
 overrides:
   ip-address: 10.3.1
