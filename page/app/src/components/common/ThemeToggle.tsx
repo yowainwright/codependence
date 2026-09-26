@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import { Sun, Moon } from "lucide-react";
 import { DARK_THEME, LIGHT_THEME, THEME_STORAGE_KEY } from "@/constants";
+import { Button } from "@/components/ui/button";
 
 function getInitialTheme(): string {
   const saved = localStorage.getItem(THEME_STORAGE_KEY);
   if (saved) return saved;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? DARK_THEME : LIGHT_THEME;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? DARK_THEME
+    : LIGHT_THEME;
 }
 
 export function ThemeToggle() {
@@ -21,13 +24,14 @@ export function ThemeToggle() {
   }, [isDark]);
 
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="icon"
       aria-label="theme-toggle"
       onClick={() => setIsDark((prev) => !prev)}
-      className={`btn btn-sm btn-ghost swap swap-rotate btn-square rounded-lg ${isDark ? "swap-active" : ""}`}
+      className="rounded-lg"
     >
-      <Sun className="w-4 h-4 swap-off" />
-      <Moon className="w-4 h-4 swap-on" />
-    </button>
+      {isDark ? <Moon className="size-4" /> : <Sun className="size-4" />}
+    </Button>
   );
 }

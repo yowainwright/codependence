@@ -1,17 +1,22 @@
 import React from "react";
-import type { SegmentProps, SpinnerProps, TerminalContentProps, TypingContentProps } from "./types";
+import type {
+  SegmentProps,
+  SpinnerProps,
+  TerminalContentProps,
+  TypingContentProps,
+} from "./types";
 import { SPINNER_FRAMES } from "./constants";
 import { useIntersectionObserver, useTerminalAnimation } from "./hooks";
 
 function TerminalHeader() {
   return (
-    <div className="bg-base-200 px-4 py-3 flex items-center justify-between">
+    <div className="bg-muted px-4 py-3 flex items-center justify-between">
       <div className="flex gap-2">
         <div className="w-3 h-3 rounded-full bg-error/80" />
         <div className="w-3 h-3 rounded-full bg-warning/80" />
         <div className="w-3 h-3 rounded-full bg-success/80" />
       </div>
-      <span className="text-xs text-base-content/50 font-mono">~/my-project</span>
+      <span className="text-xs text-foreground/50 font-mono">~/my-project</span>
       <div className="w-[52px]" />
     </div>
   );
@@ -19,21 +24,26 @@ function TerminalHeader() {
 
 function Segment({ segment, keyPrefix, index }: SegmentProps) {
   return (
-    <span key={`${keyPrefix}-${index}`} className={segment.color || "text-base-content"}>
+    <span
+      key={`${keyPrefix}-${index}`}
+      className={segment.color || "text-foreground"}
+    >
       {segment.text}
     </span>
   );
 }
 
 function Cursor() {
-  return <span className="inline-block w-2 h-4 ml-0.5 bg-primary animate-pulse" />;
+  return (
+    <span className="inline-block w-2 h-4 ml-0.5 bg-primary animate-pulse" />
+  );
 }
 
 function Spinner({ frame, text }: SpinnerProps) {
   return (
     <>
       <span className="text-primary">{SPINNER_FRAMES[frame]}</span>
-      <span className="text-base-content"> {text}</span>
+      <span className="text-foreground"> {text}</span>
     </>
   );
 }
@@ -50,7 +60,7 @@ function TypingContent({ step, charIndex }: TypingContentProps) {
     remaining -= segment.text.length;
 
     elements = elements.concat(
-      <span key={`typing-${i}`} className={segment.color || "text-base-content"}>
+      <span key={`typing-${i}`} className={segment.color || "text-foreground"}>
         {visibleText}
       </span>,
     );
@@ -75,11 +85,16 @@ function TerminalContent({
   isShowingSpinner,
 }: TerminalContentProps) {
   return (
-    <div className="bg-base-300/80 backdrop-blur-sm p-6 min-h-[280px]">
+    <div className="bg-surface-raised/80 backdrop-blur-sm p-6 min-h-[280px]">
       <pre className="text-sm font-mono leading-relaxed">
         <code>
           {displayedContent.map((segment, i) => (
-            <Segment key={`displayed-${i}`} segment={segment} keyPrefix="displayed" index={i} />
+            <Segment
+              key={`displayed-${i}`}
+              segment={segment}
+              keyPrefix="displayed"
+              index={i}
+            />
           ))}
 
           {isShowingSpinner && currentStep?.type === "spinner" && (
@@ -97,12 +112,20 @@ function TerminalContent({
 
 export default function IntegrationTerminal() {
   const { containerRef, isVisible } = useIntersectionObserver();
-  const { currentStep, displayedContent, charIndex, spinnerFrame, isShowingSpinner } =
-    useTerminalAnimation(isVisible);
+  const {
+    currentStep,
+    displayedContent,
+    charIndex,
+    spinnerFrame,
+    isShowingSpinner,
+  } = useTerminalAnimation(isVisible);
 
   return (
-    <div ref={containerRef} className="w-full max-w-3xl xl:w-[48rem] mt-10 xl:mt-0">
-      <div className="relative overflow-hidden rounded-xl border border-base-content/10 shadow-2xl">
+    <div
+      ref={containerRef}
+      className="w-full max-w-3xl xl:w-[48rem] mt-10 xl:mt-0"
+    >
+      <div className="relative overflow-hidden rounded-xl border border-foreground/10 shadow-2xl">
         <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-accent/20 to-secondary/20 rounded-xl blur-xl opacity-50" />
 
         <div className="relative">

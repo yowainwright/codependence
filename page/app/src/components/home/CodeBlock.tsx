@@ -1,19 +1,24 @@
 import SpotlightCode from "./SpotlightCode";
 import { resolveDocsUrl } from "@/utils/urlResolver";
 import { GITHUB_URL } from "@/constants";
+import { Button } from "@/components/ui/button";
 
 function CodeBlockActions() {
   return (
     <div className="flex gap-4 mt-8">
-      <a
-        href={resolveDocsUrl("introduction")}
-        className="btn rounded-lg border-none bg-primary text-primary-content hover:bg-primary/80"
+      <Button
+        render={<a href={resolveDocsUrl("introduction")} />}
+        className="h-12 rounded-lg px-6"
       >
         Get Started
-      </a>
-      <a href={GITHUB_URL} className="btn btn-outline rounded-lg border-none">
+      </Button>
+      <Button
+        variant="outline"
+        render={<a href={GITHUB_URL} />}
+        className="h-12 rounded-lg border-none px-6"
+      >
         View on GitHub
-      </a>
+      </Button>
     </div>
   );
 }
@@ -25,8 +30,9 @@ function CodeBlockCopy() {
         Keep Versions <span className="text-primary">Intentional</span>
       </h1>
       <p className="mt-8 text-lg">
-        Codependence gives your project a small, explicit policy for dependency versions. Check only
-        the packages you care about, or pin selected packages while the rest move forward.
+        Codependence gives your project a small, explicit policy for dependency
+        versions. Check only the packages you care about, or pin selected
+        packages while the rest move forward.
       </p>
       <CodeBlockActions />
     </div>

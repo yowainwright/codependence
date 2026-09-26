@@ -1,4 +1,5 @@
 import { FEATURES } from "./constants";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 
 export default function Features() {
   return (
@@ -6,18 +7,20 @@ export default function Features() {
       {FEATURES.map((feature) => {
         const Icon = feature.icon;
         return (
-          <div
+          <Card
             key={feature.title}
-            className="card max-w-2xl bg-base-200 border border-base-content/10 hover:shadow-lg transition rounded-lg"
+            className="max-w-2xl rounded-lg border border-foreground/10 bg-muted py-0 transition hover:shadow-lg"
           >
-            <div className="card-body font-sans">
-              <div className="h-16 w-16 bg-base-300 rounded-full flex items-center justify-center">
+            <CardContent className="grid gap-4 p-6 font-sans">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-raised">
                 <Icon className="w-8 h-8 text-primary" />
               </div>
-              <h2 className="card-title">{feature.title}</h2>
+              <CardTitle className="text-lg font-bold">
+                {feature.title}
+              </CardTitle>
               <p>{feature.description}</p>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         );
       })}
     </div>

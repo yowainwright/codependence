@@ -18,8 +18,28 @@ import type {
   OnboardingSetup,
   OnboardingSourceFile,
 } from "@codependence/onboarding";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 
-const IGNORED_DIRECTORIES = new Set([".git", ".next", "coverage", "dist", "node_modules"]);
+const IGNORED_DIRECTORIES = new Set([
+  ".git",
+  ".next",
+  "coverage",
+  "dist",
+  "node_modules",
+]);
 
 interface DirectoryPickerWindow extends Window {
   showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
@@ -44,7 +64,7 @@ interface OnboardingProps {
   setSession: SessionSetter;
 }
 
-interface ChoiceProps extends OnboardingProps {
+interface ModeChoiceProps {
   label: string;
   value: string;
 }
@@ -70,7 +90,10 @@ const INITIAL_SESSION: OnboardingSession = {
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Onboarding failed";
 
-const updateSession = (setSession: SessionSetter, values: Partial<OnboardingSession>): void => {
+const updateSession = (
+  setSession: SessionSetter,
+  values: Partial<OnboardingSession>,
+): void => {
   setSession((current) => ({ ...current, ...values }));
 };
 
@@ -97,7 +120,8 @@ const scanDirectory = async (
     const isDirectory = handle.kind === "directory";
     const shouldScan = isDirectory && !IGNORED_DIRECTORIES.has(name);
     const directoryHandle = handle as FileSystemDirectoryHandle;
-    if (shouldScan) files = files.concat(await scanDirectory(directoryHandle, path));
+    if (shouldScan)
+      files = files.concat(await scanDirectory(directoryHandle, path));
   }
   return files;
 };
@@ -140,7 +164,9 @@ const localProjectScan = async (): Promise<Partial<OnboardingSession>> => {
   return { handle, managerVersion, project };
 };
 
-const repositoryProjectScan = async (value: string): Promise<Partial<OnboardingSession>> => {
+const repositoryProjectScan = async (
+  value: string,
+): Promise<Partial<OnboardingSession>> => {
   const repository = parseOnboardingRepository(value);
   const project = await scanOnboardingRepository(repository);
   const repositoryName = `${repository.owner}/${repository.name}`;
@@ -156,13 +182,18 @@ const repositoryProjectScan = async (value: string): Promise<Partial<OnboardingS
 const scanProject = (setSession: SessionSetter): Promise<void> =>
   runProjectScan(localProjectScan, setSession);
 
-const scanGitHubProject = (value: string, setSession: SessionSetter): Promise<void> =>
+const scanGitHubProject = (
+  value: string,
+  setSession: SessionSetter,
+): Promise<void> =>
   runProjectScan(() => repositoryProjectScan(value), setSession);
 
 const githubEnabled = (enforcement: OnboardingEnforcement): boolean =>
   enforcement === "github" || enforcement === "both";
 
-const setupRepository = (session: OnboardingSession): OnboardingRepository | undefined => {
+const setupRepository = (
+  session: OnboardingSession,
+): OnboardingRepository | undefined => {
   if (!githubEnabled(session.enforcement)) return undefined;
   return parseOnboardingRepository(session.repository);
 };
@@ -177,7 +208,10 @@ const setupProject = (session: OnboardingSession): OnboardingProject => {
   return { ...session.project, managerVersion: session.managerVersion.trim() };
 };
 
-const generateSetup = (session: OnboardingSession, setSession: SessionSetter): void => {
+const generateSetup = (
+  session: OnboardingSession,
+  setSession: SessionSetter,
+): void => {
   try {
     const project = setupProject(session);
     const repository = setupRepository(session);
@@ -254,7 +288,10 @@ const writeArtifact = async (
   await writable.close();
 };
 
-const writeSetup = async (session: OnboardingSession, setSession: SessionSetter): Promise<void> => {
+const writeSetup = async (
+  session: OnboardingSession,
+  setSession: SessionSetter,
+): Promise<void> => {
   const handle = session.handle;
   const setup = session.setup;
   if (!handle) return;
@@ -278,10 +315,12 @@ function OnboardingHeader() {
   return (
     <div className="mx-auto max-w-3xl text-center">
       <p className="font-mono text-sm text-primary">PROJECT ONBOARDING</p>
-      <h2 className="mt-3 text-4xl font-black lg:text-5xl">Set your dependency policy</h2>
+      <h2 className="mt-3 text-4xl font-black lg:text-5xl">
+        Set your dependency policy
+      </h2>
       <p className="mt-5 text-lg">
-        Paste a public GitHub repository URL or select a local Node project. Codependence reads its
-        declared workspaces and builds one policy.
+        Paste a public GitHub repository URL or select a local Node project.
+        Codependence reads its declared workspaces and builds one policy.
       </p>
     </div>
   );
@@ -292,25 +331,30 @@ function LocalProjectButton({ session, setSession }: OnboardingProps) {
   const busy = session.busy;
   const buttonLabel = busy ? "Scanning..." : "Select project folder";
   return (
-    <button className="btn btn-primary rounded-lg" disabled={busy} onClick={handleScan}>
+    <Button
+      className="h-12 rounded-lg px-6"
+      disabled={busy}
+      onClick={handleScan}
+    >
       {buttonLabel}
-    </button>
+    </Button>
   );
 }
 
 function RepositoryScanButton({ session, setSession }: OnboardingProps) {
-  const handleScan = () => void scanGitHubProject(session.repository, setSession);
+  const handleScan = () =>
+    void scanGitHubProject(session.repository, setSession);
   const busy = session.busy;
   const repositoryButtonLabel = busy ? "Scanning..." : "Scan GitHub repository";
   const repositoryMissing = session.repository.trim().length === 0;
   return (
-    <button
-      className="btn btn-primary rounded-lg"
+    <Button
+      className="h-12 rounded-lg px-6"
       disabled={busy || repositoryMissing}
       onClick={handleScan}
     >
       {repositoryButtonLabel}
-    </button>
+    </Button>
   );
 }
 
@@ -320,30 +364,25 @@ function ProjectPicker({ session, setSession }: OnboardingProps) {
       <div className="flex justify-center">
         <LocalProjectButton session={session} setSession={setSession} />
       </div>
-      <div className="divider">OR</div>
+      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <Separator className="flex-1" />
+        OR
+        <Separator className="flex-1" />
+      </div>
       <RepositoryInput session={session} setSession={setSession} />
       <RepositoryScanButton session={session} setSession={setSession} />
-      <p className="text-sm text-base-content/70">
-        Local files stay in your browser. Repository scans read public files directly from GitHub.
+      <p className="text-sm text-muted-foreground">
+        Local files stay in your browser. Repository scans read public files
+        directly from GitHub.
       </p>
     </div>
   );
 }
 
-function ModeChoice({ label, value, session, setSession }: ChoiceProps) {
-  const mode = value as OnboardingMode;
-  const checked = session.mode === mode;
-  const handleChange = () => {
-    updateSession(setSession, { mode, setup: undefined });
-  };
+function ModeChoice({ label, value }: ModeChoiceProps) {
   return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-base-300 p-4">
-      <input
-        className="radio radio-primary mt-1"
-        type="radio"
-        checked={checked}
-        onChange={handleChange}
-      />
+    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-4">
+      <RadioGroupItem value={value} className="mt-1" />
       <span>{label}</span>
     </label>
   );
@@ -354,17 +393,36 @@ function ModeFields({ session, setSession }: OnboardingProps) {
   const verbose = "Only selected dependencies";
   return (
     <fieldset className="grid gap-3">
-      <legend className="mb-3 text-lg font-bold">What should Codependence update?</legend>
-      <ModeChoice session={session} setSession={setSession} value="precise" label={precise} />
-      <ModeChoice session={session} setSession={setSession} value="verbose" label={verbose} />
+      <legend className="mb-3 text-lg font-bold">
+        What should Codependence update?
+      </legend>
+      <RadioGroup
+        className="grid gap-3"
+        value={session.mode}
+        onValueChange={(value) =>
+          updateSession(setSession, {
+            mode: value as OnboardingMode,
+            setup: undefined,
+          })
+        }
+      >
+        <ModeChoice value="precise" label={precise} />
+        <ModeChoice value="verbose" label={verbose} />
+      </RadioGroup>
     </fieldset>
   );
 }
 
-const dependencyUsages = (dependency: OnboardingProject["dependencies"][number]): string =>
+const dependencyUsages = (
+  dependency: OnboardingProject["dependencies"][number],
+): string =>
   dependency.usages.map(({ path, range }) => `${path}: ${range}`).join("; ");
 
-function DependencyOption({ dependency, session, setSession }: DependencyProps) {
+function DependencyOption({
+  dependency,
+  session,
+  setSession,
+}: DependencyProps) {
   const name = dependency.name;
   const checked = session.selectedDependencies.includes(name);
   const usages = dependencyUsages(dependency);
@@ -376,16 +434,16 @@ function DependencyOption({ dependency, session, setSession }: DependencyProps) 
     updateSession(setSession, { selectedDependencies, setup: undefined });
   };
   return (
-    <label className="flex cursor-pointer gap-3 border-b border-base-300 py-3 last:border-0">
-      <input
-        className="checkbox checkbox-primary mt-1"
-        type="checkbox"
+    <label className="flex cursor-pointer gap-3 border-b border-border py-3 last:border-0">
+      <Checkbox
+        className="mt-1"
         checked={checked}
-        onChange={handleChange}
+        onCheckedChange={handleChange}
+        aria-label={name}
       />
       <span>
         <strong>{name}</strong>
-        <small className="block text-base-content/70">{usages}</small>
+        <small className="block text-muted-foreground">{usages}</small>
       </span>
     </label>
   );
@@ -404,10 +462,10 @@ function DependencyFields({ session, setSession }: OnboardingProps) {
   return (
     <fieldset>
       <legend className="text-lg font-bold">Choose dependencies</legend>
-      <p className="mt-1 text-sm text-base-content/70">
+      <p className="mt-1 text-sm text-muted-foreground">
         Each dependency applies across every listed workspace.
       </p>
-      <div className="mt-3 max-h-72 overflow-auto rounded-lg border border-base-300 px-4">
+      <div className="mt-3 max-h-72 overflow-auto rounded-lg border border-border px-4">
         {options}
       </div>
     </fieldset>
@@ -415,23 +473,35 @@ function DependencyFields({ session, setSession }: OnboardingProps) {
 }
 
 function EnforcementFields({ session, setSession }: OnboardingProps) {
-  const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const value = event.currentTarget.value as OnboardingEnforcement;
-    updateSession(setSession, { enforcement: value, setup: undefined });
-  };
   return (
-    <label className="form-control">
-      <span className="label-text mb-2 text-lg font-bold">Where should it run?</span>
-      <select
-        className="select select-bordered w-full"
+    <div>
+      <label id="enforcement-label" className="mb-2 block text-lg font-bold">
+        Where should it run?
+      </label>
+      <Select
         value={session.enforcement}
-        onChange={handleChange}
+        onValueChange={(value) => {
+          if (value) {
+            updateSession(setSession, {
+              enforcement: value as OnboardingEnforcement,
+              setup: undefined,
+            });
+          }
+        }}
       >
-        <option value="both">Locally and in GitHub Actions</option>
-        <option value="github">GitHub Actions</option>
-        <option value="local">Local CLI</option>
-      </select>
-    </label>
+        <SelectTrigger
+          aria-labelledby="enforcement-label"
+          className="h-12 w-full"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="both">Locally and in GitHub Actions</SelectItem>
+          <SelectItem value="github">GitHub Actions</SelectItem>
+          <SelectItem value="local">Local CLI</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
@@ -452,10 +522,12 @@ function RepositoryInput({ session, setSession }: OnboardingProps) {
     updateSession(setSession, { repository: nextRepository, setup: undefined });
   };
   return (
-    <label className="form-control">
-      <span className="label-text mb-2 font-bold">GitHub repository URL or owner/name</span>
-      <input
-        className="input input-bordered w-full"
+    <label className="block">
+      <span className="mb-2 block font-bold">
+        GitHub repository URL or owner/name
+      </span>
+      <Input
+        className="h-12 w-full"
         placeholder="owner/name"
         value={session.repository}
         onChange={handleChange}
@@ -467,13 +539,16 @@ function RepositoryInput({ session, setSession }: OnboardingProps) {
 function VersionInput({ session, setSession }: OnboardingProps) {
   const label = `Exact ${session.project?.manager} version`;
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    updateSession(setSession, { managerVersion: event.currentTarget.value, setup: undefined });
+    updateSession(setSession, {
+      managerVersion: event.currentTarget.value,
+      setup: undefined,
+    });
   };
   return (
-    <label className="form-control">
-      <span className="label-text mb-2 font-bold">{label}</span>
-      <input
-        className="input input-bordered w-full"
+    <label className="block">
+      <span className="mb-2 block font-bold">{label}</span>
+      <Input
+        className="h-12 w-full"
         placeholder="1.2.3"
         value={session.managerVersion}
         onChange={handleChange}
@@ -503,9 +578,9 @@ function ProjectSummary({ project }: { project: OnboardingProject }) {
   const dependencyLabel = `${project.dependencies.length} dependencies`;
   return (
     <div className="flex flex-wrap gap-2">
-      <span className="badge badge-outline">{project.manager}</span>
-      <span className="badge badge-outline">{packageLabel}</span>
-      <span className="badge badge-outline">{dependencyLabel}</span>
+      <Badge variant="outline">{project.manager}</Badge>
+      <Badge variant="outline">{packageLabel}</Badge>
+      <Badge variant="outline">{dependencyLabel}</Badge>
     </div>
   );
 }
@@ -518,7 +593,7 @@ function ArtifactOutput({ artifact }: { artifact: OnboardingArtifact }) {
         <strong>{artifact.path}</strong>
         <CopyButton text={content} />
       </div>
-      <pre className="max-h-64 overflow-auto rounded-lg bg-base-300 p-4 text-xs">
+      <pre className="max-h-64 overflow-auto rounded-lg bg-surface-raised p-4 text-xs">
         <code>{content}</code>
       </pre>
     </div>
@@ -533,10 +608,12 @@ function TokenSetup({ setup }: { setup: OnboardingSetup }) {
   return (
     <div className="rounded-lg border border-primary/40 p-4">
       <h4 className="font-bold">Enable GitHub write access</h4>
-      <p className="mt-2 text-sm">Create a fine-grained PAT with {permissions}.</p>
+      <p className="mt-2 text-sm">
+        Create a fine-grained PAT with {permissions}.
+      </p>
       <div className="mt-3 flex flex-wrap gap-3">
         <a
-          className="link link-primary"
+          className="text-primary underline underline-offset-2"
           href={tokenSetup.personalAccessTokenUrl}
           target="_blank"
           rel="noreferrer"
@@ -544,7 +621,7 @@ function TokenSetup({ setup }: { setup: OnboardingSetup }) {
           Create token
         </a>
         <a
-          className="link link-primary"
+          className="text-primary underline underline-offset-2"
           href={tokenSetup.repositorySecretUrl}
           target="_blank"
           rel="noreferrer"
@@ -578,20 +655,20 @@ function SetupOutput({ session, setSession }: OnboardingProps) {
   ));
   const handleWrite = () => void writeSetup(session, setSession);
   const writeAction = session.handle ? (
-    <button
-      className="btn btn-primary justify-self-start"
+    <Button
+      className="h-12 justify-self-start px-6"
       disabled={session.busy}
       onClick={handleWrite}
     >
       Write setup to project
-    </button>
+    </Button>
   ) : (
-    <p className="text-sm text-base-content/70">
+    <p className="text-sm text-muted-foreground">
       Copy these files into the repository to apply the policy.
     </p>
   );
   return (
-    <div className="grid gap-5 border-t border-base-300 pt-6">
+    <div className="grid gap-5 border-t border-border pt-6">
       {artifacts}
       <SetupCommands setup={setup} />
       <TokenSetup setup={setup} />
@@ -602,9 +679,21 @@ function SetupOutput({ session, setSession }: OnboardingProps) {
 
 function Status({ session }: { session: OnboardingSession }) {
   const error = session.error;
-  if (error) return <p className="alert alert-error">{error}</p>;
+  if (error) {
+    return (
+      <Alert className="border-error bg-error text-white dark:text-[#881337]">
+        <AlertDescription className="text-current">{error}</AlertDescription>
+      </Alert>
+    );
+  }
   const message = session.message;
-  if (message) return <p className="alert alert-success">{message}</p>;
+  if (message) {
+    return (
+      <Alert className="border-success bg-success text-white dark:text-[#14532d]">
+        <AlertDescription className="text-current">{message}</AlertDescription>
+      </Alert>
+    );
+  }
   return null;
 }
 
@@ -624,12 +713,16 @@ function OnboardingForm({ session, setSession }: OnboardingProps) {
   if (!project) return null;
   const handleGenerate = () => void generateSetup(session, setSession);
   return (
-    <div className="mx-auto mt-8 grid max-w-4xl gap-7 rounded-2xl bg-base-200 p-6 shadow-sm md:p-8">
+    <div className="mx-auto mt-8 grid max-w-4xl gap-7 rounded-2xl bg-muted p-6 shadow-sm md:p-8">
       <ProjectSummary project={project} />
       <PolicyFields session={session} setSession={setSession} />
-      <button className="btn btn-secondary justify-self-start" onClick={handleGenerate}>
+      <Button
+        variant="secondary"
+        className="h-12 justify-self-start px-6"
+        onClick={handleGenerate}
+      >
         Generate setup
-      </button>
+      </Button>
       <SetupOutput session={session} setSession={setSession} />
     </div>
   );

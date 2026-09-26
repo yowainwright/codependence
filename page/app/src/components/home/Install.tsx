@@ -1,10 +1,11 @@
 import { CopyButton } from "@/components/common/CopyButton";
 import { resolveDocsUrl } from "@/utils/urlResolver";
 import { DEV_INSTALL_COMMAND } from "./constants";
+import { Button } from "@/components/ui/button";
 
 function InstallSnippet() {
   return (
-    <div className="flex items-center bg-base-300 rounded-lg shadow-sm mt-4 justify-between">
+    <div className="mt-4 flex items-center justify-between rounded-lg bg-surface-raised shadow-sm">
       <code className="ml-4">{DEV_INSTALL_COMMAND}</code>
       <CopyButton text={DEV_INSTALL_COMMAND} />
     </div>
@@ -13,8 +14,8 @@ function InstallSnippet() {
 
 export function Install() {
   return (
-    <div className="hero bg-transparent text-base-content mx-auto py-28 max-w-md md:max-w-full">
-      <div className="hero-content text-center">
+    <div className="mx-auto flex max-w-md justify-center py-28 text-foreground md:max-w-full">
+      <div className="w-full text-center">
         <div className="w-full max-w-xl font-sans">
           <h1 className="text-2xl md:text-5xl font-bold">
             Install <span className="text-primary">Codependence</span>
@@ -23,9 +24,12 @@ export function Install() {
             Get started with Codependence in seconds
           </p>
           <InstallSnippet />
-          <a href={resolveDocsUrl("introduction")}>
-            <button className="btn btn-primary mt-7 rounded-lg border-none">Get Started</button>
-          </a>
+          <Button
+            render={<a href={resolveDocsUrl("introduction")} />}
+            className="mt-7 h-12 rounded-lg px-6"
+          >
+            Get Started
+          </Button>
         </div>
       </div>
     </div>

@@ -2,6 +2,13 @@ import { Menu } from "lucide-react";
 import { FaGithub } from "react-icons/fa";
 import { useLocation, Link } from "@tanstack/react-router";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { GITHUB_URL } from "@/constants";
 import type { MobileMenuProps, NavItemProps } from "@/types";
 import { NAVIGATION } from "./constants";
@@ -11,7 +18,7 @@ function NavItem({ href, title, isActive }: NavItemProps) {
     <li>
       <a
         href={href}
-        className={`hover:text-primary hover:bg-base-300 rounded-md transition flex ${isActive ? "text-primary bg-base-300" : ""}`}
+        className={`flex rounded-md px-3 py-2 transition hover:bg-surface-raised hover:text-primary ${isActive ? "bg-surface-raised text-primary" : ""}`}
       >
         {title}
       </a>
@@ -21,23 +28,31 @@ function NavItem({ href, title, isActive }: NavItemProps) {
 
 function MobileMenu({ pathname }: MobileMenuProps) {
   return (
-    <div className="dropdown">
-      <div
-        tabIndex={0}
-        role="button"
-        className="btn btn-ghost btn-square lg:hidden border-none rounded-lg"
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-12 rounded-lg lg:hidden"
+          />
+        }
+        aria-label="Open navigation menu"
       >
-        <Menu className="h-5 w-5" />
-      </div>
-      <ul
-        tabIndex={0}
-        className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52"
-      >
+        <Menu className="size-5" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="mt-3 w-52">
         {NAVIGATION.map((item) => (
-          <NavItem key={item.href} {...item} isActive={pathname === item.href} />
+          <DropdownMenuItem
+            key={item.href}
+            render={<a href={item.href} />}
+            className={pathname === item.href ? "bg-muted text-primary" : ""}
+          >
+            {item.title}
+          </DropdownMenuItem>
         ))}
-      </ul>
-    </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -46,31 +61,38 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-30">
-      <nav className="navbar bg-base-200 backdrop-blur-3xl justify-center items-center py-2 sm:px-0 md:px-20 font-sans border-b border-base-content/20">
+      <nav className="flex h-16 items-center justify-between border-b border-foreground/20 bg-muted/90 px-2 py-2 font-sans backdrop-blur-3xl sm:px-4 md:px-20">
         <MobileMenu pathname={pathname} />
 
-        <div className="navbar-start">
+        <div className="flex flex-1 items-center lg:flex-none">
           <Link to="/" className="px-2">
-            <h1 className="text-xl md:text-2xl font-bold text-primary">Codependence</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-primary">
+              Codependence
+            </h1>
           </Link>
         </div>
 
-        <div className="navbar-center hidden lg:flex">
-          <ul className="menu menu-horizontal text-base font-medium">
+        <div className="hidden lg:flex lg:flex-1 lg:justify-center">
+          <ul className="flex items-center gap-1 text-base font-medium">
             {NAVIGATION.map((item) => (
-              <NavItem key={item.href} {...item} isActive={pathname === item.href} />
+              <NavItem
+                key={item.href}
+                {...item}
+                isActive={pathname === item.href}
+              />
             ))}
           </ul>
         </div>
 
-        <div className="navbar-end">
-          <a
-            className="btn btn-sm btn-ghost btn-square rounded-lg"
-            href={GITHUB_URL}
-            aria-label="github"
+        <div className="flex flex-1 items-center justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="size-8 rounded-lg"
+            render={<a href={GITHUB_URL} aria-label="github" />}
           >
             <FaGithub size={16} />
-          </a>
+          </Button>
           <ThemeToggle />
         </div>
       </nav>
