@@ -1,11 +1,11 @@
-import { Header } from "@/components/home/Header";
 import { Footer } from "@/components/common/Footer";
+import { SiteHeader } from "@/components/header";
 import type { HomeLayoutProps } from "@/types";
 
 export function HomeLayout({ children }: HomeLayoutProps) {
   return (
     <div>
-      <Header />
+      <SiteHeader onOpenSidebar={undefined} />
       {children}
       <Footer />
     </div>

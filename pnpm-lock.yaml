@@ -33,9 +33,6 @@ importers:
       pastoralist:
         specifier: 1.13.6-beta.0
         version: 1.13.6-beta.0
-      prettier:
-        specifier: ^3.9.9
-        version: 3.9.9
       release-it:
         specifier: 21.1.0
         version: 21.1.0(@types/node@26.6.2)
@@ -3041,11 +3038,6 @@ packages:
   powershell-utils@0.2.1:
     resolution: {integrity: sha512-C+y9x90UElAddDZmV4qOx9W53B61PO7cIqWz2dQsWlwswuq4mr8NEwytdGKboYbQlGZ3awrkTeNvcZiZNHnQ8A==}
     engines: {node: '>=20'}
-
-  prettier@3.9.9:
-    resolution: {integrity: sha512-Z/CJHIkdujO/OtN7nXUii0Rf3VT5SRuhjBA82Xvu2XhBUgX3nhP67T0LHceBdQLex7OOFGTox+Q5Yg8Jk2Qivg==}
-    engines: {node: '>=14'}
-    hasBin: true
 
   pretty-ms@9.3.1:
     resolution: {integrity: sha512-HzMy3Geq23nVALD/M2LliU+F+M+gVNsvkQWWqeBZ8HDiCgzo6YPJ/Omrmtq24EFrIsk0a3EkQGEd7bDOo+IhGA==}
@@ -6472,8 +6464,6 @@ snapshots:
   powershell-utils@0.1.0: {}
 
   powershell-utils@0.2.1: {}
-
-  prettier@3.9.9: {}
 
   pretty-ms@9.3.1:
     dependencies:

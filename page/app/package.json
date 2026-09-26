@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:smoke": "node --test tests/smoke.test.js"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

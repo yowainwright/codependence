@@ -1,11 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, Navigate } from "@tanstack/react-router";
-import {
-  getDocBySlug,
-  getDocComponent,
-  getDocContent,
-  type DocComponent,
-} from "@/content";
+import { getDocBySlug, getDocComponent, getDocContent, type DocComponent } from "@/content";
 import { extractHeadings } from "@/lib/mdx/extractHeadings";
 import { TableOfContents } from "@/components/docs/TableOfContents";
 import { mdxComponents } from "@/components/docs/MDXComponents";
@@ -63,14 +58,13 @@ export function DocsPage() {
   const { slug } = useParams({ from: "/docs/$slug" });
   const { doc, Content, headings, loading } = useDocContent(slug);
 
-  if (!doc)
-    return <Navigate to="/docs/$slug" params={{ slug: "introduction" }} />;
+  if (!doc) return <Navigate to="/docs/$slug" params={{ slug: "introduction" }} />;
 
   return (
     <div className="flex p-5 md:p-10 md:pt-10 xl:gap-20 font-sans">
       <article className="flex flex-col max-w-[620px]">
         <Breadcrumbs title={doc.title} />
-        <section className="prose md:prose-md mb-10 max-w-none">
+        <section className="prose dark:prose-invert md:prose-md mb-10 max-w-none">
           <div>
             <h1>{doc.title}</h1>
             <p>{doc.description}</p>
@@ -120,11 +114,5 @@ function MDXContent({ loading, Content }: MdxContentProps) {
 
   if (!Content) return null;
 
-  return (
-    <Content
-      components={
-        mdxComponents as unknown as Record<string, React.ComponentType>
-      }
-    />
-  );
+  return <Content components={mdxComponents as unknown as Record<string, React.ComponentType>} />;
 }

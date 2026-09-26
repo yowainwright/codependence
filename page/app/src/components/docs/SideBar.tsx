@@ -7,31 +7,19 @@ type SideBarSectionProps = {
   section: (typeof SIDEBAR)[number];
 };
 
-function SideBarHeader() {
-  return (
-    <div className="sticky top-0 z-20 flex items-center gap-2 bg-background/90 px-4 py-2 font-sans backdrop-blur">
-      <Link to="/" className="px-2">
-        <h1 className="text-2xl font-bold text-primary">Codependence</h1>
-      </Link>
-    </div>
-  );
-}
-
 function SideBarItem({ href, title, isActive }: SideBarItemProps) {
-  const baseClass =
-    "block py-1.5 pl-[20px] -ml-[10px] -mr-[16px] transition text-sm";
+  const baseClass = "block py-1.5 pl-[20px] -ml-[10px] -mr-[16px] transition text-sm";
   const activeClass = "text-primary border-l-2 border-primary";
   const inactiveClass =
     "border-l-2 border-transparent hover:border-foreground/30 hover:text-primary";
   const slug = href.split("/").pop() ?? "";
+  const activeItemClass = `${baseClass} ${activeClass}`;
+  const inactiveItemClass = `${baseClass} ${inactiveClass}`;
+  const itemClass = isActive ? activeItemClass : inactiveItemClass;
 
   return (
     <li>
-      <Link
-        to="/docs/$slug"
-        params={{ slug }}
-        className={`${baseClass} ${isActive ? activeClass : inactiveClass}`}
-      >
+      <Link to="/docs/$slug" params={{ slug }} className={itemClass}>
         {title}
       </Link>
     </li>
@@ -65,9 +53,8 @@ export function SideBar() {
   ));
 
   return (
-    <aside className="min-h-screen w-full bg-background font-sans">
-      <SideBarHeader />
+    <nav aria-label="Documentation navigation" className="w-full bg-background font-sans">
       <ul className="w-full px-4 py-0">{sections}</ul>
-    </aside>
+    </nav>
   );
 }
