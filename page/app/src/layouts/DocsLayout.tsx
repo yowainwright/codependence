@@ -7,6 +7,7 @@ import type { DocsLayoutProps } from "@/types";
 
 export function DocsLayout({ children }: DocsLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const closeSidebar = () => setSidebarOpen(false);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -28,7 +29,7 @@ export function DocsLayout({ children }: DocsLayoutProps) {
           className="w-80 max-w-none rounded-none p-0"
         >
           <SheetTitle className="sr-only">Documentation navigation</SheetTitle>
-          <SideBar />
+          <SideBar onNavigate={closeSidebar} />
         </SheetContent>
       </Sheet>
       <Footer />

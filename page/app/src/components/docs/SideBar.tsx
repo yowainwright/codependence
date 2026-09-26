@@ -5,9 +5,14 @@ import type { SideBarItemProps } from "@/types";
 type SideBarSectionProps = {
   pathname: string;
   section: (typeof SIDEBAR)[number];
+  onNavigate?: () => void;
 };
 
-function SideBarItem({ href, title, isActive }: SideBarItemProps) {
+type SideBarProps = {
+  onNavigate?: () => void;
+};
+
+function SideBarItem({ href, title, isActive, onNavigate }: SideBarItemProps & SideBarProps) {
   const baseClass = "block py-1.5 pl-[20px] -ml-[10px] -mr-[16px] transition text-sm";
   const activeClass = "text-primary border-l-2 border-primary";
   const inactiveClass =
@@ -19,20 +24,21 @@ function SideBarItem({ href, title, isActive }: SideBarItemProps) {
 
   return (
     <li>
-      <Link to="/docs/$slug" params={{ slug }} className={itemClass}>
+      <Link to="/docs/$slug" params={{ slug }} className={itemClass} onClick={onNavigate}>
         {title}
       </Link>
     </li>
   );
 }
 
-function SideBarSection({ pathname, section }: SideBarSectionProps) {
+function SideBarSection({ pathname, section, onNavigate }: SideBarSectionProps) {
   const items = section.items.map((item) => (
     <SideBarItem
       key={item.href}
       href={item.href}
       title={item.title}
       isActive={pathname === item.href}
+      onNavigate={onNavigate}
     />
   ));
 
@@ -46,10 +52,15 @@ function SideBarSection({ pathname, section }: SideBarSectionProps) {
   );
 }
 
-export function SideBar() {
+export function SideBar({ onNavigate }: SideBarProps) {
   const { pathname } = useLocation();
   const sections = SIDEBAR.map((section) => (
-    <SideBarSection key={section.title} pathname={pathname} section={section} />
+    <SideBarSection
+      key={section.title}
+      pathname={pathname}
+      section={section}
+      onNavigate={onNavigate}
+    />
   ));
 
   return (

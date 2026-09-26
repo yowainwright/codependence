@@ -19,6 +19,7 @@
   --accent: #22c55e;
   --accent-foreground: #ffffff;
   --destructive: #f43f5e;
+  --info: #9b4d5a;
   --success: #22c55e;
   --warning: #eab308;
   --error: #f43f5e;
@@ -48,6 +49,7 @@
   --accent: #86efac;
   --accent-foreground: #14532d;
   --destructive: #fb7185;
+  --info: #38bdf8;
   --success: #4ade80;
   --warning: #facc15;
   --error: #fb7185;
