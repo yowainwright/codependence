@@ -30,7 +30,9 @@
     "cdp": "dist/cli.js",
     "codependence": "dist/cli.js"
   },
-  "workspaces": ["page/app"],
+  "workspaces": [
+    "page/app"
+  ],
   "files": [
     "dist/cli.js",
     "dist/index.js",
@@ -68,7 +70,7 @@
     "docs:dev": "cd page/app && nub run dev",
     "docs:build": "cd page/app && nub run build",
     "docs:preview": "cd page/app && nub run preview",
-    "docs:test:smoke": "cd page/app && nub run build && nub run test:smoke",
+    "docs:test:smoke": "cd page/app && nub run test:smoke",
     "deps:audit": "nub audit",
     "deps:overrides": "pastoralist --remove-unused --summary -d page/app/package.json",
     "deps:security": "pastoralist --dry-run --checkSecurity --summary -d page/app/package.json",

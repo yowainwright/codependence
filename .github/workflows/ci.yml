@@ -51,6 +51,7 @@ jobs:
       - run: nub run deps:security
       - run: nub run deps:audit
       - run: nub run build
+      - run: nub run docs:test:smoke
       - name: Upload CLI build
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
