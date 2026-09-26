@@ -2,6 +2,7 @@ import { CopyButton } from "@/components/common/CopyButton";
 import { ArrowRightIcon, ChevronRightIcon } from "@/components/common/Icons";
 import { resolveUrl } from "@/utils/urlResolver";
 import { HERO_CLIP_PATH, HERO_INSTALL_COMMAND } from "./constants";
+import { Button } from "@/components/ui/button";
 
 function HeroBackground() {
   return (
@@ -23,9 +24,11 @@ function HeroBackground() {
 
 function InstallSnippet() {
   return (
-    <div className="flex items-center bg-base-300 rounded-lg shadow-sm justify-between">
+    <div className="flex items-center justify-between rounded-lg bg-surface-raised shadow-sm">
       <ChevronRightIcon className="ml-4 mr-2 w-4 h-4" />
-      <code className="flex-1 text-left leading-none mr-4">{HERO_INSTALL_COMMAND}</code>
+      <code className="flex-1 text-left leading-none mr-4">
+        {HERO_INSTALL_COMMAND}
+      </code>
       <CopyButton />
     </div>
   );
@@ -34,12 +37,13 @@ function InstallSnippet() {
 function HeroActions() {
   return (
     <div className="flex sm:flex-row flex-col justify-center items-center gap-5">
-      <a href="#onboarding">
-        <button className="btn bg-primary text-primary-content hover:bg-primary/80 rounded-lg border-none">
-          Onboard a project
-          <ArrowRightIcon className="w-4 h-4" />
-        </button>
-      </a>
+      <Button
+        render={<a href="#onboarding" />}
+        className="h-12 rounded-lg px-6"
+      >
+        Onboard a project
+        <ArrowRightIcon className="w-4 h-4" />
+      </Button>
       <InstallSnippet />
     </div>
   );
@@ -47,9 +51,9 @@ function HeroActions() {
 
 export function Hero() {
   return (
-    <div className="hero">
+    <div className="relative flex w-full items-center justify-center">
       <HeroBackground />
-      <div className="hero-content text-center min-h-[40rem] font-sans">
+      <div className="flex min-h-[40rem] w-full items-center justify-center px-4 text-center font-sans">
         <div className="max-w-2xl md:max-w-6xl">
           <div className="flex justify-center mb-8">
             <img
@@ -65,8 +69,8 @@ export function Hero() {
           </h1>
           <div className="flex justify-center items-center">
             <p className="py-7 max-w-4xl text-md md:text-xl lg:text-2xl">
-              Codependence keeps dependency versions intentional across local development,
-              monorepos, and CI.
+              Codependence keeps dependency versions intentional across local
+              development, monorepos, and CI.
             </p>
           </div>
           <HeroActions />

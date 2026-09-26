@@ -1,15 +1,36 @@
 @import "tailwindcss";
-@plugin "daisyui" {
-  themes:
-    codependence-light --default,
-    codependence-dark --prefersdark,
-    cupcake,
-    night;
-}
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 @plugin "@tailwindcss/typography";
 
-@theme {
+@custom-variant dark (&:is([data-theme="codependence-dark"] *));
+
+@theme inline {
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-info: var(--info);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
 }
 
 [data-theme="codependence-light"] {
@@ -97,8 +118,8 @@
 
 .terminal-glow {
   box-shadow:
-    0 0 20px rgba(var(--color-primary-rgb) / 0.1),
-    0 0 40px rgba(var(--color-accent-rgb) / 0.05);
+    0 0 20px rgba(var(--brand-primary-rgb) / 0.1),
+    0 0 40px rgba(var(--brand-accent-rgb) / 0.05);
 }
 
 [data-theme="codependence-light"] .shiki,

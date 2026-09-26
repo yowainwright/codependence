@@ -7,6 +7,7 @@ import { mdxComponents } from "@/components/docs/MDXComponents";
 import { Pagination } from "@/components/docs/Pagination";
 import type { Heading } from "@/components/docs/TableOfContents/types";
 import type { BreadcrumbsProps, MdxContentProps } from "@/types";
+import { Separator } from "@/components/ui/separator";
 
 function useDocContent(slug: string) {
   const doc = getDocBySlug(slug);
@@ -63,15 +64,15 @@ export function DocsPage() {
     <div className="flex p-5 md:p-10 md:pt-10 xl:gap-20 font-sans">
       <article className="flex flex-col max-w-[620px]">
         <Breadcrumbs title={doc.title} />
-        <section className="prose md:prose-md mb-10 max-w-none">
+        <section className="prose dark:prose-invert md:prose-md mb-10 max-w-none">
           <div>
             <h1>{doc.title}</h1>
             <p>{doc.description}</p>
           </div>
-          <div className="divider my-5" />
+          <Separator className="my-5" />
           <MDXContent loading={loading} Content={Content} />
         </section>
-        <div className="divider" />
+        <Separator className="my-6" />
         <Pagination slug={slug} />
       </article>
       <div>
@@ -83,16 +84,18 @@ export function DocsPage() {
 
 function Breadcrumbs({ title }: BreadcrumbsProps) {
   return (
-    <div className="text-sm breadcrumbs pt-0 pb-4">
-      <ul>
+    <nav aria-label="Breadcrumb" className="pt-0 pb-4 text-sm">
+      <ol className="flex items-center gap-2">
         <li>
           <Link to="/" className="hover:text-primary">
             Home
           </Link>
         </li>
-        <li className="text-primary">{title}</li>
-      </ul>
-    </div>
+        <li aria-current="page" className="text-primary">
+          {title}
+        </li>
+      </ol>
+    </nav>
   );
 }
 
@@ -100,7 +103,11 @@ function MDXContent({ loading, Content }: MdxContentProps) {
   if (loading) {
     return (
       <section className="flex items-center justify-center py-12">
-        <span className="loading loading-spinner loading-lg" />
+        <span
+          className="size-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary"
+          role="status"
+          aria-label="Loading documentation"
+        />
       </section>
     );
   }
