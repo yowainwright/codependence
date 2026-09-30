@@ -1,7 +1,10 @@
+import packageJson from "../../package.json" with { type: "json" };
 import type { OptionDefinition } from "./types";
 import type { DependencyManager } from "../types";
 import type { WorkflowArea } from "./types";
 import { LANGUAGES, NODE_PACKAGE_MANAGERS, PYTHON_PACKAGE_MANAGERS } from "../providers/constants";
+
+export const CLI_VERSION = packageJson.version;
 
 export const ACTION_REF = "yowainwright/codependence@v1";
 export const CHECKOUT_REF = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0";
@@ -122,6 +125,7 @@ Options:
   --isTesting                       Enable running fn tests w/o overwriting
   -f, --files [files...]           File glob pattern
   --target [managers...]           Run only selected manager targets
+  --version                       Print Codependence version (used alone)
   --version [manager=version...]   Exact tool versions for init actions
   --post-update-command [name=cmd...] Override generated lockfile commands
   --schedule [area=cron...]        Override generated workflow schedules

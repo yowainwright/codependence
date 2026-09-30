@@ -49,6 +49,7 @@ import type {
 import {
   ACTION_MANAGERS,
   ACTION_REF,
+  CLI_VERSION,
   ASSIGNMENT_PATTERN,
   CHECKOUT_REF,
   CRON_SCHEDULE_PATTERN,
@@ -1639,6 +1640,12 @@ const runInitCommand = (args: string[], options: Record<string, unknown>): Promi
 };
 
 export async function run(args: string[] = process.argv): Promise<void> {
+  const isVersionRequested = args.length === 3 && args[2] === "--version";
+  if (isVersionRequested) {
+    logger.print(CLI_VERSION);
+    return;
+  }
+
   const parsed = parseArgs(args);
   const isHelpRequested = Boolean(parsed.options.help);
   if (isHelpRequested) {

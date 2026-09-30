@@ -1,4 +1,4 @@
-name: Publish Homebrew formula
+name: Publish Homebrew binaries
 
 on:
   workflow_call:
@@ -9,7 +9,7 @@ on:
         type: string
     secrets:
       HOMEBREW_TAP_TOKEN:
-        required: false
+        required: true
   workflow_dispatch:
     inputs:
       version:
@@ -21,20 +21,41 @@ permissions:
   contents: read
 
 concurrency:
-  group: homebrew-codependence
+  group: codependence-binary-release
   cancel-in-progress: false
 
 jobs:
-  homebrew:
-    runs-on: macos-latest
+  preflight:
+    uses: yowainwright/homebrew-tap/.github/workflows/publish-formula.yml@c175e0ca1e20631c6d04ee2d690c6d6b626c5dee
+    with:
+      package: codependence
+      tag: "${{ inputs.version }}"
+      preflight_only: true
+    secrets:
+      tap_token: "${{ secrets.HOMEBREW_TAP_TOKEN }}"
+
+  binary:
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            target: darwin-arm64
+          - runner: macos-15-intel
+            target: darwin-amd64
+          - runner: ubuntu-22.04-arm
+            target: linux-arm64
+          - runner: ubuntu-22.04
+            target: linux-amd64
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: write
       id-token: write
       attestations: write
     env:
-      FORMULA_PATH: codependence.rb
       RELEASE_REF: "${{ inputs.version }}"
-      TAP_NAME: codependence/release-test
+      BINARY: codependence-${{ matrix.target }}
 
     steps:
       - name: Checkout
@@ -46,146 +67,82 @@ jobs:
       - name: Verify release tag
         env:
           GH_TOKEN: "${{ github.token }}"
+        shell: bash
         run: |
-          [[ "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$RELEASE_REF" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
           PACKAGE_VERSION="$(jq -r '.version // empty' package.json)"
           test "${RELEASE_REF#v}" = "$PACKAGE_VERSION"
           TAG_COMMIT="$(git rev-parse "refs/tags/${RELEASE_REF}^{commit}")"
           test "$(git rev-parse HEAD)" = "$TAG_COMMIT"
           test "$(gh release view "$RELEASE_REF" --json tagName --jq .tagName)" = "$RELEASE_REF"
-          echo "VERSION=$PACKAGE_VERSION" >> "$GITHUB_ENV"
-
-      - name: Validate Homebrew tap token
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-        run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::error::HOMEBREW_TAP_TOKEN is required for Homebrew publishing"
-            exit 1
-          fi
-
-          CAN_PUSH="$(gh api repos/yowainwright/homebrew-tap --jq '.permissions.push')"
-          if [ "$CAN_PUSH" != "true" ]; then
-            echo "::error::HOMEBREW_TAP_TOKEN must have write access to yowainwright/homebrew-tap"
-            exit 1
-          fi
-
-      - name: Checkout release tooling
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          path: release-tools
-          persist-credentials: false
-          ref: "${{ github.workflow_sha }}"
-          sparse-checkout: |
-            scripts/release/*
-            scripts/ci/tool-versions.js
-            src/dx/constants.ts
-            src/dx/output/*
-            src/dx/report/constants.ts
-            src/observability/*
-          sparse-checkout-cone-mode: false
 
       - name: Setup toolchain
         uses: ./.github/actions/setup-toolchain
 
-      - name: Validate stable version
-        run: |
-          nub release-tools/scripts/release/index.ts brew validate-version
-
-      - name: Check Homebrew release state
-        id: homebrew-state
-        env:
-          GITHUB_TOKEN: "${{ github.token }}"
-          TAP_TOKEN: "${{ secrets.HOMEBREW_TAP_TOKEN }}"
-        run: |
-          nub release-tools/scripts/release/index.ts brew check-state
-
-      - name: Wait for npm package availability
-        if: steps.homebrew-state.outputs.skip != 'true'
-        run: |
-          export CODEPENDENCE_VERSION="$VERSION"
-          nub release-tools/scripts/release/index.ts test-published wait-for-npm
-
       - name: Build and test binary
-        if: steps.homebrew-state.outputs.skip != 'true'
-        id: binary
-        run: |
-          nub run test:e2e:binary
+        run: nub run test:e2e:binary
 
-          case "$(uname -m)" in
-            arm64) ARCH=arm64 ;;
-            x86_64) ARCH=x64 ;;
+      - name: Verify standalone binary
+        shell: bash
+        run: |
+          cp artifacts/codependence "$BINARY"
+          test "$(env -i PATH=/nonexistent "$PWD/$BINARY" --version)" = "${RELEASE_REF#v}"
+          env -i PATH=/nonexistent "$PWD/$BINARY" --help
+
+          case "$RUNNER_OS" in
+            macOS)
+              otool -L "$BINARY" > linked-libraries.txt
+              cat linked-libraries.txt
+              awk 'NR > 1 && $1 !~ /^\/usr\/lib\// && $1 !~ /^\/System\/Library\// { bad = 1 } END { exit bad }' linked-libraries.txt
+              ;;
+            Linux)
+              readelf -d "$BINARY" > linked-libraries.txt
+              cat linked-libraries.txt
+              awk '/NEEDED/ && $NF !~ /^\[lib(c|m|pthread|dl|rt|resolv)\.so(\.[0-9]+)*\]$/ && $NF !~ /^\[ld-linux[^]]*\]$/ { bad = 1 } END { exit bad }' linked-libraries.txt
+              ;;
             *) exit 1 ;;
           esac
 
-          BINARY="codependence-darwin-${ARCH}"
-          cp artifacts/codependence "$BINARY"
-          echo "binary=$BINARY" >> "$GITHUB_OUTPUT"
-
       - name: Attest binary
-        if: steps.homebrew-state.outputs.skip != 'true'
-        id: binary-attest
+        id: attest
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4
         with:
-          subject-path: ${{ steps.binary.outputs.binary }}
-
-      - name: Prepare binary attestation
-        if: steps.homebrew-state.outputs.skip != 'true'
-        id: binary-attestation
-        env:
-          BINARY: ${{ steps.binary.outputs.binary }}
-          BUNDLE_PATH: ${{ steps.binary-attest.outputs.bundle-path }}
-        run: |
-          SIGSTORE_BUNDLE="${BINARY}.sigstore.json"
-          cp "$BUNDLE_PATH" "$SIGSTORE_BUNDLE"
-          echo "sigstore_bundle=$SIGSTORE_BUNDLE" >> "$GITHUB_OUTPUT"
-
-      - name: Generate formula from published tarball
-        if: steps.homebrew-state.outputs.skip != 'true'
-        run: nub release-tools/scripts/release/index.ts brew generate
-
-      - name: Create formula test tap
-        if: steps.homebrew-state.outputs.skip != 'true'
-        run: |
-          brew tap-new --no-git "$TAP_NAME"
-          TAP_PATH="$(brew --repository "$TAP_NAME")"
-          cp "$FORMULA_PATH" "$TAP_PATH/Formula/codependence.rb"
-
-      - name: Install and test formula
-        if: steps.homebrew-state.outputs.skip != 'true'
-        run: |
-          brew audit --new --formula "$TAP_NAME/codependence"
-          brew audit --strict --online "$TAP_NAME/codependence"
-          brew install --build-from-source "$TAP_NAME/codependence"
-          brew test "$TAP_NAME/codependence"
-          codependence --help
-          cdp --help
-
-      - name: Update Homebrew tap
-        if: steps.homebrew-state.outputs.skip != 'true'
-        env:
-          TAP_BRANCH: codependence-release
-          TAP_TOKEN: "${{ secrets.HOMEBREW_TAP_TOKEN }}"
-        run: |
-          nub release-tools/scripts/release/index.ts brew update-tap
+          subject-path: ${{ env.BINARY }}
 
       - name: Attach Homebrew assets to GitHub release
-        if: steps.homebrew-state.outputs.skip != 'true'
         env:
-          BINARY: ${{ steps.binary.outputs.binary }}
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
           GITHUB_TOKEN: "${{ github.token }}"
-          SIGSTORE_BUNDLE: ${{ steps.binary-attestation.outputs.sigstore_bundle }}
         run: |
-          RELEASE_TAG="v${VERSION}"
-          RELEASE_ASSETS=("$FORMULA_PATH" "$BINARY" "$SIGSTORE_BUNDLE")
-          RELEASE_ID="$(nub release-tools/scripts/release/index.ts assets "$RELEASE_TAG" "${RELEASE_ASSETS[@]}")"
-          test -n "$RELEASE_ID"
-          echo "RELEASE_ID=$RELEASE_ID" >> "$GITHUB_ENV"
+          cp "$BUNDLE_PATH" "${BINARY}.sigstore.json"
+          nub scripts/release/index.ts assets "$RELEASE_REF" "$BINARY" "${BINARY}.sigstore.json"
+
+  release:
+    needs: binary
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: "${{ github.token }}"
+      GH_REPO: "${{ github.repository }}"
+      RELEASE_REF: "${{ inputs.version }}"
+    steps:
+      - name: Verify complete binary matrix
+        run: |
+          gh release view "$RELEASE_REF" --json assets --jq '.assets[].name' > assets.txt
+          for target in darwin-arm64 darwin-amd64 linux-arm64 linux-amd64; do
+            grep -Fx "codependence-$target" assets.txt
+            grep -Fx "codependence-$target.sigstore.json" assets.txt
+          done
 
       - name: Publish GitHub release
-        if: steps.homebrew-state.outputs.skip != 'true'
-        env:
-          GITHUB_TOKEN: "${{ github.token }}"
-        run: |
-          RELEASE_ENDPOINT="repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID"
-          gh api --method PATCH "$RELEASE_ENDPOINT" -F draft=false --silent
+        run: gh release edit "$RELEASE_REF" --draft=false
+
+  homebrew:
+    needs: release
+    uses: yowainwright/homebrew-tap/.github/workflows/publish-formula.yml@c175e0ca1e20631c6d04ee2d690c6d6b626c5dee
+    with:
+      package: codependence
+      tag: "${{ inputs.version }}"
+    secrets:
+      tap_token: "${{ secrets.HOMEBREW_TAP_TOKEN }}"

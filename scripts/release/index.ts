@@ -1,7 +1,6 @@
 import {
   parseArgs,
   parseTagArgs,
-  runBrewCli,
   runRelease,
   runReleaseTag,
   runTestPublishedReleaseCli,
@@ -13,12 +12,12 @@ export * from "./utils";
 
 const commandArgs = (argv: readonly string[]): string[] => Array.from(argv).slice(1);
 
+// eslint-disable-next-line legibility/no-unnecessary-async -- CLI callers expect validation errors as rejected promises.
 export const runReleaseCli = async (argv: readonly string[] = process.argv.slice(2)) => {
   const command = argv[0];
 
   if (command === "brew") {
-    await runBrewCli({ argv: commandArgs(argv) });
-    return 0;
+    throw new Error("Homebrew formulas are managed by yowainwright/homebrew-tap");
   }
 
   if (command === "assets") {

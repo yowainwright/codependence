@@ -24,28 +24,6 @@ export const REMOVED_SCHEMA_REVISION_LINE_PATTERN = /^-\s*"x-revision":\s*(?:"[^
 export const ADDED_SCHEMA_REVISION_LINE_PATTERN = /^\+\s*"x-revision":\s*"([^"]+)",?\s*$/;
 export const REMOVED_SCHEMA_UPDATED_LINE_PATTERN = /^-\s*"x-updated":\s*"\d{4}-\d{2}-\d{2}",?\s*$/;
 export const ADDED_SCHEMA_UPDATED_LINE_PATTERN = /^\+\s*"x-updated":\s*"\d{4}-\d{2}-\d{2}",?\s*$/;
-export const HOMEBREW_STABLE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
-export const FORMULA_HEADER = [
-  "class Codependence < Formula",
-  '  desc "Enforce dependency version policy across projects, workspaces, and CI"',
-  '  homepage "https://jeffry.in/codependence/"',
-];
-export const FORMULA_BODY = [
-  '  license "MIT"',
-  "",
-  '  depends_on "node"',
-  "",
-  "  def install",
-  '    system "npm", "install", *std_npm_args, "--ignore-scripts"',
-  '    bin.install_symlink libexec.glob("bin/*")',
-  "  end",
-  "",
-  "  test do",
-  '    system bin/"codependence", "--help"',
-  '    system bin/"cdp", "--help"',
-  "  end",
-  "end",
-];
 export const TEST_PUBLISHED_RELEASE_COMMANDS = new Set([
   "build-release-image",
   "compatibility-check",
