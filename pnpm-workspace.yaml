@@ -9,8 +9,8 @@ minimumReleaseAgeExclude:
   - pastoralist@1.13.6-beta.0
 nodeLinker: isolated
 overrides:
-  ip-address: 10.3.1
+  ip-address: 10.7.2
   nanoid: 3.3.18
   postcss: 8.5.23
-  undici: 7.29.0
+  undici: 7.30.0
   vite: 8.2.1

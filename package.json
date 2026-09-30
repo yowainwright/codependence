@@ -137,10 +137,10 @@
     "turbo": "2.11.3"
   },
   "overrides": {
-    "ip-address": "10.3.1",
+    "ip-address": "10.7.2",
     "nanoid": "3.3.18",
     "postcss": "8.5.23",
-    "undici": "7.29.0",
+    "undici": "7.30.0",
     "vite": "8.2.1"
   },
   "devEngines": {
@@ -191,7 +191,7 @@
       },
       "ip-address@10.3.1": {
         "dependents": {
-          "codependence": "ip-address (required by socks)"
+          "codependence": "ip-address (required by express-rate-limit, socks)"
         },
         "ledger": {
           "addedDate": "2022-06-13T19:05:47-07:00"
@@ -199,8 +199,8 @@
       },
       "postcss@8.5.23": {
         "dependents": {
-          "codependence": "postcss (unused override)",
-          "@codependence/docs": "postcss (required by vite)"
+          "codependence": "postcss (required by shadcn, vite)",
+          "@codependence/docs": "postcss (required by shadcn, vite)"
         },
         "ledger": {
           "addedDate": "2022-06-13T19:05:47-07:00"
@@ -208,7 +208,8 @@
       },
       "undici@7.29.0": {
         "dependents": {
-          "codependence": "undici (required by release-it)"
+          "codependence": "undici (required by @dotenvx/dotenvx, release-it, shadcn)",
+          "@codependence/docs": "undici (required by shadcn)"
         },
         "ledger": {
           "addedDate": "2022-06-13T19:05:47-07:00"
@@ -227,6 +228,123 @@
           "securityCheckResult": "clean",
           "vulnerableRange": "<3.3.18",
           "patchedVersion": "3.3.18"
+        }
+      },
+      "ip-address@10.7.2": {
+        "dependents": {
+          "codependence": "ip-address (required by express-rate-limit, socks)"
+        },
+        "ledger": {
+          "addedDate": "2026-09-30T04:57:34.361Z",
+          "reason": "Security fix: ip-address: no classifier recognizes the NAT64 local-use range 64:ff9b:1::/48, allowing SSRF and trust-boundary bypass (medium)",
+          "source": "security",
+          "securityChecked": true,
+          "securityCheckDate": "2026-09-30T04:57:34.366Z",
+          "securityProvider": "osv",
+          "cves": [
+            "CVE-2026-101910",
+            "CVE-2026-101911",
+            "CVE-2026-101912",
+            "CVE-2026-101913"
+          ],
+          "cveDetails": [
+            {
+              "cve": "CVE-2026-101910",
+              "severity": "medium",
+              "patchedVersion": "10.5.1"
+            },
+            {
+              "cve": "CVE-2026-101911",
+              "severity": "medium",
+              "patchedVersion": "10.7.1"
+            },
+            {
+              "cve": "CVE-2026-101912",
+              "severity": "medium",
+              "patchedVersion": "10.7.1"
+            },
+            {
+              "cve": "CVE-2026-101913",
+              "severity": "medium",
+              "patchedVersion": "10.5.1"
+            }
+          ],
+          "severity": "medium",
+          "url": "https://github.com/beaugunderson/ip-address/security/advisories/GHSA-2vr4-cq9g-pvrc",
+          "vulnerableRange": ">= 10.2.0 < 10.5.1",
+          "patchedVersion": "10.5.1",
+          "sources": [
+            "osv"
+          ],
+          "confidence": "possible"
+        }
+      },
+      "undici@7.30.0": {
+        "dependents": {
+          "codependence": "undici (required by @dotenvx/dotenvx, release-it, shadcn)",
+          "@codependence/docs": "undici (required by shadcn)"
+        },
+        "ledger": {
+          "addedDate": "2026-09-30T04:57:34.361Z",
+          "reason": "Security fix: undici vulnerable to Denial of Service via unrequested WebSocket subprotocol (high)",
+          "source": "security",
+          "securityChecked": true,
+          "securityCheckDate": "2026-09-30T04:57:34.366Z",
+          "securityProvider": "osv",
+          "cves": [
+            "CVE-2026-19534",
+            "CVE-2026-84961",
+            "CVE-2026-84933",
+            "CVE-2026-85024",
+            "CVE-2026-84890",
+            "CVE-2026-18149",
+            "CVE-2026-85014"
+          ],
+          "cveDetails": [
+            {
+              "cve": "CVE-2026-19534",
+              "severity": "high",
+              "patchedVersion": "7.29.1"
+            },
+            {
+              "cve": "CVE-2026-84961",
+              "severity": "high",
+              "patchedVersion": "7.29.1"
+            },
+            {
+              "cve": "CVE-2026-84933",
+              "severity": "medium",
+              "patchedVersion": "7.29.1"
+            },
+            {
+              "cve": "CVE-2026-85024",
+              "severity": "medium",
+              "patchedVersion": "7.29.1"
+            },
+            {
+              "cve": "CVE-2026-84890",
+              "severity": "medium",
+              "patchedVersion": "7.29.1"
+            },
+            {
+              "cve": "CVE-2026-18149",
+              "severity": "medium",
+              "patchedVersion": "7.29.1"
+            },
+            {
+              "cve": "CVE-2026-85014",
+              "severity": "medium",
+              "patchedVersion": "7.29.1"
+            }
+          ],
+          "severity": "high",
+          "url": "https://github.com/nodejs/undici/security/advisories/GHSA-rfgv-xxqx-mfg5",
+          "vulnerableRange": ">= 7.0.0 < 7.29.1",
+          "patchedVersion": "7.29.1",
+          "sources": [
+            "osv"
+          ],
+          "confidence": "possible"
         }
       }
     },
