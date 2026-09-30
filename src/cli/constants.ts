@@ -125,8 +125,8 @@ Options:
   --isTesting                       Enable running fn tests w/o overwriting
   -f, --files [files...]           File glob pattern
   --target [managers...]           Run only selected manager targets
-  --version                       Print Codependence version (used alone)
-  --version [manager=version...]   Exact tool versions for init actions
+  --version                        Print Codependence version (used alone)
+  --version [manager=version...]   Exact tool versions (init actions only)
   --post-update-command [name=cmd...] Override generated lockfile commands
   --schedule [area=cron...]        Override generated workflow schedules
   --token-secret <name>            GitHub PAT secret name for generated workflows
