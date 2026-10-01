@@ -1,15 +1,12 @@
 import { describe, mock, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import {
-  compareStableVersions,
   requiredEnv,
   resolveAvailableReleaseVersion,
   runRelease as runReleaseCommand,
   runTestPublishedReleaseCli,
-  writeHomebrewReleaseState,
-  writeHomebrewTapUpdate,
   type GitResult,
   type ReleaseOptions,
   type ReleaseRunner,
@@ -60,9 +57,6 @@ const createLogger = () => ({
   warn: mock.fn(() => {}),
 });
 
-const jsonResponse = (body: unknown, status = 200): Response =>
-  new Response(JSON.stringify(body), { status });
-
 const createCommandRecorder = () => {
   let calls: string[] = [];
   const runner = (command: string, args: readonly string[]) => {
@@ -74,30 +68,6 @@ const createCommandRecorder = () => {
     calls: () => calls,
     runner,
   };
-};
-
-const brewTapResponse = (url: string, method: string): Response => {
-  const { pathname, searchParams } = new URL(url);
-  const isFormula = pathname.endsWith("/contents/Formula/codependence.rb");
-  const hasRef = searchParams.has("ref");
-  const isFormulaRead = method === "GET" && isFormula && !hasRef;
-  if (isFormulaRead) return new Response("old formula");
-  if (pathname.endsWith("/git/ref/heads/main"))
-    return jsonResponse({ object: { sha: "main-sha" } });
-  if (pathname.endsWith("/git/ref/heads/codependence-release")) {
-    return jsonResponse({ object: { sha: "branch-sha" } });
-  }
-  const isFormulaRefRead = isFormula && hasRef;
-  if (isFormulaRefRead) return jsonResponse({ sha: "formula-sha" });
-  const listsPullRequests = pathname.endsWith("/pulls") && searchParams.size > 0;
-  if (listsPullRequests) {
-    return jsonResponse([
-      { html_url: "https://github.com/yowainwright/homebrew-tap/pull/10", number: 10 },
-    ]);
-  }
-  const isWriteMethod = new Set(["PATCH", "POST", "PUT"]).has(method);
-  if (isWriteMethod) return jsonResponse({});
-  return jsonResponse({});
 };
 
 const releaseBranchResult = (key: string, state: ReleaseFlowState): GitResult | undefined => {
@@ -297,93 +267,6 @@ const createReleaseFlowRunner = (prUrl: string, state: ReleaseFlowState = {}) =>
 
 // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("scripts/release/utils", () => {
-  test("compares equal Homebrew versions", () => {
-    assert.strictEqual(compareStableVersions("1.0.11", "1.0.11"), 0);
-  });
-
-  test("writes Homebrew release state to stdout without an output path", async () => {
-    const formula = 'url "https://registry.npmjs.org/codependence/-/codependence-1.0.12.tgz"';
-    const fetchImpl = () => Promise.resolve(new Response(formula));
-    let output = "";
-    const writeSpy = mock.method(process.stdout, "write", (value: string) => {
-      output += value;
-      return true;
-    });
-
-    try {
-      const env = {
-        FORMULA_PATH: "codependence.rb",
-        GITHUB_REPOSITORY: "yowainwright/codependence",
-        GITHUB_TOKEN: "repo-token",
-        TAP_TOKEN: "tap-token",
-        VERSION: "1.0.11",
-      };
-      await writeHomebrewReleaseState({ arch: "arm64", env, fetchImpl });
-      assert.match(output, /skip=true\n/);
-    } finally {
-      writeSpy.mock.restore();
-    }
-  });
-
-  test("writes unchanged Homebrew tap updates as notices", async () => {
-    mkdirSync(TEMP_ROOT, { recursive: true });
-    const directory = mkdtempSync(join(TEMP_ROOT, "tap-current-output-"));
-    const formulaPath = join(directory, "codependence.rb");
-    let output = "";
-    const writeSpy = mock.method(process.stdout, "write", (value: string) => {
-      output += value;
-      return true;
-    });
-
-    try {
-      writeFileSync(formulaPath, "same formula");
-      const env = {
-        FORMULA_PATH: formulaPath,
-        GITHUB_REPOSITORY: "yowainwright/codependence",
-        GITHUB_TOKEN: "repo-token",
-        TAP_TOKEN: "tap-token",
-        VERSION: "1.0.11",
-      };
-      const fetchImpl = () => Promise.resolve(new Response("same formula"));
-      await writeHomebrewTapUpdate({ env, fetchImpl });
-      assert.strictEqual(output, "::notice::Homebrew tap formula already current\n");
-    } finally {
-      writeSpy.mock.restore();
-      rmSync(TEMP_ROOT, { recursive: true, force: true });
-    }
-  });
-
-  test("rejects malformed GitHub SHA responses", async () => {
-    mkdirSync(TEMP_ROOT, { recursive: true });
-    const directory = mkdtempSync(join(TEMP_ROOT, "tap-malformed-"));
-    const formulaPath = join(directory, "codependence.rb");
-
-    try {
-      writeFileSync(formulaPath, "new formula");
-      const env = {
-        FORMULA_PATH: formulaPath,
-        GITHUB_REPOSITORY: "yowainwright/codependence",
-        GITHUB_TOKEN: "repo-token",
-        TAP_TOKEN: "tap-token",
-        VERSION: "1.0.11",
-      };
-      const fetchImpl = (url: URL | RequestInfo, init?: RequestInit) => {
-        const method = init?.method || "GET";
-        const isFormulaRead =
-          String(url).includes("contents/Formula/codependence.rb") && method === "GET";
-        if (isFormulaRead) return Promise.resolve(new Response("old formula"));
-        return Promise.resolve(jsonResponse({}));
-      };
-
-      await assertRejects(
-        writeHomebrewTapUpdate({ env, fetchImpl }),
-        "GitHub response did not include a SHA",
-      );
-    } finally {
-      rmSync(TEMP_ROOT, { recursive: true, force: true });
-    }
-  });
-
   test("resolve-version reads npm when no version is provided", () => {
     mkdirSync(TEMP_ROOT, { recursive: true });
     const directory = mkdtempSync(join(TEMP_ROOT, "version-latest-"));
@@ -560,31 +443,5 @@ describe("scripts/release/utils", () => {
     const { runner } = createReleaseFlowRunner(prUrl, { dirtyPullRequest: true });
     const release = runRelease({ increment: "patch", logger, runner });
     await assertRejects(release, "Release PR has merge conflicts");
-  });
-
-  test("updates the existing stable Homebrew tap PR", async () => {
-    mkdirSync(TEMP_ROOT, { recursive: true });
-    const directory = mkdtempSync(join(TEMP_ROOT, "tap-"));
-    const formulaPath = join(directory, "codependence.rb");
-    const writeSpy = mock.method(process.stdout, "write", () => true);
-    const env = {
-      FORMULA_PATH: formulaPath,
-      GITHUB_REPOSITORY: "yowainwright/codependence",
-      GITHUB_TOKEN: "repo-token",
-      TAP_BRANCH: "codependence-release",
-      TAP_TOKEN: "tap-token",
-      VERSION: "1.0.13",
-    };
-
-    try {
-      writeFileSync(formulaPath, "new formula");
-      const fetchImpl = (url: URL | RequestInfo, init?: RequestInit) =>
-        Promise.resolve(brewTapResponse(String(url), init?.method || "GET"));
-
-      await writeHomebrewTapUpdate({ env, fetchImpl });
-    } finally {
-      writeSpy.mock.restore();
-      rmSync(TEMP_ROOT, { recursive: true, force: true });
-    }
   });
 });

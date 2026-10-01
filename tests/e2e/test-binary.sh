@@ -10,12 +10,21 @@ fail() {
   exit 1
 }
 
+test_standalone_binary() {
+  expected_version=$(node -p "require('./package.json').version")
+  actual_version=$(env -i PATH=/nonexistent "$BIN" --version)
+  [ "$actual_version" = "$expected_version" ] || fail "standalone binary version"
+  printf '[PASS] standalone binary version\n'
+
+  help_output=$(env -i PATH=/nonexistent "$BIN" --help)
+  printf '%s\n' "$help_output" | grep -Fq "Codependence" || fail "binary help"
+  printf '[PASS] binary help\n'
+}
+
 main() {
   nub run build:bin
 
-  help_output=$("$BIN" --help)
-  printf '%s\n' "$help_output" | grep -Fq "Codependence" || fail "binary help"
-  printf '[PASS] binary help\n'
+  test_standalone_binary
 
   CODEPENDENCE_E2E_BINARY="$BIN" "$SCRIPT_DIR/test-binary-runtime.sh"
   CODEPENDENCE_E2E_BINARY="$BIN" "$SCRIPT_DIR/test-provider-docker.sh"

@@ -1,7 +1,6 @@
 import {
   parseArgs,
   parseTagArgs,
-  runBrewCli,
   runRelease,
   runReleaseTag,
   runTestPublishedReleaseCli,
@@ -13,12 +12,11 @@ export * from "./utils";
 
 const commandArgs = (argv: readonly string[]): string[] => Array.from(argv).slice(1);
 
-export const runReleaseCli = async (argv: readonly string[] = process.argv.slice(2)) => {
+export const runReleaseCli = (argv: readonly string[] = process.argv.slice(2)) => {
   const command = argv[0];
 
   if (command === "brew") {
-    await runBrewCli({ argv: commandArgs(argv) });
-    return 0;
+    return Promise.reject(new Error("Homebrew formulas are managed by yowainwright/homebrew-tap"));
   }
 
   if (command === "assets") {

@@ -1134,6 +1134,17 @@ describe("run", () => {
     scriptSpy.mock.restore();
   });
 
+  test("prints the package version without checking dependencies", async (context) => {
+    const printSpy = context.mock.method(logger, "print", () => {});
+    const manifestUrl = new URL("../../../package.json", import.meta.url);
+    const manifest = JSON.parse(fs.readFileSync(manifestUrl, "utf8"));
+
+    await run(["node", "script.js", "--version"]);
+
+    assertCalledWith(printSpy, manifest.version);
+    assert.strictEqual(scriptSpy.mock.callCount(), 0);
+  });
+
   test("should show help when --help flag is provided", async () => {
     const consoleSpy = mock.method(console, "log", () => {});
 
