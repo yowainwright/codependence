@@ -1450,7 +1450,7 @@ pnpm test
 ### Release Strategy
 
 Codependence publishes securely to npm with trusted publishing, provenance attestations, and immutable GitHub release assets.
-Stable releases also publish an audited, SHA256-pinned Homebrew formula through a protected environment and reviewed tap pull request.
+Stable releases also provide standalone Homebrew binaries for macOS and Linux through reviewed tap updates.
 
 ### 0.3.1 compatibility
 
