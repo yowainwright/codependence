@@ -135,6 +135,7 @@
     "turbo": "2.11.3"
   },
   "overrides": {
+    "basic-ftp": "6.2.1",
     "ip-address": "10.7.2",
     "nanoid": "3.3.18",
     "postcss": "8.5.23",
@@ -343,6 +344,27 @@
             "osv"
           ],
           "confidence": "possible"
+        }
+      },
+      "basic-ftp@6.2.1": {
+        "dependents": {
+          "codependence": "basic-ftp (required by get-uri)"
+        },
+        "ledger": {
+          "addedDate": "2026-10-02T18:12:59.000Z",
+          "reason": "Security fix: basic-ftp quadratic-time CPU denial of service in Client.list() (high)",
+          "source": "security",
+          "securityChecked": true,
+          "securityCheckDate": "2026-10-02T18:12:59.000Z",
+          "securityProvider": "github",
+          "securityCheckResult": "clean",
+          "cves": [
+            "CVE-2026-102990"
+          ],
+          "severity": "high",
+          "url": "https://github.com/advisories/GHSA-c475-qrg2-pj4r",
+          "vulnerableRange": "<= 6.2.0",
+          "patchedVersion": "6.2.1"
         }
       }
     },

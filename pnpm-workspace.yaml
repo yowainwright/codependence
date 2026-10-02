@@ -9,6 +9,7 @@ minimumReleaseAgeExclude:
   - pastoralist@1.13.6-beta.0
 nodeLinker: isolated
 overrides:
+  basic-ftp: 6.2.1
   ip-address: 10.7.2
   nanoid: 3.3.18
   postcss: 8.5.23
