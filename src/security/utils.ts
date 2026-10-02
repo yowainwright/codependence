@@ -1,5 +1,14 @@
 import type { SupportedLanguage, Vulnerability } from "../types";
-import { OSV_ECOSYSTEMS, OSV_SEVERITIES, OSV_TIMEOUT_MS, QUERYABLE_VERSION } from "./constants";
+import {
+  DEFAULT_PRERELEASE_RANK,
+  NUMERIC_TOKEN,
+  OSV_ECOSYSTEMS,
+  OSV_SEVERITIES,
+  OSV_TIMEOUT_MS,
+  POST_RELEASE_TAG,
+  PRERELEASE_RANKS,
+  QUERYABLE_VERSION,
+} from "./constants";
 import type {
   OsvAdvisoryRef,
   OsvAffected,
@@ -7,6 +16,7 @@ import type {
   OsvQuery,
   OsvRangeEvent,
   OsvVulnerability,
+  ParsedVersion,
   SecurityFetch,
   SecurityQuery,
 } from "./types";
@@ -63,21 +73,63 @@ export const toOsvQueries = (queries: SecurityQuery[]): OsvQuery[] => {
   return Array.from(unique.values());
 };
 
-const versionParts = (version: string): number[] =>
-  version
-    .split(/[^0-9]+/)
-    .filter(Boolean)
-    .map(Number);
+const parseVersion = (version: string): ParsedVersion => {
+  const match = /^v?(\d+(?:\.\d+)*)(.*)$/.exec(version.trim());
+  const [, core = "", rest = ""] = match ?? [];
+  const suffix = rest.split("+")[0].replace(/^[-._]/, "");
+  const tokens = suffix.match(/\d+|[a-z]+/gi) ?? [];
+  const isPostRelease = POST_RELEASE_TAG.test(tokens[0] ?? "");
+  return {
+    release: core.split(".").filter(Boolean).map(Number),
+    prerelease: isPostRelease ? [] : tokens,
+  };
+};
+
+const compareReleases = (left: number[], right: number[]): number => {
+  const length = Math.max(left.length, right.length);
+  const differences = Array.from(
+    { length },
+    (_, index) => (left[index] ?? 0) - (right[index] ?? 0),
+  );
+  return differences.find((value) => value !== 0) ?? 0;
+};
+
+const prereleaseRank = (token: string): number =>
+  PRERELEASE_RANKS[token.toLowerCase()] ?? DEFAULT_PRERELEASE_RANK;
+
+const compareTokens = (left: string | undefined, right: string | undefined): number => {
+  const isLeftMissing = left === undefined;
+  const isRightMissing = right === undefined;
+  if (isLeftMissing) return -1;
+  if (isRightMissing) return 1;
+  const isLeftNumeric = NUMERIC_TOKEN.test(left);
+  const isRightNumeric = NUMERIC_TOKEN.test(right);
+  const areBothNumeric = isLeftNumeric && isRightNumeric;
+  if (areBothNumeric) return Number(left) - Number(right);
+  if (isLeftNumeric) return -1;
+  if (isRightNumeric) return 1;
+  const rankOrder = prereleaseRank(left) - prereleaseRank(right);
+  return rankOrder || left.localeCompare(right);
+};
+
+const comparePrereleases = (left: string[], right: string[]): number => {
+  const isLeftRelease = left.length === 0;
+  const isRightRelease = right.length === 0;
+  if (isLeftRelease) return Number(!isRightRelease);
+  if (isRightRelease) return -1;
+  const length = Math.max(left.length, right.length);
+  const differences = Array.from({ length }, (_, index) =>
+    compareTokens(left[index], right[index]),
+  );
+  return differences.find((value) => value !== 0) ?? 0;
+};
 
 export const compareVersions = (left: string, right: string): number => {
-  const leftParts = versionParts(left);
-  const rightParts = versionParts(right);
-  const length = Math.max(leftParts.length, rightParts.length);
-  const difference = Array.from(
-    { length },
-    (_, index) => (leftParts[index] ?? 0) - (rightParts[index] ?? 0),
-  );
-  return difference.find((value) => value !== 0) ?? 0;
+  const leftVersion = parseVersion(left);
+  const rightVersion = parseVersion(right);
+  const releaseOrder = compareReleases(leftVersion.release, rightVersion.release);
+  const prereleaseOrder = comparePrereleases(leftVersion.prerelease, rightVersion.prerelease);
+  return releaseOrder || prereleaseOrder;
 };
 
 const normalizeName = (ecosystem: string, name: string): string => {

@@ -235,3 +235,112 @@ test("pruneVulnerability => keeps only the fields the report uses", () => {
     toVulnerability("GHSA-test", raw, npmQuery),
   );
 });
+
+test("compareVersions => treats missing trailing parts as zero on either side", () => {
+  assert.ok(compareVersions("1.2.3", "1.2") > 0);
+  assert.ok(compareVersions("1.2", "1.2.3") < 0);
+});
+
+test("toVulnerability => reports unknown severity when database_specific is absent", () => {
+  const { database_specific: _omitted, ...details } = advisory();
+
+  assert.strictEqual(toVulnerability("GHSA-test", details, npmQuery)[0].severity, "unknown");
+});
+
+test("toVulnerability => leaves fixedIn unset when the advisory lists nothing affected", () => {
+  const { affected: _omitted, ...details } = advisory();
+
+  assert.strictEqual(toVulnerability("GHSA-test", details, npmQuery)[0].fixedIn, undefined);
+});
+
+test("toVulnerability => skips affected entries without a package name", () => {
+  const details = advisory({
+    affected: [{ package: { ecosystem: "npm" }, ranges: [{ events: [{ fixed: "9.9.9" }] }] }],
+  });
+
+  assert.strictEqual(toVulnerability("GHSA-test", details, npmQuery)[0].fixedIn, undefined);
+});
+
+test("toVulnerability => tolerates affected entries without ranges or events", () => {
+  const details = advisory({
+    affected: [
+      { package: { name: "lodash", ecosystem: "npm" } },
+      { package: { name: "lodash", ecosystem: "npm" }, ranges: [{}] },
+    ],
+  });
+
+  assert.strictEqual(toVulnerability("GHSA-test", details, npmQuery)[0].fixedIn, undefined);
+});
+
+test("pruneVulnerability => fills in empty collections for sparse advisories", () => {
+  const sparse = { id: "GHSA-sparse" } as OsvVulnerability;
+
+  assert.deepStrictEqual(pruneVulnerability(sparse), {
+    id: "GHSA-sparse",
+    withdrawn: undefined,
+    database_specific: { severity: undefined },
+    affected: [],
+  });
+});
+
+test("pruneVulnerability => keeps affected entries that have no ranges or package", () => {
+  const sparse = { id: "GHSA-sparse", affected: [{}] } as OsvVulnerability;
+
+  assert.deepStrictEqual(pruneVulnerability(sparse).affected, [
+    { package: { name: undefined, ecosystem: undefined }, ranges: [] },
+  ]);
+});
+
+test("compareVersions => orders a semver prerelease before its release", () => {
+  assert.ok(compareVersions("1.0.5-rc.1", "1.0.5") < 0);
+  assert.ok(compareVersions("1.0.5", "1.0.5-rc.1") > 0);
+});
+
+test("compareVersions => orders prerelease identifiers numerically and by stage", () => {
+  assert.ok(compareVersions("1.0.5-rc.2", "1.0.5-rc.10") < 0);
+  assert.ok(compareVersions("1.0.5-alpha.1", "1.0.5-beta.1") < 0);
+  assert.ok(compareVersions("1.0.5-beta.1", "1.0.5-rc.1") < 0);
+  assert.ok(compareVersions("1.0.5-rc", "1.0.5-rc.1") < 0);
+  assert.ok(compareVersions("1.0.5-1", "1.0.5-alpha") < 0);
+});
+
+test("compareVersions => orders PEP 440 style prereleases before the release", () => {
+  assert.ok(compareVersions("1.0.5rc1", "1.0.5") < 0);
+  assert.ok(compareVersions("1.0.5a1", "1.0.5b1") < 0);
+  assert.ok(compareVersions("1.0.5.dev1", "1.0.5a1") < 0);
+});
+
+test("compareVersions => falls back to name order for unknown prerelease tags", () => {
+  assert.ok(compareVersions("1.0.0-bar", "1.0.0-foo") < 0);
+});
+
+test("compareVersions => ignores a v prefix, build metadata and post releases", () => {
+  assert.strictEqual(compareVersions("v1.2.3", "1.2.3"), 0);
+  assert.strictEqual(compareVersions("1.2.3+build.5", "1.2.3"), 0);
+  assert.strictEqual(compareVersions("1.2.3.post1", "1.2.3"), 0);
+});
+
+test("toVulnerability => offers the release that fixes a prerelease install", () => {
+  const prereleaseQuery: OsvQuery = { ...npmQuery, version: "4.17.21-rc.1" };
+  const details = advisory({
+    affected: [
+      {
+        package: { name: "lodash", ecosystem: "npm" },
+        ranges: [{ events: [{ introduced: "0" }, { fixed: "4.17.21" }] }],
+      },
+    ],
+  });
+
+  assert.strictEqual(toVulnerability("GHSA-test", details, prereleaseQuery)[0].fixedIn, "4.17.21");
+});
+
+test("compareVersions => orders prerelease identifiers symmetrically", () => {
+  assert.ok(compareVersions("1.0.5-rc.1", "1.0.5-rc") > 0);
+  assert.ok(compareVersions("1.0.5-alpha", "1.0.5-1") > 0);
+  assert.strictEqual(compareVersions("1.0.5-rc.1", "1.0.5-rc.1"), 0);
+});
+
+test("compareVersions => treats unparseable versions as the lowest release", () => {
+  assert.strictEqual(compareVersions("latest", "latest"), 0);
+  assert.ok(compareVersions("latest", "1.0.0") < 0);
+});

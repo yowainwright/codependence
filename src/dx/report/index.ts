@@ -16,7 +16,15 @@ export {
   isPrivatePackage,
   isTimeout,
 } from "./utils";
-import { hasSecurityData, hasVulnerabilities, securityFixHint, securitySummary } from "./utils";
+import {
+  countUnchecked,
+  hasSecurityData,
+  hasVulnerabilities,
+  securityFixHint,
+  securitySummary,
+  securityUncheckedNote,
+  upToDateSecurityNote,
+} from "./utils";
 export type { ErrorContext, FormattedDependency, FormattedOutput, FormattedSummary } from "./types";
 
 const getSeverity = (current: string, latest: string): "major" | "minor" | "patch" | "unknown" => {
@@ -104,10 +112,9 @@ const markdownOutdatedLines = (outdatedDeps: DependencyInfo[], showSecurity: boo
 
 const markdownUpToDateLines = (upToDateDeps: DependencyInfo[]): string[] => {
   if (upToDateDeps.length === 0) return [];
-  const lines = upToDateDeps.map((dep) => {
-    const note = hasVulnerabilities(dep) ? ` (security: ${securitySummary(dep)})` : "";
-    return `- ${dep.name} @ ${dep.current}${note}`;
-  });
+  const lines = upToDateDeps.map(
+    (dep) => `- ${dep.name} @ ${dep.current}${upToDateSecurityNote(dep)}`,
+  );
   return [`## ${RAW_SYMBOLS.success} Up-to-date Dependencies (${upToDateDeps.length})\n`].concat(
     lines,
     "",
@@ -119,6 +126,8 @@ export const formatAsMarkdown = (dependencies: DependencyInfo[], duration?: numb
   const hint = securityFixHint(dependencies);
   const hintLines = hint ? [`> ${hint}`, ""] : [];
   const durationLines = duration ? [`- Duration: ${duration}ms`] : [];
+  const uncheckedCount = countUnchecked(dependencies);
+  const uncheckedLines = uncheckedCount > 0 ? [`- Security not checked: ${uncheckedCount}`] : [];
   const lines = ["# Dependency Status\n"]
     .concat(
       markdownOutdatedLines(outdatedDeps, hasSecurityData(dependencies)),
@@ -130,6 +139,7 @@ export const formatAsMarkdown = (dependencies: DependencyInfo[], duration?: numb
       `- Total packages: ${dependencies.length}`,
       `- Outdated: ${outdatedDeps.length}`,
       `- Up-to-date: ${upToDateDeps.length}`,
+      uncheckedLines,
       durationLines,
     )
     .flat();
@@ -151,8 +161,10 @@ export const formatAsTable = (dependencies: DependencyInfo[]): string => {
   const outdatedSet = new Set(outdatedDeps);
   const listedDeps = dependencies.filter((dep) => outdatedSet.has(dep) || hasVulnerabilities(dep));
 
+  const uncheckedNote = securityUncheckedNote(dependencies);
   if (listedDeps.length === 0) {
-    return `${SYMBOLS.success} All dependencies are up-to-date!\n`;
+    const noteLine = uncheckedNote ? `${uncheckedNote}\n` : "";
+    return `${SYMBOLS.success} All dependencies are up-to-date!\n${noteLine}`;
   }
 
   const showSecurity = hasSecurityData(dependencies);
@@ -179,10 +191,11 @@ export const formatAsTable = (dependencies: DependencyInfo[]): string => {
   });
   const hint = securityFixHint(dependencies);
   const hintLines = hint ? [`  ${hint}\n`] : [];
+  const noteLines = uncheckedNote ? [`  ${uncheckedNote}\n`] : [];
   const lines = [`\n${SYMBOLS.warning}  ${title}\n`, header, "  " + "─".repeat(header.length - 2)]
     .concat(dependencyLines)
     .concat(`\n  ${outdatedDeps.length} outdated of ${dependencies.length} total\n`)
-    .concat(hintLines);
+    .concat(noteLines, hintLines);
 
   return lines.join("\n");
 };

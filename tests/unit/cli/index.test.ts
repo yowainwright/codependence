@@ -2859,3 +2859,145 @@ describe("GitHub Actions initializer", () => {
     }
   });
 });
+
+type SecurityDiff = {
+  package: string;
+  current: string;
+  latest: string;
+  isPinned: boolean;
+  willUpdate: boolean;
+  language?: string;
+};
+
+const securityDiff = (name: string, current: string, language?: string): SecurityDiff => ({
+  package: name,
+  current,
+  latest: "9.9.9",
+  isPinned: false,
+  willUpdate: true,
+  language,
+});
+
+const osvJson = (body: unknown): Response => new Response(JSON.stringify(body));
+
+const fakeOsv = (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+  const target = String(url);
+  if (target.includes("/vulns/")) {
+    return Promise.resolve(
+      osvJson({
+        id: "GHSA-cli",
+        database_specific: { severity: "HIGH" },
+        affected: [
+          {
+            package: { name: "lodash", ecosystem: "npm" },
+            ranges: [{ events: [{ introduced: "0" }, { fixed: "4.17.21" }] }],
+          },
+        ],
+      }),
+    );
+  }
+  const body = JSON.parse(String(init?.body));
+  const results = body.queries.map((query: { package: { name: string } }) =>
+    query.package.name === "lodash" ? { vulns: [{ id: "GHSA-cli", modified: "2026-01-01" }] } : {},
+  );
+  return Promise.resolve(osvJson({ results }));
+};
+
+const runSecurityAction = async (diffs: SecurityDiff[], options: Options) => {
+  checkFilesMock.mock.mockImplementation(() => Promise.resolve(diffs));
+  const logSpy = mock.method(console, "log", () => {});
+  const fetchSpy = mock.method(globalThis, "fetch", fakeOsv);
+
+  try {
+    await action({ codependencies: ["lodash"], format: "json", security: true, ...options });
+    const printed = logSpy.mock.calls.find((call) => call.arguments[0]?.includes('"package"'));
+    return JSON.parse(printed?.arguments[0] ?? "{}");
+  } finally {
+    fetchSpy.mock.restore();
+    logSpy.mock.restore();
+    checkFilesMock.mock.restore();
+  }
+};
+
+const createCacheProject = (): string => {
+  const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-cli-security-"));
+  fs.mkdirSync(join(rootDir, "node_modules"));
+  return rootDir;
+};
+
+test("action => --security adds vulnerabilities to formatted output", async () => {
+  const diffs = [
+    securityDiff("lodash", "4.17.20", "nodejs"),
+    securityDiff("react", "17.0.0", "nodejs"),
+    securityDiff("nginx", "1.19", "docker"),
+    securityDiff("legacy", "1.0.0"),
+  ];
+  const report = await runSecurityAction(diffs, { noCache: true });
+  const [lodash, react, nginx, legacy] = report.dependencies;
+
+  assert.strictEqual(lodash.securityStatus, "checked");
+  assert.deepStrictEqual(lodash.vulnerabilities, [
+    { id: "GHSA-cli", severity: "high", fixedIn: "4.17.21" },
+  ]);
+  assert.deepStrictEqual([react.securityStatus, react.vulnerabilities], ["checked", []]);
+  assert.strictEqual(nginx.securityStatus, "not-checked");
+  assert.strictEqual(legacy.securityStatus, "not-checked");
+});
+
+test("action => formatted output has no security fields without --security", async () => {
+  const report = await runSecurityAction([securityDiff("lodash", "4.17.20", "nodejs")], {
+    security: false,
+  });
+
+  assert.strictEqual("securityStatus" in report.dependencies[0], false);
+});
+
+test("action => --security caches advisories under the project root", async () => {
+  const rootDir = createCacheProject();
+
+  try {
+    await runSecurityAction([securityDiff("lodash", "4.17.20", "nodejs")], { rootDir });
+
+    assert.ok(fs.existsSync(join(rootDir, "node_modules", ".cache", "codependence", "osv.json")));
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test("action => --security with --noCache leaves no cache behind", async () => {
+  const rootDir = createCacheProject();
+
+  try {
+    await runSecurityAction([securityDiff("lodash", "4.17.20", "nodejs")], {
+      rootDir,
+      noCache: true,
+    });
+
+    assert.strictEqual(fs.existsSync(join(rootDir, "node_modules", ".cache")), false);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test("action => --security warns on stderr when OSV cannot be reached", async () => {
+  checkFilesMock.mock.mockImplementation(() =>
+    Promise.resolve([securityDiff("lodash", "4.17.20", "nodejs")]),
+  );
+  const logSpy = mock.method(console, "log", () => {});
+  const warnSpy = mock.method(console, "warn", () => {});
+  const fetchSpy = mock.method(globalThis, "fetch", () => Promise.reject(new Error("offline")));
+
+  try {
+    await action({ codependencies: ["lodash"], format: "json", security: true, noCache: true });
+    const printed = logSpy.mock.calls.find((call) => call.arguments[0]?.includes('"package"'));
+    const report = JSON.parse(printed?.arguments[0] ?? "{}");
+
+    assert.strictEqual(report.dependencies[0].securityStatus, "not-checked");
+    assert.match(String(warnSpy.mock.calls[0]?.arguments[0]), /OSV security check failed/);
+  } finally {
+    fetchSpy.mock.restore();
+    warnSpy.mock.restore();
+    logSpy.mock.restore();
+    checkFilesMock.mock.restore();
+  }
+});

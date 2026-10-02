@@ -33,6 +33,19 @@ export const readEntries = <V>(path: string | undefined): Map<string, CacheEntry
   }
 };
 
+export const mergeEntries = <V>(
+  stored: Map<string, CacheEntry<V>>,
+  pending: Map<string, CacheEntry<V>>,
+): Map<string, CacheEntry<V>> => {
+  const merged = new Map(stored);
+  pending.forEach((entry, key) => {
+    const existing = merged.get(key);
+    const isCurrent = existing === undefined || entry.t >= existing.t;
+    if (isCurrent) merged.set(key, entry);
+  });
+  return merged;
+};
+
 export const trimEntries = <V>(
   entries: Map<string, CacheEntry<V>>,
   maxEntries: number,
@@ -53,6 +66,7 @@ export const writeEntries = <V>(path: string, entries: Map<string, CacheEntry<V>
     fs.writeFileSync(temporaryPath, JSON.stringify(file));
     fs.renameSync(temporaryPath, path);
   } catch {
-    fs.rmSync(temporaryPath, { force: true });
+    const hasTemporaryFile = fs.existsSync(temporaryPath);
+    if (hasTemporaryFile) fs.rmSync(temporaryPath, { force: true });
   }
 };

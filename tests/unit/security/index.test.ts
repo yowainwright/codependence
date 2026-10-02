@@ -1,4 +1,4 @@
-import { after, test } from "node:test";
+import { after, mock, test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -296,4 +296,89 @@ test("checkSecurity => does not cache failed lookups", async () => {
 
   assert.strictEqual(recovered.detailRequests().length, 1);
   assert.strictEqual(results.get(lodashKey)?.vulnerabilities[0].severity, "high");
+});
+
+test("checkSecurity => treats an OSV result without a vulns key as clean", async () => {
+  const fetch: SecurityFetch = () => Promise.resolve(json({ results: [{}] }));
+  const results = await checkSecurity([lodashQuery], { fetch });
+
+  assert.deepStrictEqual(results.get(lodashKey), { checked: true, vulnerabilities: [] });
+});
+
+test("checkSecurity => uses the global fetch when none is injected", async () => {
+  const osv = createOsv({ lodash: [lodashHigh] });
+  const globalFetch = mock.method(globalThis, "fetch", osv.fetch);
+
+  try {
+    const results = await checkSecurity([lodashQuery]);
+
+    assert.strictEqual(globalFetch.mock.callCount(), 2);
+    assert.strictEqual(results.get(lodashKey)?.vulnerabilities[0].id, "GHSA-high");
+  } finally {
+    globalFetch.mock.restore();
+  }
+});
+
+test("checkSecurity => reports a failed batch through onError", async () => {
+  const osv = createOsv({ lodash: [lodashHigh] }, { failBatch: true });
+  const messages: string[] = [];
+  await checkSecurity([lodashQuery], {
+    fetch: osv.fetch,
+    onError: (message) => {
+      messages[messages.length] = message;
+    },
+  });
+
+  assert.strictEqual(messages.length, 1);
+  assert.match(messages[0], /OSV security check failed for 1 packages/);
+  assert.match(messages[0], /status 500/);
+});
+
+test("checkSecurity => reports a network failure through onError", async () => {
+  const messages: string[] = [];
+  const fetch: SecurityFetch = () => Promise.reject(new Error("offline"));
+  await checkSecurity([lodashQuery], {
+    fetch,
+    onError: (message) => {
+      messages[messages.length] = message;
+    },
+  });
+
+  assert.match(messages[0], /offline/);
+});
+
+test("checkSecurity => reports an incomplete OSV response through onError", async () => {
+  const messages: string[] = [];
+  const fetch: SecurityFetch = () => Promise.resolve(json({ results: [] }));
+  await checkSecurity([lodashQuery], {
+    fetch,
+    onError: (message) => {
+      messages[messages.length] = message;
+    },
+  });
+
+  assert.match(messages[0], /unexpected response/);
+});
+
+test("checkSecurity => limits concurrent batch requests", async () => {
+  const flight = { active: 0, peak: 0, calls: 0 };
+  const fetch: SecurityFetch = async (_url, init) => {
+    flight.calls += 1;
+    flight.active += 1;
+    flight.peak = Math.max(flight.peak, flight.active);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    flight.active -= 1;
+    const body = JSON.parse(String(init?.body));
+    return json({ results: body.queries.map(() => ({})) });
+  };
+  const queries = Array.from({ length: 2001 }, (_, index) => ({
+    name: `pkg-${index}`,
+    version: "1.0.0",
+    language: "nodejs" as const,
+  }));
+  const results = await checkSecurity(queries, { fetch });
+
+  assert.strictEqual(flight.calls, 3);
+  assert.ok(flight.peak <= 2);
+  assert.strictEqual(results.size, 2001);
 });

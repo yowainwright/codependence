@@ -147,3 +147,42 @@ test("DiskCache => leaves no temporary files behind", () => {
   assert.deepStrictEqual(Object.keys(JSON.parse(content).entries), ["key"]);
   assert.strictEqual(existsSync(`${cacheFile(rootDir, "osv")}.${process.pid}.tmp`), false);
 });
+
+test("DiskCache => flush ignores locations it cannot write", () => {
+  const rootDir = createProject();
+  writeFileSync(join(rootDir, "node_modules", ".cache"), "not a directory");
+  const cache = new DiskCache<string>("osv", { rootDir });
+
+  cache.set("key", "value");
+
+  assert.doesNotThrow(() => cache.flush());
+  assert.strictEqual(new DiskCache<string>("osv", { rootDir }).get("key"), undefined);
+});
+
+test("DiskCache => keeps entries another instance flushed in the meantime", () => {
+  const rootDir = createProject();
+  const first = new DiskCache<string>("osv", { rootDir });
+  const second = new DiskCache<string>("osv", { rootDir });
+
+  first.set("from-first", "one");
+  first.flush();
+  second.set("from-second", "two");
+  second.flush();
+
+  const reopened = new DiskCache<string>("osv", { rootDir });
+  assert.strictEqual(reopened.get("from-first"), "one");
+  assert.strictEqual(reopened.get("from-second"), "two");
+});
+
+test("DiskCache => does not let an older write replace a newer one", () => {
+  const rootDir = createProject();
+  const older = new DiskCache<string>("osv", { rootDir, now: () => 1 });
+  const newer = new DiskCache<string>("osv", { rootDir, now: () => 2 });
+
+  newer.set("key", "newer");
+  newer.flush();
+  older.set("key", "older");
+  older.flush();
+
+  assert.strictEqual(new DiskCache<string>("osv", { rootDir }).get("key"), "newer");
+});

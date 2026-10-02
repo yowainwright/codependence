@@ -238,3 +238,20 @@ export const securityFixHint = (dependencies: DependencyInfo[]): string => {
   if (!hasFixable) return "";
   return SECURITY_FIX_HINT;
 };
+
+export const countUnchecked = (dependencies: DependencyInfo[]): number =>
+  dependencies.filter(({ security }) => security !== undefined && !security.checked).length;
+
+export const securityUncheckedNote = (dependencies: DependencyInfo[]): string => {
+  const count = countUnchecked(dependencies);
+  if (count === 0) return "";
+  const noun = count === 1 ? "package" : "packages";
+  return `Security: ${count} ${noun} not checked (unsupported ecosystem or OSV unavailable)`;
+};
+
+export const upToDateSecurityNote = (dependency: DependencyInfo): string => {
+  if (hasVulnerabilities(dependency)) return ` (security: ${securitySummary(dependency)})`;
+  const isUnchecked = dependency.security !== undefined && !dependency.security.checked;
+  if (isUnchecked) return " (security: not checked)";
+  return "";
+};

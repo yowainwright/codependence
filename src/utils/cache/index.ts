@@ -1,6 +1,6 @@
 import { DEFAULT_MAX_ENTRIES } from "./constants";
 import type { CacheEntry, DiskCacheOptions } from "./types";
-import { readEntries, resolveCachePath, trimEntries, writeEntries } from "./utils";
+import { mergeEntries, readEntries, resolveCachePath, trimEntries, writeEntries } from "./utils";
 
 export class DiskCache<V> {
   private readonly path: string | undefined;
@@ -31,7 +31,8 @@ export class DiskCache<V> {
     const { path } = this;
     if (!path) return;
     if (!this.isDirty) return;
-    writeEntries(path, trimEntries(this.entries, this.maxEntries));
+    const merged = mergeEntries(readEntries<V>(path), this.entries);
+    writeEntries(path, trimEntries(merged, this.maxEntries));
     this.isDirty = false;
   }
 }

@@ -1327,6 +1327,7 @@ const scannedVersion = ({ current }: DependencyInfo): string =>
 const withSecurity = async (
   dependencies: DependencyInfo[],
   options: Options,
+  actionLogger: Logger,
 ): Promise<DependencyInfo[]> => {
   const queries = dependencies.flatMap((dependency) =>
     dependency.language
@@ -1343,7 +1344,7 @@ const withSecurity = async (
     rootDir: options.rootDir,
     enabled: !options.noCache,
   });
-  const results = await checkSecurity(queries, { cache });
+  const results = await checkSecurity(queries, { cache, onError: actionLogger.warn });
   return dependencies.map((dependency) => {
     const key =
       dependency.language &&
@@ -1366,7 +1367,7 @@ const printFormattedActionResult = async (
     language: diff.language,
   }));
   const reportable = options.security
-    ? await withSecurity(dependencyInfo, options)
+    ? await withSecurity(dependencyInfo, options, actionLogger)
     : dependencyInfo;
   const formattedOutput = format(reportable, options.format || "table", result.duration);
   if (!options.outputFile) {

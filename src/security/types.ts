@@ -20,6 +20,12 @@ export type SecurityOptions = {
   fetch?: SecurityFetch;
   concurrency?: number;
   cache?: AdvisoryCache;
+  onError?: (message: string) => void;
+};
+
+export type ParsedVersion = {
+  release: number[];
+  prerelease: string[];
 };
 
 export type OsvQuery = SecurityQuery & {

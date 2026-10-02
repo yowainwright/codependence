@@ -607,3 +607,80 @@ it("formatAsMarkdown => adds the Pastoralist hint only for vulnerable npm packag
   assert.match(formatAsMarkdown([vulnerableLodash]), /> Fix with Pastoralist: pastoralist/);
   assert.doesNotMatch(formatAsMarkdown([clean, unchecked]), /Pastoralist/);
 });
+
+const outdatedClean: DependencyInfo = {
+  name: "react",
+  current: "17.0.0",
+  latest: "18.0.0",
+  language: "nodejs",
+  security: { checked: true, vulnerabilities: [] },
+};
+
+const lineFor = (output: string, name: string): string =>
+  output
+    .split("\n")
+    .find((line) => line.includes(name))
+    ?.trimEnd() ?? "";
+
+it("formatAsTable => leaves the Security cell empty for packages without security data", () => {
+  const withoutSecurity: DependencyInfo = { name: "react", current: "17.0.0", latest: "18.0.0" };
+  const table = formatAsTable([withoutSecurity, vulnerableLodash]);
+
+  assert.match(table, /Severity\s+Security/);
+  assert.match(lineFor(table, "react"), /major$/);
+});
+
+it("formatAsTable => shows none for an outdated package with no vulnerabilities", () => {
+  assert.match(lineFor(formatAsTable([outdatedClean]), "react"), /major\s+none$/);
+});
+
+it("formatAsMarkdown => shows none for an outdated package with no vulnerabilities", () => {
+  assert.match(lineFor(formatAsMarkdown([outdatedClean]), "| react"), /major \| none \|$/);
+});
+
+const uncheckedCurrent: DependencyInfo = {
+  name: "nginx",
+  current: "1.19",
+  latest: "1.19",
+  language: "docker",
+  security: { checked: false, vulnerabilities: [] },
+};
+
+it("formatAsTable => says when current packages could not be scanned", () => {
+  const table = formatAsTable([uncheckedCurrent]);
+
+  assert.match(table, /All dependencies are up-to-date!/);
+  assert.match(
+    table,
+    /Security: 1 package not checked \(unsupported ecosystem or OSV unavailable\)/,
+  );
+});
+
+it("formatAsTable => counts several unchecked packages", () => {
+  const second = { ...uncheckedCurrent, name: "redis" };
+
+  assert.match(formatAsTable([uncheckedCurrent, second]), /Security: 2 packages not checked/);
+});
+
+it("formatAsTable => keeps the unchecked note under the table rows", () => {
+  const table = formatAsTable([vulnerableLodash, uncheckedCurrent]);
+
+  assert.match(table, /lodash\s+4\.17\.20/);
+  assert.match(table, /Security: 1 package not checked/);
+});
+
+it("formatAsTable => adds no unchecked note when everything was scanned", () => {
+  assert.doesNotMatch(formatAsTable([vulnerableLodash]), /not checked \(/);
+  assert.doesNotMatch(formatAsTable(plain), /Security:/);
+});
+
+it("formatAsMarkdown => marks unchecked current packages and counts them", () => {
+  const markdown = formatAsMarkdown([uncheckedCurrent, clean]);
+
+  assert.match(markdown, /- nginx @ 1\.19 \(security: not checked\)/);
+  assert.match(markdown, /- Security not checked: 1/);
+});
+
+it("formatAsMarkdown => adds no unchecked line when everything was scanned", () => {
+  assert.doesNotMatch(formatAsMarkdown([clean]), /Security not checked/);
+});

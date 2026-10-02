@@ -1,5 +1,5 @@
 import type { SecurityResult } from "../types";
-import { OSV_API_URL, OSV_BATCH_LIMIT, OSV_CONCURRENCY } from "./constants";
+import { OSV_API_URL, OSV_BATCH_CONCURRENCY, OSV_BATCH_LIMIT, OSV_CONCURRENCY } from "./constants";
 import type {
   AdvisoryCache,
   OsvAdvisoryRef,
@@ -22,9 +22,15 @@ import {
   uniqueAdvisories,
 } from "./utils";
 
+const failureMessage = (error: unknown, count: number): string => {
+  const reason = error instanceof Error ? error.message : "unexpected response";
+  return `OSV security check failed for ${count} packages (${reason}); they are reported as not checked`;
+};
+
 const queryBatch = async (
   fetchFn: SecurityFetch,
   queries: OsvQuery[],
+  onError?: (message: string) => void,
 ): Promise<OsvBatchEntry[]> => {
   const body = JSON.stringify({
     queries: queries.map(({ name, version, ecosystem }) => ({
@@ -32,13 +38,18 @@ const queryBatch = async (
       version,
     })),
   });
-  const response = await fetchJson<OsvBatchResponse>(fetchFn, `${OSV_API_URL}/querybatch`, {
-    method: "POST",
-    body,
-  }).catch(() => undefined);
-  const results = response?.results ?? [];
+  const request = { method: "POST", body };
+  const response = await fetchJson<OsvBatchResponse>(
+    fetchFn,
+    `${OSV_API_URL}/querybatch`,
+    request,
+  ).catch((error: unknown) => error);
+  const results = (response instanceof Error ? undefined : response.results) ?? [];
   const isComplete = results.length === queries.length;
-  if (!isComplete) return [];
+  if (!isComplete) {
+    onError?.(failureMessage(response, queries.length));
+    return [];
+  }
   return queries.map((query, index) => ({ query, advisories: results[index].vulns ?? [] }));
 };
 
@@ -83,8 +94,10 @@ export const checkSecurity = async (
 ): Promise<Map<string, SecurityResult>> => {
   const fetchFn = options.fetch ?? fetch;
   const concurrency = options.concurrency ?? OSV_CONCURRENCY;
-  const batches = await Promise.all(
-    chunk(toOsvQueries(queries), OSV_BATCH_LIMIT).map((batch) => queryBatch(fetchFn, batch)),
+  const batches = await mapWithConcurrency(
+    chunk(toOsvQueries(queries), OSV_BATCH_LIMIT),
+    OSV_BATCH_CONCURRENCY,
+    (batch) => queryBatch(fetchFn, batch, options.onError),
   );
   const entries = batches.flat();
   const advisories = uniqueAdvisories(entries);
