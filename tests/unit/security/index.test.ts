@@ -382,3 +382,26 @@ test("checkSecurity => limits concurrent batch requests", async () => {
   assert.ok(flight.peak <= 2);
   assert.strictEqual(results.size, 2001);
 });
+
+const malformedBodies: Array<[string, unknown]> = [
+  ["null", null],
+  ["a null result", { results: [null] }],
+  ["non-list vulns", { results: [{ vulns: "GHSA-1" }] }],
+  ["a vuln without an id", { results: [{ vulns: [{ modified: "1" }] }] }],
+];
+
+malformedBodies.forEach(([label, body]) => {
+  test(`checkSecurity => degrades to not checked for ${label}`, async () => {
+    const messages: string[] = [];
+    const fetch: SecurityFetch = () => Promise.resolve(json(body));
+    const results = await checkSecurity([lodashQuery], {
+      fetch,
+      onError: (message) => {
+        messages[messages.length] = message;
+      },
+    });
+
+    assert.strictEqual(results.size, 0);
+    assert.match(messages[0], /unexpected response/);
+  });
+});

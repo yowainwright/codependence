@@ -4,7 +4,6 @@ import type {
   AdvisoryCache,
   OsvAdvisoryRef,
   OsvBatchEntry,
-  OsvBatchResponse,
   OsvQuery,
   OsvVulnerability,
   SecurityFetch,
@@ -20,6 +19,7 @@ import {
   toOsvQueries,
   toVulnerability,
   uniqueAdvisories,
+  validBatchResults,
 } from "./utils";
 
 const failureMessage = (error: unknown, count: number): string => {
@@ -39,14 +39,12 @@ const queryBatch = async (
     })),
   });
   const request = { method: "POST", body };
-  const response = await fetchJson<OsvBatchResponse>(
-    fetchFn,
-    `${OSV_API_URL}/querybatch`,
-    request,
-  ).catch((error: unknown) => error);
-  const results = (response instanceof Error ? undefined : response.results) ?? [];
-  const isComplete = results.length === queries.length;
-  if (!isComplete) {
+  const response = await fetchJson<unknown>(fetchFn, `${OSV_API_URL}/querybatch`, request).catch(
+    (error: unknown) => error,
+  );
+  const results = validBatchResults(response, queries.length);
+  const isValid = results.length === queries.length;
+  if (!isValid) {
     onError?.(failureMessage(response, queries.length));
     return [];
   }

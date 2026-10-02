@@ -9,6 +9,7 @@ import {
   toOsvQueries,
   toVulnerability,
   uniqueAdvisories,
+  validBatchResults,
 } from "../../../src/security/utils";
 import type { OsvQuery, OsvVulnerability } from "../../../src/security/types";
 
@@ -314,10 +315,9 @@ test("compareVersions => falls back to name order for unknown prerelease tags", 
   assert.ok(compareVersions("1.0.0-bar", "1.0.0-foo") < 0);
 });
 
-test("compareVersions => ignores a v prefix, build metadata and post releases", () => {
+test("compareVersions => ignores a v prefix and build metadata", () => {
   assert.strictEqual(compareVersions("v1.2.3", "1.2.3"), 0);
   assert.strictEqual(compareVersions("1.2.3+build.5", "1.2.3"), 0);
-  assert.strictEqual(compareVersions("1.2.3.post1", "1.2.3"), 0);
 });
 
 test("toVulnerability => offers the release that fixes a prerelease install", () => {
@@ -343,4 +343,57 @@ test("compareVersions => orders prerelease identifiers symmetrically", () => {
 test("compareVersions => treats unparseable versions as the lowest release", () => {
   assert.strictEqual(compareVersions("latest", "latest"), 0);
   assert.ok(compareVersions("latest", "1.0.0") < 0);
+});
+
+test("compareVersions => orders post releases after their release", () => {
+  assert.ok(compareVersions("1.0.post1", "1.0") > 0);
+  assert.ok(compareVersions("1.0.post", "1.0") > 0);
+  assert.ok(compareVersions("1.0.post2", "1.0.post1") > 0);
+  assert.ok(compareVersions("1.0.post1", "1.0rc1") > 0);
+  assert.ok(compareVersions("1.0.post1", "1.0.1") < 0);
+});
+
+test("toVulnerability => offers a post release as the fix", () => {
+  const pypiQuery: OsvQuery = {
+    name: "pkg",
+    version: "1.0",
+    language: "python",
+    ecosystem: "PyPI",
+    key: securityKey("python", "pkg", "1.0"),
+  };
+  const details = advisory({
+    affected: [
+      {
+        package: { name: "pkg", ecosystem: "PyPI" },
+        ranges: [{ events: [{ fixed: "1.0.post1" }] }],
+      },
+    ],
+  });
+
+  assert.strictEqual(toVulnerability("PYSEC-1", details, pypiQuery)[0].fixedIn, "1.0.post1");
+});
+
+test("validBatchResults => returns results that match the query count", () => {
+  const response = { results: [{}, { vulns: [{ id: "A", modified: "1" }] }] };
+
+  assert.deepStrictEqual(validBatchResults(response, 2), response.results);
+});
+
+test("validBatchResults => rejects anything that is not a complete, well-formed response", () => {
+  const malformed = [
+    null,
+    "text",
+    [],
+    {},
+    { results: "nope" },
+    { results: [{}] },
+    { results: [null] },
+    { results: [{ vulns: "A" }] },
+    { results: [{ vulns: [null] }] },
+    { results: [{ vulns: [{ modified: "1" }] }] },
+  ];
+
+  malformed.forEach((response) => {
+    assert.deepStrictEqual(validBatchResults(response, 2), []);
+  });
 });

@@ -26,6 +26,7 @@ export type SecurityOptions = {
 export type ParsedVersion = {
   release: number[];
   prerelease: string[];
+  post: number;
 };
 
 export type OsvQuery = SecurityQuery & {
@@ -43,8 +44,12 @@ export type OsvBatchEntry = {
   advisories: OsvAdvisoryRef[];
 };
 
+export type OsvBatchResult = {
+  vulns?: OsvAdvisoryRef[];
+};
+
 export type OsvBatchResponse = {
-  results?: Array<{ vulns?: OsvAdvisoryRef[] }>;
+  results?: OsvBatchResult[];
 };
 
 export type OsvRangeEvent = {

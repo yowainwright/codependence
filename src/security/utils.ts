@@ -13,6 +13,7 @@ import type {
   OsvAdvisoryRef,
   OsvAffected,
   OsvBatchEntry,
+  OsvBatchResult,
   OsvQuery,
   OsvRangeEvent,
   OsvVulnerability,
@@ -78,11 +79,10 @@ const parseVersion = (version: string): ParsedVersion => {
   const [, core = "", rest = ""] = match ?? [];
   const suffix = rest.split("+")[0].replace(/^[-._]/, "");
   const tokens = suffix.match(/\d+|[a-z]+/gi) ?? [];
+  const release = core.split(".").filter(Boolean).map(Number);
   const isPostRelease = POST_RELEASE_TAG.test(tokens[0] ?? "");
-  return {
-    release: core.split(".").filter(Boolean).map(Number),
-    prerelease: isPostRelease ? [] : tokens,
-  };
+  if (isPostRelease) return { release, prerelease: [], post: Number(tokens[1] ?? 0) + 1 };
+  return { release, prerelease: tokens, post: 0 };
 };
 
 const compareReleases = (left: number[], right: number[]): number => {
@@ -129,7 +129,9 @@ export const compareVersions = (left: string, right: string): number => {
   const rightVersion = parseVersion(right);
   const releaseOrder = compareReleases(leftVersion.release, rightVersion.release);
   const prereleaseOrder = comparePrereleases(leftVersion.prerelease, rightVersion.prerelease);
-  return releaseOrder || prereleaseOrder;
+  const postOrder = leftVersion.post - rightVersion.post;
+  const tailOrder = prereleaseOrder || postOrder;
+  return releaseOrder || tailOrder;
 };
 
 const normalizeName = (ecosystem: string, name: string): string => {
@@ -186,4 +188,29 @@ export const toVulnerability = (
   if (!details) return [{ id, severity: "unknown" }];
   if (details.withdrawn) return [];
   return [{ id, severity: severityOf(details), fixedIn: fixedVersion(details, query) }];
+};
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isAdvisoryRef = (value: unknown): value is OsvAdvisoryRef =>
+  isObject(value) && typeof value.id === "string";
+
+const isBatchResult = (value: unknown): value is OsvBatchResult => {
+  if (!isObject(value)) return false;
+  const vulns = value.vulns ?? [];
+  const isList = Array.isArray(vulns);
+  if (!isList) return false;
+  return vulns.every(isAdvisoryRef);
+};
+
+export const validBatchResults = (response: unknown, expected: number): OsvBatchResult[] => {
+  const results = isObject(response) ? response.results : undefined;
+  const isList = Array.isArray(results);
+  if (!isList) return [];
+  const isComplete = results.length === expected;
+  const isValid = results.every(isBatchResult);
+  const isUsable = isComplete && isValid;
+  if (!isUsable) return [];
+  return results;
 };
