@@ -387,6 +387,7 @@ const malformedBodies: Array<[string, unknown]> = [
   ["null", null],
   ["a null result", { results: [null] }],
   ["non-list vulns", { results: [{ vulns: "GHSA-1" }] }],
+  ["null vulns", { results: [{ vulns: null }] }],
   ["a vuln without an id", { results: [{ vulns: [{ modified: "1" }] }] }],
 ];
 

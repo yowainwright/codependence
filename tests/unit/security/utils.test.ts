@@ -305,10 +305,14 @@ test("compareVersions => orders prerelease identifiers numerically and by stage"
   assert.ok(compareVersions("1.0.5-1", "1.0.5-alpha") < 0);
 });
 
-test("compareVersions => orders PEP 440 style prereleases before the release", () => {
-  assert.ok(compareVersions("1.0.5rc1", "1.0.5") < 0);
-  assert.ok(compareVersions("1.0.5a1", "1.0.5b1") < 0);
-  assert.ok(compareVersions("1.0.5.dev1", "1.0.5a1") < 0);
+test("compareVersions => orders PEP 440 prereleases before the release", () => {
+  assert.ok(compareVersions("1.0.5rc1", "1.0.5", "PyPI") < 0);
+  assert.ok(compareVersions("1.0.5a1", "1.0.5b1", "PyPI") < 0);
+  assert.ok(compareVersions("1.0.5b2", "1.0.5rc1", "PyPI") < 0);
+  assert.ok(compareVersions("1.0.5.dev1", "1.0.5a1", "PyPI") < 0);
+  assert.ok(compareVersions("1.0.5rc2", "1.0.5rc10", "PyPI") < 0);
+  assert.ok(compareVersions("1.0.5rc", "1.0.5rc1", "PyPI") < 0);
+  assert.strictEqual(compareVersions("1.0.5rc", "1.0.5rc0", "PyPI"), 0);
 });
 
 test("compareVersions => falls back to name order for unknown prerelease tags", () => {
@@ -345,12 +349,31 @@ test("compareVersions => treats unparseable versions as the lowest release", () 
   assert.ok(compareVersions("latest", "1.0.0") < 0);
 });
 
-test("compareVersions => orders post releases after their release", () => {
-  assert.ok(compareVersions("1.0.post1", "1.0") > 0);
-  assert.ok(compareVersions("1.0.post", "1.0") > 0);
-  assert.ok(compareVersions("1.0.post2", "1.0.post1") > 0);
-  assert.ok(compareVersions("1.0.post1", "1.0rc1") > 0);
-  assert.ok(compareVersions("1.0.post1", "1.0.1") < 0);
+test("compareVersions => orders PEP 440 post releases after their release", () => {
+  assert.ok(compareVersions("1.0.post1", "1.0", "PyPI") > 0);
+  assert.ok(compareVersions("1.0.post", "1.0", "PyPI") > 0);
+  assert.ok(compareVersions("1.0.post2", "1.0.post1", "PyPI") > 0);
+  assert.ok(compareVersions("1.0.post1", "1.0rc1", "PyPI") > 0);
+  assert.ok(compareVersions("1.0.post1", "1.0.1", "PyPI") < 0);
+  assert.ok(compareVersions("1.0-1", "1.0", "PyPI") > 0);
+});
+
+test("compareVersions => keeps the dev part of a PEP 440 post release", () => {
+  assert.ok(compareVersions("1.0.post1.dev1", "1.0.post1", "PyPI") < 0);
+  assert.ok(compareVersions("1.0.post1.dev1", "1.0", "PyPI") > 0);
+});
+
+test("compareVersions => applies PEP 440 epochs, trailing zeros and local versions", () => {
+  assert.ok(compareVersions("1!1.0", "2.0", "PyPI") > 0);
+  assert.strictEqual(compareVersions("1.0", "1.0.0", "PyPI"), 0);
+  assert.strictEqual(compareVersions("1.0+local.1", "1.0", "PyPI"), 0);
+});
+
+test("compareVersions => reads the same text by the rules of its ecosystem", () => {
+  assert.ok(compareVersions("1.0.0-rc.1", "1.0.0", "npm") < 0);
+  assert.ok(compareVersions("1.0.0-rc.1", "1.0.0-rc.2", "crates.io") < 0);
+  assert.ok(compareVersions("1.0.0-1", "1.0.0", "npm") < 0);
+  assert.ok(compareVersions("1.0.0-1", "1.0.0", "PyPI") > 0);
 });
 
 test("toVulnerability => offers a post release as the fix", () => {
@@ -389,6 +412,7 @@ test("validBatchResults => rejects anything that is not a complete, well-formed 
     { results: [{}] },
     { results: [null] },
     { results: [{ vulns: "A" }] },
+    { results: [{ vulns: null }] },
     { results: [{ vulns: [null] }] },
     { results: [{ vulns: [{ modified: "1" }] }] },
   ];
@@ -396,4 +420,24 @@ test("validBatchResults => rejects anything that is not a complete, well-formed 
   malformed.forEach((response) => {
     assert.deepStrictEqual(validBatchResults(response, 2), []);
   });
+});
+
+test("toVulnerability => offers the post release that fixes a post-release dev build", () => {
+  const pypiQuery: OsvQuery = {
+    name: "pkg",
+    version: "1.0.post1.dev1",
+    language: "python",
+    ecosystem: "PyPI",
+    key: securityKey("python", "pkg", "1.0.post1.dev1"),
+  };
+  const details = advisory({
+    affected: [
+      {
+        package: { name: "pkg", ecosystem: "PyPI" },
+        ranges: [{ events: [{ fixed: "1.0.post1" }] }],
+      },
+    ],
+  });
+
+  assert.strictEqual(toVulnerability("PYSEC-1", details, pypiQuery)[0].fixedIn, "1.0.post1");
 });

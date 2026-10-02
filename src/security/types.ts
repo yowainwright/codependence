@@ -23,10 +23,17 @@ export type SecurityOptions = {
   onError?: (message: string) => void;
 };
 
-export type ParsedVersion = {
+export type SemverVersion = {
   release: number[];
   prerelease: string[];
+};
+
+export type Pep440Version = {
+  epoch: number;
+  release: number[];
+  pre: number[];
   post: number;
+  dev: number;
 };
 
 export type OsvQuery = SecurityQuery & {

@@ -1,13 +1,14 @@
 import type { SupportedLanguage, Vulnerability } from "../types";
 import {
-  DEFAULT_PRERELEASE_RANK,
-  NUMERIC_TOKEN,
+  NUMERIC_IDENTIFIER,
   OSV_ECOSYSTEMS,
   OSV_SEVERITIES,
   OSV_TIMEOUT_MS,
-  POST_RELEASE_TAG,
-  PRERELEASE_RANKS,
+  PEP440_PRERELEASE_RANKS,
+  PEP440_VERSION,
+  PYPI_ECOSYSTEM,
   QUERYABLE_VERSION,
+  SEMVER_VERSION,
 } from "./constants";
 import type {
   OsvAdvisoryRef,
@@ -17,9 +18,10 @@ import type {
   OsvQuery,
   OsvRangeEvent,
   OsvVulnerability,
-  ParsedVersion,
+  Pep440Version,
   SecurityFetch,
   SecurityQuery,
+  SemverVersion,
 } from "./types";
 
 export const securityKey = (language: SupportedLanguage, name: string, version: string): string =>
@@ -74,42 +76,41 @@ export const toOsvQueries = (queries: SecurityQuery[]): OsvQuery[] => {
   return Array.from(unique.values());
 };
 
-const parseVersion = (version: string): ParsedVersion => {
-  const match = /^v?(\d+(?:\.\d+)*)(.*)$/.exec(version.trim());
-  const [, core = "", rest = ""] = match ?? [];
-  const suffix = rest.split("+")[0].replace(/^[-._]/, "");
-  const tokens = suffix.match(/\d+|[a-z]+/gi) ?? [];
-  const release = core.split(".").filter(Boolean).map(Number);
-  const isPostRelease = POST_RELEASE_TAG.test(tokens[0] ?? "");
-  if (isPostRelease) return { release, prerelease: [], post: Number(tokens[1] ?? 0) + 1 };
-  return { release, prerelease: tokens, post: 0 };
-};
+const order = (left: number, right: number): number => Number(left > right) - Number(left < right);
 
-const compareReleases = (left: number[], right: number[]): number => {
+const firstDifference = (values: number[]): number => values.find((value) => value !== 0) ?? 0;
+
+const compareNumberLists = (left: number[], right: number[]): number => {
   const length = Math.max(left.length, right.length);
-  const differences = Array.from(
-    { length },
-    (_, index) => (left[index] ?? 0) - (right[index] ?? 0),
+  const differences = Array.from({ length }, (_, index) =>
+    order(left[index] ?? 0, right[index] ?? 0),
   );
-  return differences.find((value) => value !== 0) ?? 0;
+  return firstDifference(differences);
 };
 
-const prereleaseRank = (token: string): number =>
-  PRERELEASE_RANKS[token.toLowerCase()] ?? DEFAULT_PRERELEASE_RANK;
+const toNumbers = (release: string): number[] => release.split(".").filter(Boolean).map(Number);
 
-const compareTokens = (left: string | undefined, right: string | undefined): number => {
-  const isLeftMissing = left === undefined;
-  const isRightMissing = right === undefined;
-  if (isLeftMissing) return -1;
-  if (isRightMissing) return 1;
-  const isLeftNumeric = NUMERIC_TOKEN.test(left);
-  const isRightNumeric = NUMERIC_TOKEN.test(right);
+const matchGroups = (pattern: RegExp, text: string): Record<string, string | undefined> => {
+  const match = pattern.exec(text);
+  if (!match) return {};
+  return { ...match.groups };
+};
+
+const parseSemver = (version: string): SemverVersion => {
+  const { release = "", prerelease = "" } = matchGroups(SEMVER_VERSION, version.trim());
+  return { release: toNumbers(release), prerelease: prerelease.split(".").filter(Boolean) };
+};
+
+const compareIdentifiers = (left: string | undefined, right: string | undefined): number => {
+  if (left === undefined) return -1;
+  if (right === undefined) return 1;
+  const isLeftNumeric = NUMERIC_IDENTIFIER.test(left);
+  const isRightNumeric = NUMERIC_IDENTIFIER.test(right);
   const areBothNumeric = isLeftNumeric && isRightNumeric;
-  if (areBothNumeric) return Number(left) - Number(right);
+  if (areBothNumeric) return order(Number(left), Number(right));
   if (isLeftNumeric) return -1;
   if (isRightNumeric) return 1;
-  const rankOrder = prereleaseRank(left) - prereleaseRank(right);
-  return rankOrder || left.localeCompare(right);
+  return Number(left > right) - Number(left < right);
 };
 
 const comparePrereleases = (left: string[], right: string[]): number => {
@@ -119,23 +120,71 @@ const comparePrereleases = (left: string[], right: string[]): number => {
   if (isRightRelease) return -1;
   const length = Math.max(left.length, right.length);
   const differences = Array.from({ length }, (_, index) =>
-    compareTokens(left[index], right[index]),
+    compareIdentifiers(left[index], right[index]),
   );
-  return differences.find((value) => value !== 0) ?? 0;
+  return firstDifference(differences);
 };
 
-export const compareVersions = (left: string, right: string): number => {
-  const leftVersion = parseVersion(left);
-  const rightVersion = parseVersion(right);
-  const releaseOrder = compareReleases(leftVersion.release, rightVersion.release);
+const compareSemver = (left: string, right: string): number => {
+  const leftVersion = parseSemver(left);
+  const rightVersion = parseSemver(right);
+  const releaseOrder = compareNumberLists(leftVersion.release, rightVersion.release);
   const prereleaseOrder = comparePrereleases(leftVersion.prerelease, rightVersion.prerelease);
-  const postOrder = leftVersion.post - rightVersion.post;
-  const tailOrder = prereleaseOrder || postOrder;
-  return releaseOrder || tailOrder;
+  return firstDifference([releaseOrder, prereleaseOrder]);
+};
+
+const pep440Pre = (
+  label: string | undefined,
+  number: string | undefined,
+  isDevOnly: boolean,
+): number[] => {
+  const hasLabel = label !== undefined;
+  if (hasLabel) return [PEP440_PRERELEASE_RANKS[label], Number(number ?? 0)];
+  if (isDevOnly) return [-1, 0];
+  return [Infinity, 0];
+};
+
+const numberOr = (isPresent: boolean, value: number, fallback: number): number => {
+  if (isPresent) return value;
+  return fallback;
+};
+
+const parsePep440 = (version: string): Pep440Version => {
+  const groups = matchGroups(PEP440_VERSION, version.trim().toLowerCase());
+  const { epoch = "0", release = "", preLabel, preNumber, implicitPost } = groups;
+  const { postLabel, postNumber = "0", devLabel, devNumber = "0" } = groups;
+  const hasPost = implicitPost !== undefined || postLabel !== undefined;
+  const hasDev = devLabel !== undefined;
+  const isDevOnly = hasDev && !hasPost && preLabel === undefined;
+  return {
+    epoch: Number(epoch),
+    release: toNumbers(release),
+    pre: pep440Pre(preLabel, preNumber, isDevOnly),
+    post: numberOr(hasPost, Number(implicitPost || postNumber), -1),
+    dev: numberOr(hasDev, Number(devNumber), Infinity),
+  };
+};
+
+const comparePep440 = (left: string, right: string): number => {
+  const leftVersion = parsePep440(left);
+  const rightVersion = parsePep440(right);
+  return firstDifference([
+    order(leftVersion.epoch, rightVersion.epoch),
+    compareNumberLists(leftVersion.release, rightVersion.release),
+    compareNumberLists(leftVersion.pre, rightVersion.pre),
+    order(leftVersion.post, rightVersion.post),
+    order(leftVersion.dev, rightVersion.dev),
+  ]);
+};
+
+export const compareVersions = (left: string, right: string, ecosystem = ""): number => {
+  const isPython = ecosystem === PYPI_ECOSYSTEM;
+  if (isPython) return comparePep440(left, right);
+  return compareSemver(left, right);
 };
 
 const normalizeName = (ecosystem: string, name: string): string => {
-  const isPyPI = ecosystem === "PyPI";
+  const isPyPI = ecosystem === PYPI_ECOSYSTEM;
   if (!isPyPI) return name;
   return name.toLowerCase().replace(/[-_.]+/g, "-");
 };
@@ -158,9 +207,9 @@ const matchingEvents = (vulnerability: OsvVulnerability, query: OsvQuery): OsvRa
 
 const fixedVersion = (vulnerability: OsvVulnerability, query: OsvQuery): string | undefined => {
   const fixes = matchingEvents(vulnerability, query).flatMap(({ fixed }) => fixed ?? []);
-  return fixes
-    .filter((fixed) => compareVersions(fixed, query.version) > 0)
-    .sort(compareVersions)[0];
+  const compare = (left: string, right: string): number =>
+    compareVersions(left, right, query.ecosystem);
+  return fixes.filter((fixed) => compare(fixed, query.version) > 0).sort(compare)[0];
 };
 
 export const uniqueAdvisories = (entries: OsvBatchEntry[]): OsvAdvisoryRef[] => {
@@ -198,14 +247,21 @@ const isAdvisoryRef = (value: unknown): value is OsvAdvisoryRef =>
 
 const isBatchResult = (value: unknown): value is OsvBatchResult => {
   if (!isObject(value)) return false;
-  const vulns = value.vulns ?? [];
+  const vulns = value.vulns;
+  const isAbsent = vulns === undefined;
+  if (isAbsent) return true;
   const isList = Array.isArray(vulns);
   if (!isList) return false;
   return vulns.every(isAdvisoryRef);
 };
 
+const resultsOf = (response: unknown): unknown => {
+  if (!isObject(response)) return undefined;
+  return response.results;
+};
+
 export const validBatchResults = (response: unknown, expected: number): OsvBatchResult[] => {
-  const results = isObject(response) ? response.results : undefined;
+  const results = resultsOf(response);
   const isList = Array.isArray(results);
   if (!isList) return [];
   const isComplete = results.length === expected;

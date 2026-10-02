@@ -17,18 +17,28 @@ export const OSV_ECOSYSTEMS: Partial<Record<SupportedLanguage, string>> = {
 export const OSV_SEVERITIES = new Set(["low", "moderate", "high", "critical"]);
 export const QUERYABLE_VERSION = /^v?\d[\w.+-]*$/;
 
-export const DEFAULT_PRERELEASE_RANK = 3;
-export const PRERELEASE_RANKS: Record<string, number> = {
-  dev: 0,
-  a: 1,
-  alpha: 1,
-  b: 2,
-  beta: 2,
-  c: 3,
-  rc: 3,
-  pre: 3,
-  preview: 3,
-};
+export const PYPI_ECOSYSTEM = "PyPI";
+export const NUMERIC_IDENTIFIER = /^\d+$/;
+export const SEMVER_VERSION =
+  /^v?(?<release>\d+(\.\d+)*)(-(?<prerelease>[0-9a-z.-]+))?(\+[0-9a-z.-]+)?$/i;
 
-export const NUMERIC_TOKEN = /^\d+$/;
-export const POST_RELEASE_TAG = /^(post|rev|r)$/i;
+const PEP440_EPOCH = "((?<epoch>\\d+)!)?";
+const PEP440_RELEASE = "(?<release>\\d+(\\.\\d+)*)";
+const PEP440_PRE = "([-_.]?(?<preLabel>alpha|a|beta|b|preview|pre|c|rc)[-_.]?(?<preNumber>\\d+)?)?";
+const PEP440_POST =
+  "(-(?<implicitPost>\\d+)|[-_.]?(?<postLabel>post|rev|r)[-_.]?(?<postNumber>\\d+)?)?";
+const PEP440_DEV = "([-_.]?(?<devLabel>dev)[-_.]?(?<devNumber>\\d+)?)?";
+const PEP440_LOCAL = "(\\+[a-z0-9]+([-_.][a-z0-9]+)*)?";
+export const PEP440_VERSION = new RegExp(
+  `^v?${PEP440_EPOCH}${PEP440_RELEASE}${PEP440_PRE}${PEP440_POST}${PEP440_DEV}${PEP440_LOCAL}$`,
+);
+export const PEP440_PRERELEASE_RANKS: Record<string, number> = {
+  a: 0,
+  alpha: 0,
+  b: 1,
+  beta: 1,
+  c: 2,
+  rc: 2,
+  pre: 2,
+  preview: 2,
+};
