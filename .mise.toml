@@ -1,4 +1,12 @@
 [tools]
 node = "26.7.0"
 nub = "0.7.5"
-"github:yowainwright/shellcheck_legibility" = { version = "0.2.4", checksum = "sha256:4c65e9b4c365fbd903679d124b46f9f51ef155f11eb19e0585b7995a55a38e33" }
+
+[tools."github:yowainwright/shellcheck_legibility"]
+version = "0.3.1"
+
+[tools."github:yowainwright/shellcheck_legibility".platforms]
+linux-x64 = { checksum = "sha256:82cb4dee7b70947e719f59afeb89a98c03558e1810cf29e6503f0178f74e36bc" }
+linux-arm64 = { checksum = "sha256:690e9c8e510c3327138e4e4911e1845c16c2722a3a66f64f275572b03e8a651f" }
+macos-x64 = { checksum = "sha256:1fea29d94b6419f56801ff58dd9a8d156e88f21702d325ac59c5a7e0bfc25dd9" }
+macos-arm64 = { checksum = "sha256:1aabd1c8ca0d45002eaaae850279c565be5f8c5b2299b0f50f93c8d8290c6e46" }
