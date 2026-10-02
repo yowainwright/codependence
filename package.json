@@ -346,6 +346,37 @@
           ],
           "confidence": "possible"
         }
+      },
+      "basic-ftp@6.2.1": {
+        "dependents": {
+          "codependence": "basic-ftp (required by get-uri)"
+        },
+        "ledger": {
+          "addedDate": "2026-10-02T05:13:32.364Z",
+          "reason": "Security fix: basic-ftp: Quadratic-time CPU denial of service in Client.list() Unix directory-listing parser (RE_LINE backtracking) (high)",
+          "source": "security",
+          "securityChecked": true,
+          "securityCheckDate": "2026-10-02T05:13:32.367Z",
+          "securityProvider": "osv",
+          "cves": [
+            "CVE-2026-102990"
+          ],
+          "cveDetails": [
+            {
+              "cve": "CVE-2026-102990",
+              "severity": "high",
+              "patchedVersion": "6.2.1"
+            }
+          ],
+          "severity": "high",
+          "url": "https://github.com/patrickjuchli/basic-ftp/security/advisories/GHSA-c475-qrg2-pj4r",
+          "vulnerableRange": ">= 0 < 6.2.1",
+          "patchedVersion": "6.2.1",
+          "sources": [
+            "osv"
+          ],
+          "confidence": "possible"
+        }
       }
     },
     "security": {

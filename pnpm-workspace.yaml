@@ -14,3 +14,4 @@ overrides:
   postcss: 8.5.23
   undici: 7.30.0
   vite: 8.2.1
+  "basic-ftp": "6.2.1"
