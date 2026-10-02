@@ -1,7 +1,13 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { DependencyManifest, VersionStrategy } from "../providers/types";
-import type { Level, VersionDiff, VersionDiffContext, VersionResolution } from "../types";
+import type {
+  Level,
+  SupportedLanguage,
+  VersionDiff,
+  VersionDiffContext,
+  VersionResolution,
+} from "../types";
 import { logger } from "../observability";
 import { DEP_SECTIONS } from "./constants";
 import { SYMBOLS } from "../dx/report/constants";
@@ -145,6 +151,7 @@ const toVersionDiff = (
   const isPermissiveUpdate = !isPinned && isDifferent && withinLevel;
   const isStandardUpdate = isPinned && isDifferent && withinLevel;
   const willUpdate = permissive ? isPermissiveUpdate : isStandardUpdate;
+  const languageField = context.language ? { language: context.language } : {};
 
   return {
     package: pkgName,
@@ -153,6 +160,7 @@ const toVersionDiff = (
     installed,
     isPinned,
     willUpdate,
+    ...languageField,
   };
 };
 
@@ -198,7 +206,7 @@ export const buildVersionDiff = (
     | "devDependencies"
     | "peerDependencies"
     | "optionalDependencies"
-  > & { path?: string; versionStrategy?: VersionStrategy },
+  > & { path?: string; versionStrategy?: VersionStrategy; language?: SupportedLanguage },
   codependencies: string[],
   options: VersionDiffOptions,
 ): VersionDiff[] => {
@@ -207,7 +215,13 @@ export const buildVersionDiff = (
     level = "major",
     versionStrategy = packageJson.versionStrategy || "semver",
   } = options;
-  const context = { codependencies, permissive, level, versionStrategy };
+  const context = {
+    codependencies,
+    permissive,
+    level,
+    versionStrategy,
+    language: packageJson.language,
+  };
   return extractAllDeps(packageJson)
     .filter(([pkgName]) => versionMap[pkgName] !== undefined)
     .flatMap(([pkgName, currentVersion]) =>
@@ -253,7 +267,7 @@ const resolvedPackageNames = (
 
 const versionDiffKey = (diff: VersionDiff, resolvedPackages: ReadonlySet<string>): string => {
   const current = resolvedPackages.has(diff.package) ? diff.current : "";
-  return `${diff.package}\0${current}\0${diff.latest}`;
+  return `${diff.language ?? ""}\0${diff.package}\0${current}\0${diff.latest}`;
 };
 
 export const deduplicateVersionDiffs = (
@@ -273,7 +287,9 @@ export const deduplicateVersionDiffs = (
 
 export const collectDiffsFromManifests = (
   versionMap: Record<string, string>,
-  manifests: Array<DependencyManifest & { versionStrategy?: VersionStrategy }>,
+  manifests: Array<
+    DependencyManifest & { versionStrategy?: VersionStrategy; language?: SupportedLanguage }
+  >,
   codependencies: string[],
   options: VersionDiffOptions,
 ): VersionDiff[] => {

@@ -353,6 +353,11 @@
       "description": "Disable version caching for fresh results",
       "default": false
     },
+    "security": {
+      "type": "boolean",
+      "description": "Add known vulnerabilities from OSV to formatted output; requires format",
+      "default": false
+    },
     "format": {
       "type": "string",
       "enum": ["json", "markdown", "table"],

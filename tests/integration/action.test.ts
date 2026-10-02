@@ -84,3 +84,11 @@ describe("composite action", () => {
     assert.match(targetOutput, /branch-suffix=circleci-helm-kubernetes-kustomize-terraform/);
   });
 });
+
+test("action => forwards the security input to the CLI", () => {
+  const action = actionLines.join("\n");
+
+  assert.match(action, /\n {2}security:\n {4}description:/);
+  assert.match(action, /INPUT_SECURITY: \$\{\{ inputs\.security \}\}/);
+  assert.match(action, /append_bool_flag --security "\$INPUT_SECURITY"/);
+});

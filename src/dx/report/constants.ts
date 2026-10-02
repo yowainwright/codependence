@@ -62,3 +62,6 @@ export const RAW_SYMBOLS = {
   arrow: ">",
   bullet: ">",
 } as const;
+
+export const SEVERITY_ORDER = ["critical", "high", "moderate", "low", "unknown"] as const;
+export const SECURITY_FIX_HINT = "Fix with Pastoralist: pastoralist --checkSecurity --interactive";

@@ -1,0 +1,60 @@
+import type { SupportedLanguage } from "../types";
+import type { DiskCache } from "../utils/cache";
+
+export type SecurityQuery = {
+  name: string;
+  version: string;
+  language: SupportedLanguage;
+};
+
+export type SecurityFetch = (url: string, init?: RequestInit) => Promise<Response>;
+
+export type CachedAdvisory = {
+  modified: string;
+  details: OsvVulnerability;
+};
+
+export type AdvisoryCache = DiskCache<CachedAdvisory>;
+
+export type SecurityOptions = {
+  fetch?: SecurityFetch;
+  concurrency?: number;
+  cache?: AdvisoryCache;
+};
+
+export type OsvQuery = SecurityQuery & {
+  ecosystem: string;
+  key: string;
+};
+
+export type OsvAdvisoryRef = {
+  id: string;
+  modified?: string;
+};
+
+export type OsvBatchEntry = {
+  query: OsvQuery;
+  advisories: OsvAdvisoryRef[];
+};
+
+export type OsvBatchResponse = {
+  results?: Array<{ vulns?: OsvAdvisoryRef[] }>;
+};
+
+export type OsvRangeEvent = {
+  introduced?: string;
+  fixed?: string;
+  last_affected?: string;
+};
+
+export type OsvAffected = {
+  package?: { name?: string; ecosystem?: string };
+  ranges?: Array<{ events?: OsvRangeEvent[] }>;
+};
+
+export type OsvVulnerability = {
+  id: string;
+  withdrawn?: string;
+  affected?: OsvAffected[];
+  database_specific?: { severity?: string };
+};

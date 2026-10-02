@@ -136,3 +136,93 @@ describe("CLI JSON output contract", () => {
     assert.ok(result.stdout.includes("Usage"));
   });
 });
+
+test("--security without --format behaves like a plain run", () => {
+  const workDir = createOutdatedProject();
+
+  try {
+    const plain = runCli(workDir, []);
+    const secured = runCli(workDir, ["--security"]);
+
+    assert.strictEqual(secured.status, plain.status);
+    assert.doesNotMatch(secured.stdout, /Security|vulnerab/i);
+  } finally {
+    rmSync(workDir, { recursive: true, force: true });
+  }
+});
+
+type LegacyProject = { workDir: string; read: () => string | undefined };
+
+const createLegacyProject = (files: Record<string, unknown>): LegacyProject => {
+  const workDir = mkdtempSync(join(tmpdir(), "codependence-cli-legacy-"));
+  Object.entries(files).forEach(([name, content]) => {
+    writeFileSync(join(workDir, name), JSON.stringify(content, null, 2));
+  });
+  return { workDir, read: () => readPackageJson(workDir).dependencies["fs-extra"] };
+};
+
+const legacyManifest = {
+  name: "legacy",
+  version: "1.0.0",
+  dependencies: { "fs-extra": "^8.0.0" },
+};
+
+test("0.3.x config => package.json codependence key reports a mismatched pin", () => {
+  const manifest = {
+    ...legacyManifest,
+    codependence: { codependencies: [{ "fs-extra": "^9.0.0" }] },
+  };
+  const { workDir, read } = createLegacyProject({ "package.json": manifest });
+
+  try {
+    assert.strictEqual(runCli(workDir, []).status, 1);
+    assert.strictEqual(read(), "^8.0.0");
+  } finally {
+    rmSync(workDir, { recursive: true, force: true });
+  }
+});
+
+test("0.3.x config => package.json codependence key is rewritten by --update", () => {
+  const manifest = {
+    ...legacyManifest,
+    codependence: { codependencies: [{ "fs-extra": "^9.0.0" }] },
+  };
+  const { workDir, read } = createLegacyProject({ "package.json": manifest });
+
+  try {
+    assert.strictEqual(runCli(workDir, ["--update"]).status, 0);
+    assert.strictEqual(read(), "^9.0.0");
+  } finally {
+    rmSync(workDir, { recursive: true, force: true });
+  }
+});
+
+test("0.3.x config => a matching pin in the package.json key exits 0", () => {
+  const manifest = {
+    ...legacyManifest,
+    dependencies: { "fs-extra": "^9.0.0" },
+    codependence: { codependencies: [{ "fs-extra": "^9.0.0" }] },
+  };
+  const { workDir } = createLegacyProject({ "package.json": manifest });
+
+  try {
+    assert.strictEqual(runCli(workDir, []).status, 0);
+  } finally {
+    rmSync(workDir, { recursive: true, force: true });
+  }
+});
+
+test("0.3.x config => a flat .codependencerc with files is rewritten by --update", () => {
+  const rc = { codependencies: [{ "fs-extra": "^9.0.0" }], files: ["package.json"] };
+  const { workDir, read } = createLegacyProject({
+    "package.json": legacyManifest,
+    ".codependencerc": rc,
+  });
+
+  try {
+    assert.strictEqual(runCli(workDir, ["--update"]).status, 0);
+    assert.strictEqual(read(), "^9.0.0");
+  } finally {
+    rmSync(workDir, { recursive: true, force: true });
+  }
+});

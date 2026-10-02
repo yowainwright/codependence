@@ -1,3 +1,5 @@
+import type { Vulnerability } from "../../types";
+
 export interface ErrorContext {
   packageName: string;
   error: Error | string;
@@ -16,6 +18,8 @@ export interface FormattedDependency {
   isPinned: boolean;
   severity: "major" | "minor" | "patch" | "unknown";
   canAutoUpdate: boolean;
+  securityStatus?: "checked" | "not-checked";
+  vulnerabilities?: Vulnerability[];
 }
 
 export interface FormattedSummary {

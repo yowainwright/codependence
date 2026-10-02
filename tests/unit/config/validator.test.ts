@@ -1043,3 +1043,18 @@ describe("formatValidationErrors", () => {
     assert.match(formatted, /3\. field3: Error 3/);
   });
 });
+
+it("validateConfig => accepts a boolean security option", () => {
+  const config = { mode: "precise", format: "json", security: true };
+
+  assert.deepStrictEqual(validateConfig(config), { valid: true, errors: [] });
+});
+
+it("validateConfig => rejects a non-boolean security option", () => {
+  const result = validateConfig({ mode: "precise", security: "yes" });
+
+  assert.deepStrictEqual(
+    result.errors.map(({ field }) => field),
+    ["security"],
+  );
+});

@@ -1,4 +1,6 @@
-import { COMMON_PACKAGES } from "./constants";
+import { LANGUAGES } from "../../providers/constants";
+import type { DependencyInfo, Vulnerability } from "../../types";
+import { COMMON_PACKAGES, SECURITY_FIX_HINT, SEVERITY_ORDER } from "./constants";
 import type { ErrorContext } from "./types";
 
 const levenshteinDistance = (a: string, b: string): number => {
@@ -203,4 +205,36 @@ export const formatEnhancedError = (context: ErrorContext): string => {
   if (isNetworkError) return formatNetworkError(packageName);
 
   return formatGenericError(packageName, errorStr);
+};
+
+export const hasVulnerabilities = ({ security }: DependencyInfo): boolean =>
+  (security?.vulnerabilities.length ?? 0) > 0;
+
+export const hasSecurityData = (dependencies: DependencyInfo[]): boolean =>
+  dependencies.some(({ security }) => security !== undefined);
+
+const countBySeverity = (vulnerabilities: Vulnerability[]): string[] => {
+  const tally = new Map<string, number>();
+  vulnerabilities.forEach(({ severity }) => {
+    const count = tally.get(severity) ?? 0;
+    tally.set(severity, count + 1);
+  });
+  return SEVERITY_ORDER.filter((severity) => tally.has(severity)).map(
+    (severity) => `${tally.get(severity)} ${severity}`,
+  );
+};
+
+export const securitySummary = ({ security }: DependencyInfo): string => {
+  if (!security) return "";
+  if (!security.checked) return "not checked";
+  if (security.vulnerabilities.length === 0) return "none";
+  return countBySeverity(security.vulnerabilities).join(", ");
+};
+
+export const securityFixHint = (dependencies: DependencyInfo[]): string => {
+  const isFixable = (dependency: DependencyInfo): boolean =>
+    dependency.language === LANGUAGES.NODEJS && hasVulnerabilities(dependency);
+  const hasFixable = dependencies.some(isFixable);
+  if (!hasFixable) return "";
+  return SECURITY_FIX_HINT;
 };

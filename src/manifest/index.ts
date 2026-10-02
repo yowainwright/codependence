@@ -1636,9 +1636,10 @@ const previewFileCheck = (
     manifests,
     versionResolver.resolvedDependencyVersions,
   );
-  const comparableManifests = resolvedManifests.map(({ manifest, provider }) => ({
+  const comparableManifests = resolvedManifests.map(({ manifest, provider, language }) => ({
     ...manifest,
     versionStrategy: provider.capabilities.versionStrategy,
+    language,
   }));
   const diffOptions = { permissive: isPreciseMode, level: options.level };
   const allDiffs = shouldCollectDiffs

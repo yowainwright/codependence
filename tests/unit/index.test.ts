@@ -89,3 +89,10 @@ describe("package entry", () => {
     assert.strictEqual(schemaAllowsRepositoryPath("C:\\repo\\package.json"), false);
   });
 });
+
+test("schema => describes the security option as an opt-in boolean", () => {
+  const { security } = entry.schema.properties;
+
+  assert.strictEqual(security.type, "boolean");
+  assert.strictEqual(security.default, false);
+});

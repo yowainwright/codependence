@@ -67,6 +67,7 @@ export const BOOLEAN_OPTION_FIELDS = [
   "interactive",
   "watch",
   "noCache",
+  "security",
 ] as const;
 export const KNOWN_FIELDS = [
   "$schema",

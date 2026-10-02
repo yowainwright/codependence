@@ -591,3 +591,59 @@ describe("validatePackageName", () => {
     });
   });
 });
+
+const languageManifest = { filePath: "package.json", dependencies: { lodash: "4.17.20" } };
+const languageOptions = { permissive: true, level: "major" as const };
+const languageVersionMap = { lodash: "4.17.21" };
+
+test("buildVersionDiff => records the manifest language on each diff", () => {
+  const manifest = { ...languageManifest, language: "nodejs" as const };
+  const diffs = buildVersionDiff(languageVersionMap, manifest, [], languageOptions);
+
+  assert.strictEqual(diffs[0].language, "nodejs");
+});
+
+test("buildVersionDiff => leaves language off when the manifest has none", () => {
+  const diffs = buildVersionDiff(languageVersionMap, languageManifest, [], languageOptions);
+
+  assert.strictEqual("language" in diffs[0], false);
+});
+
+test("collectDiffsFromManifests => keeps the language through collection", () => {
+  const manifest = { ...languageManifest, language: "nodejs" as const };
+  const diffs = collectDiffsFromManifests(languageVersionMap, [manifest], [], languageOptions);
+
+  assert.deepStrictEqual(
+    diffs.map(({ language }) => language),
+    ["nodejs"],
+  );
+});
+
+test("deduplicateVersionDiffs => keeps same-named packages from different ecosystems", () => {
+  const base: VersionDiff = {
+    package: "requests",
+    current: "1.0.0",
+    latest: "2.0.0",
+    isPinned: false,
+    willUpdate: true,
+  };
+  const diffs = deduplicateVersionDiffs([
+    { ...base, language: "nodejs" },
+    { ...base, language: "python" },
+  ]);
+
+  assert.strictEqual(diffs.length, 2);
+});
+
+test("deduplicateVersionDiffs => still merges identical diffs from the same ecosystem", () => {
+  const diff: VersionDiff = {
+    package: "lodash",
+    current: "1.0.0",
+    latest: "2.0.0",
+    isPinned: false,
+    willUpdate: true,
+    language: "nodejs",
+  };
+
+  assert.strictEqual(deduplicateVersionDiffs([diff, { ...diff }]).length, 1);
+});

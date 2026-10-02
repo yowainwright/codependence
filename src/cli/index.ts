@@ -21,6 +21,10 @@ import { Prompt } from "../dx";
 import { exec } from "../utils/process";
 import { glob } from "../utils/fs";
 import { DEFAULT_IGNORE_PATTERNS } from "../manifest/constants";
+import { constructVersionTypes } from "../manifest/utils";
+import { checkSecurity, securityKey } from "../security";
+import type { CachedAdvisory } from "../security";
+import { DiskCache } from "../utils/cache";
 import {
   expandTargets,
   CONFIG_FILES,
@@ -1317,18 +1321,54 @@ const createActionStatus = (show: boolean, actionLogger: Logger): ActionStatus =
   };
 };
 
-const printFormattedActionResult = (
+const scannedVersion = ({ current }: DependencyInfo): string =>
+  constructVersionTypes(current).exactVersion;
+
+const withSecurity = async (
+  dependencies: DependencyInfo[],
+  options: Options,
+): Promise<DependencyInfo[]> => {
+  const queries = dependencies.flatMap((dependency) =>
+    dependency.language
+      ? [
+          {
+            name: dependency.name,
+            version: scannedVersion(dependency),
+            language: dependency.language,
+          },
+        ]
+      : [],
+  );
+  const cache = new DiskCache<CachedAdvisory>("osv", {
+    rootDir: options.rootDir,
+    enabled: !options.noCache,
+  });
+  const results = await checkSecurity(queries, { cache });
+  return dependencies.map((dependency) => {
+    const key =
+      dependency.language &&
+      securityKey(dependency.language, dependency.name, scannedVersion(dependency));
+    const security = (key && results.get(key)) || { checked: false, vulnerabilities: [] };
+    return Object.assign({}, dependency, { security });
+  });
+};
+
+const printFormattedActionResult = async (
   options: Options,
   actionLogger: Logger,
   result: TargetRunResult & { duration: number },
-): void => {
+): Promise<void> => {
   const dependencyInfo: DependencyInfo[] = result.diffs.map((diff) => ({
     name: diff.package,
     current: diff.current,
     latest: diff.latest,
     isPinned: diff.isPinned,
+    language: diff.language,
   }));
-  const formattedOutput = format(dependencyInfo, options.format || "table", result.duration);
+  const reportable = options.security
+    ? await withSecurity(dependencyInfo, options)
+    : dependencyInfo;
+  const formattedOutput = format(reportable, options.format || "table", result.duration);
   if (!options.outputFile) {
     actionLogger.print(formattedOutput);
     return;
@@ -1343,8 +1383,6 @@ const printActionResult = (
   result: TargetRunResult & { duration: number },
   status: ActionStatus,
 ): void => {
-  if (options.format !== undefined)
-    return printFormattedActionResult(options, actionLogger, result);
   if (status.show) {
     status.stop();
     const successMessage = options.dryRun ? "dry run complete!" : "pinned!";
@@ -1374,7 +1412,12 @@ const executeAction = async (mergedOptions: Options, actionLogger: Logger): Prom
     throw err;
   });
   const duration = Date.now() - startTime;
-  printActionResult(options, actionLogger, { ...result, duration }, status);
+  const finalResult = { ...result, duration };
+  if (options.format !== undefined) {
+    await printFormattedActionResult(options, actionLogger, finalResult);
+    return;
+  }
+  printActionResult(options, actionLogger, finalResult, status);
 };
 
 export async function action(options: Options = {}): Promise<void | Options> {

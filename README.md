@@ -874,6 +874,55 @@ Output written to dependency-report.json
 
 ---
 
+#### `security`
+
+> Type: **`boolean`**
+> Default: `false`
+
+Adds known vulnerabilities from [OSV](https://osv.dev) to formatted output. Use it with `format`.
+
+Codependence checks the version written in the manifest, so `^4.17.20` is checked as `4.17.20`. Node.js, Python, Go, and Rust packages are checked. Packages in other ecosystems are reported as `not-checked`, which is not the same as clean.
+
+Advisory details are cached in `node_modules/.cache/codependence` and refetched only when OSV changes them. `--noCache` bypasses the cache, and a project without a `node_modules` directory is not cached.
+
+```diff
+{
++  "format": "json",
++  "security": true
+}
+```
+
+Run the same behavior from the CLI:
+
+```sh
+codependence --format json --security
+```
+
+Each dependency gains `securityStatus` and, when checked, a `vulnerabilities` list:
+
+```json
+{
+  "package": "lodash",
+  "current": "4.17.20",
+  "latest": "4.18.1",
+  "securityStatus": "checked",
+  "vulnerabilities": [{ "id": "GHSA-35jh-r3h4-6jhm", "severity": "high", "fixedIn": "4.17.21" }]
+}
+```
+
+The `table` and `markdown` formats add a `Security` column. They also list vulnerable packages that are already up to date, since an update cannot fix those. For Node.js packages they point to [Pastoralist](https://jeffry.in/pastoralist/), which records and applies override fixes:
+
+```txt
+  Package     Current  Latest  Severity    Security
+  ─────────────────────────────────────────────────
+  lodash      4.17.20  4.18.1  ● minor     2 high, 3 moderate
+  request     2.88.2   2.88.2  up-to-date  1 moderate
+
+  Fix with Pastoralist: pastoralist --checkSecurity --interactive
+```
+
+---
+
 ## CI
 
 <!-- generated workflow behavior from src/cli/index.ts -->
@@ -958,7 +1007,7 @@ Invalid or missing versions fail before dependency checks run.
 > Type: **`Partial<Options>`**
 > Default: CLI defaults
 
-The action forwards policy inputs to the CLI, including `codependencies`, `config`, `files`, `update`, `dryRun`, `permissive`, `mode`, `level`, `language`, `rootDir`, `ignore`, `silent`, `debug`, `yarnConfig`, `noCache`, `format`, `outputFile`, and `lockfile`.
+The action forwards policy inputs to the CLI, including `codependencies`, `config`, `files`, `update`, `dryRun`, `permissive`, `mode`, `level`, `language`, `rootDir`, `ignore`, `silent`, `debug`, `yarnConfig`, `noCache`, `format`, `outputFile`, `security`, and `lockfile`.
 
 ```diff
  - uses: yowainwright/codependence@v1

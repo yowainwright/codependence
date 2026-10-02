@@ -458,3 +458,152 @@ describe("format", () => {
     assert.match(stripAnsi(tableResult), /✓ All dependencies are up-to-date!/);
   });
 });
+
+const vulnerableLodash: DependencyInfo = {
+  name: "lodash",
+  current: "4.17.20",
+  latest: "4.18.1",
+  language: "nodejs",
+  security: {
+    checked: true,
+    vulnerabilities: [
+      { id: "GHSA-a", severity: "high", fixedIn: "4.17.21" },
+      { id: "GHSA-b", severity: "high", fixedIn: "4.17.21" },
+      { id: "GHSA-c", severity: "moderate", fixedIn: "4.18.0" },
+    ],
+  },
+};
+
+const vulnerableCurrent: DependencyInfo = {
+  name: "request",
+  current: "2.88.2",
+  latest: "2.88.2",
+  language: "nodejs",
+  security: {
+    checked: true,
+    vulnerabilities: [{ id: "GHSA-d", severity: "moderate" }],
+  },
+};
+
+const clean: DependencyInfo = {
+  name: "left-pad",
+  current: "1.3.0",
+  latest: "1.3.0",
+  language: "nodejs",
+  security: { checked: true, vulnerabilities: [] },
+};
+
+const unchecked: DependencyInfo = {
+  name: "actions/checkout",
+  current: "v4",
+  latest: "v5",
+  language: "github-actions",
+  security: { checked: false, vulnerabilities: [] },
+};
+
+const plain: DependencyInfo[] = [
+  { name: "react", current: "17.0.0", latest: "18.0.0" },
+  { name: "lodash", current: "4.17.21", latest: "4.17.21" },
+];
+
+it("formatAsJSON => adds security fields only when security data exists", () => {
+  const parsed = JSON.parse(formatAsJSON(plain));
+
+  parsed.dependencies.forEach((dependency: Record<string, unknown>) => {
+    assert.strictEqual("securityStatus" in dependency, false);
+    assert.strictEqual("vulnerabilities" in dependency, false);
+  });
+});
+
+it("formatAsJSON => reports checked packages with their vulnerabilities", () => {
+  const parsed = JSON.parse(formatAsJSON([vulnerableLodash, clean]));
+
+  assert.strictEqual(parsed.dependencies[0].securityStatus, "checked");
+  assert.strictEqual(parsed.dependencies[0].vulnerabilities.length, 3);
+  assert.deepStrictEqual(parsed.dependencies[1].vulnerabilities, []);
+});
+
+it("formatAsJSON => omits vulnerabilities for unchecked packages", () => {
+  const dependency = JSON.parse(formatAsJSON([unchecked])).dependencies[0];
+
+  assert.strictEqual(dependency.securityStatus, "not-checked");
+  assert.strictEqual("vulnerabilities" in dependency, false);
+});
+
+it("formatAsJSON => does not leak internal fields", () => {
+  const dependency = JSON.parse(formatAsJSON([vulnerableLodash])).dependencies[0];
+
+  assert.strictEqual("language" in dependency, false);
+  assert.strictEqual("security" in dependency, false);
+});
+
+it("formatAsTable => is unchanged without security data", () => {
+  const table = formatAsTable(plain);
+
+  assert.match(table, /Outdated Dependencies:/);
+  assert.doesNotMatch(table, /Security/);
+  assert.doesNotMatch(table, /Pastoralist/);
+});
+
+it("formatAsTable => adds a Security column with severity counts", () => {
+  const table = formatAsTable([vulnerableLodash, clean]);
+
+  assert.match(table, /Severity\s+Security/);
+  assert.match(table, /lodash\s+4\.17\.20\s+4\.18\.1\s+.*minor\s+2 high, 1 moderate/);
+});
+
+it("formatAsTable => lists vulnerable packages that are already current", () => {
+  const table = formatAsTable([vulnerableCurrent, clean]);
+
+  assert.match(table, /request\s+2\.88\.2\s+2\.88\.2\s+up-to-date\s+1 moderate/);
+  assert.doesNotMatch(table, /left-pad/);
+});
+
+it("formatAsTable => retitles the table when security data is present", () => {
+  assert.match(formatAsTable([vulnerableLodash]), /Outdated or vulnerable dependencies:/);
+});
+
+it("formatAsTable => shows not checked for unsupported ecosystems", () => {
+  assert.match(formatAsTable([unchecked]), /actions\/checkout\s+v4\s+v5\s+.*major\s+not checked/);
+});
+
+it("formatAsTable => reports all clear when nothing is outdated or vulnerable", () => {
+  assert.match(formatAsTable([clean]), /All dependencies are up-to-date!/);
+});
+
+it("formatAsTable => suggests Pastoralist for vulnerable npm packages", () => {
+  assert.match(formatAsTable([vulnerableLodash]), /pastoralist --checkSecurity --interactive/);
+});
+
+it("formatAsTable => omits the Pastoralist hint for other ecosystems", () => {
+  const python = { ...vulnerableLodash, name: "requests", language: "python" as const };
+
+  assert.doesNotMatch(formatAsTable([python]), /Pastoralist/);
+  assert.doesNotMatch(formatAsTable([clean, unchecked]), /Pastoralist/);
+});
+
+it("formatAsMarkdown => is unchanged without security data", () => {
+  const markdown = formatAsMarkdown(plain);
+
+  assert.match(markdown, /\| Package \| Current \| Latest \| Severity \|\n\|---------\|/);
+  assert.doesNotMatch(markdown, /Security|Pastoralist/);
+});
+
+it("formatAsMarkdown => adds a Security column to the outdated table", () => {
+  const markdown = formatAsMarkdown([vulnerableLodash]);
+
+  assert.match(markdown, /\| Package \| Current \| Latest \| Severity \| Security \|/);
+  assert.match(markdown, /\| lodash \| 4\.17\.20 \| 4\.18\.1 \| .* minor \| 2 high, 1 moderate \|/);
+});
+
+it("formatAsMarkdown => notes vulnerabilities on up-to-date packages", () => {
+  const markdown = formatAsMarkdown([vulnerableCurrent, clean]);
+
+  assert.match(markdown, /- request @ 2\.88\.2 \(security: 1 moderate\)/);
+  assert.match(markdown, /- left-pad @ 1\.3\.0\n/);
+});
+
+it("formatAsMarkdown => adds the Pastoralist hint only for vulnerable npm packages", () => {
+  assert.match(formatAsMarkdown([vulnerableLodash]), /> Fix with Pastoralist: pastoralist/);
+  assert.doesNotMatch(formatAsMarkdown([clean, unchecked]), /Pastoralist/);
+});

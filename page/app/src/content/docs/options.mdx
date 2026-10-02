@@ -150,6 +150,10 @@ Output format: `json`, `markdown`, or `table`. Default: `table`
 
 Write output to a file instead of stdout. Default: `undefined`
 
+### `security`: `boolean`
+
+Add known vulnerabilities from OSV to formatted output. Requires `format`. Checks Node.js, Python, Go, and Rust packages; other ecosystems are reported as not checked. Default: `false`
+
 ### `language`: `string`
 
 One-off target language for legacy flat configuration. New repository configs should select a `manager` in each target.

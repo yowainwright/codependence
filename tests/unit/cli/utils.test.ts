@@ -1,6 +1,7 @@
 import { describe, test, mock } from "node:test";
 import assert from "node:assert/strict";
 import { parseArgs, showHelp } from "../../../src/cli/utils";
+import { HELP_TEXT } from "../../../src/cli/constants";
 
 // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("parseArgs", () => {
@@ -461,5 +462,58 @@ describe("showHelp", () => {
     assert.match(callArg, /--legend/);
 
     consoleSpy.mock.restore();
+  });
+});
+
+const securityBaseArgs = ["node", "script.js"];
+
+test("parseArgs => --security enables security checks", () => {
+  assert.strictEqual(parseArgs([...securityBaseArgs, "--security"]).options.security, true);
+});
+
+test("parseArgs => security is off unless requested", () => {
+  assert.strictEqual(parseArgs(securityBaseArgs).options.security, undefined);
+});
+
+test("parseArgs => --security combines with format flags", () => {
+  const { options } = parseArgs([...securityBaseArgs, "--format", "json", "--security"]);
+
+  assert.strictEqual(options.format, "json");
+  assert.strictEqual(options.security, true);
+});
+
+test("help => documents --security", () => {
+  assert.match(HELP_TEXT, /--security\s+Add known vulnerabilities from OSV/);
+});
+
+const legacyFlags: Array<[string[], Record<string, unknown>]> = [
+  [["-f", "a.json"], { files: ["a.json"] }],
+  [["--files", "a.json"], { files: ["a.json"] }],
+  [["-u"], { update: true }],
+  [["--update"], { update: true }],
+  [["-r", "."], { rootDir: "." }],
+  [["--rootDir", "."], { rootDir: "." }],
+  [["-i", "dist"], { ignore: ["dist"] }],
+  [["--ignore", "dist"], { ignore: ["dist"] }],
+  [["--debug"], { debug: true }],
+  [["--silent"], { silent: true }],
+  [["-cds", "lodash"], { codependencies: ["lodash"] }],
+  [["--codependencies", "lodash"], { codependencies: ["lodash"] }],
+  [["-c", "config.json"], { config: "config.json" }],
+  [["--config", "config.json"], { config: "config.json" }],
+  [["-s", "."], { searchPath: "." }],
+  [["--searchPath", "."], { searchPath: "." }],
+  [["-y"], { yarnConfig: true }],
+  [["--yarnConfig"], { yarnConfig: true }],
+];
+
+legacyFlags.forEach(([args, expected]) => {
+  test(`parseArgs => keeps the 0.3.x flag ${args.join(" ")}`, () => {
+    const { options } = parseArgs(["node", "script.js", ...args]);
+
+    assert.deepStrictEqual(
+      Object.keys(expected).map((key) => options[key as keyof typeof options]),
+      Object.values(expected),
+    );
   });
 });

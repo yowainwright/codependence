@@ -102,6 +102,7 @@ export const OPTION_DEFINITIONS: OptionDefinition[] = [
   { flags: ["--interactive"], hasValue: false },
   { flags: ["--watch"], hasValue: false },
   { flags: ["--noCache", "--no-cache"], hasValue: false },
+  { flags: ["--security"], hasValue: false },
   { flags: ["--format"], hasValue: true },
   { flags: ["--outputFile", "--output-file"], hasValue: true },
   { flags: ["-sg", "--styleguide"], hasValue: false },
@@ -155,6 +156,7 @@ Options:
   --interactive                     Choose which packages to update interactively
   --watch                           Watch for changes and re-check continuously
   --noCache                         Disable version caching for fresh results
+  --security                        Add known vulnerabilities from OSV to --format output
   --format <type>                   Output format: json, markdown, or table (default: table)
   --outputFile <path>               Write output to file instead of stdout
   -sg, --styleguide                 Browse the CLI styleguide interactively

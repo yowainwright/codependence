@@ -1563,6 +1563,18 @@ test("checkFiles => prompts before updating an outdated duplicate and honors no 
   }
 });
 
+const skipsInteractivePromptExpectedDiffs = [
+  {
+    current: "1.0.0",
+    installed: "2.0.0",
+    isPinned: true,
+    language: "nodejs",
+    latest: "2.0.0",
+    package: "lodash",
+    willUpdate: false,
+  },
+];
+
 test("checkFiles => skips interactive prompt when nothing needs updating", async () => {
   const tempDir = createTestDirectory();
   rmSync(tempDir, { recursive: true, force: true });
@@ -1587,16 +1599,7 @@ test("checkFiles => skips interactive prompt when nothing needs updating", async
         isTesting: false,
         level: "patch",
       }),
-      [
-        {
-          current: "1.0.0",
-          installed: "2.0.0",
-          isPinned: true,
-          latest: "2.0.0",
-          package: "lodash",
-          willUpdate: false,
-        },
-      ],
+      skipsInteractivePromptExpectedDiffs,
     );
     assert.strictEqual(selectSpy.mock.callCount(), 0);
   } finally {

@@ -73,6 +73,7 @@ export type Options = {
   interactive?: boolean;
   watch?: boolean;
   noCache?: boolean;
+  security?: boolean;
   format?: "json" | "markdown" | "table";
   outputFile?: string;
   styleguide?: boolean;
@@ -223,6 +224,7 @@ export type VersionDiff = {
   installed?: string;
   isPinned: boolean;
   willUpdate: boolean;
+  language?: SupportedLanguage;
 };
 
 export type VersionDiffContext = {
@@ -230,6 +232,18 @@ export type VersionDiffContext = {
   permissive: boolean;
   level: Level;
   versionStrategy: VersionStrategy;
+  language?: SupportedLanguage;
+};
+
+export type Vulnerability = {
+  id: string;
+  severity: "low" | "moderate" | "high" | "critical" | "unknown";
+  fixedIn?: string;
+};
+
+export type SecurityResult = {
+  checked: boolean;
+  vulnerabilities: Vulnerability[];
 };
 
 export type DependencyInfo = {
@@ -237,6 +251,8 @@ export type DependencyInfo = {
   current: string;
   latest: string;
   isPinned?: boolean;
+  language?: SupportedLanguage;
+  security?: SecurityResult;
 };
 
 export type InteractiveResult = {

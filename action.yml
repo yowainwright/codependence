@@ -102,6 +102,10 @@ inputs:
     description: "Disable version cache for fresh registry results (true/false)"
     required: false
     default: "false"
+  security:
+    description: "Add known vulnerabilities from OSV to formatted output (true/false); requires format"
+    required: false
+    default: "false"
   format:
     description: "Output format: json, markdown, or table"
     required: false
@@ -350,6 +354,7 @@ runs:
         INPUT_MODE: ${{ inputs.mode }}
         INPUT_NO_CACHE: ${{ inputs.noCache }}
         INPUT_OUTPUT_FILE: ${{ inputs.outputFile }}
+        INPUT_SECURITY: ${{ inputs.security }}
         INPUT_UPDATE: ${{ inputs.update }}
         INPUT_PERMISSIVE: ${{ inputs.permissive }}
         INPUT_FAIL_ON_OUTDATED: ${{ inputs.fail-on-outdated }}
@@ -405,6 +410,7 @@ runs:
         append_bool_flag --debug "$INPUT_DEBUG"
         append_bool_flag --yarnConfig "$INPUT_YARN_CONFIG"
         append_bool_flag --noCache "$INPUT_NO_CACHE"
+        append_bool_flag --security "$INPUT_SECURITY"
 
         if [ -n "$INPUT_TARGETS" ]; then
           CMD+=(--lockfile "$INPUT_LOCKFILE")
