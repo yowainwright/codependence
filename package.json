@@ -30,9 +30,7 @@
     "cdp": "dist/cli.js",
     "codependence": "dist/cli.js"
   },
-  "workspaces": [
-    "page/app"
-  ],
+  "workspaces": ["page/app"],
   "files": [
     "dist/cli.js",
     "dist/index.js",
