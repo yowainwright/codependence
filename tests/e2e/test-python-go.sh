@@ -27,7 +27,7 @@ test_python_requirements() {
   printf '\n%s\n' "1. Testing Python requirements.txt..."
   cp python-requirements.txt.fixture requirements.txt
   cp .codependencerc-python .codependencerc
-  node ./dist/cli.js --debug 2>&1 | grep -q "requests\|flask\|django" || fail "✗ Python requirements.txt test failed"
+  node ./dist/cli.js --config .codependencerc --debug 2>&1 | grep -q "requests\|flask\|django" || fail "✗ Python requirements.txt test failed"
   echo "✓ Python requirements.txt test passed"
   rm -f requirements.txt .codependencerc
 }
@@ -37,7 +37,7 @@ test_python_poetry() {
   printf '\n%s\n' "2. Testing Python pyproject.toml (poetry)..."
   cp python-pyproject.toml.fixture pyproject.toml
   cp .codependencerc-python .codependencerc
-  node ./dist/cli.js --debug 2>&1 | grep -q "requests\|flask\|django" || fail "✗ Python pyproject.toml test failed"
+  node ./dist/cli.js --config .codependencerc --debug 2>&1 | grep -q "requests\|flask\|django" || fail "✗ Python pyproject.toml test failed"
   echo "✓ Python pyproject.toml test passed"
   rm -f pyproject.toml .codependencerc
 }
@@ -47,7 +47,7 @@ test_python_pipenv() {
   printf '\n%s\n' "3. Testing Python Pipfile..."
   cp python-Pipfile.fixture Pipfile
   cp .codependencerc-python .codependencerc
-  node ./dist/cli.js --debug 2>&1 | grep -q "requests\|flask\|django" || fail "✗ Python Pipfile test failed"
+  node ./dist/cli.js --config .codependencerc --debug 2>&1 | grep -q "requests\|flask\|django" || fail "✗ Python Pipfile test failed"
   echo "✓ Python Pipfile test passed"
   rm -f Pipfile .codependencerc
 }
@@ -57,7 +57,7 @@ test_go_modules() {
   printf '\n%s\n' "4. Testing Go go.mod..."
   cp go.mod.fixture go.mod
   cp .codependencerc-go .codependencerc
-  node ./dist/cli.js --debug 2>&1 | grep -q "gin-gonic\|lib/pq\|golang.org" || fail "✗ Go go.mod test failed"
+  node ./dist/cli.js --config .codependencerc --debug 2>&1 | grep -q "gin-gonic\|lib/pq\|golang.org" || fail "✗ Go go.mod test failed"
   echo "✓ Go go.mod test passed"
   rm -f go.mod .codependencerc
 }
@@ -69,7 +69,7 @@ test_auto_detection() {
   PYTHON_AUTO_DIR="$(make_tmp_dir)"
   cp python-requirements.txt.fixture "$PYTHON_AUTO_DIR/requirements.txt"
   echo '{"codependencies":["requests"],"mode":"verbose"}' >"$PYTHON_AUTO_DIR/.codependencerc"
-  node ./dist/cli.js --debug --rootDir "$PYTHON_AUTO_DIR" --searchPath "$PYTHON_AUTO_DIR" 2>&1 | grep -q "requests" || fail "✗ Python auto-detection test failed"
+  node ./dist/cli.js --debug --config "$PYTHON_AUTO_DIR/.codependencerc" --rootDir "$PYTHON_AUTO_DIR" --searchPath "$PYTHON_AUTO_DIR" 2>&1 | grep -q "requests" || fail "✗ Python auto-detection test failed"
   echo "✓ Python auto-detection test passed"
 
   test_go_auto_detection
@@ -83,7 +83,7 @@ test_mixed_project() {
   cp test-package.json.fixture "$MIXED_DIR/package.json"
   cp python-requirements.txt.fixture "$MIXED_DIR/requirements.txt"
   echo '{"codependencies":["lodash"],"mode":"verbose"}' >"$MIXED_DIR/.codependencerc"
-  node ./dist/cli.js --debug --rootDir "$MIXED_DIR" --searchPath "$MIXED_DIR" 2>&1 | grep -q "lodash" || fail "✗ Polyglot project test failed"
+  node ./dist/cli.js --debug --config "$MIXED_DIR/.codependencerc" --rootDir "$MIXED_DIR" --searchPath "$MIXED_DIR" 2>&1 | grep -q "lodash" || fail "✗ Polyglot project test failed"
   echo "✓ Polyglot project test passed (prioritizes Node.js)"
 
   printf '\n%s\n' "=== All Python and Go tests passed! ==="
@@ -94,7 +94,7 @@ test_go_auto_detection() {
   cp go.mod.fixture "$GO_AUTO_DIR/go.mod"
   echo '{"codependencies":["github.com/gin-gonic/gin"],"mode":"verbose"}' >"$GO_AUTO_DIR/.codependencerc"
   condition_status=0
-  node ./dist/cli.js --debug --rootDir "$GO_AUTO_DIR" --searchPath "$GO_AUTO_DIR" 2>&1 | grep -q "gin" || condition_status=$?
+  node ./dist/cli.js --debug --config "$GO_AUTO_DIR/.codependencerc" --rootDir "$GO_AUTO_DIR" --searchPath "$GO_AUTO_DIR" 2>&1 | grep -q "gin" || condition_status=$?
   case "$condition_status" in
   0)
     echo "✓ Go auto-detection test passed"

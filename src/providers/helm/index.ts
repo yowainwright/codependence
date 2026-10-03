@@ -6,20 +6,16 @@ import {
   isSafeImageName,
   isSafeImageVersion,
   manifestOnlyResolution,
+  readYamlFieldLine,
   readYamlImageLine,
+  readYamlScalar,
   updateScalarLine,
   updateYamlImageLine,
+  type YamlFieldLine as HelmFieldLine,
 } from "../infra";
 import { LANGUAGES } from "../constants";
 import type { DependencyManifest, DependencyProvider } from "../types";
 import { HELM_PATTERNS, HELM_TEMPLATE_PATTERN } from "./constants";
-
-interface HelmFieldLine {
-  readonly indent: number;
-  readonly key: string;
-  readonly listItem: boolean;
-  readonly raw: string;
-}
 
 interface HelmDependencyDraft {
   readonly name?: string;
@@ -69,49 +65,6 @@ interface HelmDependencyUpdate {
 interface HelmDependencyUpdateState extends HelmDependencySectionState<HelmDependencyUpdateDraft> {
   readonly updates: HelmDependencyUpdate[];
 }
-
-const readFieldLine = (line: string): HelmFieldLine | null => {
-  const match = line.match(HELM_PATTERNS.FIELD_LINE);
-  if (!match) return null;
-
-  return {
-    indent: match[1].length,
-    key: match[3],
-    listItem: Boolean(match[2]),
-    raw: match[4],
-  };
-};
-
-const readQuotedScalar = (value: string): string | null => {
-  const quote = value[0];
-  const hasQuote = quote === '"' || quote === "'";
-  if (!hasQuote) return null;
-
-  const end = value.indexOf(quote, 1);
-  const hasClosingQuote = end > 0;
-  if (!hasClosingQuote) return null;
-
-  return value.slice(1, end);
-};
-
-const readPlainScalar = (value: string): string | null => {
-  const commentStart = value.indexOf("#");
-  const raw = commentStart === -1 ? value : value.slice(0, commentStart);
-  const scalar = raw.trim();
-  return scalar || null;
-};
-
-const readScalar = (raw: string): string | null => {
-  const value = raw.trim();
-  if (!value) return null;
-
-  const startsDoubleQuote = value.startsWith('"');
-  const startsSingleQuote = value.startsWith("'");
-  const isQuoted = startsDoubleQuote || startsSingleQuote;
-  if (isQuoted) return readQuotedScalar(value);
-
-  return readPlainScalar(value);
-};
 
 const hasTemplate = (value: string): boolean => {
   if (value.length === 0) return false;
@@ -225,7 +178,7 @@ const assignChartField = (state: HelmReadState, field: HelmFieldLine | null): He
   if (!isRootField) return state;
   if (field.listItem) return state;
 
-  const value = readScalar(field.raw);
+  const value = readYamlScalar(field.raw);
   if (!value) return state;
   const hasSafeValue = !hasTemplate(value);
   if (!hasSafeValue) return state;
@@ -237,7 +190,7 @@ const assignDependencyField = (
   draft: HelmDependencyDraft,
   field: HelmFieldLine,
 ): HelmDependencyDraft => {
-  const value = readScalar(field.raw);
+  const value = readYamlScalar(field.raw);
   if (!value) return draft;
   if (field.key === "name") return Object.assign({}, draft, { name: value });
   if (field.key === "version") return Object.assign({}, draft, { version: value });
@@ -277,7 +230,7 @@ const assignDependency = (state: HelmReadState, field: HelmFieldLine | null): He
 
 const readHelmLine = (state: HelmReadState, line: string): HelmReadState => {
   const base = leaveDependencySection(state, line, finalizeDependency);
-  const field = readFieldLine(line);
+  const field = readYamlFieldLine(line);
   if (isDependenciesField(field)) {
     return enterDependencySection(base, field, finalizeDependency);
   }
@@ -355,7 +308,7 @@ const assignImageField = (
   field: HelmFieldLine,
   lineIndex: number,
 ): HelmImageDraft => {
-  const value = readScalar(field.raw);
+  const value = readYamlScalar(field.raw);
   if (value) {
     const hasTemplatedValue = hasTemplate(value);
     if (hasTemplatedValue) return draft;
@@ -395,10 +348,10 @@ const readHelmImageLine = (
   const directImage = readYamlImageLine(line);
   if (directImage) appendDependencyVersion(manifest, directImage.name, directImage.version);
 
-  const field = readFieldLine(line);
+  const field = readYamlFieldLine(line);
   if (!field) return state;
 
-  const rawValue = readScalar(field.raw);
+  const rawValue = readYamlScalar(field.raw);
   const exitsBlock = exitsImageBlock(state, field);
   const base = exitsBlock ? finalizeImageState(manifest, state) : state;
   const startsNewImageBlock = startsImageBlock(field, rawValue) && !base.current;
@@ -468,7 +421,7 @@ const assignDependencyUpdateField = (
   field: HelmFieldLine,
   lineIndex: number,
 ): HelmDependencyUpdateDraft => {
-  const value = readScalar(field.raw);
+  const value = readYamlScalar(field.raw);
   if (!value) return draft;
 
   const next = assignDependencyField(draft, field);
@@ -499,7 +452,7 @@ const readHelmUpdateLine = (
   const finalize = (nextState: HelmDependencyUpdateState) =>
     finalizeDependencyUpdate(nextState, dependencies);
   const base = leaveDependencySection(state, line, finalize);
-  const field = readFieldLine(line);
+  const field = readYamlFieldLine(line);
   if (isDependenciesField(field)) {
     return enterDependencySection(base, field, finalize);
   }

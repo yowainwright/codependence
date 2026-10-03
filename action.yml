@@ -371,10 +371,9 @@ runs:
 
           [ -n "$values" ] || return 0
 
-          CMD+=("$flag")
-          for value in $values; do
-            CMD+=("$value")
-          done
+          local -a arguments=()
+          read -r -a arguments <<< "${values//$'\n'/ }"
+          CMD+=("$flag" "${arguments[@]}")
         }
 
         append_value_flag() {

@@ -3,10 +3,17 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { assertContainsEqual } from "../helpers/assertions";
 import * as entry from "../../src";
+import {
+  EXPLICIT_PIN_MANAGERS,
+  VALID_LANGUAGES,
+  VALID_MANAGERS,
+} from "../../src/config/constants";
 import type { schema as publicSchema } from "../../src/types";
 
 const readPackage = (path: string): Record<string, unknown> =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")) as Record<string, unknown>;
+
+const sortedValues = (values: Iterable<string>): string[] => Array.from(values).sort();
 
 type RepositoryPathRule = (typeof publicSchema.definitions.repositoryPath.allOf)[number];
 
@@ -68,6 +75,21 @@ describe("package entry", () => {
     });
     assertContainsEqual(entry.schema.anyOf, { required: ["permissive"] });
     assertContainsEqual(entry.schema.anyOf, { required: ["mode"] });
+  });
+
+  test("keeps runtime enums aligned with the public schema", () => {
+    assert.deepStrictEqual(
+      sortedValues(entry.schema.definitions.manager.enum),
+      sortedValues(VALID_MANAGERS),
+    );
+    assert.deepStrictEqual(
+      sortedValues(entry.schema.properties.language.enum),
+      sortedValues(VALID_LANGUAGES),
+    );
+    assert.deepStrictEqual(
+      sortedValues(entry.schema.definitions.explicitPinManager.enum),
+      sortedValues(EXPLICIT_PIN_MANAGERS),
+    );
   });
 
   test("keeps runtime dependencies out of the published package", () => {
