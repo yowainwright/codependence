@@ -6,6 +6,7 @@ on:
       - "action.yml"
       - "src/**"
       - "package.json"
+      - "scripts/ci/**"
       - "tests/e2e/**"
       - "tests/integration/**"
       - ".github/workflows/test-action.yml"
