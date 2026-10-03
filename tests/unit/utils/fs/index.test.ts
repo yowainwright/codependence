@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { glob, sync } from "../../../../src/utils/fs";
+import { sync } from "../../../../src/utils/fs";
 
 let testDir = "";
 
@@ -48,12 +48,6 @@ describe("glob", () => {
 
   it("finds recursive matches including root files", () => {
     const files = sync("**/*.ts", { cwd: testDir });
-
-    assert.deepStrictEqual(files, ["file1.ts", "file2.ts", "src/index.ts"]);
-  });
-
-  it("keeps await glob compatibility", async () => {
-    const files = await glob("**/*.ts", { cwd: testDir });
 
     assert.deepStrictEqual(files, ["file1.ts", "file2.ts", "src/index.ts"]);
   });

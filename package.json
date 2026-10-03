@@ -387,5 +387,40 @@
     "npm": {
       "publish": false
     }
+  },
+  "codependence": {
+    "targets": [
+      {
+        "manager": "pnpm",
+        "files": ["package.json"],
+        "codependencies": [
+          "@types/node",
+          "fast-check",
+          "oxfmt",
+          "oxlint",
+          "pastoralist",
+          "prettier",
+          "release-it",
+          {
+            "scriptc": "0.0.21"
+          },
+          "turbo",
+          {
+            "typescript": "^5.9.3"
+          }
+        ]
+      },
+      {
+        "manager": "github-actions",
+        "files": [
+          "action.yml",
+          ".github/actions/*/action.yml",
+          ".github/actions/*/action.yaml",
+          ".github/workflows/*.yml",
+          ".github/workflows/*.yaml"
+        ],
+        "mode": "precise"
+      }
+    ]
   }
 }
