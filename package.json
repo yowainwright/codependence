@@ -120,7 +120,7 @@
     "precoverage": "mkdir -p coverage",
     "lint:changed": "NODE_OPTIONS= node --preserve-symlinks-main node_modules/eslint-plugin-legibility/bin/lint-changed.js",
     "lint:js": "NODE_OPTIONS= oxlint . --deny-warnings",
-    "lint:shell": "rg --files -0 -g '*.sh' scripts tests | xargs -0 mise exec -- shellcheck -x -P tests/e2e && rg --files -0 -g '*.sh' scripts tests | xargs -0 mise exec -- shfmt -d -i 2 && mise exec -- shellcheck-legibility check scripts tests --config scripts/.shellcheck-legibility.toml"
+    "lint:shell": "find scripts tests -type f -name '*.sh' -exec mise exec -- shellcheck -x -P tests/e2e {} + && find scripts tests -type f -name '*.sh' -exec mise exec -- shfmt -d -i 2 {} + && mise exec -- shellcheck-legibility check scripts tests --config scripts/.shellcheck-legibility.toml"
   },
   "devDependencies": {
     "@nubjs/nub": "0.9.3",
