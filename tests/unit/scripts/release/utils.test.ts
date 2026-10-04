@@ -93,8 +93,8 @@ const releaseBranchResult = (key: string, state: ReleaseFlowState): GitResult | 
   if (key === "git diff-tree --no-commit-id --name-only -r release/v1.2.4") {
     return ok("package.json\nsrc/config/schema.json\n");
   }
-  if (key === "git diff --unified=0 origin/main release/v1.2.4 -- package.json") {
-    return ok('-  "version": "1.2.3",\n+  "version": "1.2.4",\n');
+  if (key === "git show origin/main:package.json") {
+    return ok(JSON.stringify({ version: "1.2.3" }));
   }
   if (key === "git diff --unified=0 origin/main release/v1.2.4 -- src/config/schema.json") {
     if (state.mismatchedSchemaDiff) return ok('+  "private": false,\n');
@@ -181,11 +181,11 @@ const releaseMergedCommitResult = (key: string, state: ReleaseFlowState): GitRes
   if (key === `git diff-tree --no-commit-id --name-only -r ${MERGE_COMMIT}`) {
     return ok("package.json\nsrc/config/schema.json\n");
   }
-  if (key === `git diff --unified=0 abc ${MERGE_COMMIT} -- package.json`) {
+  if (key === "git show abc:package.json") {
     if (state.releasePullRequestMerged) {
-      return ok('-  "version": "1.2.3-beta.1",\n+  "version": "1.2.3-rc.0",\n');
+      return ok(JSON.stringify({ version: "1.2.3-beta.1" }));
     }
-    return ok('-  "version": "1.2.3",\n+  "version": "1.2.4",\n');
+    return ok(JSON.stringify({ version: "1.2.3" }));
   }
   if (key === `git diff --unified=0 abc ${MERGE_COMMIT} -- src/config/schema.json`) {
     if (state.releasePullRequestMerged) {

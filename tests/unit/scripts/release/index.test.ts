@@ -146,6 +146,8 @@ function releaseBranchResult(
     return missing();
   }
   if (key === "git show release/v1.2.4:package.json") {
+    if (state.mismatchedReleaseDiff)
+      return ok(JSON.stringify({ version: "1.2.4", private: false }));
     return ok(JSON.stringify({ version: "1.2.4" }));
   }
   if (key === "git log -1 --format=%s release/v1.2.4") return ok("chore(release): 1.2.4\n");
@@ -154,11 +156,8 @@ function releaseBranchResult(
   if (key === "git diff-tree --no-commit-id --name-only -r release/v1.2.4") {
     return releaseBranchFiles(state, runtime);
   }
-  if (key === "git diff --unified=0 origin/main release/v1.2.4 -- package.json") {
-    if (state.mismatchedReleaseDiff) {
-      return ok('-  "version": "1.2.3",\n+  "version": "1.2.4",\n+  "private": false,\n');
-    }
-    return ok('-  "version": "1.2.3",\n+  "version": "1.2.4",\n');
+  if (key === "git show origin/main:package.json") {
+    return ok(JSON.stringify({ version: "1.2.3" }));
   }
   if (key === "git diff --unified=0 origin/main release/v1.2.4 -- src/config/schema.json") {
     return ok(
@@ -183,6 +182,7 @@ function mergedCommitResult(key: string, state: ReleaseFlowState): GitResult | u
     return ok(`${MERGE_COMMIT} abc\nabc def\n`);
   }
   if (key === `git show ${MERGE_COMMIT}:package.json`) {
+    if (state.mismatchedMergedDiff) return ok(JSON.stringify({ version, private: false }));
     return ok(JSON.stringify({ version }));
   }
   if (key === `git diff-tree --no-commit-id --name-only -r ${MERGE_COMMIT}`) {
@@ -190,9 +190,8 @@ function mergedCommitResult(key: string, state: ReleaseFlowState): GitResult | u
     const files = state.extraMergedFile ? `${releaseFiles}src/index.ts\n` : releaseFiles;
     return ok(files);
   }
-  if (key === `git diff --unified=0 abc ${MERGE_COMMIT} -- package.json`) {
-    const extra = state.mismatchedMergedDiff ? '+  "private": false,\n' : "";
-    return ok(`-  "version": "1.2.2",\n+  "version": "${version}",\n${extra}`);
+  if (key === "git show abc:package.json") {
+    return ok(JSON.stringify({ version: "1.2.2" }));
   }
   if (key === `git diff --unified=0 abc ${MERGE_COMMIT} -- src/config/schema.json`) {
     return ok(
@@ -263,13 +262,18 @@ function releaseFlowStateOverride(
   return pendingPullRequestState(runtime);
 }
 
-function createReleaseFlowRunner(prUrl: string, state: ReleaseFlowState = {}) {
+function createReleaseFlowRunner(
+  prUrl: string,
+  state: ReleaseFlowState = {},
+  overrides: Record<string, GitResult> = {},
+) {
   const calls: string[][] = [];
   const runtime = { autoMergeQueued: false, pendingReadCount: 0, schemaMetadataCompleted: false };
   const runner = mock.fn<ReleaseRunner>((command, args) => {
     const call = [command, ...Array.from(args)];
     calls[calls.length] = call;
     const key = call.join(" ");
+    if (overrides[key]) return overrides[key];
     if (key.startsWith("gh pr merge --auto ")) runtime.autoMergeQueued = true;
     if (key === "git commit --amend --no-edit --no-verify") runtime.schemaMetadataCompleted = true;
     const override = releaseFlowStateOverride(key, state, runtime);
@@ -707,6 +711,53 @@ describe("scripts/release flow", () => {
     const { runner } = createReleaseFlowRunner(prUrl, state);
     const release = runRelease({ increment: "patch", logger, runner });
     await assertRejects(release, "Unverified release diff");
+  });
+
+  test("accepts package formatting and key order changes with a version bump", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { existingPullRequest: true, localBranch: true };
+    const base = '{"version":"1.2.3","workspaces":["page/app"],"scripts":{"test":"node --test"}}';
+    const released =
+      '{\n  "scripts": { "test": "node --test" },\n  "workspaces": [\n    "page/app"\n  ],\n  "version": "1.2.4"\n}\n';
+    const overrides = {
+      "git show origin/main:package.json": ok(base),
+      "git show release/v1.2.4:package.json": ok(released),
+      "git show abc:package.json": ok(base),
+      [`git show ${MERGE_COMMIT}:package.json`]: ok(released),
+    };
+    const { runner } = createReleaseFlowRunner(prUrl, state, overrides);
+    const code = await runRelease({ increment: "patch", logger, runner });
+    assert.strictEqual(code, 0);
+  });
+
+  const invalidPackageChanges = [
+    {
+      name: "nested changes",
+      base: '{"version":"1.2.3","scripts":{"test":"node --test"}}',
+      released: '{"version":"1.2.4","scripts":{"test":"echo skipped"}}',
+    },
+    {
+      name: "removed fields",
+      base: '{"version":"1.2.3","private":true}',
+      released: '{"version":"1.2.4"}',
+    },
+    { name: "unchanged versions", base: '{"version":"1.2.4"}', released: '{"version":"1.2.4"}' },
+  ];
+  invalidPackageChanges.forEach(({ name, base, released }) => {
+    test(`rejects ${name} before pushing a release branch`, async () => {
+      const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+      const logger = createLogger();
+      const overrides = {
+        "git show origin/main:package.json": ok(base),
+        "git show release/v1.2.4:package.json": ok(released),
+      };
+      const { calls, runner } = createReleaseFlowRunner(prUrl, { localBranch: true }, overrides);
+      const release = runRelease({ increment: "patch", logger, runner });
+      await assertRejects(release, "Unverified release diff");
+      const pushes = calls.filter((call) => call[0] === "git" && call[1] === "push");
+      assert.deepStrictEqual(pushes, []);
+    });
   });
 
   test("opens a PR for an already-pushed release branch", async () => {
