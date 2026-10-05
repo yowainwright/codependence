@@ -50,6 +50,13 @@ jobs:
 
       - run: nub run deps:security
       - run: nub run deps:audit
+      - name: Restore Turbo cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', '.mise.toml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', '.mise.toml') }}-
       - run: nub run build
       - run: nub run docs:test:smoke
       - name: Upload CLI build

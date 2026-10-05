@@ -8,6 +8,7 @@ minimumReleaseAgeExclude:
   - eslint-plugin-legibility@0.3.3
   - pastoralist@1.13.6-beta.0
 nodeLinker: isolated
+verifyDepsBeforeRun: warn
 overrides:
   basic-ftp: 6.2.1
   ip-address: 10.7.2
