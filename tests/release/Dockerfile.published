@@ -14,6 +14,7 @@ RUN echo "Installing codependence@${CODEPENDENCE_VERSION}" && \
 
 RUN mkdir -p dist tests/e2e/fixtures/dist tests/fixtures tests/release/fixtures
 COPY tests/e2e/fixtures/ ./tests/e2e/fixtures/
+COPY tests/e2e/test-python-go.sh ./tests/e2e/fixtures/test-python-go.sh
 COPY tests/fixtures/ ./tests/fixtures/
 COPY tests/e2e/test-go-update.sh ./tests/e2e/test-go-update.sh
 COPY tests/release/codependence-cli-shim.cjs ./dist/cli.js
@@ -23,7 +24,7 @@ COPY tests/release/fixtures/ ./tests/release/fixtures/
 
 RUN chmod +x ./dist/cli.js \
     ./tests/e2e/fixtures/dist/cli.js \
-    ./tests/e2e/fixtures/*.sh \
+    ./tests/e2e/fixtures/test-python-go.sh \
     ./tests/e2e/test-go-update.sh
 
 CMD ["/bin/sh"]
