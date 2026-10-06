@@ -13,11 +13,11 @@
       "cache": false
     },
     "//#test-src": {
-      "dependsOn": ["//#build-dist", "@codependence/docs#build"],
+      "dependsOn": ["//#build-dist"],
       "env": ["CI", "GITHUB_ACTIONS"]
     },
     "//#coverage-src": {
-      "dependsOn": ["//#build-dist", "@codependence/docs#build"],
+      "dependsOn": ["//#build-dist"],
       "env": ["CI", "GITHUB_ACTIONS"],
       "outputs": ["coverage/**"]
     },

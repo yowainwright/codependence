@@ -62,7 +62,8 @@ const createCoverageArgs = (loaderUrl: string): string[] => {
 const createNodeArgs = (options: TestRunnerOptions, loaderUrl: string): string[] => {
   const baseArgs = ["--import", loaderUrl];
   const coverageArgs = options.coverageEnabled ? createCoverageArgs(loaderUrl) : [];
-  const testArgs = ["--test"].concat(options.testArgs);
+  const files = options.testArgs.length ? options.testArgs : ["tests/**/*.test.ts"];
+  const testArgs = ["--test"].concat(files);
   return baseArgs.concat(coverageArgs, testArgs);
 };
 
