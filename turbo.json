@@ -1,38 +1,37 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
-    "build-dist": {
-      "dependsOn": ["^build-dist"],
-      "inputs": ["src/**/*.{ts,tsx}", "index.html"]
+    "//#build-dist": {
+      "outputs": ["dist/**"]
     },
-    "lint-src": {
-      "dependsOn": ["typecheck-src"],
-      "inputs": ["src/**/*.{tsx,ts}"]
+    "//#build-bin": {
+      "cache": false,
+      "outputs": ["artifacts/codependence"]
     },
-    "typecheck-src": {
-      "inputs": ["src/**/*.ts"]
+    "//#lint:js": {},
+    "//#lint:shell": {
+      "cache": false
     },
-    "format-src": {
-      "inputs": ["src/**/*.ts"]
+    "//#test-src": {
+      "dependsOn": ["//#build-dist"],
+      "env": ["CI", "GITHUB_ACTIONS"]
     },
-    "format-test": {
-      "inputs": ["tests/**/*.ts"]
-    },
-    "format-app": {
-      "inputs": ["page/app/**/*.{ts,tsx}"]
-    },
-    "test-src": {
-      "inputs": ["src/**/*.ts", "tests/**/*.ts"]
+    "//#coverage-src": {
+      "dependsOn": ["//#build-dist"],
+      "env": ["CI", "GITHUB_ACTIONS"],
+      "outputs": ["coverage/**"]
     },
     "dev": {
       "cache": false,
-      "persistent": true,
-      "inputs": ["src/**/*", "page/app/**/*"]
+      "persistent": true
     },
     "build": {
-      "dependsOn": ["^build"],
       "outputs": ["dist/**"],
-      "inputs": ["src/**/*", "page/app/**/*"]
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/src/**"]
+    },
+    "test:smoke": {
+      "dependsOn": ["build"],
+      "env": ["CI", "GITHUB_ACTIONS"]
     },
     "preview": {
       "dependsOn": ["build"],

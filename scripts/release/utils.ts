@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import {
   ADDED_SCHEMA_REVISION_LINE_PATTERN,
   ADDED_SCHEMA_UPDATED_LINE_PATTERN,
@@ -20,7 +21,6 @@ import {
   RELEASE_VERSION_PATTERN,
   REMOVED_SCHEMA_REVISION_LINE_PATTERN,
   REMOVED_SCHEMA_UPDATED_LINE_PATTERN,
-  REMOVED_VERSION_LINE_PATTERN,
   SAFE_SHELL_ARG_PATTERN,
   SCHEMA_REVISION_LINE_PATTERN,
   SCHEMA_UPDATED_LINE_PATTERN,
@@ -630,9 +630,13 @@ function readRemoteReleaseBranchCommit(runner: ReleaseRunner, branch: string): s
   throw new Error(`Invalid remote branch commit: ${branch}`);
 }
 
+function readRefPackage(runner: ReleaseRunner, ref: string): PackageManifest {
+  const manifest = commandText(runner, "git", ["show", `${ref}:${PACKAGE_JSON_PATH}`]);
+  return JSON.parse(manifest) as PackageManifest;
+}
+
 function readRefVersion(runner: ReleaseRunner, ref: string): string {
-  const manifest = commandText(runner, "git", ["show", `${ref}:package.json`]);
-  const { version } = JSON.parse(manifest) as { version?: unknown };
+  const { version } = readRefPackage(runner, ref);
   if (typeof version === "string") return version;
   throw new Error(`package.json version is missing on ${ref}`);
 }
@@ -650,14 +654,11 @@ function assertPackageReleaseDiff(
   target: string,
   version: string,
 ): void {
-  const args = ["diff", "--unified=0", base, target, "--", PACKAGE_JSON_PATH];
-  const diff = commandText(runner, "git", args);
-  const changes = diff.split("\n").filter(isDiffChangeLine);
-  const addedVersion = `+  "version": "${version}",`;
-  const isVersionOnly =
-    changes.length === 2 &&
-    REMOVED_VERSION_LINE_PATTERN.test(changes[0] ?? "") &&
-    changes[1] === addedVersion;
+  const previous = readRefPackage(runner, base);
+  const released = readRefPackage(runner, target);
+  const expected = { ...previous, version };
+  const hasVersionChange = typeof previous.version === "string" && previous.version !== version;
+  const isVersionOnly = hasVersionChange && isDeepStrictEqual(released, expected);
   if (isVersionOnly) return;
   throw new Error(`Unverified release diff: ${target}`);
 }

@@ -42,11 +42,11 @@ jobs:
           PACKAGE_VERSION="$(node -p 'require("./package.json").version')"
           test "$VERSION" = "$PACKAGE_VERSION"
 
-      - run: nub run validate
+      - run: nub run validate --force
         env:
           CI: true
 
-      - run: nub run build-dist
+      - run: nub run build --force
 
       - run: node dist/cli.js --help
 

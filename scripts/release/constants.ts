@@ -13,7 +13,6 @@ export const DEFAULT_RELEASE_TIMEOUT_MINUTES = 90;
 export const RELEASE_POLL_INTERVAL_MS = 30_000;
 export const RELEASE_REPOSITORY = "yowainwright/codependence";
 export const COMMIT_PATTERN = /^[0-9a-f]{40}$/i;
-export const REMOVED_VERSION_LINE_PATTERN = /^-\s*"version":\s*"[^"]+",\s*$/;
 export const CONFIG_SCHEMA_PATH = "src/config/schema.json";
 export const PACKAGE_JSON_PATH = "package.json";
 export const PACKAGE_RELEASE_FILES = [PACKAGE_JSON_PATH];

@@ -24,6 +24,18 @@ nub run test
 Use `nub run coverage` for changes that affect dependency parsing, update
 logic, or CLI behavior.
 
+Turbo runs builds, lint, tests, coverage, and docs. `nub run validate` builds
+the CLI before testing and runs lint; add `--force` to bypass caching.
+`nub run docs:test:smoke` builds and tests the docs separately.
+Target one test file with `nub run test -- tests/unit/scripts/release/index.test.ts`.
+
+Install the pnpm version pinned in `package.json` if missing; CI installs it.
+`nub exec --node` prevents Nub/pnpm runtime conflicts. Use `nub install` for
+dependencies; tasks warn about drift without reinstalling.
+
+Publishing forces validation and a CLI build before packing. Native builds
+and shell checks are uncached; release creation and publication stay outside Turbo.
+
 ## Pull Requests
 
 - Keep changes focused on one issue or feature.
