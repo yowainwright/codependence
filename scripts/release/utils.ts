@@ -902,11 +902,17 @@ function resumeReleasePullRequest(
   branch: string,
 ): ReleasePullRequestTarget | undefined {
   if (!pullRequest) return undefined;
-  context.logger.log(`Resuming ${pullRequest.url}`);
   if (pullRequest.mergedAt) {
     const mergeCommit = verifyMergedPullRequest(context.runner, pullRequest, branch, version);
+    const mainVersion = readRefVersion(context.runner, "origin/main");
+    if (mainVersion !== version) {
+      context.logger.log(`Main is at ${mainVersion}; creating a fresh release PR for ${version}.`);
+      return undefined;
+    }
+    context.logger.log(`Resuming ${pullRequest.url}`);
     return { mergeCommit, url: pullRequest.url };
   }
+  context.logger.log(`Resuming ${pullRequest.url}`);
   const headCommit = verifyExistingPullRequest(context.runner, pullRequest, branch, version);
   return { headCommit, url: pullRequest.url };
 }
