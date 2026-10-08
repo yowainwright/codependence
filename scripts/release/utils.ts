@@ -895,6 +895,47 @@ function verifyRemoteReleaseBranch(
   throw new Error(`Remote release branch does not match ${branch}`);
 }
 
+function readLocalReleaseBranchCommit(runner: ReleaseRunner, branch: string): string | undefined {
+  if (!localReleaseBranchExists(runner, branch)) return undefined;
+  return commandText(runner, "git", ["rev-parse", `refs/heads/${branch}`]);
+}
+
+function assertMergedReleaseBranchHead(
+  pullRequest: ReleasePullRequest,
+  branch: string,
+  localCommit: string | undefined,
+  remoteCommit: string | undefined,
+): void {
+  const expectedCommit = pullRequest.headRefOid;
+  const hasValidExpectedCommit =
+    typeof expectedCommit === "string" && COMMIT_PATTERN.test(expectedCommit);
+  const hasUnexpectedCommit = [localCommit, remoteCommit].some(
+    (commit) => commit !== undefined && commit !== expectedCommit,
+  );
+  const hasVerifiedHead = hasValidExpectedCommit && !hasUnexpectedCommit;
+  if (hasVerifiedHead) return;
+  throw new Error(`Unverified merged release branch: ${branch}`);
+}
+
+function removeMergedReleaseBranch(
+  runner: ReleaseRunner,
+  pullRequest: ReleasePullRequest,
+  branch: string,
+): void {
+  const localCommit = readLocalReleaseBranchCommit(runner, branch);
+  const remoteCommit = readRemoteReleaseBranchCommit(runner, branch);
+  const hasBranchRefs = Boolean(localCommit || remoteCommit);
+  if (!hasBranchRefs) return;
+  assertMergedReleaseBranchHead(pullRequest, branch, localCommit, remoteCommit);
+  if (remoteCommit) {
+    const lease = `--force-with-lease=refs/heads/${branch}:${remoteCommit}`;
+    runCommand(runner, "git", ["push", lease, "origin", `:refs/heads/${branch}`]);
+  }
+  if (localCommit) {
+    runCommand(runner, "git", ["update-ref", "--delete", `refs/heads/${branch}`, localCommit]);
+  }
+}
+
 function resumeReleasePullRequest(
   context: ReleaseContext,
   pullRequest: ReleasePullRequest | undefined,
@@ -906,6 +947,7 @@ function resumeReleasePullRequest(
     const mergeCommit = verifyMergedPullRequest(context.runner, pullRequest, branch, version);
     const mainVersion = readRefVersion(context.runner, "origin/main");
     if (mainVersion !== version) {
+      removeMergedReleaseBranch(context.runner, pullRequest, branch);
       context.logger.log(`Main is at ${mainVersion}; creating a fresh release PR for ${version}.`);
       return undefined;
     }
