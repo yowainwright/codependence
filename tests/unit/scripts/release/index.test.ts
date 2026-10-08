@@ -69,6 +69,7 @@ interface ReleaseFlowRuntimeState {
   autoMergeQueued: boolean;
   pendingReadCount: number;
   schemaMetadataCompleted: boolean;
+  staleMergedBranchRemoved: boolean;
 }
 
 function createRunner(overrides: Record<string, GitResult> = {}) {
@@ -129,6 +130,21 @@ function releaseBranchPullRequests(prUrl: string, state: ReleaseFlowState): GitR
   return ok(JSON.stringify(pullRequests));
 }
 
+function hasStaleMergedBranch(state: ReleaseFlowState, runtime: ReleaseFlowRuntimeState): boolean {
+  const isMerged = Boolean(state.mergedPullRequest);
+  const hasLocalBranch = Boolean(state.localBranch && !runtime.staleMergedBranchRemoved);
+  const hasRemoteBranch = Boolean(state.remoteBranch && !runtime.staleMergedBranchRemoved);
+  const hasRetainedBranch = hasLocalBranch || hasRemoteBranch;
+  return isMerged && hasRetainedBranch;
+}
+
+function releaseBranchManifest(state: ReleaseFlowState): GitResult {
+  const manifest = state.mismatchedReleaseDiff
+    ? { version: "1.2.4", private: false }
+    : { version: "1.2.4" };
+  return ok(JSON.stringify(manifest));
+}
+
 function releaseBranchResult(
   key: string,
   prUrl: string,
@@ -137,21 +153,22 @@ function releaseBranchResult(
 ): GitResult | undefined {
   if (key.startsWith("gh pr list --head release/v1.2.4"))
     return releaseBranchPullRequests(prUrl, state);
-  if (key === "git show-ref --verify --quiet refs/heads/release/v1.2.4") {
-    if (state.localBranch) return ok();
-    return absent();
+  const isLocalBranchCheck = key === "git show-ref --verify --quiet refs/heads/release/v1.2.4";
+  if (isLocalBranchCheck) {
+    const hasLocalBranch = Boolean(state.localBranch && !runtime.staleMergedBranchRemoved);
+    return hasLocalBranch ? ok() : absent();
   }
-  if (key === "git ls-remote --exit-code --heads origin refs/heads/release/v1.2.4") {
-    if (state.remoteBranch) return ok(`${MERGE_COMMIT} refs/heads/release/v1.2.4\n`);
-    return missing();
+  const isRemoteBranchCheck =
+    key === "git ls-remote --exit-code --heads origin refs/heads/release/v1.2.4";
+  if (isRemoteBranchCheck) {
+    const hasRemoteBranch = Boolean(state.remoteBranch && !runtime.staleMergedBranchRemoved);
+    return hasRemoteBranch ? ok(`${MERGE_COMMIT} refs/heads/release/v1.2.4\n`) : missing();
   }
-  if (key === "git show release/v1.2.4:package.json") {
-    if (state.mismatchedReleaseDiff)
-      return ok(JSON.stringify({ version: "1.2.4", private: false }));
-    return ok(JSON.stringify({ version: "1.2.4" }));
-  }
+  if (key === "git show release/v1.2.4:package.json") return releaseBranchManifest(state);
   if (key === "git log -1 --format=%s release/v1.2.4") return ok("chore(release): 1.2.4\n");
-  if (key === "git rev-parse release/v1.2.4^") return ok("abc\n");
+  if (key === "git rev-parse release/v1.2.4^") {
+    return ok(hasStaleMergedBranch(state, runtime) ? "old-base\n" : "abc\n");
+  }
   if (key === "git rev-parse refs/heads/release/v1.2.4") return ok(`${MERGE_COMMIT}\n`);
   if (key === "git diff-tree --no-commit-id --name-only -r release/v1.2.4") {
     return releaseBranchFiles(state, runtime);
@@ -268,12 +285,21 @@ function createReleaseFlowRunner(
   overrides: Record<string, GitResult> = {},
 ) {
   const calls: string[][] = [];
-  const runtime = { autoMergeQueued: false, pendingReadCount: 0, schemaMetadataCompleted: false };
+  const runtime = {
+    autoMergeQueued: false,
+    pendingReadCount: 0,
+    schemaMetadataCompleted: false,
+    staleMergedBranchRemoved: false,
+  };
   const runner = mock.fn<ReleaseRunner>((command, args) => {
     const call = [command, ...Array.from(args)];
     calls[calls.length] = call;
     const key = call.join(" ");
     if (overrides[key]) return overrides[key];
+    const removesStaleBranch =
+      key.startsWith("git push --force-with-lease=refs/heads/release/v1.2.4:") ||
+      key.startsWith("git update-ref --delete refs/heads/release/v1.2.4 ");
+    if (removesStaleBranch) runtime.staleMergedBranchRemoved = true;
     if (key.startsWith("gh pr merge --auto ")) runtime.autoMergeQueued = true;
     if (key === "git commit --amend --no-edit --no-verify") runtime.schemaMetadataCompleted = true;
     const override = releaseFlowStateOverride(key, state, runtime);
@@ -809,6 +835,53 @@ describe("scripts/release flow", () => {
     const { runner } = createReleaseFlowRunner(prUrl, state);
     const release = runRelease({ increment: "patch", logger, runner });
     await assertRejects(release, "Unverified release PR");
+  });
+
+  test("recreates retained release branches after an unpublished merged release", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = { localBranch: true, mergedPullRequest: true, remoteBranch: true };
+    const { calls, runner } = createReleaseFlowRunner(prUrl, state);
+    const code = await runRelease({ increment: "patch", logger, runner });
+    const deleteRemote = [
+      "git",
+      "push",
+      `--force-with-lease=refs/heads/release/v1.2.4:${MERGE_COMMIT}`,
+      "origin",
+      ":refs/heads/release/v1.2.4",
+    ];
+    const deleteLocal = [
+      "git",
+      "update-ref",
+      "--delete",
+      "refs/heads/release/v1.2.4",
+      MERGE_COMMIT,
+    ];
+    const createBranch = ["git", "switch", "--create", "release/v1.2.4"];
+    const localIndex = calls.findIndex((call) => call.join(" ") === deleteLocal.join(" "));
+    const remoteIndex = calls.findIndex((call) => call.join(" ") === deleteRemote.join(" "));
+    const createIndex = calls.findIndex((call) => call.join(" ") === createBranch.join(" "));
+
+    assert.strictEqual(code, 0);
+    assert.ok(remoteIndex >= 0);
+    assert.ok(localIndex > remoteIndex);
+    assert.ok(createIndex > localIndex);
+  });
+
+  test("preserves a retained release branch whose head changed after merge", async () => {
+    const prUrl = "https://github.com/yowainwright/codependence/pull/300";
+    const logger = createLogger();
+    const state = {
+      localBranch: true,
+      mergedPullRequest: true,
+      mismatchedPullRequest: true,
+      remoteBranch: true,
+    };
+    const { calls, runner } = createReleaseFlowRunner(prUrl, state);
+    const release = runRelease({ increment: "patch", logger, runner });
+    await assertRejects(release, "Unverified merged release branch");
+    const hasDeleteCommand = calls.some((call) => call.includes("--delete"));
+    assert.strictEqual(hasDeleteCommand, false);
   });
 
   test("retries an unpushed local release branch", async () => {
