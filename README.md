@@ -708,6 +708,8 @@ Previewing an update reports the same candidate change without applying it:
 
 Prompts you to choose which update candidates to apply. It only runs with `update: true`; `dryRun` skips the prompt because no files are written.
 
+CLI updates in an interactive terminal also ask for confirmation before applying potentially breaking major-version changes. The confirmation defaults to no; declining skips those packages while allowing minor and patch updates. This confirmation is skipped in CI, with piped input or output, and with `--quiet`, `--silent`, structured output, or `--dryRun`. Node API calls keep their existing behavior.
+
 ```diff
 {
 +  "update": true,

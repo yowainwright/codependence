@@ -1451,6 +1451,54 @@ const applyInteractiveSelection = async (
   return Object.assign({}, result, { depNames });
 };
 
+const canConfirmMajorUpdates = (options: NormalizedCheckFiles): boolean => {
+  const isTerminal = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  const isCI = Boolean(process.env.CI || process.env.GITHUB_ACTIONS);
+  const isCliUpdate = options.isCLI && options.update && !options.dryRun;
+  if (options.format !== undefined) return false;
+  const isPromptOutput = !options.silent && !options.quiet;
+  const canPrompt = isTerminal && !isCI && !options.isTesting;
+  const shouldConfirm = isCliUpdate && isPromptOutput && canPrompt;
+  return shouldConfirm;
+};
+
+const promptForMajorUpdates = async (majorDiffs: VersionDiff[]): Promise<boolean> => {
+  logger.print(formatVersionTable(majorDiffs, "update"));
+  const prompt = new Prompt();
+  try {
+    return await prompt.confirm(
+      "These updates cross major versions and may contain breaking changes. Apply them?",
+      false,
+    );
+  } finally {
+    prompt.close();
+  }
+};
+
+const confirmMajorUpdates = async (
+  context: FileCheckContext,
+  allDiffs: VersionDiff[],
+  selection: InteractiveResult,
+): Promise<InteractiveResult> => {
+  if (!canConfirmMajorUpdates(context.options)) return selection;
+  if (!selection.shouldUpdate) return selection;
+  const majorDiffs = allDiffs.filter((diff) => {
+    const isSelected = selection.versionMap[diff.package] !== undefined;
+    const crossesMajor = !isWithinLevel(diff.current, diff.latest, "minor");
+    const needsConfirmation = diff.willUpdate && isSelected && crossesMajor;
+    return needsConfirmation;
+  });
+  if (majorDiffs.length === 0) return selection;
+  context.options.onBeforeOutput?.();
+  if (await promptForMajorUpdates(majorDiffs)) return selection;
+  const skippedPackages = new Set(majorDiffs.map((diff) => diff.package));
+  const entries = Object.entries(selection.versionMap).filter(
+    ([name]) => !skippedPackages.has(name),
+  );
+  const versionMap = Object.fromEntries(entries);
+  return Object.assign({}, selection, { versionMap });
+};
+
 const resolvePreciseModeDeps = async (
   manifests: LoadedManifest[],
   versionMap: Record<string, string>,
@@ -1630,8 +1678,8 @@ const previewFileCheck = (
   const hasOutputChanges = hasPreviewOutput && isOutputEnabled;
   const canPromptInteractively = !options.dryRun && !options.isTesting;
   const isInteractiveUpdate = options.interactive && options.update && canPromptInteractively;
-  const shouldCollectDiffs =
-    options.format !== undefined || hasOutputChanges || isInteractiveUpdate;
+  const hasFormatOrPrompt = options.format !== undefined || canConfirmMajorUpdates(options);
+  const shouldCollectDiffs = hasFormatOrPrompt || hasOutputChanges || isInteractiveUpdate;
   const resolvedManifests = withResolvedDependencyVersions(
     manifests,
     versionResolver.resolvedDependencyVersions,
@@ -1704,7 +1752,8 @@ export const checkFiles = async (options: CheckFiles): Promise<VersionDiff[] | v
     const selection = preview.isInteractiveUpdate
       ? await applyInteractiveSelection(preview.allDiffs, versions.depNames, versions.versionMap)
       : { ...versions, shouldUpdate };
-    await applyFileCheck(context, preview, selection);
+    const confirmedSelection = await confirmMajorUpdates(context, preview.allDiffs, selection);
+    await applyFileCheck(context, preview, confirmedSelection);
     return preview.allDiffs;
   } catch (err) {
     if (options.debug) logger.debug((err as string).toString());
