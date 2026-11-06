@@ -371,6 +371,23 @@
           "vulnerableRange": "<= 6.2.0",
           "patchedVersion": "6.2.1"
         }
+      },
+      "ip-address@10.7.4": {
+        "dependents": {
+          "codependence": "ip-address (required by express-rate-limit, socks)"
+        },
+        "ledger": {
+          "addedDate": "2026-11-06T21:48:43.101Z"
+        }
+      },
+      "undici@7.30.1": {
+        "dependents": {
+          "codependence": "undici (required by @dotenvx/dotenvx, release-it, shadcn)",
+          "@codependence/docs": "undici (required by shadcn)"
+        },
+        "ledger": {
+          "addedDate": "2026-11-06T21:48:43.101Z"
+        }
       }
     },
     "security": {
