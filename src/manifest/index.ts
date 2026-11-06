@@ -28,6 +28,7 @@ import type {
   VersionStrategy,
 } from "../providers/types";
 import {
+  buildVersionDiff,
   collectDiffsFromManifests,
   constructExpectedVersion,
   constructVersionTypes,
@@ -1475,28 +1476,61 @@ const promptForMajorUpdates = async (majorDiffs: VersionDiff[]): Promise<boolean
   }
 };
 
+const pendingMajorUpdates = (
+  context: FileCheckContext,
+  selection: InteractiveResult,
+): VersionDiff[] => {
+  const { manifests, versionResolver, isPreciseMode, options } = context;
+  const resolvedManifests = withResolvedDependencyVersions(
+    manifests,
+    versionResolver.resolvedDependencyVersions,
+  );
+  const diffOptions = { permissive: isPreciseMode, level: options.level };
+  const allDiffs = resolvedManifests.flatMap(({ manifest, provider }) => {
+    const comparableManifest = Object.assign({}, manifest, {
+      versionStrategy: provider.capabilities.versionStrategy,
+    });
+    return buildVersionDiff(
+      selection.versionMap,
+      comparableManifest,
+      selection.depNames,
+      diffOptions,
+    );
+  });
+  return allDiffs.filter((diff) => {
+    const crossesMajor = !isWithinLevel(diff.current, diff.latest, "minor");
+    const needsConfirmation = diff.willUpdate && crossesMajor;
+    return needsConfirmation;
+  });
+};
+
+const excludeMajorUpdates = (
+  selection: InteractiveResult,
+  majorDiffs: VersionDiff[],
+  provider: DependencyProvider,
+): InteractiveResult => {
+  const normalize = getPackageNormalizer(provider);
+  const skippedNames = majorDiffs.map((diff) => normalize?.(diff.package) ?? diff.package);
+  const skippedPackages = new Set(skippedNames);
+  const entries = Object.entries(selection.versionMap).filter(([name]) => {
+    const normalizedName = normalize?.(name) ?? name;
+    return !skippedPackages.has(normalizedName);
+  });
+  const versionMap = Object.fromEntries(entries);
+  return Object.assign({}, selection, { versionMap });
+};
+
 const confirmMajorUpdates = async (
   context: FileCheckContext,
-  allDiffs: VersionDiff[],
   selection: InteractiveResult,
 ): Promise<InteractiveResult> => {
   if (!canConfirmMajorUpdates(context.options)) return selection;
   if (!selection.shouldUpdate) return selection;
-  const majorDiffs = allDiffs.filter((diff) => {
-    const isSelected = selection.versionMap[diff.package] !== undefined;
-    const crossesMajor = !isWithinLevel(diff.current, diff.latest, "minor");
-    const needsConfirmation = diff.willUpdate && isSelected && crossesMajor;
-    return needsConfirmation;
-  });
+  const majorDiffs = pendingMajorUpdates(context, selection);
   if (majorDiffs.length === 0) return selection;
   context.options.onBeforeOutput?.();
   if (await promptForMajorUpdates(majorDiffs)) return selection;
-  const skippedPackages = new Set(majorDiffs.map((diff) => diff.package));
-  const entries = Object.entries(selection.versionMap).filter(
-    ([name]) => !skippedPackages.has(name),
-  );
-  const versionMap = Object.fromEntries(entries);
-  return Object.assign({}, selection, { versionMap });
+  return excludeMajorUpdates(selection, majorDiffs, context.versionResolver.provider);
 };
 
 const resolvePreciseModeDeps = async (
@@ -1678,8 +1712,8 @@ const previewFileCheck = (
   const hasOutputChanges = hasPreviewOutput && isOutputEnabled;
   const canPromptInteractively = !options.dryRun && !options.isTesting;
   const isInteractiveUpdate = options.interactive && options.update && canPromptInteractively;
-  const hasFormatOrPrompt = options.format !== undefined || canConfirmMajorUpdates(options);
-  const shouldCollectDiffs = hasFormatOrPrompt || hasOutputChanges || isInteractiveUpdate;
+  const shouldCollectDiffs =
+    options.format !== undefined || hasOutputChanges || isInteractiveUpdate;
   const resolvedManifests = withResolvedDependencyVersions(
     manifests,
     versionResolver.resolvedDependencyVersions,
@@ -1752,7 +1786,7 @@ export const checkFiles = async (options: CheckFiles): Promise<VersionDiff[] | v
     const selection = preview.isInteractiveUpdate
       ? await applyInteractiveSelection(preview.allDiffs, versions.depNames, versions.versionMap)
       : { ...versions, shouldUpdate };
-    const confirmedSelection = await confirmMajorUpdates(context, preview.allDiffs, selection);
+    const confirmedSelection = await confirmMajorUpdates(context, selection);
     await applyFileCheck(context, preview, confirmedSelection);
     return preview.allDiffs;
   } catch (err) {
