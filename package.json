@@ -128,16 +128,16 @@
     "lint:shell": "find scripts tests -type f -name '*.sh' -exec mise exec -- shellcheck -x -P tests/e2e {} + && find scripts tests -type f -name '*.sh' -exec mise exec -- shfmt -d -i 2 {} + && mise exec -- shellcheck-legibility check scripts tests --config scripts/.shellcheck-legibility.toml"
   },
   "devDependencies": {
-    "@nubjs/nub": "0.9.3",
-    "@types/node": "26.6.2",
+    "@nubjs/nub": "0.10.0",
+    "@types/node": "26.6.6",
     "eslint-plugin-legibility": "^0.4.0",
-    "oxfmt": "^0.70.0",
-    "oxlint": "^1.85.0",
+    "oxfmt": "^0.77.0",
+    "oxlint": "^1.92.0",
     "pastoralist": "1.14.1",
-    "release-it": "21.1.0",
-    "rolldown": "1.2.10",
-    "scriptc": "0.1.3",
-    "turbo": "2.11.3"
+    "release-it": "21.1.2",
+    "rolldown": "1.3.0",
+    "scriptc": "0.4.9",
+    "turbo": "2.11.10"
   },
   "overrides": {
     "basic-ftp": "6.2.1",
@@ -158,6 +158,39 @@
     "node": ">=20"
   },
   "packageManager": "pnpm@12.10.1",
+  "codependence": {
+    "targets": [
+      {
+        "manager": "pnpm",
+        "files": [
+          "package.json"
+        ],
+        "codependencies": [
+          "@nubjs/nub",
+          "@types/node",
+          "eslint-plugin-legibility",
+          "oxfmt",
+          "oxlint",
+          "pastoralist",
+          "release-it",
+          "rolldown",
+          "scriptc",
+          "turbo"
+        ]
+      },
+      {
+        "manager": "github-actions",
+        "files": [
+          "action.yml",
+          ".github/actions/*/action.yml",
+          ".github/actions/*/action.yaml",
+          ".github/workflows/*.yml",
+          ".github/workflows/*.yaml"
+        ],
+        "mode": "precise"
+      }
+    ]
+  },
   "pastoralist": {
     "appendix": {
       "basic-ftp@6.2.1": {
@@ -412,42 +445,5 @@
     "npm": {
       "publish": false
     }
-  },
-  "codependence": {
-    "targets": [
-      {
-        "manager": "pnpm",
-        "files": [
-          "package.json"
-        ],
-        "codependencies": [
-          "@types/node",
-          "fast-check",
-          "oxfmt",
-          "oxlint",
-          "pastoralist",
-          "prettier",
-          "release-it",
-          {
-            "scriptc": "0.0.21"
-          },
-          "turbo",
-          {
-            "typescript": "^5.9.3"
-          }
-        ]
-      },
-      {
-        "manager": "github-actions",
-        "files": [
-          "action.yml",
-          ".github/actions/*/action.yml",
-          ".github/actions/*/action.yaml",
-          ".github/workflows/*.yml",
-          ".github/workflows/*.yaml"
-        ],
-        "mode": "precise"
-      }
-    ]
   }
 }
