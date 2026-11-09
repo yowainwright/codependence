@@ -20,9 +20,15 @@
     "express": "4.17.1",
     "moment": "2.29.1"
   },
+  "codependence": {
+    "files": ["package.json"],
+    "lockfile": false,
+    "permissive": true,
+    "codependencies": ["react", "react-dom", "react-router"]
+  },
   "devDependencies": {
     "webpack": "5.50.0",
-    "typescript": "4.5.0",
+    "typescript": "4.5.5",
     "@babel/core": "7.15.0"
   }
 }

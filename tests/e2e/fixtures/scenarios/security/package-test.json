@@ -1,0 +1,20 @@
+{
+  "name": "codependence-security-sandbox",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": { "undici": "7.30.0", "ip-address": "10.7.2" },
+  "codependence": {
+    "mode": "verbose",
+    "files": ["package.json"],
+    "lockfile": false,
+    "codependencies": [{ "undici": "7.30.1" }, { "ip-address": "10.7.4" }]
+  },
+  "pastoralist": {
+    "security": {
+      "enabled": true,
+      "provider": "npm",
+      "severityThreshold": "medium",
+      "strict": true
+    }
+  }
+}

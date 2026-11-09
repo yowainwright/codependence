@@ -1449,6 +1449,8 @@ pnpm install
 pnpm test
 ```
 
+See [CLI sandboxes and e2e tests](tests/e2e/README.md) for manual sessions and automated scenarios.
+
 ### Release Strategy
 
 Codependence publishes securely to npm with trusted publishing, provenance attestations, and immutable GitHub release assets.

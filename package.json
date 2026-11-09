@@ -133,7 +133,7 @@
     "eslint-plugin-legibility": "^0.4.0",
     "oxfmt": "^0.70.0",
     "oxlint": "^1.85.0",
-    "pastoralist": "1.13.6-beta.0",
+    "pastoralist": "1.14.1",
     "release-it": "21.1.0",
     "rolldown": "1.2.10",
     "scriptc": "0.1.3",
@@ -145,7 +145,7 @@
     "nanoid": "3.3.18",
     "postcss": "8.5.23",
     "undici": "7.30.1",
-    "vite": "8.2.1"
+    "vite": "8.2.4"
   },
   "devEngines": {
     "runtime": {
@@ -160,203 +160,12 @@
   "packageManager": "pnpm@12.10.1",
   "pastoralist": {
     "appendix": {
-      "undici@7.28.0": {
-        "dependents": {
-          "codependence": "undici (required by release-it)"
-        },
-        "ledger": {
-          "addedDate": "2026-06-28T00:00:00.000Z"
-        }
-      },
-      "vite@8.2.1": {
-        "dependents": {
-          "codependence": "vite (unused override)",
-          "@codependence/docs": "vite@^8.2.1"
-        },
-        "ledger": {
-          "addedDate": "2026-07-02T00:00:00.000Z"
-        }
-      },
-      "postcss@8.5.18": {
-        "dependents": {
-          "codependence": "postcss (required by vite)",
-          "@codependence/docs": "postcss (required by vite)"
-        },
-        "ledger": {
-          "addedDate": "2026-08-02T00:00:00.000Z",
-          "reason": "Security fix for GHSA-r28c-9q8g-f849 (high)",
-          "securityChecked": true,
-          "securityCheckDate": "2026-08-02T00:00:00.000Z",
-          "securityProvider": "npm",
-          "securityCheckResult": "clean",
-          "vulnerableRange": "<=8.5.17",
-          "patchedVersion": "8.5.18"
-        }
-      },
-      "ip-address@10.3.1": {
-        "dependents": {
-          "codependence": "ip-address (required by express-rate-limit, socks)"
-        },
-        "ledger": {
-          "addedDate": "2022-06-13T19:05:47-07:00"
-        }
-      },
-      "postcss@8.5.23": {
-        "dependents": {
-          "codependence": "postcss (required by shadcn, vite)",
-          "@codependence/docs": "postcss (required by shadcn, vite)"
-        },
-        "ledger": {
-          "addedDate": "2022-06-13T19:05:47-07:00"
-        }
-      },
-      "undici@7.29.0": {
-        "dependents": {
-          "codependence": "undici (required by @dotenvx/dotenvx, release-it, shadcn)",
-          "@codependence/docs": "undici (required by shadcn)"
-        },
-        "ledger": {
-          "addedDate": "2022-06-13T19:05:47-07:00"
-        }
-      },
-      "nanoid@3.3.18": {
-        "dependents": {
-          "codependence": "nanoid (required by postcss)"
-        },
-        "ledger": {
-          "addedDate": "2022-06-13T19:05:47-07:00",
-          "reason": "Security fix for GHSA-2v37-7h3g-55p8 (high)",
-          "securityChecked": true,
-          "securityCheckDate": "2026-08-13T00:00:00.000Z",
-          "securityProvider": "npm",
-          "securityCheckResult": "clean",
-          "vulnerableRange": "<3.3.18",
-          "patchedVersion": "3.3.18"
-        }
-      },
-      "ip-address@10.7.2": {
-        "dependents": {
-          "codependence": "ip-address (required by express-rate-limit, socks)"
-        },
-        "ledger": {
-          "addedDate": "2026-09-30T04:57:34.361Z",
-          "reason": "Security fix: ip-address: no classifier recognizes the NAT64 local-use range 64:ff9b:1::/48, allowing SSRF and trust-boundary bypass (medium)",
-          "source": "security",
-          "securityChecked": true,
-          "securityCheckDate": "2026-09-30T04:57:34.366Z",
-          "securityProvider": "osv",
-          "cves": [
-            "CVE-2026-101910",
-            "CVE-2026-101911",
-            "CVE-2026-101912",
-            "CVE-2026-101913"
-          ],
-          "cveDetails": [
-            {
-              "cve": "CVE-2026-101910",
-              "severity": "medium",
-              "patchedVersion": "10.5.1"
-            },
-            {
-              "cve": "CVE-2026-101911",
-              "severity": "medium",
-              "patchedVersion": "10.7.1"
-            },
-            {
-              "cve": "CVE-2026-101912",
-              "severity": "medium",
-              "patchedVersion": "10.7.1"
-            },
-            {
-              "cve": "CVE-2026-101913",
-              "severity": "medium",
-              "patchedVersion": "10.5.1"
-            }
-          ],
-          "severity": "medium",
-          "url": "https://github.com/beaugunderson/ip-address/security/advisories/GHSA-2vr4-cq9g-pvrc",
-          "vulnerableRange": ">= 10.2.0 < 10.5.1",
-          "patchedVersion": "10.5.1",
-          "sources": [
-            "osv"
-          ],
-          "confidence": "possible"
-        }
-      },
-      "undici@7.30.0": {
-        "dependents": {
-          "codependence": "undici (required by @dotenvx/dotenvx, release-it, shadcn)",
-          "@codependence/docs": "undici (required by shadcn)"
-        },
-        "ledger": {
-          "addedDate": "2026-09-30T04:57:34.361Z",
-          "reason": "Security fix: undici vulnerable to Denial of Service via unrequested WebSocket subprotocol (high)",
-          "source": "security",
-          "securityChecked": true,
-          "securityCheckDate": "2026-09-30T04:57:34.366Z",
-          "securityProvider": "osv",
-          "cves": [
-            "CVE-2026-19534",
-            "CVE-2026-84961",
-            "CVE-2026-84933",
-            "CVE-2026-85024",
-            "CVE-2026-84890",
-            "CVE-2026-18149",
-            "CVE-2026-85014"
-          ],
-          "cveDetails": [
-            {
-              "cve": "CVE-2026-19534",
-              "severity": "high",
-              "patchedVersion": "7.29.1"
-            },
-            {
-              "cve": "CVE-2026-84961",
-              "severity": "high",
-              "patchedVersion": "7.29.1"
-            },
-            {
-              "cve": "CVE-2026-84933",
-              "severity": "medium",
-              "patchedVersion": "7.29.1"
-            },
-            {
-              "cve": "CVE-2026-85024",
-              "severity": "medium",
-              "patchedVersion": "7.29.1"
-            },
-            {
-              "cve": "CVE-2026-84890",
-              "severity": "medium",
-              "patchedVersion": "7.29.1"
-            },
-            {
-              "cve": "CVE-2026-18149",
-              "severity": "medium",
-              "patchedVersion": "7.29.1"
-            },
-            {
-              "cve": "CVE-2026-85014",
-              "severity": "medium",
-              "patchedVersion": "7.29.1"
-            }
-          ],
-          "severity": "high",
-          "url": "https://github.com/nodejs/undici/security/advisories/GHSA-rfgv-xxqx-mfg5",
-          "vulnerableRange": ">= 7.0.0 < 7.29.1",
-          "patchedVersion": "7.29.1",
-          "sources": [
-            "osv"
-          ],
-          "confidence": "possible"
-        }
-      },
       "basic-ftp@6.2.1": {
         "dependents": {
-          "codependence": "basic-ftp (required by get-uri)"
+          "codependence": "basic-ftp (required by release-it)"
         },
         "ledger": {
-          "addedDate": "2026-10-02T18:12:59.000Z",
+          "addedDate": "2026-11-07T04:12:27.570Z",
           "reason": "Security fix: basic-ftp quadratic-time CPU denial of service in Client.list() (high)",
           "source": "security",
           "securityChecked": true,
@@ -374,19 +183,213 @@
       },
       "ip-address@10.7.4": {
         "dependents": {
-          "codependence": "ip-address (required by express-rate-limit, socks)"
+          "codependence": "ip-address (required by release-it)",
+          "@codependence/docs": "ip-address (required by shadcn)"
         },
         "ledger": {
-          "addedDate": "2026-11-06T21:48:43.101Z"
+          "addedDate": "2026-11-07T03:53:04.937Z",
+          "reason": "Security fix: ip-address: Address6 matches a zone identifier in quadratic time ahead of its length limit, allowing a single long string to stall the process (medium)",
+          "source": "security",
+          "securityChecked": true,
+          "securityCheckDate": "2026-11-07T03:53:04.947Z",
+          "securityProvider": "osv",
+          "cves": [
+            "CVE-2026-111997"
+          ],
+          "cveDetails": [
+            {
+              "cve": "CVE-2026-111997",
+              "severity": "medium",
+              "patchedVersion": "10.7.4"
+            }
+          ],
+          "severity": "medium",
+          "url": "https://github.com/beaugunderson/ip-address/security/advisories/GHSA-rxp7-6hxx-x8q5",
+          "vulnerableRange": ">= 0 < 10.7.4",
+          "patchedVersion": "10.7.4",
+          "sources": [
+            "osv"
+          ],
+          "confidence": "possible"
+        }
+      },
+      "nanoid@3.3.18": {
+        "dependents": {
+          "@codependence/docs": "nanoid (required by @tailwindcss/vite, @vitejs/plugin-react, shadcn)"
+        },
+        "ledger": {
+          "addedDate": "2026-11-07T04:12:27.570Z",
+          "reason": "Security fix for GHSA-2v37-7h3g-55p8 (high)",
+          "securityChecked": true,
+          "securityCheckDate": "2026-08-13T00:00:00.000Z",
+          "securityProvider": "npm",
+          "securityCheckResult": "clean",
+          "vulnerableRange": "<3.3.18",
+          "patchedVersion": "3.3.18"
+        }
+      },
+      "postcss@8.5.23": {
+        "dependents": {
+          "@codependence/docs": "postcss (required by @tailwindcss/vite, @vitejs/plugin-react, shadcn)"
+        },
+        "ledger": {
+          "addedDate": "2026-11-07T04:12:27.570Z"
         }
       },
       "undici@7.30.1": {
         "dependents": {
-          "codependence": "undici (required by @dotenvx/dotenvx, release-it, shadcn)",
+          "codependence": "undici (required by release-it)",
           "@codependence/docs": "undici (required by shadcn)"
         },
         "ledger": {
-          "addedDate": "2026-11-06T21:48:43.101Z"
+          "addedDate": "2026-11-07T03:53:04.937Z"
+        }
+      },
+      "vite@8.2.4": {
+        "dependents": {
+          "@codependence/docs": "vite@^8.2.4"
+        },
+        "ledger": {
+          "addedDate": "2026-11-07T04:12:27.570Z"
+        }
+      },
+      "seroval@1.6.11": {
+        "dependents": {
+          "@codependence/docs": "seroval (required by @tanstack/react-router)"
+        },
+        "ledger": {
+          "addedDate": "2026-11-07T04:12:27.570Z",
+          "reason": "Security fix: Seroval: Deserialization invokes attacker-chosen callables: AsyncIteratorFactoryInstance calls source.on(listener) without type check (high)",
+          "source": "security",
+          "securityChecked": true,
+          "securityCheckDate": "2026-11-07T03:53:04.947Z",
+          "securityProvider": "osv",
+          "cves": [
+            "CVE-2026-116580",
+            "CVE-2026-116581",
+            "CVE-2026-116584",
+            "CVE-2026-116582",
+            "CVE-2026-116583"
+          ],
+          "cveDetails": [
+            {
+              "cve": "CVE-2026-116580",
+              "severity": "high",
+              "patchedVersion": "1.6.8"
+            },
+            {
+              "cve": "CVE-2026-116581",
+              "severity": "high",
+              "patchedVersion": "1.6.8"
+            },
+            {
+              "cve": "CVE-2026-116584",
+              "severity": "high",
+              "patchedVersion": "1.6.8"
+            },
+            {
+              "cve": "CVE-2026-116582",
+              "severity": "medium",
+              "patchedVersion": "1.6.10"
+            },
+            {
+              "cve": "CVE-2026-116583",
+              "severity": "medium",
+              "patchedVersion": "1.6.11"
+            }
+          ],
+          "severity": "high",
+          "url": "https://github.com/lxsmnsyc/seroval/security/advisories/GHSA-7rv5-mrxv-xcr9",
+          "vulnerableRange": ">= 0 < 1.6.8",
+          "patchedVersion": "1.6.8",
+          "sources": [
+            "osv"
+          ],
+          "confidence": "possible"
+        }
+      },
+      "systeminformation@5.33.16": {
+        "dependents": {
+          "@codependence/docs": "systeminformation (required by shadcn)"
+        },
+        "ledger": {
+          "addedDate": "2026-11-07T04:12:27.570Z",
+          "reason": "Security fix: systeminformation vulnerable to Windows command injection in services() through Unicode quotation marks (high)",
+          "source": "security",
+          "securityChecked": true,
+          "securityCheckDate": "2026-11-07T03:53:04.947Z",
+          "securityProvider": "osv",
+          "cves": [
+            "CVE-2026-116576"
+          ],
+          "cveDetails": [
+            {
+              "cve": "CVE-2026-116576",
+              "severity": "high",
+              "patchedVersion": "5.33.16"
+            }
+          ],
+          "severity": "high",
+          "url": "https://github.com/sebhildebrandt/systeminformation/security/advisories/GHSA-3f7j-7jwc-fxfj",
+          "vulnerableRange": ">= 0 < 5.33.16",
+          "patchedVersion": "5.33.16",
+          "sources": [
+            "osv"
+          ],
+          "confidence": "possible"
+        }
+      },
+      "fast-uri@3.1.9": {
+        "dependents": {
+          "@codependence/docs": "fast-uri (required by shadcn)"
+        },
+        "ledger": {
+          "addedDate": "2026-11-07T04:12:27.570Z",
+          "reason": "Security fix: fast-uri vulnerable to URI scheme spoofing via percent-encoded scheme decoding (medium)",
+          "source": "security",
+          "securityChecked": true,
+          "securityCheckDate": "2026-11-07T03:53:04.947Z",
+          "securityProvider": "osv",
+          "cves": [
+            "CVE-2026-110306",
+            "CVE-2026-110180"
+          ],
+          "cveDetails": [
+            {
+              "cve": "CVE-2026-110306",
+              "severity": "medium",
+              "patchedVersion": "3.1.9"
+            },
+            {
+              "cve": "CVE-2026-110180",
+              "severity": "medium",
+              "patchedVersion": "3.1.9"
+            }
+          ],
+          "severity": "medium",
+          "url": "https://github.com/fastify/fast-uri/security/advisories/GHSA-w74x-v6f9-j3xg",
+          "vulnerableRange": ">= 3.0.0 < 3.1.9",
+          "patchedVersion": "3.1.9",
+          "sources": [
+            "osv"
+          ],
+          "confidence": "possible"
+        }
+      },
+      "@tailwindcss/typography>postcss-selector-parser@6.1.5": {
+        "dependents": {
+          "@codependence/docs": "@tailwindcss/typography>postcss-selector-parser (transitive dependency)"
+        },
+        "ledger": {
+          "addedDate": "2026-11-07T04:14:58.740Z"
+        }
+      },
+      "@ts-morph/common>minimatch@11.0.1": {
+        "dependents": {
+          "@codependence/docs": "@ts-morph/common>minimatch (transitive dependency)"
+        },
+        "ledger": {
+          "addedDate": "2026-11-07T04:57:36.148Z"
         }
       }
     },

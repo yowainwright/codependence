@@ -33,23 +33,45 @@ def send_answers(fd: int, pending: str, answers: list[tuple[str, str]]) -> str:
     return pending[-MAX_PROMPT_LENGTH:]
 
 
-def child_result(status: int, answers: list[tuple[str, str]], output: str) -> int:
-    if answers or "Configured 1 manifest(s)." not in output:
+def child_result(
+    status: int, answers: list[tuple[str, str]], output: str, mode: str
+) -> int:
+    expected = "Configured 1 manifest(s)." if mode == "init" else "Updated"
+    if answers or expected not in output:
+        print(output)
+        return 1
+    if mode == "major-ci" and "Apply them?" in output:
         return 1
     return os.waitstatus_to_exitcode(status)
 
 
-def run_interactive(binary: str, work_dir: str) -> int:
-    pid, fd = pty.fork()
-    if pid == 0:
-        os.chdir(work_dir)
-        os.execv(binary, [binary, "init"])
+def prompt_answers(mode: str) -> list[tuple[str, str]]:
+    if mode == "init":
+        return [(CHOICE_PROMPT, "2\n"), (CHOICES_PROMPT, "1\n"), (CHOICE_PROMPT, "3\n")]
+    if mode == "major-ci":
+        return []
+    answer = "y\n" if mode == "major-accept" else "\n"
+    return [("Apply them?", answer)]
 
-    answers = [
-        (CHOICE_PROMPT, "2\n"),
-        (CHOICES_PROMPT, "1\n"),
-        (CHOICE_PROMPT, "3\n"),
-    ]
+
+def start_child(binary: str, work_dir: str, mode: str) -> tuple[int, int]:
+    pid, fd = pty.fork()
+    if pid != 0:
+        return pid, fd
+    os.chdir(work_dir)
+    os.environ.pop("CI", None)
+    os.environ.pop("GITHUB_ACTIONS", None)
+    args = ["init"]
+    if mode != "init":
+        args = ["--config", "package.json", "--update"]
+    if mode == "major-ci":
+        os.environ["CI"] = "1"
+    os.execv(binary, [binary, *args])
+
+
+def run_interactive(binary: str, work_dir: str, mode: str = "init") -> int:
+    pid, fd = start_child(binary, work_dir, mode)
+    answers = prompt_answers(mode)
     output = ""
     pending = ""
     deadline = time.monotonic() + TIMEOUT_SECONDS
@@ -60,15 +82,16 @@ def run_interactive(binary: str, work_dir: str) -> int:
             data = read_output(fd)
             if not data:
                 _, status = os.waitpid(pid, 0)
-                return child_result(status, answers, output)
+                return child_result(status, answers, output, mode)
             text = data.decode(errors="replace")
             output += text
             pending = send_answers(fd, pending + text, answers)
 
     os.kill(pid, 9)
     os.waitpid(pid, 0)
+    print(output)
     return 1
 
 
 if __name__ == "__main__":
-    raise SystemExit(run_interactive(sys.argv[1], sys.argv[2]))
+    raise SystemExit(run_interactive(*sys.argv[1:]))

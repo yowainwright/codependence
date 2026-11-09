@@ -1,0 +1,6 @@
+{
+  "name": "codependence-init-sandbox",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": { "lodash": "^4.17.20", "react": "18.2.0" }
+}

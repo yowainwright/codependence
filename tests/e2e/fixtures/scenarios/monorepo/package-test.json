@@ -1,0 +1,13 @@
+{
+  "name": "codependence-monorepo-sandbox",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "devDependencies": { "chalk": "4.1.1" },
+  "codependence": {
+    "mode": "verbose",
+    "files": ["package.json", "packages/*/package.json"],
+    "lockfile": false,
+    "codependencies": [{ "chalk": "4.1.2" }, { "lodash": "4.17.21" }]
+  }
+}
