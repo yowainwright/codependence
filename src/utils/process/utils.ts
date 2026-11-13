@@ -3,7 +3,12 @@ import { promisify } from "node:util";
 import { RETRYABLE_ERROR_CODES } from "./constants";
 import type { ExecFileFn, ExecResult, RetryableError, RetryOptions, SleepFn } from "./types";
 
-export const execFileAsync = promisify(execFile) as ExecFileFn;
+const promisifiedExecFile = promisify(execFile) as ExecFileFn;
+export const execFileAsync: ExecFileFn = async (command, args, options) => {
+  const cwd = options.cwd || process.cwd();
+  const { stdout, stderr } = await promisifiedExecFile(command, args, { cwd, encoding: "utf8" });
+  return { stdout, stderr };
+};
 export const sleep: SleepFn = (milliseconds) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
 

@@ -10,7 +10,7 @@ minimumReleaseAgeExclude:
 nodeLinker: isolated
 verifyDepsBeforeRun: warn
 overrides:
-  basic-ftp: 6.2.1
+  basic-ftp: 6.2.6
   ip-address: 10.7.4
   nanoid: 3.3.18
   postcss: 8.5.23
