@@ -107,20 +107,26 @@ const matchesPattern = (filePath: string, pattern: string): boolean => {
 const matchesAnyIgnore = (filePath: string, ignorePatterns: string[]): boolean =>
   ignorePatterns.some((pattern) => matchesPattern(filePath, pattern));
 
-const isExistingDirectory = (path: string): boolean => {
+export const getPathInfo = (
+  path: string,
+): { isFile: boolean; isDirectory: boolean } | undefined => {
   try {
-    return statSync(path).isDirectory();
+    /** @type {import("node:fs").Stats} */
+    const stats = statSync(path);
+    const isFile = stats.isFile();
+    const isDirectory = stats.isDirectory();
+    return { isFile, isDirectory };
   } catch {
-    return false;
+    return undefined;
   }
 };
 
+const isExistingDirectory = (path: string): boolean => getPathInfo(path)?.isDirectory ?? false;
+
 const isExistingFile = (path: string): boolean => {
-  try {
-    return !statSync(path).isDirectory();
-  } catch {
-    return false;
-  }
+  const info = getPathInfo(path);
+  if (!info) return false;
+  return !info.isDirectory;
 };
 
 const collectAllFiles = (dir: string, baseDir: string, ignorePatterns: string[]): string[] => {

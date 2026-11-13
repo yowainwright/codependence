@@ -38,7 +38,7 @@ import {
   validatePackageName,
 } from "./utils";
 import { exec } from "../utils/process";
-import { glob } from "../utils/fs";
+import { getPathInfo, glob } from "../utils/fs";
 import { logger } from "../observability";
 import { Prompt } from "../dx";
 import { versionCache, requestDeduplicator } from "./utils";
@@ -129,7 +129,7 @@ const mapWithConcurrency = async <T, R>(
 ): Promise<R[]> => {
   if (items.length === 0) return [];
 
-  const results = Array.from({ length: items.length }, () => undefined as R);
+  const results: R[] = [];
   let nextIndex = 0;
 
   const runWorker = async () => {
@@ -321,10 +321,7 @@ const collectDepNamesFromManifest = (manifest: DependencyManifest): string[] => 
 const collectAllDepNamesFromManifests = (manifests: LoadedManifest[]): string[] =>
   Array.from(new Set(manifests.flatMap(({ manifest }) => collectDepNamesFromManifest(manifest))));
 
-const isFile = (path: string): boolean => {
-  if (!fs.existsSync(path)) return false;
-  return fs.statSync(path).isFile();
-};
+const isFile = (path: string): boolean => getPathInfo(path)?.isFile ?? false;
 
 const assertCustomLockfiles = (rootDir: string, lockfile: string | string[]): void => {
   const lockfiles = Array.isArray(lockfile) ? lockfile : [lockfile];

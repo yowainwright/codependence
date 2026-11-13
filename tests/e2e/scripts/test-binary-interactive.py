@@ -61,7 +61,7 @@ def start_child(binary: str, work_dir: str, mode: str) -> tuple[int, int]:
     os.chdir(work_dir)
     os.environ.pop("CI", None)
     os.environ.pop("GITHUB_ACTIONS", None)
-    args = ["init"]
+    args = ["init", "--skip-install"]
     if mode != "init":
         args = ["--config", "package.json", "--update"]
     if mode == "major-ci":

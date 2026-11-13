@@ -1,5 +1,6 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
+import { realpathSync } from "node:fs";
 import { assertCalledWith, assertNthCalledWith } from "../../../helpers/assertions";
 import { exec } from "../../../../src/utils/process";
 
@@ -17,6 +18,29 @@ const rejectOnceThenResolve = <T>(error: unknown, result: T) => {
 
 // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("exec", () => {
+  describe("real subprocesses", () => {
+    it("captures stdout and stderr with the default working directory", async () => {
+      const script = 'process.stdout.write(process.cwd()); process.stderr.write("warning");';
+      const result = await exec(process.execPath, ["-e", script]);
+      assert.deepStrictEqual(result, { stdout: process.cwd(), stderr: "warning" });
+    });
+
+    it("honors an explicit working directory", async () => {
+      const cwd = realpathSync(new URL("../../../", import.meta.url));
+      const result = await exec(process.execPath, ["-e", "process.stdout.write(process.cwd());"], {
+        cwd,
+      });
+      assert.deepStrictEqual(result, { stdout: cwd, stderr: "" });
+    });
+
+    it("preserves failures from the real subprocess", async () => {
+      await assert.rejects(
+        exec(process.execPath, ["-e", 'process.stderr.write("failed"); process.exit(7);']),
+        { code: 7, stderr: "failed" },
+      );
+    });
+  });
+
   describe("success path", () => {
     it("returns stdout and stderr from execFileFn", async () => {
       const execFileFn = makeExecFileFn({ stdout: "output", stderr: "warn" });
