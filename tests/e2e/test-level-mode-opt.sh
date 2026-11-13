@@ -193,7 +193,10 @@ test_verbose_without_pins() {
   printf '\n%s\n' "17. Testing verbose mode requires codependencies..."
   cp level-package.json.fixture package.json
   echo '{"mode": "verbose"}' >.codependencerc
-  run_cli --silent | grep -q 'codependencies.*required' || fail "✗ Verbose mode requires codependencies test failed"
+  exit_code=0
+  output=$(node dist/cli.js 2>&1) || exit_code=$?
+  [ "$exit_code" -eq 2 ] || fail "✗ Missing codependencies should exit 2"
+  echo "$output" | grep -q 'codependencies.*required' || fail "✗ Verbose mode requires codependencies test failed"
   echo "✓ Verbose mode requires codependencies test passed"
   rm -f .codependencerc
 

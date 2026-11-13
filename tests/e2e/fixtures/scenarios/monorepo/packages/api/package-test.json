@@ -1,0 +1,6 @@
+{
+  "name": "@sandbox/api",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": { "chalk": "3.0.0", "lodash": "4.17.19" }
+}

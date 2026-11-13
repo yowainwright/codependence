@@ -20,32 +20,12 @@ services:
       target: test
       args:
         NODE_SLIM_IMAGE: ${NODE_SLIM_IMAGE}
-    volumes:
-      - ..:/app:ro
-      - dev-workspace:/workspace
-    working_dir: /workspace
     environment:
       - NODE_ENV=development
-    entrypoint: ["/bin/sh"]
+    entrypoint: ["bash", "/test/test-scenarios.sh", "dev"]
     stdin_open: true
     tty: true
-    command: |
-      -c "
-      echo 'Setting up development environment...'
-      cp -r /app/dist /app/package.json ./
-      cp /test/test-package.json /test/minimal-package.json /test/invalid-package.json ./
-      echo 'Ready! You can now test codependence init commands.'
-      echo 'Available test files:'
-      echo '  - test-package.json (with dependencies)'
-      echo '  - minimal-package.json (no dependencies)'
-      echo '  - invalid-package.json (malformed JSON)'
-      echo ''
-      echo 'Example commands:'
-      echo '  cp test-package.json package.json && node dist/cli.js init'
-      echo '  cp test-package.json package.json && node dist/cli.js init rc'
-      echo '  cp test-package.json package.json && node dist/cli.js init package'
-      /bin/sh
-      "
+    command: ["init"]
 
   # Builder for development
   builder:
@@ -56,7 +36,7 @@ services:
       args:
         NODE_SLIM_IMAGE: ${NODE_SLIM_IMAGE}
     volumes:
-      - ..:/app
+      - ../..:/app
       - /app/node_modules
     working_dir: /app
     command: nub run build
@@ -65,4 +45,3 @@ services:
 
 volumes:
   test-results:
-  dev-workspace:

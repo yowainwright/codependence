@@ -32,16 +32,8 @@ export const BIN_BUNDLE_ARGS = [
   "esm",
   "--platform",
   "node",
-  "--minify",
 ];
-export const BIN_BUILD_ARGS = [
-  "build",
-  BIN_ENTRY_FILE,
-  "-o",
-  BIN_OUTPUT_FILE,
-  "--dynamic",
-  "--no-keep-c",
-];
+export const BIN_BUILD_ARGS = ["build", BIN_ENTRY_FILE, "-o", BIN_OUTPUT_FILE, "--no-keep-llvm"];
 
 export const BIN_ENTRY_SOURCE = `import { execFileSync, spawn } from "child_process";
 import type { ChildProcess } from "child_process";

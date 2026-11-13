@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "newFiles": {
+    "default": "allow",
+    "allow": [
+      "!tests/e2e/*.sh",
+      "tests/e2e/test-*-{cmd,opt}.sh",
+      "tests/e2e/test-provider-*.sh",
+      "tests/e2e/test-binary{,-runtime}.sh",
+      "tests/e2e/test-{scenarios,multilang,packed-install,python-go,go-update}.sh",
+      "tests/e2e/{test,helpers}.sh"
+    ]
+  }
+}

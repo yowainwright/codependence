@@ -1,0 +1,6 @@
+{
+  "name": "@sandbox/web",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": { "chalk": "4.1.1", "lodash": "^4.17.20" }
+}

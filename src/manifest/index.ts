@@ -28,6 +28,7 @@ import type {
   VersionStrategy,
 } from "../providers/types";
 import {
+  buildVersionDiff,
   collectDiffsFromManifests,
   constructExpectedVersion,
   constructVersionTypes,
@@ -1451,6 +1452,87 @@ const applyInteractiveSelection = async (
   return Object.assign({}, result, { depNames });
 };
 
+const canConfirmMajorUpdates = (options: NormalizedCheckFiles): boolean => {
+  const isTerminal = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  const isCI = Boolean(process.env.CI || process.env.GITHUB_ACTIONS);
+  const isCliUpdate = options.isCLI && options.update && !options.dryRun;
+  if (options.format !== undefined) return false;
+  const isPromptOutput = !options.silent && !options.quiet;
+  const canPrompt = isTerminal && !isCI && !options.isTesting;
+  const shouldConfirm = isCliUpdate && isPromptOutput && canPrompt;
+  return shouldConfirm;
+};
+
+const promptForMajorUpdates = async (majorDiffs: VersionDiff[]): Promise<boolean> => {
+  logger.print(formatVersionTable(majorDiffs, "update"));
+  const prompt = new Prompt();
+  try {
+    return await prompt.confirm(
+      "These updates cross major versions and may contain breaking changes. Apply them?",
+      false,
+    );
+  } finally {
+    prompt.close();
+  }
+};
+
+const pendingMajorUpdates = (
+  context: FileCheckContext,
+  selection: InteractiveResult,
+): VersionDiff[] => {
+  const { manifests, versionResolver, isPreciseMode, options } = context;
+  const resolvedManifests = withResolvedDependencyVersions(
+    manifests,
+    versionResolver.resolvedDependencyVersions,
+  );
+  const diffOptions = { permissive: isPreciseMode, level: options.level };
+  const allDiffs = resolvedManifests.flatMap(({ manifest, provider }) => {
+    const comparableManifest = Object.assign({}, manifest, {
+      versionStrategy: provider.capabilities.versionStrategy,
+    });
+    return buildVersionDiff(
+      selection.versionMap,
+      comparableManifest,
+      selection.depNames,
+      diffOptions,
+    );
+  });
+  return allDiffs.filter((diff) => {
+    const crossesMajor = !isWithinLevel(diff.current, diff.latest, "minor");
+    const needsConfirmation = diff.willUpdate && crossesMajor;
+    return needsConfirmation;
+  });
+};
+
+const excludeMajorUpdates = (
+  selection: InteractiveResult,
+  majorDiffs: VersionDiff[],
+  provider: DependencyProvider,
+): InteractiveResult => {
+  const normalize = getPackageNormalizer(provider);
+  const skippedNames = majorDiffs.map((diff) => normalize?.(diff.package) ?? diff.package);
+  const skippedPackages = new Set(skippedNames);
+  const entries = Object.entries(selection.versionMap).filter(([name]) => {
+    const normalizedName = normalize?.(name) ?? name;
+    return !skippedPackages.has(normalizedName);
+  });
+  const versionMap = Object.fromEntries(entries);
+  return Object.assign({}, selection, { versionMap });
+};
+
+const confirmMajorUpdates = async (
+  context: FileCheckContext,
+  selection: InteractiveResult,
+): Promise<InteractiveResult> => {
+  if (!canConfirmMajorUpdates(context.options)) return selection;
+  if (!selection.shouldUpdate) return selection;
+  const majorDiffs = pendingMajorUpdates(context, selection);
+  if (majorDiffs.length === 0) return selection;
+  context.options.onBeforeOutput?.();
+  if (await promptForMajorUpdates(majorDiffs)) return selection;
+  return excludeMajorUpdates(selection, majorDiffs, context.versionResolver.provider);
+};
+
 const resolvePreciseModeDeps = async (
   manifests: LoadedManifest[],
   versionMap: Record<string, string>,
@@ -1704,7 +1786,8 @@ export const checkFiles = async (options: CheckFiles): Promise<VersionDiff[] | v
     const selection = preview.isInteractiveUpdate
       ? await applyInteractiveSelection(preview.allDiffs, versions.depNames, versions.versionMap)
       : { ...versions, shouldUpdate };
-    await applyFileCheck(context, preview, selection);
+    const confirmedSelection = await confirmMajorUpdates(context, selection);
+    await applyFileCheck(context, preview, confirmedSelection);
     return preview.allDiffs;
   } catch (err) {
     if (options.debug) logger.debug((err as string).toString());
