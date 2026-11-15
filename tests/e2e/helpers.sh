@@ -129,14 +129,14 @@ assert_update_fails_unchanged() {
 run_update() {
   root="${1:?root is required}"
   exit_code=0
-  output=$(run_cli --rootDir "$root" --config "$root/.codependencerc" --update --quiet 2>&1) || exit_code=$?
+  output=$(run_cli --rootDir "$root" --config "$root/.codependencerc" --update 2>&1) || exit_code=$?
   assert_update_succeeded
 }
 
 run_update_from_root() {
   root="${1:?root is required}"
   exit_code=0
-  output=$(cd "$root" && run_cli --config .codependencerc --update --quiet 2>&1) || exit_code=$?
+  output=$(cd "$root" && run_cli --config .codependencerc --update 2>&1) || exit_code=$?
   assert_update_succeeded
 }
 

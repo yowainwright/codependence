@@ -12,14 +12,16 @@
     "dry-run": "codependence --update --dry-run"
   },
   "dependencies": {
-    "lodash": "^4.17.19",
-    "express": "^4.17.1"
+    "lodash": "^4.17.20",
+    "react": "18.2.0"
   },
   "devDependencies": {
-    "typescript": "^4.9.0",
-    "eslint": "^8.0.0"
+    "chalk": "4.1.2"
   },
   "codependence": {
-    "codependencies": ["lodash", "express", "typescript"]
+    "mode": "verbose",
+    "files": ["package.json"],
+    "lockfile": false,
+    "codependencies": [{ "lodash": "4.17.21" }, { "react": "18.3.1" }]
   }
 }

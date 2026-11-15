@@ -1,0 +1,12 @@
+{
+  "name": "codependence-major-updates-sandbox",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": { "react": "18.2.0", "semver": "7.5.0", "lodash": "^4.17.20" },
+  "codependence": {
+    "mode": "verbose",
+    "files": ["package.json"],
+    "lockfile": false,
+    "codependencies": [{ "react": "19.0.0" }, { "semver": "7.6.0" }, { "lodash": "4.17.21" }]
+  }
+}

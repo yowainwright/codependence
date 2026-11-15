@@ -387,19 +387,19 @@ const existingConfigArtifacts = (
   rootDir: string,
   content: string,
 ): OnboardingSetup["artifacts"] | undefined => {
-  const result = CONFIG_FILES.reduce<ReturnType<typeof loadConfig>>(
-    (found, filename) => found || programDependencies.loadConfig(join(rootDir, filename)),
-    null,
-  );
-  if (!result) return undefined;
-  assertLoadedConfig(result.config);
+  for (const filename of CONFIG_FILES) {
+    const result = programDependencies.loadConfig(join(rootDir, filename));
+    if (!result) continue;
+    assertLoadedConfig(result.config);
 
-  const path = relative(rootDir, result.filepath);
-  if (path.startsWith("..")) throw new Error("Init only updates configuration in its directory");
-  const generated = JSON.parse(content) as Record<string, unknown>;
-  const merged = mergeOnboardingConfig(result.config, generated);
-  if (path !== MANIFEST_FILES.PACKAGE_JSON) return [{ path, content: configContent(merged) }];
-  return [packageConfigArtifact(rootDir, merged)];
+    const path = relative(rootDir, result.filepath);
+    if (path.startsWith("..")) throw new Error("Init only updates configuration in its directory");
+    const generated = JSON.parse(content) as Record<string, unknown>;
+    const merged = mergeOnboardingConfig(result.config, generated);
+    if (path !== MANIFEST_FILES.PACKAGE_JSON) return [{ path, content: configContent(merged) }];
+    return [packageConfigArtifact(rootDir, merged)];
+  }
+  return undefined;
 };
 
 const newConfigArtifacts = (

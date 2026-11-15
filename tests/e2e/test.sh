@@ -12,6 +12,7 @@ TEST_IMAGE="codependence-test:latest"
 BUILDER_IMAGE="codependence-builder:latest"
 LEVEL_MODE_IMAGE="codependence-level-mode-test:latest"
 COMMAND="${1:-test}"
+SCENARIO="${2:-}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -58,8 +59,13 @@ command_test() {
 
 command_dev() {
   print_status "Starting interactive development environment..."
-  print_warning "You'll be dropped into a shell where you can test commands manually"
-  "${COMPOSE_CMD[@]}" run --rm dev
+  "${COMPOSE_CMD[@]}" run --build --rm dev "${SCENARIO:-init}"
+}
+
+command_scenarios() {
+  enable_cleanup
+  docker build --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t "$TEST_IMAGE" -f tests/e2e/Dockerfile .
+  docker run --rm "$TEST_IMAGE" bash ./test-scenarios.sh "${SCENARIO:-all}"
 }
 
 command_build() {
@@ -85,6 +91,7 @@ command_all() {
   docker build --build-arg "NODE_SLIM_IMAGE=$NODE_SLIM_IMAGE" --target test -t "$LEVEL_MODE_IMAGE" -f tests/e2e/Dockerfile.level-mode .
   docker run --rm "$LEVEL_MODE_IMAGE"
   print_success "Level and mode tests completed!"
+  docker run --rm "$TEST_IMAGE" bash ./test-scenarios.sh all
   print_success "All e2e test suites completed!"
 }
 
@@ -95,13 +102,14 @@ command_clean() {
 }
 
 command_help() {
-  printf 'Usage: %s [command]\n\n' "$0"
+  printf 'Usage: %s [command] [scenario]\n\n' "$0"
   cat "$SCRIPT_DIR/fixtures/test-help.txt"
   printf '\nExamples:\n'
   printf '  %s                    # Run init tests\n' "$0"
   printf '  %s level-mode        # Run level/mode tests\n' "$0"
   printf '  %s all               # Run all tests\n' "$0"
-  printf '  %s dev               # Interactive testing\n' "$0"
+  printf '  %s dev major-updates # Interactive major-update sandbox\n' "$0"
+  printf '  %s scenarios         # Run all CLI scenarios\n' "$0"
   printf '  %s build             # Build project\n' "$0"
   printf '  %s clean             # Clean up\n' "$0"
 }
@@ -133,6 +141,7 @@ dispatch_command() {
   case "$COMMAND" in
   "test") command_test ;;
   "dev") command_dev ;;
+  "scenarios") command_scenarios ;;
   "build") command_build ;;
   "level-mode") command_level_mode ;;
   "all") command_all ;;
@@ -144,6 +153,12 @@ dispatch_command() {
 
 main() {
   cd "$ROOT_DIR"
+  case "$COMMAND" in
+  "help" | "--help" | "-h")
+    command_help
+    return
+    ;;
+  esac
   NODE_SLIM_IMAGE="$(node scripts/ci/tool-versions.js node-slim-image)"
   export NODE_SLIM_IMAGE
   echo "Codependence Docker Test Runner"

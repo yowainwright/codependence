@@ -1,0 +1,13 @@
+{
+  "name": "codependence-duplicate-versions-sandbox",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": { "chalk": "4.1.1", "lodash": "4.17.20" },
+  "devDependencies": { "chalk": "3.0.0" },
+  "codependence": {
+    "mode": "verbose",
+    "files": ["package.json"],
+    "lockfile": false,
+    "codependencies": [{ "chalk": "4.1.2" }, { "lodash": "4.17.21" }]
+  }
+}

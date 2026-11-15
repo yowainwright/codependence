@@ -1454,6 +1454,33 @@ const createOnboardingProject = (
 
 // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("onboardAction", () => {
+  test("merges embedded policy without loading a later config", async () => {
+    const rootDir = createOnboardingProject(
+      { name: "web", packageManager: "pnpm@9.15.0", codependence: { update: true } },
+      { ".codependencerc": "{ invalid json" },
+    );
+
+    try {
+      await onboardAction({
+        rootDir,
+        mode: "precise",
+        enforcement: "local",
+        nonInteractive: true,
+        skipInstall: true,
+      });
+
+      const packageJson = JSON.parse(fs.readFileSync(join(rootDir, "package.json"), "utf8"));
+      assert.strictEqual(packageJson.codependence.update, true);
+      assert.strictEqual(packageJson.codependence.config.root.path, "package.json");
+      assert.strictEqual(
+        fs.readFileSync(join(rootDir, ".codependencerc"), "utf8"),
+        "{ invalid json",
+      );
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
   test("routes init config to configuration-only setup", async () => {
     const rootDir = createOnboardingProject(
       { name: "web", packageManager: "pnpm@9.15.0" },

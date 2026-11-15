@@ -26,6 +26,7 @@ RUN nub run build-dist
 # Test stage - clean environment for testing
 FROM ${NODE_SLIM_IMAGE} AS test
 
+RUN apt-get update && apt-get install -y --no-install-recommends python3 && rm -rf /var/lib/apt/lists/*
 RUN npm install --global @nubjs/nub@0.7.5
 
 # Create a non-root user for testing
@@ -41,6 +42,8 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --from=builder /app/page ./page
+COPY --from=builder /app/node_modules/pastoralist/dist ./node_modules/pastoralist/dist
+COPY --from=builder /app/node_modules/pastoralist/package.json ./node_modules/pastoralist/package.json
 
 # Install only production dependencies when they exist
 RUN if node -e "const pkg = require('./package.json'); process.exit(Object.keys(pkg.dependencies || {}).length === 0 ? 0 : 1)"; then \
@@ -51,10 +54,12 @@ RUN if node -e "const pkg = require('./package.json'); process.exit(Object.keys(
 
 # Copy test fixtures
 COPY tests/e2e/fixtures/ ./
-COPY tests/e2e/test-init.sh ./
+COPY tests/e2e/test-init-cmd.sh ./
+COPY tests/e2e/helpers.sh tests/e2e/test-scenarios.sh ./
+COPY tests/e2e/scripts/test-binary-interactive.py ./scripts/test-binary-interactive.py
 
 # Make test script executable
-RUN chmod +x test-init.sh
+RUN chmod +x test-init-cmd.sh test-scenarios.sh dist/cli.js node_modules/pastoralist/dist/index.js
 
 # Change ownership to test user
 RUN chown -R testuser:testuser /test
@@ -63,4 +68,4 @@ RUN chown -R testuser:testuser /test
 USER testuser
 
 # Set default command
-CMD ["./test-init.sh"]
+CMD ["./test-init-cmd.sh"]

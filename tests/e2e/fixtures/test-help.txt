@@ -1,8 +1,13 @@
 Commands:
   test       Run init tests (default)
   level-mode Run level and mode feature tests
+  scenarios [name|all] Run shared CLI scenario tests
   all        Run all e2e test suites
-  dev        Start interactive development environment
+  dev [name] Open a fresh interactive scenario (default: init)
   build      Build the project in Docker
   clean      Clean up Docker resources
   help       Show this help message
+
+Scenarios:
+  init, monorepo, major-updates, security, verbose-mode,
+  precise-mode, basic-check, permissive-mode

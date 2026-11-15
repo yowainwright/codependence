@@ -29,6 +29,9 @@ jobs:
       - name: Test Docker environment (dev mode)
         run: ./tests/e2e/test-multilang.sh verify-init-env
 
+      - name: Run CLI scenario tests
+        run: ./tests/e2e/test.sh scenarios
+
       - name: Cleanup Docker images
         if: always()
         run: ./tests/e2e/test-multilang.sh clean
