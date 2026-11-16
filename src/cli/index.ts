@@ -884,15 +884,36 @@ const workflowDefinitions = (
   });
 };
 
+const commandRootsForTarget = (
+  target: CodependenceTarget,
+  rootDir: string,
+  useManifestDirectories: boolean,
+): string[] => {
+  const targetRoot = resolve(rootDir, target.rootDir || ".");
+  const files = target.files || [];
+  const hasManifestScope = files.length > 0 && !NODE_MANAGERS.has(target.manager);
+  const useManifestPaths = useManifestDirectories && hasManifestScope;
+  const ignore = target.ignore ?? DEFAULT_IGNORE_PATTERNS.slice();
+  const matches = useManifestPaths ? glob(files, { cwd: targetRoot, ignore }) : [];
+  const directories = matches.map((file) => dirname(resolve(targetRoot, file)));
+  const roots = directories.length > 0 ? directories : [targetRoot];
+  return roots.map((directory) => {
+    const path = relative(rootDir, directory).replaceAll("\\", "/");
+    return path || ".";
+  });
+};
+
 const managerCommands = (
   manager: DependencyManager,
   targets: CodependenceTarget[],
   overrides: Map<string, string>,
+  rootDir: string,
 ): string[] => {
   const command = overrides.get(manager) || defaultManagerCommand(manager);
+  const useManifestDirectories = !overrides.has(manager);
   const roots = targets
     .filter((target) => target.manager === manager)
-    .map((target) => target.rootDir || ".");
+    .flatMap((target) => commandRootsForTarget(target, rootDir, useManifestDirectories));
 
   return Array.from(new Set(roots.map((rootDir) => commandForRoot(command, rootDir))));
 };
@@ -901,6 +922,7 @@ const postUpdateCommand = (
   definition: WorkflowDefinition,
   targets: CodependenceTarget[],
   overrides: Map<string, string>,
+  rootDir: string,
 ): string => {
   const areaOverride = overrides.get(definition.area);
   const areaIsManager = definition.managers.includes(definition.area as DependencyManager);
@@ -908,7 +930,7 @@ const postUpdateCommand = (
   if (shouldUseAreaOverride) return areaOverride;
 
   const commands = definition.managers.flatMap((manager) =>
-    managerCommands(manager, targets, overrides),
+    managerCommands(manager, targets, overrides, rootDir),
   );
   return Array.from(new Set(commands)).join(" && ");
 };
@@ -1020,7 +1042,7 @@ const writeWorkflows = (
   definitions.forEach((definition) => {
     const workflow = renderWorkflow(
       Object.assign({}, definition, {
-        postUpdateCommand: postUpdateCommand(definition, targets, commands),
+        postUpdateCommand: postUpdateCommand(definition, targets, commands, rootDir),
         tokenSecret: secretName,
         versions,
       }),

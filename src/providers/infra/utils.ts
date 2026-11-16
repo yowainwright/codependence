@@ -26,7 +26,7 @@ const IMAGE_TAG_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
 const GENERIC_INFRA_DIRECTORIES = new Set([".circleci", "k8s", "kubernetes", "manifests"]);
 
 export const infraManifestName = (filePath: string): string => {
-  const segments = filePath.split("/").filter(Boolean);
+  const segments = filePath.replaceAll("\\", "/").split("/").filter(Boolean);
   const directory = segments.at(-2) || "";
   const parent = segments.at(-3) || "";
   const hasProjectParent = Boolean(parent && parent !== ".");

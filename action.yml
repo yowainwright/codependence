@@ -313,6 +313,10 @@ runs:
         install_python_package_managers() {
           local environment_path="$RUNNER_TEMP/codependence-python"
           local packages=()
+          local executable="bin/python"
+          if [ "${RUNNER_OS:-}" = "Windows" ]; then
+            executable="Scripts/python.exe"
+          fi
           python3 -m venv "$environment_path"
           if [ -n "$PIP_VERSION" ]; then
             packages+=("pip==$PIP_VERSION")
@@ -323,8 +327,8 @@ runs:
           if [ -n "$POETRY_VERSION" ]; then
             packages+=("poetry==$POETRY_VERSION")
           fi
-          "$environment_path/bin/python" -m pip install "${packages[@]}"
-          echo "$environment_path/bin" >>"$GITHUB_PATH"
+          "$environment_path/$executable" -m pip install "${packages[@]}"
+          echo "$environment_path/${executable%/*}" >>"$GITHUB_PATH"
         }
 
         install_python_package_managers

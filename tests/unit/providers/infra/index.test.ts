@@ -11,6 +11,7 @@ describe("infra provider helpers", () => {
   test("should derive manifest names from project and file paths", () => {
     assert.strictEqual(infraManifestName(join("api", "k8s", "deployment.yaml")), "api");
     assert.strictEqual(infraManifestName("deployment.yaml"), "deployment.yaml");
+    assert.strictEqual(infraManifestName("C:\\repo\\api\\k8s\\deployment.yaml"), "api");
   });
 
   test("should create empty infrastructure manifests", () => {

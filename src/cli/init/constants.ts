@@ -95,6 +95,7 @@ export const ONBOARDING_DEPENDENCY_SECTIONS: OnboardingDependencySection[] = [
 export const ONBOARDING_IGNORED_DIRECTORIES = new Set([
   ".git",
   ".next",
+  ".venv",
   "coverage",
   "dist",
   "node_modules",

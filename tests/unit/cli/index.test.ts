@@ -1568,6 +1568,36 @@ describe("onboardAction", () => {
     }
   });
 
+  test("generates repository-relative lock commands for nested Python manifests", async () => {
+    const rootDir = createOnboardingProject(
+      { packageManager: "npm@10.9.2" },
+      {
+        "lib/pyproject.toml": '[tool.poetry.dependencies]\nrequests = "2.32.0"\n',
+        "tools/Pipfile": '[packages]\nrequests = "==2.32.0"\n',
+      },
+    );
+    try {
+      await onboardAction({
+        rootDir,
+        mode: "precise",
+        enforcement: "github",
+        repository: "acme/mixed",
+        version: ["poetry=2.1.3", "pipenv=2025.0.4"],
+        nonInteractive: true,
+        skipInstall: true,
+      });
+      const python = readWorkflow(rootDir, "python");
+      assert.match(python, /cd -- ''lib'' && poetry lock/);
+      assert.match(python, /cd -- ''tools'' && pipenv lock/);
+      assert.strictEqual(python.includes(rootDir), false);
+      const node = readWorkflow(rootDir, "node");
+      assert.match(node, /post-update-command: 'npm install'/);
+      assert.strictEqual(node.includes(rootDir), false);
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
   test("preserves existing named config while updating detected manifests", async () => {
     const existing = preservesExistingNamedConfigWhileUpdatingDetectedManifestsExisting;
     const rootDir = createOnboardingProject(
@@ -2658,6 +2688,38 @@ describe("GitHub Actions initializer", () => {
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
+  });
+
+  const workflowIgnoreCases = [
+    { name: "default", targetIgnore: undefined, packages: false, examples: true },
+    { name: "target", targetIgnore: ["**/examples/**"], packages: true, examples: false },
+    { name: "empty target", targetIgnore: [], packages: true, examples: true },
+  ];
+  workflowIgnoreCases.forEach(({ name, targetIgnore, packages, examples }) => {
+    test(`uses ${name} ignore rules for generated lock commands`, () => {
+      const target = { manager: "poetry", files: ["**/pyproject.toml"], ignore: targetIgnore };
+      const config = { targets: [target] };
+      const rootDir = createOnboardingProject(
+        {},
+        {
+          ".codependencerc": JSON.stringify(config),
+          "lib/pyproject.toml": "[tool.poetry]\n",
+          ".venv/pkg/pyproject.toml": "[tool.poetry]\n",
+          "node_modules/pkg/pyproject.toml": "[tool.poetry]\n",
+          "examples/demo/pyproject.toml": "[tool.poetry]\n",
+        },
+      );
+      try {
+        initGitHubActions({ rootDir, versions: ["poetry=2.1.3"] });
+        const workflow = readWorkflow(rootDir, "python");
+        assert.match(workflow, /cd -- ''lib'' && poetry lock/);
+        assert.strictEqual(/\.venv\/pkg/.test(workflow), packages);
+        assert.strictEqual(/node_modules\/pkg/.test(workflow), packages);
+        assert.strictEqual(/examples\/demo/.test(workflow), examples);
+      } finally {
+        fs.rmSync(rootDir, { recursive: true, force: true });
+      }
+    });
   });
 
   test("normalizes Go directives and runs commands in the target root", () => {

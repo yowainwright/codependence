@@ -1,6 +1,11 @@
 import { ACTION_REF, CHECKOUT_REF, GENERATED_ACTION_HEADER, NODE_MANAGERS } from "../constants";
 import type { WorkflowArea, RenderWorkflowOptions } from "../types";
-import { LANGUAGES, MANIFEST_FILES, PYTHON_PACKAGE_MANAGERS } from "../../providers/constants";
+import {
+  CONDA_MANIFEST_FILES,
+  LANGUAGES,
+  MANIFEST_FILES,
+  PYTHON_PACKAGE_MANAGERS,
+} from "../../providers/constants";
 import type { DependencyManager } from "../../types";
 import {
   ONBOARDING_DEPENDENCY_SECTIONS,
@@ -416,7 +421,8 @@ const pythonManager = (
   const filename = onboardingFilename(file.path);
   if (filename === MANIFEST_FILES.REQUIREMENTS) return PYTHON_PACKAGE_MANAGERS.PIP;
   if (filename === MANIFEST_FILES.PIPFILE) return PYTHON_PACKAGE_MANAGERS.PIPENV;
-  if (filename.startsWith("environment.")) return PYTHON_PACKAGE_MANAGERS.CONDA;
+  const isCondaManifest = CONDA_MANIFEST_FILES.some((path) => path === filename);
+  if (isCondaManifest) return PYTHON_PACKAGE_MANAGERS.CONDA;
   if (filename !== MANIFEST_FILES.PYPROJECT) return undefined;
 
   const uvLockPath = onboardingPath(onboardingDirectory(file.path), MANIFEST_FILES.UV_LOCK);

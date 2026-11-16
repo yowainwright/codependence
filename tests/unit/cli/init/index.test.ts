@@ -157,6 +157,31 @@ test("selects supported browser onboarding files", () => {
   assert.strictEqual(onboardingFilename(""), "");
 });
 
+test("keeps TypeScript environment files out of Conda onboarding", () => {
+  const path = "src/environments/environment.ts";
+  const content = "export const environment = { production: false };";
+  const files = [packageFile("package.json", { packageManager: "npm@10.9.2" }), { path, content }];
+  const project = analyzeOnboardingProject(files);
+  const setup = createOnboardingSetup(project, {
+    mode: "precise",
+    selectedDependencies: [],
+    enforcement: "github",
+    repository: { owner: "acme", name: "web" },
+  });
+  assert.strictEqual(isOnboardingSourcePath(path), false);
+  assert.strictEqual(project.manifests.length, 1);
+  assert.match(setup.artifacts[1].content, /targets: npm/);
+});
+
+test("excludes virtual environment manifests from browser onboarding", () => {
+  const paths = [
+    ".venv/lib/python3.12/site-packages/demo/pyproject.toml",
+    "services/api/.venv/lib/python3.12/site-packages/demo/pyproject.toml",
+  ];
+  paths.forEach((path) => assert.strictEqual(isOnboardingSourcePath(path), false));
+  assert.strictEqual(isOnboardingSourcePath("services/api/pyproject.toml"), true);
+});
+
 const githubTree = {
   sha: "tree-sha",
   truncated: false,

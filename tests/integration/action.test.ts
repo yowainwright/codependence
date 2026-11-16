@@ -101,31 +101,42 @@ describe("composite action", () => {
     assert.match(targetOutput, /conda-version=25\.3\.1/);
   });
 
-  test("installs pinned Python tools outside the checkout and exposes their executables", () => {
-    const workDir = mkdtempSync(join(tmpdir(), "codependence-action-python-"));
-    const installer = join(workDir, "installer");
-    const installLog = join(workDir, "install-log");
-    const python = '#!/bin/bash\nprintf "%s\\n" "$@" > "$INSTALL_LOG"\n';
-    const bootstrap = '#!/bin/bash\nmkdir -p "$3/bin"\ncp "$MOCK_INSTALLER" "$3/bin/python"\n';
-    writeFileSync(installer, python, { mode: 0o755 });
-    writeFileSync(join(workDir, "python3"), bootstrap, { mode: 0o755 });
-    try {
-      const output = runActionScript("Setup Python package managers", {
-        PATH: `${workDir}:${process.env.PATH}`,
-        RUNNER_TEMP: workDir,
-        MOCK_INSTALLER: installer,
-        INSTALL_LOG: installLog,
-        PIP_VERSION: "25.1.1",
-        PIPENV_VERSION: "2025.0.4",
-        POETRY_VERSION: "2.1.3",
-      });
-      assert.match(output, /codependence-python\/bin/);
-      const args = readFileSync(installLog, "utf8");
-      assert.match(args, /pip==25\.1\.1/);
-      assert.match(args, /pipenv==2025\.0\.4/);
-      assert.match(args, /poetry==2\.1\.3/);
-    } finally {
-      rmSync(workDir, { recursive: true, force: true });
-    }
+  const pythonRunners = [
+    { runner: "Linux", directory: "bin", executable: "python" },
+    { runner: "macOS", directory: "bin", executable: "python" },
+    { runner: "Windows", directory: "Scripts", executable: "python.exe" },
+  ];
+  pythonRunners.forEach(({ runner, directory, executable }) => {
+    test(`installs pinned Python tools using the ${runner} environment layout`, () => {
+      const workDir = mkdtempSync(join(tmpdir(), "codependence-action-python-"));
+      const installer = join(workDir, "installer");
+      const installLog = join(workDir, "install-log");
+      const python = '#!/bin/bash\nprintf "%s\\n" "$@" > "$INSTALL_LOG"\n';
+      const bootstrap =
+        '#!/bin/bash\nmkdir -p "$3/$MOCK_DIRECTORY"\ncp "$MOCK_INSTALLER" "$3/$MOCK_DIRECTORY/$MOCK_EXECUTABLE"\n';
+      writeFileSync(installer, python, { mode: 0o755 });
+      writeFileSync(join(workDir, "python3"), bootstrap, { mode: 0o755 });
+      try {
+        const output = runActionScript("Setup Python package managers", {
+          PATH: `${workDir}:${process.env.PATH}`,
+          RUNNER_TEMP: workDir,
+          MOCK_INSTALLER: installer,
+          MOCK_DIRECTORY: directory,
+          MOCK_EXECUTABLE: executable,
+          RUNNER_OS: runner,
+          INSTALL_LOG: installLog,
+          PIP_VERSION: "25.1.1",
+          PIPENV_VERSION: "2025.0.4",
+          POETRY_VERSION: "2.1.3",
+        });
+        assert.ok(output.includes(`codependence-python/${directory}`));
+        const args = readFileSync(installLog, "utf8");
+        assert.match(args, /pip==25\.1\.1/);
+        assert.match(args, /pipenv==2025\.0\.4/);
+        assert.match(args, /poetry==2\.1\.3/);
+      } finally {
+        rmSync(workDir, { recursive: true, force: true });
+      }
+    });
   });
 });

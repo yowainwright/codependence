@@ -494,7 +494,7 @@ export const updateHelmManifest = (
 };
 
 export const isChartManifest = (filePath: string): boolean =>
-  filePath.split("/").at(-1) === "Chart.yaml";
+  filePath.replaceAll("\\", "/").split("/").at(-1) === "Chart.yaml";
 
 export const updateHelmValuesManifest = (
   filePath: string,
