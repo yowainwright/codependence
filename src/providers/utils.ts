@@ -22,12 +22,20 @@ import {
   PYTHON_MANIFEST_FILES,
   PYTHON_PACKAGE_MANAGERS,
 } from "./constants";
-import type {
-  Language,
-  LanguageDetectionResult,
-  LanguageProvider,
-  PackageManagerManifest,
-} from "./types";
+import type { Language, LanguageDetectionResult, PackageManagerManifest } from "./types";
+
+export type LanguageProvider =
+  | typeof NodeJSProvider
+  | typeof GoProvider
+  | typeof PythonProvider
+  | typeof RustProvider
+  | typeof CircleCIProvider
+  | typeof DockerProvider
+  | typeof GitHubActionsProvider
+  | typeof HelmProvider
+  | typeof KubernetesProvider
+  | typeof KustomizeProvider
+  | typeof TerraformProvider;
 
 const hasAnyFile = (rootDir: string, files: readonly string[]): boolean =>
   files.some((file) => existsSync(join(rootDir, file)));

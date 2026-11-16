@@ -919,10 +919,10 @@ outdated: "true"
 
 #### `targets`
 
-> Type: **`Array<"bun" | "npm" | "pnpm" | "yarn" | "go" | "rust" | "uv" | "docker" | "github-actions" | "helm">`**
+> Type: **`Array<DependencyManager>`**
 > Default: `undefined`
 
-Limits the action to configured manager targets. Versioned targets need an exact tool version unless a Node package-manager version can be inferred from `package.json`.
+Limits the action to configured manager targets. Versioned targets need an exact tool version unless a Node package-manager version can be inferred from `package.json`. All configured managers are accepted, including `pip`, `pipenv`, `poetry`, and `conda`. Pip and Conda have no standard lockfile in Codependence; set `lockfile: false` for those targets or configure a custom lockfile.
 
 ```diff
  - uses: yowainwright/codependence@v1
@@ -933,7 +933,7 @@ Limits the action to configured manager targets. Versioned targets need an exact
 
 #### `version`
 
-> Type: **`string | Record<"bun" | "npm" | "pnpm" | "yarn" | "go" | "rust" | "uv", string>`**
+> Type: **`string | Record<"bun" | "npm" | "pnpm" | "yarn" | "go" | "rust" | "uv" | "pip" | "pipenv" | "poetry" | "conda", string>`**
 > Default: inferred for Node package managers when possible
 
 Pins the tool version installed before Codependence runs. Use one exact version for one versioned target, or `manager=version` entries for multiple targets.
@@ -1270,8 +1270,9 @@ Declare each ecosystem through a manifest entry in `.codependencerc`. The
 codependence --language python
 ```
 
-Use one supported language per run: `nodejs`, `python`, `go`, `rust`,
-`docker`, `github-actions`, or `helm`.
+The supported ecosystems are `nodejs`, `python`, `go`, `rust`, `circleci`,
+`docker`, `github-actions`, `helm`, `kubernetes`, `kustomize`, and `terraform`.
+Use independent config targets for mixed ecosystems.
 
 ### Supported managers
 
@@ -1338,7 +1339,11 @@ dependencies, templates, digest refs, and dependencies without a version.
 >
 > Use `--target pnpm` or `--target go` to run only entries for those managers.
 
-<!-- provider capabilities from src/providers/*/index.ts -->
+CircleCI, Helm, Kubernetes, Kustomize, and Terraform support explicit object pins in verbose mode. They do not resolve latest versions or support precise mode. App onboarding detects these manifests and generates explicit pins from their current versions.
+
+The app uses the same manifest parsers and workflow renderer as the CLI. Non-Node providers remain experimental. Compose is not supported.
+
+<!-- provider capabilities from src/providers/*/utils.ts -->
 
 ---
 
@@ -1347,16 +1352,17 @@ dependencies, templates, digest refs, and dependencies without a version.
 Codependence currently focuses on package manifests and dependency sections.
 The same policy model can expand to other version surfaces over time.
 
-| Surface                        | Status       | Purpose                                                                    |
-| ------------------------------ | ------------ | -------------------------------------------------------------------------- |
-| `package.json` dependencies    | Supported    | Enforce dependency policy in Node.js projects and monorepos                |
-| Python, Go, and Rust manifests | Experimental | Apply the same check/update workflow outside Node.js                       |
-| Dockerfiles                    | Experimental | Check base image versions                                                  |
-| GitHub Actions workflows       | Experimental | Check action refs in workflow YAML                                         |
-| Helm charts                    | Experimental | Check chart dependency versions in `Chart.yaml`                            |
-| Local repository scans         | Roadmap      | Report drift across a directory of projects, such as `~/code`              |
-| Toolchain files                | Roadmap      | Keep `.nvmrc`, `.node-version`, `.tool-versions`, and `.mise.toml` aligned |
-| Compose and other CI YAML      | Roadmap      | Check service images, actions, and runtime versions in pipeline files      |
+| Surface                                    | Status       | Purpose                                                                    |
+| ------------------------------------------ | ------------ | -------------------------------------------------------------------------- |
+| `package.json` dependencies                | Supported    | Enforce dependency policy in Node.js projects and monorepos                |
+| Python, Go, and Rust manifests             | Experimental | Apply the same check/update workflow outside Node.js                       |
+| Dockerfiles                                | Experimental | Check base image versions                                                  |
+| GitHub Actions workflows                   | Experimental | Check action refs in workflow YAML                                         |
+| Helm charts                                | Experimental | Check chart dependency versions in `Chart.yaml`                            |
+| CircleCI, Kubernetes, Kustomize, Terraform | Experimental | Check explicit orb, image, provider, and module pins                       |
+| Local repository scans                     | Roadmap      | Report drift across a directory of projects, such as `~/code`              |
+| Toolchain files                            | Roadmap      | Keep `.nvmrc`, `.node-version`, `.tool-versions`, and `.mise.toml` aligned |
+| Compose and other CI YAML                  | Roadmap      | Check service images, actions, and runtime versions in pipeline files      |
 
 ---
 

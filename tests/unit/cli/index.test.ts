@@ -1548,11 +1548,21 @@ describe("onboardAction", () => {
         "github",
         "--repository",
         "acme/api",
+        "--schedule",
+        "go=30 7 * * 5",
+        "--token-secret",
+        "CUSTOM_TOKEN",
+        "--post-update-command",
+        "go=go mod tidy -v",
         "--non-interactive",
       ]);
 
       const workflowPath = join(rootDir, ".github/workflows/codependence-go.yml");
       assert.match(fs.readFileSync(workflowPath, "utf8"), /targets: go/);
+      const workflow = fs.readFileSync(workflowPath, "utf8");
+      assert.match(workflow, /30 7 \* \* 5/);
+      assert.match(workflow, /secrets\.CUSTOM_TOKEN/);
+      assert.match(workflow, /go mod tidy -v/);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2772,7 +2782,7 @@ describe("GitHub Actions initializer", () => {
     }
   });
 
-  test("rejects unconfigured and unsupported managers", () => {
+  test("rejects unconfigured managers and requires versions for Python tools", () => {
     const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
     const configPath = join(rootDir, ".codependencerc");
     fs.writeFileSync(configPath, JSON.stringify({ targets: [{ manager: "bun" }] }));
@@ -2783,7 +2793,9 @@ describe("GitHub Actions initializer", () => {
         "Unknown configured target manager(s): go",
       );
       fs.writeFileSync(configPath, JSON.stringify({ targets: [{ manager: "pip" }] }));
-      assertThrows(() => initGitHubActions({ rootDir }), "does not support target manager(s): pip");
+      assertThrows(() => initGitHubActions({ rootDir }), "Missing exact tool version for: pip");
+      const paths = initGitHubActions({ rootDir, versions: ["pip=25.1.1"] });
+      assert.match(fs.readFileSync(paths[0], "utf8"), /targets: pip/);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }

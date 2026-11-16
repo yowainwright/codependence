@@ -1,0 +1,160 @@
+import { GO_PATTERNS } from "./constants";
+import type {
+  DependencyManifest,
+  GoDependencyLineResult,
+  GoLineState,
+  GoProcessedLine,
+  GoProcessLinesResult,
+  GoProcessLinesState,
+  GoUpdateResult,
+} from "../types";
+
+export const capabilities = {
+  supportsLatestResolution: true,
+  supportsPreciseMode: true,
+  versionStrategy: "semver",
+} as const;
+
+export const isReplaceBlockStart = (line: string): boolean =>
+  GO_PATTERNS.REPLACE_BLOCK_START.exec(line) !== null;
+
+export const isExcludeBlockStart = (line: string): boolean =>
+  GO_PATTERNS.EXCLUDE_BLOCK_START.exec(line) !== null;
+
+export const isBlockClose = (line: string): boolean => GO_PATTERNS.BLOCK_CLOSE.exec(line) !== null;
+
+export const isReplaceLine = (line: string): boolean =>
+  GO_PATTERNS.REPLACE_LINE.exec(line) !== null;
+
+export const preserveFinalNewline = (content: string): string =>
+  content.endsWith("\n") ? content : content + "\n";
+
+export const updateRequireLine = (
+  line: string,
+  dependencies: Record<string, string>,
+): GoDependencyLineResult => {
+  if (isReplaceLine(line)) return { line, updated: false, found: false };
+
+  const match = line.match(GO_PATTERNS.DEP_UPDATE_LINE);
+  if (!match) return { line, updated: false, found: false };
+
+  const [, prefix, pkgName, space, currentVersion, rest] = match;
+  const newVersion = dependencies[pkgName];
+  if (!newVersion) return { line, updated: false, found: false };
+
+  const isSameVersion = newVersion === currentVersion;
+  if (isSameVersion) return { line, updated: false, found: true };
+
+  return { line: `${prefix}${pkgName}${space}${newVersion}${rest}`, updated: true, found: true };
+};
+
+const nextBlockState = (line: string, state: GoLineState): GoLineState | null => {
+  if (state.inReplaceBlock) {
+    return isBlockClose(line) ? { ...state, inReplaceBlock: false } : state;
+  }
+  if (state.inExcludeBlock) {
+    return isBlockClose(line) ? { ...state, inExcludeBlock: false } : state;
+  }
+  if (isReplaceBlockStart(line)) return { ...state, inReplaceBlock: true };
+  if (isExcludeBlockStart(line)) return { ...state, inExcludeBlock: true };
+  return null;
+};
+
+export const processLine = (
+  line: string,
+  state: GoLineState,
+  dependencies: Record<string, string>,
+): GoProcessedLine => {
+  const blockState = nextBlockState(line, state);
+  if (blockState) return { line, state: blockState, updated: false, found: false };
+  const { line: updatedLine, updated, found } = updateRequireLine(line, dependencies);
+  return { line: updatedLine, state, updated, found };
+};
+
+const processLines = (
+  lines: string[],
+  dependencies: Record<string, string>,
+): GoProcessLinesResult => {
+  const initial: GoProcessLinesState = {
+    lines: [],
+    state: { inReplaceBlock: false, inExcludeBlock: false },
+    updatedCount: 0,
+    foundCount: 0,
+  };
+
+  return lines.reduce((acc, line) => {
+    const result = processLine(line, acc.state, dependencies);
+    const updatedCount = acc.updatedCount + (result.updated ? 1 : 0);
+    const foundCount = acc.foundCount + (result.found ? 1 : 0);
+    return {
+      lines: acc.lines.concat(result.line),
+      state: result.state,
+      updatedCount,
+      foundCount,
+    };
+  }, initial);
+};
+
+export const updateExistingRequireLines = (
+  content: string,
+  dependencies: Record<string, string>,
+): GoUpdateResult => {
+  const { lines, updatedCount, foundCount } = processLines(content.split("\n"), dependencies);
+  return { content: lines.join("\n"), updatedCount, foundCount };
+};
+
+const parseDependencyLine = (line: string): [string, string] | null => {
+  const match = line.trim().match(GO_PATTERNS.DEPENDENCY_LINE);
+  return match ? [match[1], match[2]] : null;
+};
+
+const parseRequireBlockEntries = (block: string): Array<[string, string]> =>
+  block
+    .split("\n")
+    .map(parseDependencyLine)
+    .filter((entry): entry is [string, string] => entry !== null);
+
+export const parseRequireBlock = (content: string): Record<string, string> => {
+  const requireBlocks = content.matchAll(GO_PATTERNS.REQUIRE_BLOCKS);
+  const entries = Array.from(requireBlocks).flatMap((match) => parseRequireBlockEntries(match[1]));
+
+  return Object.fromEntries(entries);
+};
+
+export const parseSingleRequires = (content: string): Record<string, string> => {
+  const dependencies: Record<string, string> = {};
+  const singleRequireMatches = content.matchAll(GO_PATTERNS.REQUIRE_LINE);
+
+  for (const match of singleRequireMatches) {
+    dependencies[match[1]] = match[2];
+  }
+
+  return dependencies;
+};
+
+export const buildRequireBlock = (dependencies: Record<string, string>): string => {
+  const requireEntries = Object.entries(dependencies)
+    .map(([name, version]) => `\t${name} ${version}`)
+    .join("\n");
+
+  return `require (\n${requireEntries}\n)`;
+};
+
+export const parseManifest = (filePath: string, content: string): DependencyManifest => {
+  const moduleMatch = content.match(GO_PATTERNS.MODULE);
+  const moduleName = moduleMatch ? moduleMatch[1].trim() : undefined;
+
+  const goVersionMatch = content.match(GO_PATTERNS.GO_VERSION);
+  const goVersion = goVersionMatch ? goVersionMatch[1].trim() : undefined;
+
+  const blockDeps = parseRequireBlock(content);
+  const singleDeps = parseSingleRequires(content);
+  const dependencies = Object.assign({}, blockDeps, singleDeps);
+
+  return {
+    filePath,
+    name: moduleName,
+    version: goVersion,
+    dependencies,
+  };
+};

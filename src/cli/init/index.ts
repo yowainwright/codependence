@@ -1,18 +1,16 @@
 import {
-  ONBOARDING_ACTION_REF,
-  ONBOARDING_CHECKOUT_REF,
   ONBOARDING_CONFIG_PATH,
   ONBOARDING_MANAGERS,
   ONBOARDING_PACKAGE_FILE,
   ONBOARDING_PAT_URL,
+  ONBOARDING_PROVIDERS,
   ONBOARDING_SCHEDULE,
   ONBOARDING_SECRET_NAME,
   ONBOARDING_TOKEN_PERMISSIONS,
   ONBOARDING_VERIFY_COMMANDS,
   ONBOARDING_VERSION_PATTERN,
-  ONBOARDING_WORKFLOW_PATH,
 } from "./constants";
-import { LANGUAGES, MANIFEST_FILES, PYTHON_PACKAGE_MANAGERS } from "../../providers/constants";
+import { ACTION_MANAGERS, VERSIONED_MANAGERS, RUST_TOOLCHAIN_VERSION_PATTERN } from "../constants";
 import type { DependencyManager } from "../../types";
 import { OnboardingError } from "./types";
 import type {
@@ -27,21 +25,23 @@ import type {
   OnboardingProject,
   OnboardingRepository,
   OnboardingSetup,
+  OnboardingSetupOptions,
   OnboardingSourceFile,
   OnboardingTokenSetup,
   ParsedOnboardingManifest,
+  DependencyUsageEntry,
 } from "./types";
 import {
   createDependency,
   dependencyEntryGroups,
+  groupDependencyEntriesBy,
   isOnboardingWorkspace,
   managerFromFiles,
   manifestDependencyEntries,
+  manifestManager,
   normalizeOnboardingPath,
-  onboardingDirectory,
-  onboardingFilename,
   onboardingInstallArgs,
-  onboardingPath,
+  onboardingDependencyEntries,
   packageManagerValue,
   parseOnboardingManifest,
   repositorySecretUrl,
@@ -49,7 +49,11 @@ import {
   selectedCodependencies,
   selectOnboardingManifests,
   selectOnboardingSourceFiles,
-  workflowSecretExpression,
+  commandForRoot,
+  defaultManagerCommand,
+  onboardingDirectory,
+  renderWorkflow,
+  areaForManager,
 } from "./utils";
 
 export { isOnboardingSourcePath, onboardingSourceFileNeedsContent } from "./utils";
@@ -114,11 +118,14 @@ export const parseOnboardingRepository = (value: string): OnboardingRepository =
   return { owner, name };
 };
 
-export const createOnboardingTokenSetup = (answers: OnboardingAnswers): OnboardingTokenSetup => {
+export const createOnboardingTokenSetup = (
+  answers: OnboardingAnswers,
+  secretName = ONBOARDING_SECRET_NAME,
+): OnboardingTokenSetup => {
   if (!answers.repository) throw new Error("GitHub enforcement requires a repository");
   const { owner, name } = answers.repository;
   return {
-    secretName: ONBOARDING_SECRET_NAME,
+    secretName,
     personalAccessTokenUrl: ONBOARDING_PAT_URL,
     repositorySecretUrl: repositorySecretUrl(owner, name),
     permissions: ONBOARDING_TOKEN_PERMISSIONS,
@@ -130,86 +137,158 @@ const manifestId = (path: string): string => {
   return path.replace(/\/package\.json$/, "");
 };
 
-const manifestCodependencies = (manager: DependencyManager, selectedDependencies: string[]) => {
-  const isNodeManifest = ONBOARDING_MANAGERS.has(manager as OnboardingManager);
-  if (!isNodeManifest) return {};
-  return selectedCodependencies(selectedDependencies);
+const explicitManifestPin = (name: string, usages: DependencyUsageEntry[]) => {
+  const versions = new Set(usages.map(({ range }) => range));
+  const { path, range } = usages[0];
+  if (versions.size > 1) {
+    throw new Error(
+      `Multiple versions of ${name} in ${path}; choose an explicit version before generating this policy.`,
+    );
+  }
+  return { [name]: range };
+};
+
+const manifestCodependencies = (
+  dependencies: DependencyUsageEntry[],
+  manifest: OnboardingProject["manifests"][number],
+  answers: OnboardingAnswers,
+) => {
+  const provider = ONBOARDING_PROVIDERS[manifest.manager];
+  const selected = new Set(answers.selectedDependencies);
+  const chosen = dependencies.filter(({ name }) => selected.has(name));
+  const resolvesLatest = provider?.capabilities.supportsLatestResolution ?? true;
+  if (resolvesLatest) {
+    const names = chosen.map(({ name }) => name);
+    const codependencies = Array.from(new Set(names));
+    if (answers.mode === "verbose") return { codependencies };
+    return selectedCodependencies(codependencies);
+  }
+  const pins = answers.mode === "precise" ? dependencies : chosen;
+  const groups = dependencyEntryGroups(pins);
+  const codependencies = Array.from(groups, ([name, usages]) => explicitManifestPin(name, usages));
+  return { codependencies };
 };
 
 const manifestConfig = (
+  dependencies: DependencyUsageEntry[],
   answers: OnboardingAnswers,
   manifest: OnboardingProject["manifests"][number],
 ) => {
   const name = manifest.name === manifest.path ? {} : { name: manifest.name };
-  const codependencies = manifestCodependencies(manifest.manager, answers.selectedDependencies);
-  const policy = { path: manifest.path, manager: manifest.manager, mode: answers.mode };
-  return Object.assign({}, name, policy, codependencies);
+  const codependencies = manifestCodependencies(dependencies, manifest, answers);
+  const provider = ONBOARDING_PROVIDERS[manifest.manager];
+  const supportsPrecise = provider?.capabilities.supportsPreciseMode ?? true;
+  const mode = supportsPrecise ? answers.mode : "verbose";
+  const policy = { path: manifest.path, manager: manifest.manager, mode };
+  const hasStandardLockfile = manifest.manager !== "pip" && manifest.manager !== "conda";
+  const lockfile = hasStandardLockfile ? {} : { lockfile: false };
+  return Object.assign({}, name, policy, codependencies, lockfile);
 };
 
 export const renderOnboardingConfig = (
   project: OnboardingProject,
   answers: OnboardingAnswers,
 ): string => {
+  const dependencies = project.dependencies.flatMap(onboardingDependencyEntries);
+  const groups = groupDependencyEntriesBy(dependencies, ({ path }) => path);
   const entries = project.manifests.map((manifest) => {
     const id = manifestId(manifest.path);
-    return [id, manifestConfig(answers, manifest)];
+    const usages = groups.get(manifest.path) || [];
+    return [id, manifestConfig(usages, answers, manifest)];
   });
   const config = Object.fromEntries(entries);
   return `${JSON.stringify({ config }, null, 2)}\n`;
 };
 
+export const onboardingVersionManagers = (project: OnboardingProject): DependencyManager[] => {
+  const managers = project.manifests.map(({ manager }) => manager);
+  return Array.from(new Set(managers)).filter((manager) => VERSIONED_MANAGERS.has(manager));
+};
+
+const onboardingVersions = (project: OnboardingProject): Map<DependencyManager, string> => {
+  const versions = new Map<DependencyManager, string>();
+  onboardingVersionManagers(project).forEach((manager) => {
+    const nodeVersion = manager === project.manager ? project.managerVersion : undefined;
+    const version = project.toolVersions?.[manager] || nodeVersion;
+    if (!version)
+      throw new Error(`${manager} packageManager must include an exact version for GitHub Actions`);
+    const isExact = ONBOARDING_VERSION_PATTERN.test(version);
+    const isStableRust =
+      manager !== "rust" || RUST_TOOLCHAIN_VERSION_PATTERN.test(version.replace(/^v/, ""));
+    const isValid = isExact && isStableRust;
+    if (!isValid) throw new Error(`${manager} requires an exact package manager version`);
+    versions.set(manager, version);
+  });
+  return versions;
+};
+
+const onboardingPostUpdateCommand = (project: OnboardingProject): string => {
+  const commands = project.manifests.map(({ path, manager }) => {
+    const directory = ONBOARDING_MANAGERS.has(manager as OnboardingManager)
+      ? "."
+      : onboardingDirectory(path) || ".";
+    const command = defaultManagerCommand(manager);
+    return commandForRoot(command, directory);
+  });
+  return Array.from(new Set(commands)).join(" && ");
+};
+
 export const renderOnboardingWorkflow = (project: OnboardingProject): string => {
-  if (!project.managerVersion) {
-    throw new Error("packageManager must include an exact version for GitHub Actions");
+  const managers = Array.from(new Set(project.manifests.map(({ manager }) => manager)));
+  const unsupported = managers.filter((manager) => !ACTION_MANAGERS.has(manager));
+  if (unsupported.length > 0) {
+    throw new Error(
+      `GitHub Action setup does not support target manager(s): ${unsupported.join(", ")}`,
+    );
   }
-  if (!ONBOARDING_VERSION_PATTERN.test(project.managerVersion)) {
-    throw new Error(`${project.manager} requires an exact package manager version`);
-  }
-  const secret = workflowSecretExpression(ONBOARDING_SECRET_NAME);
-  const installCommand = `${project.manager} install`;
-  return `# Generated by \`codependence init\`.
-name: Codependence Node updates
+  const versions = onboardingVersions(project);
+  const postUpdateCommand = onboardingPostUpdateCommand(project);
+  return renderWorkflow({
+    area: "infrastructure",
+    label: "dependency",
+    managers,
+    versions,
+    postUpdateCommand,
+    schedule: ONBOARDING_SCHEDULE,
+    tokenSecret: ONBOARDING_SECRET_NAME,
+  });
+};
 
-on:
-  schedule:
-    - cron: "${ONBOARDING_SCHEDULE}"
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-jobs:
-  update:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: ${ONBOARDING_CHECKOUT_REF}
-        with:
-          persist-credentials: false
-
-      - uses: ${ONBOARDING_ACTION_REF}
-        with:
-          targets: ${project.manager}
-          version: ${project.managerVersion}
-          pull-request: true
-          token: ${secret}
-          post-update-command: '${installCommand}'
-`;
+const policyManifests = (project: OnboardingProject, answers: OnboardingAnswers) => {
+  const selected = new Set(answers.selectedDependencies);
+  const includesAll = answers.mode === "precise";
+  const dependencies = project.dependencies.filter(({ name }) => {
+    const includesDependency = includesAll || selected.has(name);
+    return includesDependency;
+  });
+  const usages = dependencies.flatMap(onboardingDependencyEntries);
+  const paths = new Set(usages.map(({ path }) => path));
+  return project.manifests.filter(({ manager, path }) => {
+    const resolvesLatest =
+      ONBOARDING_PROVIDERS[manager]?.capabilities.supportsLatestResolution ?? true;
+    const hasPolicy = resolvesLatest || paths.has(path);
+    return hasPolicy;
+  });
 };
 
 export const createOnboardingArtifacts = (
   project: OnboardingProject,
   answers: OnboardingAnswers,
+  options: OnboardingSetupOptions = {},
 ): OnboardingArtifact[] => {
-  const configContent = renderOnboardingConfig(project, answers);
+  const manifests = policyManifests(project, answers);
+  if (manifests.length === 0) throw new Error("No dependencies found for this policy");
+  const policyProject = Object.assign({}, project, { manifests });
+  const configContent = renderOnboardingConfig(policyProject, answers);
   const config = { path: ONBOARDING_CONFIG_PATH, content: configContent };
   if (!githubOnboardingEnabled(answers)) return [config];
-  if (!project.manager) return [config];
-  const hasNonNodeManifest = project.manifests.some(
-    ({ manager }) => !ONBOARDING_MANAGERS.has(manager as OnboardingManager),
-  );
-  if (hasNonNodeManifest) return [config];
-  const workflowContent = renderOnboardingWorkflow(project);
-  const workflow = { path: ONBOARDING_WORKFLOW_PATH, content: workflowContent };
+  const includeWorkflow = options.workflow ?? true;
+  if (!includeWorkflow) return [config];
+  const workflowContent = renderOnboardingWorkflow(policyProject);
+  const managers = Array.from(new Set(manifests.map(({ manager }) => manager)));
+  const area = managers.length === 1 ? areaForManager(managers[0]) : "dependencies";
+  const path = `.github/workflows/codependence-${area}.yml`;
+  const workflow = { path, content: workflowContent };
   return [config, workflow];
 };
 
@@ -218,70 +297,6 @@ const normalizeSourceFiles = (files: OnboardingSourceFile[]): OnboardingSourceFi
     const path = normalizeOnboardingPath(file.path);
     return Object.assign({}, file, { path });
   });
-
-const pythonManager = (
-  file: OnboardingSourceFile,
-  files: OnboardingSourceFile[],
-): DependencyManager | undefined => {
-  const filename = onboardingFilename(file.path);
-  if (filename === MANIFEST_FILES.REQUIREMENTS) return PYTHON_PACKAGE_MANAGERS.PIP;
-  if (filename === MANIFEST_FILES.PIPFILE) return PYTHON_PACKAGE_MANAGERS.PIPENV;
-  if (filename.startsWith("environment.")) return PYTHON_PACKAGE_MANAGERS.CONDA;
-  if (filename !== MANIFEST_FILES.PYPROJECT) return undefined;
-
-  const uvLockPath = onboardingPath(onboardingDirectory(file.path), MANIFEST_FILES.UV_LOCK);
-  if (files.some(({ path }) => path === uvLockPath)) return PYTHON_PACKAGE_MANAGERS.UV;
-  if (file.content.includes("[tool.poetry")) return PYTHON_PACKAGE_MANAGERS.POETRY;
-  return PYTHON_PACKAGE_MANAGERS.PIP;
-};
-
-const isWorkflowManifest = (path: string): boolean => {
-  const directory = onboardingDirectory(path);
-  const isWorkflowDirectory =
-    directory === ".github/workflows" || directory.endsWith("/.github/workflows");
-  const isYaml = path.endsWith(".yml") || path.endsWith(".yaml");
-  return isWorkflowDirectory && isYaml;
-};
-
-const isGeneratedWorkflow = (file: OnboardingSourceFile): boolean =>
-  isWorkflowManifest(file.path) && file.content.startsWith("# Generated by `codependence init");
-
-const isCircleCIManifest = (path: string): boolean =>
-  path === MANIFEST_FILES.CIRCLECI_CONFIG_YML || path === MANIFEST_FILES.CIRCLECI_CONFIG_YAML;
-
-const isKubernetesManifest = (path: string): boolean => {
-  const directory = onboardingDirectory(path);
-  const manifestDirectories = ["k8s", "kubernetes", "manifests"];
-  const isKnownDirectory = manifestDirectories.some(
-    (root) => directory === root || directory.startsWith(`${root}/`),
-  );
-  const isYaml = path.endsWith(".yml") || path.endsWith(".yaml");
-  return isKnownDirectory && isYaml;
-};
-
-const manifestManager = (
-  file: OnboardingSourceFile,
-  files: OnboardingSourceFile[],
-): DependencyManager | undefined => {
-  if (isGeneratedWorkflow(file)) return undefined;
-  const filename = onboardingFilename(file.path);
-  const python = pythonManager(file, files);
-  if (python) return python;
-  if (filename === MANIFEST_FILES.GO_MOD) return LANGUAGES.GO;
-  if (filename === MANIFEST_FILES.CARGO_TOML) return LANGUAGES.RUST;
-  if (filename === MANIFEST_FILES.DOCKERFILE) return LANGUAGES.DOCKER;
-  if (filename.startsWith("Dockerfile.")) return LANGUAGES.DOCKER;
-  if (isCircleCIManifest(file.path)) return LANGUAGES.CIRCLECI;
-  if (isWorkflowManifest(file.path)) return LANGUAGES.GITHUB_ACTIONS;
-  if (filename === MANIFEST_FILES.HELM_CHART) return LANGUAGES.HELM;
-  if (filename === MANIFEST_FILES.HELM_VALUES_YAML) return LANGUAGES.HELM;
-  if (filename === MANIFEST_FILES.HELM_VALUES_YML) return LANGUAGES.HELM;
-  if (filename === MANIFEST_FILES.KUSTOMIZATION_YAML) return LANGUAGES.KUSTOMIZE;
-  if (filename === MANIFEST_FILES.KUSTOMIZATION_YML) return LANGUAGES.KUSTOMIZE;
-  if (filename.endsWith(".tf")) return LANGUAGES.TERRAFORM;
-  if (isKubernetesManifest(file.path)) return LANGUAGES.KUBERNETES;
-  return undefined;
-};
 
 const nonNodeManifest = (
   file: OnboardingSourceFile,
@@ -324,7 +339,22 @@ const analyzeOnboardingProjectSync = (files: OnboardingSourceFile[]): Onboarding
   if (manifests.length === 0) throw new Error("No supported package manifests found");
 
   const workspace = nodeProject?.workspace || false;
-  const dependencies = nodeProject?.dependencies || [];
+  const sourceFiles = new Map(normalizedFiles.map((file) => [file.path, file]));
+  const parsed = manifests.flatMap(({ path, manager }) => {
+    const provider = ONBOARDING_PROVIDERS[manager];
+    const source = sourceFiles.get(path);
+    const hasSourceProvider = provider && source;
+    if (!hasSourceProvider) return [];
+    const packageJson = provider.parseManifest(path, source.content);
+    const { dependencyVersions } = packageJson;
+    return [{ path, name: path, packageJson, dependencyVersions }];
+  });
+  const nonNodeDependencies = collectOnboardingDependencies(parsed);
+  const allDependencies = (nodeProject?.dependencies || []).concat(nonNodeDependencies);
+  const entries = allDependencies.flatMap(onboardingDependencyEntries);
+  const groups = dependencyEntryGroups(entries);
+  const collected = Array.from(groups, ([name, group]) => createDependency(name, group));
+  const dependencies = collected.toSorted((left, right) => left.name.localeCompare(right.name));
   return {
     manager: nodeProject?.manager,
     managerVersion: nodeProject?.managerVersion,
@@ -372,12 +402,13 @@ const assertSelectedDependencies = (
 const createOnboardingSetupSync = (
   project: OnboardingProject,
   answers: OnboardingAnswers,
+  options: OnboardingSetupOptions,
 ): OnboardingSetup => {
   assertSelectedDependencies(project, answers);
-  const artifacts = createOnboardingArtifacts(project, answers);
+  const artifacts = createOnboardingArtifacts(project, answers, options);
   const commands = onboardingCommands(project);
   const tokenSetup = githubOnboardingEnabled(answers)
-    ? createOnboardingTokenSetup(answers)
+    ? createOnboardingTokenSetup(answers, options.tokenSecret)
     : undefined;
   return Object.assign({}, commands, { artifacts, tokenSetup });
 };
@@ -385,9 +416,10 @@ const createOnboardingSetupSync = (
 export const createOnboardingSetup = (
   project: OnboardingProject,
   answers: OnboardingAnswers,
+  options: OnboardingSetupOptions = {},
 ): OnboardingSetup => {
   try {
-    return createOnboardingSetupSync(project, answers);
+    return createOnboardingSetupSync(project, answers, options);
   } catch (cause) {
     throw onboardingError(cause);
   }

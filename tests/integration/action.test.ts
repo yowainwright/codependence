@@ -27,13 +27,18 @@ const actionScript = (name: string): string => {
 const runActionScript = (name: string, environment: Record<string, string>): string => {
   const workDir = mkdtempSync(join(tmpdir(), "codependence-action-test-"));
   const outputPath = join(workDir, "output");
-  const env = { ...process.env, ...environment, GITHUB_OUTPUT: outputPath };
+  const env = {
+    ...process.env,
+    ...environment,
+    GITHUB_OUTPUT: outputPath,
+    GITHUB_PATH: outputPath,
+  };
   const result = spawnSync("bash", ["-c", actionScript(name)], { encoding: "utf8", env });
   const output = existsSync(outputPath) ? readFileSync(outputPath, "utf8") : "";
   rmSync(workDir, { recursive: true, force: true });
   if (result.status === 0) return output;
 
-  throw new Error(result.stderr);
+  throw new Error(result.stderr || result.stdout);
 };
 
 // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
@@ -82,5 +87,45 @@ describe("composite action", () => {
 
     assert.match(targetOutput, /list=helm kubernetes kustomize terraform circleci/);
     assert.match(targetOutput, /branch-suffix=circleci-helm-kubernetes-kustomize-terraform/);
+  });
+
+  test("prepares exact versions for every Python manager", () => {
+    const targetOutput = runActionScript("Prepare targets", {
+      INPUT_TARGETS: "pip pipenv poetry conda uv",
+      INPUT_VERSION: "pip=25.1.1 pipenv=2025.0.4 poetry=2.1.3 conda=25.3.1 uv=0.8.0",
+    });
+    assert.match(targetOutput, /list=pip pipenv poetry conda uv/);
+    assert.match(targetOutput, /pip-version=25\.1\.1/);
+    assert.match(targetOutput, /pipenv-version=2025\.0\.4/);
+    assert.match(targetOutput, /poetry-version=2\.1\.3/);
+    assert.match(targetOutput, /conda-version=25\.3\.1/);
+  });
+
+  test("installs pinned Python tools outside the checkout and exposes their executables", () => {
+    const workDir = mkdtempSync(join(tmpdir(), "codependence-action-python-"));
+    const installer = join(workDir, "installer");
+    const installLog = join(workDir, "install-log");
+    const python = '#!/bin/bash\nprintf "%s\\n" "$@" > "$INSTALL_LOG"\n';
+    const bootstrap = '#!/bin/bash\nmkdir -p "$3/bin"\ncp "$MOCK_INSTALLER" "$3/bin/python"\n';
+    writeFileSync(installer, python, { mode: 0o755 });
+    writeFileSync(join(workDir, "python3"), bootstrap, { mode: 0o755 });
+    try {
+      const output = runActionScript("Setup Python package managers", {
+        PATH: `${workDir}:${process.env.PATH}`,
+        RUNNER_TEMP: workDir,
+        MOCK_INSTALLER: installer,
+        INSTALL_LOG: installLog,
+        PIP_VERSION: "25.1.1",
+        PIPENV_VERSION: "2025.0.4",
+        POETRY_VERSION: "2.1.3",
+      });
+      assert.match(output, /codependence-python\/bin/);
+      const args = readFileSync(installLog, "utf8");
+      assert.match(args, /pip==25\.1\.1/);
+      assert.match(args, /pipenv==2025\.0\.4/);
+      assert.match(args, /poetry==2\.1\.3/);
+    } finally {
+      rmSync(workDir, { recursive: true, force: true });
+    }
   });
 });

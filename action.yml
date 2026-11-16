@@ -142,7 +142,7 @@ runs:
           node "$action_path/scripts/ci/tool-versions.js" package-manager-version "$manager" "$INPUT_ROOT_DIR"
         }
 
-        for manager in bun go npm pnpm rust uv yarn; do
+        for manager in bun conda go npm pip pipenv pnpm poetry rust uv yarn; do
           echo "$manager-version=" >> "$GITHUB_OUTPUT"
         done
 
@@ -163,7 +163,7 @@ runs:
           fi
 
           case "$target" in
-            bun|npm|pnpm|yarn|go|rust|uv)
+            bun|npm|pnpm|yarn|go|rust|uv|pip|pipenv|poetry|conda)
               versioned+=("$target")
               ;;
             circleci|docker|github-actions|helm|kubernetes|kustomize|terraform)
@@ -287,6 +287,47 @@ runs:
       uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       with:
         version: ${{ steps.targets.outputs.uv-version }}
+
+    - name: Setup Conda
+      if: steps.targets.outputs.conda-version != ''
+      uses: conda-incubator/setup-miniconda@be893c923ea9cf1cf7cd510fbdde27c7e18cbdcb # v4
+      with:
+        conda-version: ${{ steps.targets.outputs.conda-version }}
+        miniforge-version: latest
+        channels: conda-forge
+        conda-remove-defaults: true
+        activate-environment: ""
+        auto-activate: false
+        run-init: false
+
+    - name: Setup Python package managers
+      if: steps.targets.outputs.pip-version != '' || steps.targets.outputs.pipenv-version != '' || steps.targets.outputs.poetry-version != ''
+      shell: bash
+      env:
+        PIP_VERSION: ${{ steps.targets.outputs.pip-version }}
+        PIPENV_VERSION: ${{ steps.targets.outputs.pipenv-version }}
+        POETRY_VERSION: ${{ steps.targets.outputs.poetry-version }}
+      run: |
+        set -euo pipefail
+
+        install_python_package_managers() {
+          local environment_path="$RUNNER_TEMP/codependence-python"
+          local packages=()
+          python3 -m venv "$environment_path"
+          if [ -n "$PIP_VERSION" ]; then
+            packages+=("pip==$PIP_VERSION")
+          fi
+          if [ -n "$PIPENV_VERSION" ]; then
+            packages+=("pipenv==$PIPENV_VERSION")
+          fi
+          if [ -n "$POETRY_VERSION" ]; then
+            packages+=("poetry==$POETRY_VERSION")
+          fi
+          "$environment_path/bin/python" -m pip install "${packages[@]}"
+          echo "$environment_path/bin" >>"$GITHUB_PATH"
+        }
+
+        install_python_package_managers
 
     - name: Setup npm
       if: steps.targets.outputs.npm-version != ''

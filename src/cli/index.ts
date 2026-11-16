@@ -1,4 +1,10 @@
 #!/usr/bin/env node
+import {
+  renderWorkflow,
+  defaultManagerCommand,
+  commandForRoot,
+  areaForManager,
+} from "./init/utils";
 import fs from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,6 +41,7 @@ import {
   analyzeOnboardingProject,
   createOnboardingSetup,
   onboardingError,
+  onboardingVersionManagers,
   parseOnboardingRepository,
 } from "./init";
 import type {
@@ -48,10 +55,8 @@ import type {
 } from "./init";
 import {
   ACTION_MANAGERS,
-  ACTION_REF,
   CLI_VERSION,
   ASSIGNMENT_PATTERN,
-  CHECKOUT_REF,
   CRON_SCHEDULE_PATTERN,
   DEFAULT_ACTION_SCHEDULE,
   DEFAULT_TOKEN_SECRET,
@@ -83,12 +88,11 @@ import type {
   InitGitHubActionsOptions,
   ActionStatus,
   InitSelection,
-  RenderWorkflowOptions,
   WorkflowArea,
   WorkflowDefinition,
 } from "./types";
 import { format } from "../dx/report";
-import { LANGUAGES, MANIFEST_FILES, PYTHON_PACKAGE_MANAGERS } from "../providers/constants";
+import { LANGUAGES, MANIFEST_FILES } from "../providers/constants";
 import {
   CLI_ERROR_EXIT_CODE,
   INIT_TYPES,
@@ -274,15 +278,27 @@ const ensureOnboardingVersion = async (
   enforcement: OnboardingEnforcement,
   options: Record<string, unknown>,
 ): Promise<OnboardingProject> => {
-  const shouldKeepProject =
-    !project.manager || Boolean(project.managerVersion) || enforcement === "local";
-  if (shouldKeepProject) return project;
-  const configured = onboardingVersionOption(project.manager, options.version);
-  if (configured) return Object.assign({}, project, { managerVersion: configured });
-  const isNonInteractive = Boolean(options.nonInteractive);
-  if (isNonInteractive) throw new Error("GitHub onboarding requires --version");
-  const managerVersion = await prompt.input(`Exact ${project.manager} version`);
-  return Object.assign({}, project, { managerVersion });
+  if (enforcement === "local") return project;
+  const toolVersions = { ...project.toolVersions };
+  const rootDir = resolve(stringOption(options.rootDir) || process.cwd());
+  const roots = new Map(project.manifests.map(({ manager, path }) => [manager, dirname(path)]));
+  for (const manager of onboardingVersionManagers(project)) {
+    const nodeVersion = manager === project.manager ? project.managerVersion : undefined;
+    const configured = onboardingVersionOption(manager, options.version);
+    const targetDir = resolve(rootDir, roots.get(manager) || ".");
+    const detected = detectedVersion(rootDir, targetDir, manager);
+    const version = configured || toolVersions[manager] || nodeVersion || detected;
+    if (version) {
+      toolVersions[manager] = version;
+      continue;
+    }
+    if (options.nonInteractive)
+      throw new Error(
+        `GitHub onboarding requires --version. Missing exact tool version for: ${manager}. Pass --version ${manager}=<version>.`,
+      );
+    toolVersions[manager] = await prompt.input(`Exact ${manager} version`);
+  }
+  return Object.assign({}, project, { toolVersions });
 };
 
 const collectOnboardingAnswers = async (
@@ -573,7 +589,9 @@ const configureOnboarding = async (
     answers.enforcement,
     options,
   );
-  const setup = createOnboardingSetup(versionedProject, answers);
+  const workflow = project.manifests.every(({ manager }) => NODE_MANAGERS.has(manager));
+  const tokenSecret = workflow ? undefined : stringOption(options.tokenSecret);
+  const setup = createOnboardingSetup(versionedProject, answers, { workflow, tokenSecret });
   return { answers, project: versionedProject, setup };
 };
 
@@ -595,7 +613,13 @@ const applyOnboarding = async (
     skipInstall: Boolean(options.skipInstall),
     showProgress,
   });
-  const writtenSetup = writeConfiguredOnboarding(rootDir, answers, setup, options);
+  const resolvedVersions = Object.entries(project.toolVersions || {}).map(
+    ([manager, version]) => `${manager}=${version}`,
+  );
+  const assignments = stringListOption(options.version).filter((value) => value.includes("="));
+  const version = assignments.concat(resolvedVersions);
+  const workflowOptions = Object.assign({}, options, { version });
+  const writtenSetup = writeConfiguredOnboarding(rootDir, answers, setup, workflowOptions);
   printOnboardingResult(project, writtenSetup, existingPaths);
 };
 
@@ -626,15 +650,6 @@ export const onboardAction = async (options: Record<string, unknown>): Promise<v
   } catch (cause) {
     throw onboardingError(cause);
   }
-};
-
-const areaForManager = (manager: DependencyManager): WorkflowArea => {
-  if (NODE_MANAGERS.has(manager)) return "node";
-  if (manager === PYTHON_PACKAGE_MANAGERS.UV) return "python";
-  if (manager === LANGUAGES.GO) return "go";
-  if (manager === LANGUAGES.RUST) return "rust";
-  if (manager === LANGUAGES.DOCKER) return "docker";
-  return "infrastructure";
 };
 
 const configuredTargets = (rootDir: string): CodependenceTarget[] => {
@@ -869,22 +884,6 @@ const workflowDefinitions = (
   });
 };
 
-const defaultManagerCommand = (manager: DependencyManager): string => {
-  if (NODE_MANAGERS.has(manager)) return `${manager} install`;
-  if (manager === PYTHON_PACKAGE_MANAGERS.UV) return "uv lock";
-  if (manager === LANGUAGES.GO) return "go mod tidy";
-  if (manager === LANGUAGES.RUST) return "cargo generate-lockfile";
-  return "git diff --check";
-};
-
-const shellString = (value: string): string => `'${value.replaceAll("'", `'"'"'`)}'`;
-
-const commandForRoot = (command: string, rootDir = "."): string => {
-  if (rootDir === ".") return command;
-
-  return `(cd -- ${shellString(rootDir)} && ${command})`;
-};
-
 const managerCommands = (
   manager: DependencyManager,
   targets: CodependenceTarget[],
@@ -912,63 +911,6 @@ const postUpdateCommand = (
     managerCommands(manager, targets, overrides),
   );
   return Array.from(new Set(commands)).join(" && ");
-};
-
-const yamlString = (value: string): string => `'${value.replaceAll("'", "''")}'`;
-
-const yamlListInput = (name: string, values: string[]): string => {
-  if (values.length === 1) return `          ${name}: ${values[0]}`;
-
-  const lines = values.map((value) => `            ${value}`).join("\n");
-  return `          ${name}: |\n${lines}`;
-};
-
-const versionInput = (
-  managers: DependencyManager[],
-  versions: Map<DependencyManager, string>,
-): string => {
-  const versioned = managers.filter((manager) => versions.has(manager));
-  if (versioned.length === 0) return "";
-  if (versioned.length === 1) {
-    return `\n          version: ${versions.get(versioned[0])}`;
-  }
-
-  const assignments = versioned.map((manager) => `${manager}=${versions.get(manager)}`);
-  return `\n${yamlListInput("version", assignments)}`;
-};
-
-const renderWorkflow = (options: RenderWorkflowOptions): string => {
-  const targetInput = yamlListInput("targets", options.managers);
-  const toolVersions = versionInput(options.managers, options.versions);
-  const command = yamlString(options.postUpdateCommand);
-  const secretExpression = ["$", `{{ secrets.${options.tokenSecret} }}`].join("");
-
-  return `${GENERATED_ACTION_HEADER}
-name: Codependence ${options.label} updates
-
-on:
-  schedule:
-    - cron: "${options.schedule}"
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-jobs:
-  update:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: ${CHECKOUT_REF}
-        with:
-          persist-credentials: false
-
-      - uses: ${ACTION_REF}
-        with:
-${targetInput}${toolVersions}
-          pull-request: true
-          token: ${secretExpression}
-          post-update-command: ${command}
-`;
 };
 
 const workflowPath = (rootDir: string, area: WorkflowArea): string =>

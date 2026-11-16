@@ -1,22 +1,13 @@
 import { readFileSync, writeFileSync } from "fs";
 import { LANGUAGES } from "../constants";
 import type { DependencyManifest, DependencyProvider } from "../types";
-import {
-  appendDependencyVersion,
-  emptyInfraManifest,
-  isSafeImageName,
-  manifestOnlyResolution,
-  readYamlImageLine,
-  updateYamlImageLine,
-} from "../infra";
+import { isSafeImageName, manifestOnlyResolution, updateYamlImageLine } from "../infra";
+
+import { parseManifest, capabilities } from "./utils";
 
 export class KubernetesProvider implements DependencyProvider {
   readonly language = LANGUAGES.KUBERNETES;
-  readonly capabilities = {
-    supportsLatestResolution: false,
-    supportsPreciseMode: false,
-    versionStrategy: "exact",
-  } as const;
+  readonly capabilities = capabilities;
 
   getLatestVersion(): Promise<string> {
     return manifestOnlyResolution("Kubernetes");
@@ -27,14 +18,8 @@ export class KubernetesProvider implements DependencyProvider {
   }
 
   readManifest(filePath: string): DependencyManifest {
-    const manifest = emptyInfraManifest(filePath);
-    readFileSync(filePath, "utf8")
-      .split("\n")
-      .forEach((line) => {
-        const image = readYamlImageLine(line);
-        if (image) appendDependencyVersion(manifest, image.name, image.version);
-      });
-    return manifest;
+    const content = readFileSync(filePath, "utf8");
+    return parseManifest(filePath, content);
   }
 
   writeManifest(filePath: string, manifest: DependencyManifest): void {
