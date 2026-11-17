@@ -1400,7 +1400,7 @@ const runWatchMode = async (targets: CheckFiles[]): Promise<void> => {
     }
 
     isChecking = true;
-    const now = new Date().toLocaleTimeString();
+    const now = new Date().toTimeString().slice(0, 8);
     logger.print(gray(`\n[${now}] Checking dependencies...`));
 
     try {
