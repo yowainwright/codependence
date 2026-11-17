@@ -10,6 +10,11 @@ import {
   NodeJSProvider,
   PythonProvider,
   RustProvider,
+  CircleCIProvider,
+  HelmProvider,
+  KubernetesProvider,
+  KustomizeProvider,
+  TerraformProvider,
 } from "../../../src/providers";
 import type { DependencyProvider } from "../../../src/providers";
 import { isWithinLevel } from "../../../src/manifest";
@@ -21,6 +26,11 @@ const providers = (): DependencyProvider[] => [
   new RustProvider({ isTesting: true }),
   new DockerProvider(),
   new GitHubActionsProvider(),
+  new CircleCIProvider(),
+  new HelmProvider(),
+  new KubernetesProvider(),
+  new KustomizeProvider(),
+  new TerraformProvider(),
 ];
 
 // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
@@ -44,6 +54,7 @@ describe("provider contracts", () => {
     const unsupportedProviders = providers().filter(
       (provider) => !provider.capabilities.supportsLatestResolution,
     );
+    assert.strictEqual(unsupportedProviders.length, 5);
 
     for (const provider of unsupportedProviders) {
       await assertRejects(provider.getLatestVersion("example"), "requires explicit version pins");

@@ -1,4 +1,10 @@
 import type { DependencyManager } from "../../types";
+import type { DependencyManifest, ProviderCapabilities } from "../../providers/types";
+
+export interface OnboardingProvider {
+  parseManifest: (filePath: string, content: string) => DependencyManifest;
+  capabilities: ProviderCapabilities;
+}
 
 export class OnboardingError extends Error {
   readonly cause?: unknown;
@@ -66,6 +72,7 @@ export interface OnboardingDependency {
 export interface OnboardingProject {
   manager?: OnboardingManager;
   managerVersion?: string;
+  toolVersions?: Partial<Record<DependencyManager, string>>;
   workspace: boolean;
   manifests: OnboardingManifest[];
   dependencies: OnboardingDependency[];
@@ -73,6 +80,7 @@ export interface OnboardingProject {
 
 export interface ParsedOnboardingManifest extends Omit<OnboardingManifest, "manager"> {
   packageJson: OnboardingPackageJson;
+  dependencyVersions?: DependencyManifest["dependencyVersions"];
 }
 
 export interface DependencyUsageEntry extends OnboardingDependencyUsage {
@@ -114,6 +122,11 @@ export interface OnboardingSetup {
   install?: OnboardingCommand;
   verifyCommand: string;
   tokenSetup?: OnboardingTokenSetup;
+}
+
+export interface OnboardingSetupOptions {
+  workflow?: boolean;
+  tokenSecret?: string;
 }
 
 export interface OnboardingCommandSet {

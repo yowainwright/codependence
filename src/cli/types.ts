@@ -21,7 +21,6 @@ export interface OptionDefinition {
   flags: string[];
   hasValue?: boolean;
   isArray?: boolean;
-  defaultValue?: unknown;
 }
 
 export interface ParsedFlag {

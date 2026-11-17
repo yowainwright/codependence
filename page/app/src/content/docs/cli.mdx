@@ -45,7 +45,7 @@ Options:
   --permissive                      Update all deps except those in codependencies
   --level <level>                   Update level: patch, minor, or major (default: major)
   -m, --mode <mode>                verbose: only listed packages; precise: all except listed
-  -l, --language <lang>            Target language (nodejs, go, python, rust, docker, github-actions, helm)
+  -l, --language <lang>            Target language (nodejs, go, python, rust, circleci, docker, github-actions, helm, kubernetes, kustomize, terraform)
   -h, --help                        Show this help message
   --dryRun                          Show what would change without modifying files
   --interactive                     Choose which packages to update interactively
@@ -114,9 +114,9 @@ Existing files require `--force`; missing exact tool versions use
 
 ### Language Options
 
-- `-l, --language <lang>` - Target language: `nodejs`, `go`, `python`, `rust`, `docker`, `github-actions`, or `helm`
+- `-l, --language <lang>` - Target language: `nodejs`, `go`, `python`, `rust`, `circleci`, `docker`, `github-actions`, `helm`, `kubernetes`, `kustomize`, or `terraform`
 
-Node.js package manifests are stable. The `go`, `python`, `rust`, `docker`, `github-actions`, and `helm` providers are experimental while manifest coverage and update semantics settle.
+Node.js package manifests are stable. All non-Node providers are experimental while manifest coverage and update semantics settle.
 
 Docker requires explicit object pins in verbose mode. GitHub Actions supports explicit pins, latest release resolution, and precise mode. Helm checks `Chart.yaml` dependency entries with explicit object pins in verbose mode.
 

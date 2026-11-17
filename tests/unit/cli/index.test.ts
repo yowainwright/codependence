@@ -1548,11 +1548,51 @@ describe("onboardAction", () => {
         "github",
         "--repository",
         "acme/api",
+        "--schedule",
+        "go=30 7 * * 5",
+        "--token-secret",
+        "CUSTOM_TOKEN",
+        "--post-update-command",
+        "go=go mod tidy -v",
         "--non-interactive",
       ]);
 
       const workflowPath = join(rootDir, ".github/workflows/codependence-go.yml");
       assert.match(fs.readFileSync(workflowPath, "utf8"), /targets: go/);
+      const workflow = fs.readFileSync(workflowPath, "utf8");
+      assert.match(workflow, /30 7 \* \* 5/);
+      assert.match(workflow, /secrets\.CUSTOM_TOKEN/);
+      assert.match(workflow, /go mod tidy -v/);
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("generates repository-relative lock commands for nested Python manifests", async () => {
+    const rootDir = createOnboardingProject(
+      { packageManager: "npm@10.9.2" },
+      {
+        "lib/pyproject.toml": '[tool.poetry.dependencies]\nrequests = "2.32.0"\n',
+        "tools/Pipfile": '[packages]\nrequests = "==2.32.0"\n',
+      },
+    );
+    try {
+      await onboardAction({
+        rootDir,
+        mode: "precise",
+        enforcement: "github",
+        repository: "acme/mixed",
+        version: ["poetry=2.1.3", "pipenv=2025.0.4"],
+        nonInteractive: true,
+        skipInstall: true,
+      });
+      const python = readWorkflow(rootDir, "python");
+      assert.match(python, /cd -- ''lib'' && poetry lock/);
+      assert.match(python, /cd -- ''tools'' && pipenv lock/);
+      assert.strictEqual(python.includes(rootDir), false);
+      const node = readWorkflow(rootDir, "node");
+      assert.match(node, /post-update-command: 'npm install'/);
+      assert.strictEqual(node.includes(rootDir), false);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -2650,6 +2690,38 @@ describe("GitHub Actions initializer", () => {
     }
   });
 
+  const workflowIgnoreCases = [
+    { name: "default", targetIgnore: undefined, packages: false, examples: true },
+    { name: "target", targetIgnore: ["**/examples/**"], packages: true, examples: false },
+    { name: "empty target", targetIgnore: [], packages: true, examples: true },
+  ];
+  workflowIgnoreCases.forEach(({ name, targetIgnore, packages, examples }) => {
+    test(`uses ${name} ignore rules for generated lock commands`, () => {
+      const target = { manager: "poetry", files: ["**/pyproject.toml"], ignore: targetIgnore };
+      const config = { targets: [target] };
+      const rootDir = createOnboardingProject(
+        {},
+        {
+          ".codependencerc": JSON.stringify(config),
+          "lib/pyproject.toml": "[tool.poetry]\n",
+          ".venv/pkg/pyproject.toml": "[tool.poetry]\n",
+          "node_modules/pkg/pyproject.toml": "[tool.poetry]\n",
+          "examples/demo/pyproject.toml": "[tool.poetry]\n",
+        },
+      );
+      try {
+        initGitHubActions({ rootDir, versions: ["poetry=2.1.3"] });
+        const workflow = readWorkflow(rootDir, "python");
+        assert.match(workflow, /cd -- ''lib'' && poetry lock/);
+        assert.strictEqual(/\.venv\/pkg/.test(workflow), packages);
+        assert.strictEqual(/node_modules\/pkg/.test(workflow), packages);
+        assert.strictEqual(/examples\/demo/.test(workflow), examples);
+      } finally {
+        fs.rmSync(rootDir, { recursive: true, force: true });
+      }
+    });
+  });
+
   test("normalizes Go directives and runs commands in the target root", () => {
     const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
     const goDir = join(rootDir, "services", "api");
@@ -2772,7 +2844,7 @@ describe("GitHub Actions initializer", () => {
     }
   });
 
-  test("rejects unconfigured and unsupported managers", () => {
+  test("rejects unconfigured managers and requires versions for Python tools", () => {
     const rootDir = fs.mkdtempSync(join(tmpdir(), "codependence-actions-unit-"));
     const configPath = join(rootDir, ".codependencerc");
     fs.writeFileSync(configPath, JSON.stringify({ targets: [{ manager: "bun" }] }));
@@ -2783,7 +2855,9 @@ describe("GitHub Actions initializer", () => {
         "Unknown configured target manager(s): go",
       );
       fs.writeFileSync(configPath, JSON.stringify({ targets: [{ manager: "pip" }] }));
-      assertThrows(() => initGitHubActions({ rootDir }), "does not support target manager(s): pip");
+      assertThrows(() => initGitHubActions({ rootDir }), "Missing exact tool version for: pip");
+      const paths = initGitHubActions({ rootDir, versions: ["pip=25.1.1"] });
+      assert.match(fs.readFileSync(paths[0], "utf8"), /targets: pip/);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }

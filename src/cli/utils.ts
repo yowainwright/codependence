@@ -68,6 +68,7 @@ const hasScriptExtension = (value: string): boolean =>
 
 const isScriptPathArg = (value: string | undefined): boolean => {
   if (!value) return false;
+  if (value.startsWith("-")) return false;
   const hasPathSegment = /[\\/]/.test(value);
   return hasPathSegment || hasScriptExtension(value);
 };
@@ -140,15 +141,6 @@ const collectSingleValue = (args: string[], startIndex: number): CollectedValue 
 const collectValue = (args: string[], index: number, def: OptionDefinition): CollectedValue =>
   def.isArray ? collectArrayValue(args, index) : collectSingleValue(args, index);
 
-const applyDefaults = (options: Record<string, unknown>): Record<string, unknown> =>
-  OPTION_DEFINITIONS.reduce((acc, def) => {
-    const key = getOptionKey(def);
-    const hasValue = acc[key] !== undefined;
-    const shouldApplyDefault = !hasValue && def.defaultValue !== undefined;
-
-    return shouldApplyDefault ? Object.assign({}, acc, { [key]: def.defaultValue }) : acc;
-  }, options);
-
 const normalizeLockfile = (options: Record<string, unknown>): Record<string, unknown> => {
   if (options.lockfile === "true") return Object.assign({}, options, { lockfile: true });
   if (options.lockfile === "false") return Object.assign({}, options, { lockfile: false });
@@ -209,8 +201,7 @@ export const parseArgs = (argv: string[]): ParsedArgs => {
     state = { options: result.options, command: result.command };
   }
 
-  const optionsWithDefaults = applyDefaults(state.options);
-  const normalizedOptions = normalizeLockfile(optionsWithDefaults);
+  const normalizedOptions = normalizeLockfile(state.options);
 
   return { command: state.command, options: normalizedOptions };
 };

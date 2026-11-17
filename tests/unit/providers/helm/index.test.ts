@@ -3,6 +3,16 @@ import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { HelmProvider } from "../../../../src/providers/helm";
+import { isChartManifest, parseManifest } from "../../../../src/providers/helm/utils";
+
+test("reads Windows chart paths as chart dependencies", () => {
+  const chartPath = "C:\\repo\\charts\\api\\Chart.yaml";
+  const content =
+    "apiVersion: v2\nname: api\ndependencies:\n  - name: redis\n    version: 20.6.3\n    repository: https://charts.bitnami.com/bitnami\n";
+  assert.strictEqual(isChartManifest(chartPath), true);
+  assert.strictEqual(isChartManifest("C:\\repo\\charts\\api\\values.yaml"), false);
+  assert.deepStrictEqual(parseManifest(chartPath, content).dependencies, { redis: "20.6.3" });
+});
 
 const readAndUpdateExplicitValuesImageTagsContent = `image:
   registry: docker.io
