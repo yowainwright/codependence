@@ -40,7 +40,7 @@ describe("release workflows", () => {
     const matches = Array.from(homebrew.matchAll(/target: (\S+)/g));
     const targets = matches.map((match) => match[1]).toSorted();
     assert.deepStrictEqual(targets, ["darwin-amd64", "darwin-arm64", "linux-amd64", "linux-arm64"]);
-    assert.match(homebrew, /runner: macos-14\s+target: darwin-arm64/);
+    assert.match(homebrew, /runner: macos-15\s+target: darwin-arm64/);
     assert.match(homebrew, /runner: macos-15-intel\s+target: darwin-amd64/);
     assert.match(homebrew, /runner: ubuntu-22.04-arm\s+target: linux-arm64/);
     assert.match(homebrew, /runner: ubuntu-22.04\s+target: linux-amd64/);
@@ -54,6 +54,17 @@ describe("release workflows", () => {
     assert.match(homebrew, /ref: "refs\/tags\/\$\{\{ inputs\.version \}\}"/);
     assert.match(homebrew, /gh release view "\$RELEASE_REF"/);
     assert.match(homebrew, /test "\$\{RELEASE_REF#v\}" = "\$PACKAGE_VERSION"/);
+  });
+
+  test("uses installed runtime packs instead of legacy source-build switches", () => {
+    assert.doesNotMatch(homebrew, /SCRIPTC_RUNTIME_PACK:|runtime-pack:|SCRIPTC_CC:/);
+  });
+
+  test("installs matching runtime packs for both Linux musl targets", () => {
+    const manifestUrl = new URL("../../package.json", import.meta.url);
+    const { devDependencies } = JSON.parse(readFileSync(manifestUrl, "utf8"));
+    assert.strictEqual(devDependencies["@scriptc/runtime-linux-arm64-musl"], devDependencies.scriptc);
+    assert.strictEqual(devDependencies["@scriptc/runtime-linux-x64-musl"], devDependencies.scriptc);
   });
 
   test("checks startup without runtimes and rejects external shared libraries", () => {

@@ -40,21 +40,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-14
+          - runner: macos-15
             target: darwin-arm64
-            runtime-pack: "1"
           - runner: macos-15-intel
             target: darwin-amd64
-            runtime-pack: "0"
           - runner: ubuntu-22.04-arm
             target: linux-arm64
-            runtime-pack: "0"
-            compiler: zigcc
             triple: aarch64-linux-musl
           - runner: ubuntu-22.04
             target: linux-amd64
-            runtime-pack: "0"
-            compiler: zigcc
             triple: x86_64-linux-musl
     runs-on: ${{ matrix.runner }}
     permissions:
@@ -87,7 +81,7 @@ jobs:
       - name: Setup toolchain
         uses: ./.github/actions/setup-toolchain
 
-      - name: Setup Linux source compiler
+      - name: Setup Linux linker
         if: runner.os == 'Linux'
         uses: vercel-labs/setup-zig@83c1594f26b86da8a9a8ddd9b5ee5f3af0f96943 # v1.0.2
         with:
@@ -95,8 +89,6 @@ jobs:
 
       - name: Build and test binary
         env:
-          SCRIPTC_RUNTIME_PACK: ${{ matrix.runtime-pack }}
-          SCRIPTC_CC: ${{ matrix.compiler }}
           SCRIPTC_TARGET: ${{ matrix.triple }}
           TURBO_ENV_MODE: loose
         run: nub run test:e2e:binary

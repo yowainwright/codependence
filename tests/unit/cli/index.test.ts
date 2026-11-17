@@ -792,6 +792,20 @@ describe("Action Function Tests (Fast)", () => {
     consoleSpy.mock.restore();
   });
 
+  test("watch mode logs local time without ICU locale formatting", async (context) => {
+    context.mock.method(globalThis, "setInterval", (() => 0) as typeof setInterval);
+    const consoleSpy = context.mock.method(console, "log", () => {});
+    context.mock.method(Date.prototype, "toTimeString", () => "10:15:30 GMT-0800");
+    context.mock.method(Date.prototype, "toLocaleTimeString", () => {
+      throw new Error("ICU is unavailable in the standalone runtime");
+    });
+
+    await action({ codependencies: ["lodash"], watch: true });
+
+    assertCalledWith(consoleSpy, match.stringContaining("[10:15:30] Checking dependencies"));
+    assertCalledWith(consoleSpy, match.stringContaining("All dependencies checked (10:15:30)"));
+  });
+
   test("should skip overlapping watch mode intervals", async () => {
     let intervalCallback: (() => Promise<void>) | undefined;
     const setIntervalSpy = mock.method(globalThis, "setInterval", ((callback: TimerHandler) => {
