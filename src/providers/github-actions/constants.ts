@@ -3,7 +3,7 @@ export const DEFAULT_GITHUB_API_URL = "https://api.github.com";
 export const STABLE_VERSION_TAG = /^v?(\d+)(\.\d+)?(\.\d+)?$/;
 export const VERSION_COMMENT = /^\s+#\s+v?\d+(?:\.\d+){0,2}\s*$/;
 export const SAFE_VERSION_LABEL = /^[A-Za-z0-9._/-]+$/;
-export const VERSION_REF = /^v?\d/;
+export const VERSION_REF = /^v?\d+\.\d+\.\d+(?:-[\da-z-]+(?:\.[\da-z-]+)*)?(?:\+[\da-z-]+(?:\.[\da-z-]+)*)?$/i;
 export const TRACKING_REF_COMMENT = /^\s+#\s+([A-Za-z0-9._/-]+)(?=\s*(?:#|$))/;
 
 export const GITHUB_ACTIONS_PACKAGE_NAME_PATTERN =

@@ -496,10 +496,10 @@ const resolveProviderVersion = async (
 ): Promise<string | VersionResolution> => {
   const currentRefs = currentVersionRefsFor(manifests, packageName);
   const currentVersions = Object.keys(currentRefs);
-  const supportsPerVersionResolution =
-    language === LANGUAGES.DOCKER || language === LANGUAGES.GITHUB_ACTIONS;
-  const hasMultipleVersions = supportsPerVersionResolution && currentVersions.length > 1;
-  if (!hasMultipleVersions) {
+  const hasActionRefs = language === LANGUAGES.GITHUB_ACTIONS && currentVersions.length > 0;
+  const hasDockerVariants = language === LANGUAGES.DOCKER && currentVersions.length > 1;
+  const resolvePerVersion = hasActionRefs || hasDockerVariants;
+  if (!resolvePerVersion) {
     const currentRef = currentRefs[currentVersions[0]];
     return provider.getLatestVersion(packageName, currentRef);
   }

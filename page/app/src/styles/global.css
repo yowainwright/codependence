@@ -122,6 +122,12 @@
     0 0 40px rgba(var(--brand-accent-rgb) / 0.05);
 }
 
+.prose pre,
+.prose pre code {
+  font-size: 0.9375rem;
+  line-height: 1.25rem;
+}
+
 [data-theme="codependence-light"] .shiki,
 [data-theme="codependence-light"] .shiki span {
   color: var(--shiki-light) !important;

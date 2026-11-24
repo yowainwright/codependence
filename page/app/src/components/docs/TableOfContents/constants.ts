@@ -1,4 +1,1 @@
-export const OBSERVER_OPTIONS: IntersectionObserverInit = {
-  rootMargin: "-100px 0px -66%",
-  threshold: 1.0,
-};
+export const HEADING_SELECTOR = "h2[id], h3[id], h4[id]";

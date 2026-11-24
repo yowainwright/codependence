@@ -12,8 +12,8 @@ type SiteHeaderProps = {
 
 function Brand() {
   return (
-    <Link to="/" className="min-w-0 px-1">
-      <span className="truncate text-base font-bold text-primary sm:text-xl">Codependence</span>
+    <Link to="/" className="min-w-0 px-1 lg:px-1.5">
+      <span className="whitespace-nowrap text-xl font-bold text-primary md:text-2xl">Codependence</span>
     </Link>
   );
 }
@@ -50,7 +50,7 @@ function GitHubLink() {
 export function SiteHeader({ onOpenSidebar }: SiteHeaderProps) {
   return (
     <header className="sticky top-0 z-30">
-      <nav className="relative flex h-16 items-center justify-between gap-1 border-b border-foreground/10 bg-background/90 px-2 py-2 font-sans shadow-sm backdrop-blur-lg sm:px-4 md:px-10">
+      <nav className="relative flex h-16 items-center justify-between gap-1 border-b border-foreground/10 bg-background/80 px-2 py-2 backdrop-blur-3xl sm:px-4">
         <div className="flex min-w-0 flex-1 items-center gap-1">
           <SidebarMenu onOpenSidebar={onOpenSidebar} />
           <Brand />

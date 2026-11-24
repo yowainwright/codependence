@@ -47,10 +47,6 @@ export interface PaginationProps {
   slug: string;
 }
 
-export interface SideBarItemProps extends SidebarItem {
-  isActive: boolean;
-}
-
 export interface BreadcrumbsProps {
   title: string;
 }

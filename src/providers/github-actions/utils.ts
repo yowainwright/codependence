@@ -42,17 +42,6 @@ export const rememberVersionLabel = (packageName: string, version: string, label
   resolvedVersionLabels.set(key, label);
 };
 
-export const versionLabelsFor = (dependencies: Record<string, string>): Record<string, string> => {
-  const entries = Object.entries(dependencies).map(([name, version]) => {
-    const label = resolvedVersionLabels.get(versionLabelKey(name, version));
-    if (!label) return null;
-
-    return [name, label];
-  });
-  const labeledEntries = entries.filter((entry): entry is string[] => entry !== null);
-  return Object.fromEntries(labeledEntries);
-};
-
 const parseVersionTag = (name: string): ParsedVersionTag | null => {
   const match = name.match(STABLE_VERSION_TAG);
   if (!match) return null;
@@ -165,10 +154,33 @@ const collectDependencyVersions = (actionRefs: GitHubActionRef[]): Record<string
   return Object.fromEntries(versions);
 };
 
+type BranchLabelLookup = (name: string, target: string, ref: string) => string | undefined;
+
+const targetLabelFor = (
+  labels: Record<string, string> | BranchLabelLookup,
+  { name, version, ref }: GitHubActionRef,
+  defaultVersion: string,
+): string | undefined => {
+  if (typeof labels === "function") return ref && labels(name, version, ref);
+  if (version === defaultVersion) return labels[name];
+  return undefined;
+};
+
+const explicitPinComment = (suffix: string, label?: string): string => {
+  const hasSafeLabel = label && SAFE_VERSION_LABEL.test(label);
+  if (hasSafeLabel) {
+    return suffix.replace(TRACKING_REF_COMMENT, ` # ${label}`);
+  }
+  const note = suffix.replace(TRACKING_REF_COMMENT, "");
+  const nextRef = note.match(TRACKING_REF_COMMENT)?.[1];
+  const wouldTrackNote = nextRef && isNamedRef(nextRef);
+  return wouldTrackNote ? note.replace("#", "##") : note;
+};
+
 export const updateGitHubActionsUsesLine = (
   line: string,
   dependencies: Record<string, string>,
-  versionLabels: Record<string, string> = {},
+  versionLabels: Record<string, string> | BranchLabelLookup = {},
   resolvedDependencyVersions?: ResolvedDependencyVersions,
 ): string => {
   const match = line.match(GITHUB_ACTIONS_PATTERNS.USES_LINE);
@@ -178,20 +190,26 @@ export const updateGitHubActionsUsesLine = (
   if (!isExternalAction(name)) return line;
 
   const currentVersion = match[4];
-  const version = resolvedDependencyVersions?.[name]?.[currentVersion] || dependencies[name];
+  const resolvedVersion = resolvedDependencyVersions?.[name]?.[currentVersion];
+  const version = resolvedVersion || dependencies[name];
   if (!version) return line;
+  if (version === currentVersion) return line;
 
-  const isCurrentSha = isShaPinnedRef(match[4]);
+  const isCurrentSha = isShaPinnedRef(currentVersion);
   const isTargetSha = isShaPinnedRef(version);
   const shouldPreserveCurrentSha = isCurrentSha && !isTargetSha;
   if (shouldPreserveCurrentSha) return line;
 
-  const resolvedLabel = resolvedVersionLabels.get(versionLabelKey(name, version));
-  const usesDefaultVersion = version === dependencies[name];
-  const defaultLabel = usesDefaultVersion ? versionLabels[name] : undefined;
-  const label = trackingRefForLine(currentVersion, match[6]) || resolvedLabel || defaultLabel;
-  const suffix = updateVersionComment(match[6], label);
-  const updatedLine = `${match[1]}${match[2]}${name}@${version}${match[5]}${suffix}`;
+  const suffix = match[6];
+  const ref = trackingRefForLine(currentVersion, suffix);
+  const targetLabel = targetLabelFor(versionLabels, { name, version, ref }, dependencies[name]);
+  const releaseLabel = resolvedVersionLabels.get(versionLabelKey(name, version));
+  const label = (resolvedVersion && ref) || targetLabel || releaseLabel;
+  const staleTrackingLabel = isCurrentSha && ref && ref !== label;
+  const updatedSuffix = staleTrackingLabel
+    ? explicitPinComment(suffix, label)
+    : updateVersionComment(suffix, label);
+  const updatedLine = `${match[1]}${match[2]}${name}@${version}${match[5]}${updatedSuffix}`;
   return updatedLine;
 };
 
@@ -237,7 +255,7 @@ const trackingRefForLine = (version: string, suffix: string): string | undefined
 
 export const isNamedRef = (version: string): boolean => {
   const hasSafeLabel = SAFE_VERSION_LABEL.test(version);
-  const isVersionRef = VERSION_REF.test(version);
+  const isVersionRef = STABLE_VERSION_TAG.test(version) || VERSION_REF.test(version);
   const isTrackingRef = hasSafeLabel && !isVersionRef && !isShaPinnedRef(version);
   return isTrackingRef;
 };

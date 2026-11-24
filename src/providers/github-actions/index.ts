@@ -14,7 +14,6 @@ import {
   defaultFetch,
   actionRepository,
   rememberVersionLabel,
-  versionLabelsFor,
   latestStableTag,
   apiHeaders,
   assertApiResponse,
@@ -35,6 +34,7 @@ export class GitHubActionsProvider implements DependencyProvider {
   private readonly apiUrl: string;
   private readonly fetch: GitHubFetch;
   private readonly headers: Record<string, string>;
+  private readonly branchTargets = new Map<string, string>();
 
   constructor(options: GitHubActionsProviderOptions = {}) {
     const environmentToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
@@ -63,6 +63,7 @@ export class GitHubActionsProvider implements DependencyProvider {
     const sha = await this.getCommitSha(repository, version);
     const isVersionLabel = !isNamedRef(version);
     if (isVersionLabel) rememberVersionLabel(packageName, sha, version);
+    else this.branchTargets.set(`${packageName}@${version}`, sha);
     return sha;
   }
 
@@ -119,12 +120,15 @@ export class GitHubActionsProvider implements DependencyProvider {
   writeManifest(filePath: string, manifest: DependencyManifest): void {
     const content = readFileSync(filePath, "utf8");
     const lines = content.split("\n");
-    const versionLabels = versionLabelsFor(manifest.dependencies);
+    const branchLabel = (name: string, target: string, ref: string) => {
+      const matches = this.branchTargets.get(`${name}@${ref}`) === target;
+      return matches ? ref : undefined;
+    };
     const updatedLines = lines.map((line) =>
       updateGitHubActionsUsesLine(
         line,
         manifest.dependencies,
-        versionLabels,
+        branchLabel,
         manifest.resolvedDependencyVersions,
       ),
     );
