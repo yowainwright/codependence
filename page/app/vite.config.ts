@@ -54,7 +54,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "./src"),
-      "@codependence/onboarding": path.resolve(import.meta.dirname, "../../src/cli/init/index.ts"),
     },
     dedupe: ["react", "react-dom"],
   },

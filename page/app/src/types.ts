@@ -1,5 +1,4 @@
 import type { ComponentType, ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
 
 export interface DocMeta {
   slug: string;
@@ -16,10 +15,6 @@ export interface DocModule {
 }
 
 export interface DocsLayoutProps {
-  children: ReactNode;
-}
-
-export interface HomeLayoutProps {
   children: ReactNode;
 }
 
@@ -56,19 +51,6 @@ export interface SideBarItemProps extends SidebarItem {
   isActive: boolean;
 }
 
-export interface NavigationItem {
-  title: string;
-  href: string;
-}
-
-export interface NavItemProps extends NavigationItem {
-  isActive: boolean;
-}
-
-export interface MobileMenuProps {
-  pathname: string;
-}
-
 export interface BreadcrumbsProps {
   title: string;
 }
@@ -76,21 +58,4 @@ export interface BreadcrumbsProps {
 export interface MdxContentProps {
   loading: boolean;
   Content: DocComponent | null;
-}
-
-export interface Feature {
-  title: string;
-  description: string;
-  icon: LucideIcon;
-}
-
-export interface CodeLine {
-  text: string;
-  color: string;
-}
-
-export interface CodeSnippet {
-  id: string;
-  title: string;
-  lines: CodeLine[];
 }

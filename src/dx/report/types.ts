@@ -1,5 +1,8 @@
+import type { SupportedLanguage } from "../../types";
+
 export interface ErrorContext {
   packageName: string;
+  language?: SupportedLanguage;
   error: Error | string;
   isNetworkError?: boolean;
   isValidationError?: boolean;

@@ -118,6 +118,7 @@ export interface CheckLoadedManifestsOptions {
 }
 
 export interface PreciseModeOptions {
+  language: SupportedLanguage;
   debug: boolean;
   yarnConfig: boolean;
   isTesting: boolean;

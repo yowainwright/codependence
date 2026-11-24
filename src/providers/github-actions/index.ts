@@ -22,6 +22,7 @@ import {
   readTagNames,
   readCommitSha,
   isShaPinnedRef,
+  isNamedRef,
   updateGitHubActionsUsesLine,
   parseManifest,
   capabilities,
@@ -44,7 +45,12 @@ export class GitHubActionsProvider implements DependencyProvider {
     this.headers = apiHeaders(token);
   }
 
-  async getLatestVersion(packageName: string): Promise<string> {
+  async getLatestVersion(packageName: string, currentVersion?: string): Promise<string> {
+    const hasNamedRef = currentVersion && isNamedRef(currentVersion);
+    if (hasNamedRef) {
+      return this.resolveVersionSpec(packageName, currentVersion);
+    }
+
     const repository = actionRepository(packageName);
     const version = await this.getLatestTag(repository);
     return this.resolveVersionSpec(packageName, version);
@@ -55,7 +61,8 @@ export class GitHubActionsProvider implements DependencyProvider {
 
     const repository = actionRepository(packageName);
     const sha = await this.getCommitSha(repository, version);
-    rememberVersionLabel(packageName, sha, version);
+    const isVersionLabel = !isNamedRef(version);
+    if (isVersionLabel) rememberVersionLabel(packageName, sha, version);
     return sha;
   }
 
@@ -114,7 +121,12 @@ export class GitHubActionsProvider implements DependencyProvider {
     const lines = content.split("\n");
     const versionLabels = versionLabelsFor(manifest.dependencies);
     const updatedLines = lines.map((line) =>
-      updateGitHubActionsUsesLine(line, manifest.dependencies, versionLabels),
+      updateGitHubActionsUsesLine(
+        line,
+        manifest.dependencies,
+        versionLabels,
+        manifest.resolvedDependencyVersions,
+      ),
     );
     const updated = updatedLines.join("\n");
     writeFileSync(filePath, updated);

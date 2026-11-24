@@ -1323,6 +1323,8 @@ The GitHub Actions provider supports explicit pins, latest release resolution,
 and `mode: "precise"`.
 
 - Latest versions resolve to immutable commit SHAs, and existing version comments are refreshed with the release tag.
+- Branches and non-version tags resolve to immutable SHAs with the original ref preserved in a comment, such as `owner/action@<sha> # main`. Later runs refresh that SHA from the named ref. Existing notes follow a second `#`, such as `# main # keep this note`.
+- A SHA without a tracking comment retains release/tag resolution; Codependence does not guess a default branch. Conflicting tracking refs for the same action and SHA are rejected before updates.
 - Local and Docker actions remain unchanged.
 - Authenticated lookups use `GITHUB_TOKEN` or `GH_TOKEN` when available.
 - For private GHCR packages, the action falls back to its workflow token and retries anonymously when GHCR rejects that token for a public package.
@@ -1339,7 +1341,7 @@ dependencies, templates, digest refs, and dependencies without a version.
 >
 > Use `--target pnpm` or `--target go` to run only entries for those managers.
 
-CircleCI, Helm, Kubernetes, Kustomize, and Terraform support explicit object pins in verbose mode. They do not resolve latest versions or support precise mode. App onboarding detects these manifests and generates explicit pins from their current versions.
+CircleCI, Helm, Kubernetes, Kustomize, and Terraform support explicit object pins in verbose mode. They do not resolve latest versions or support precise mode. CLI onboarding detects these manifests and generates explicit pins from their current versions.
 
 The app uses the same manifest parsers and workflow renderer as the CLI. Non-Node providers remain experimental. Compose is not supported.
 

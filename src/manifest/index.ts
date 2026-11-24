@@ -488,44 +488,23 @@ const detectStaleCodependenciesFromManifests = (
   return pinnedNames.filter((name) => !allDepNames.has(name));
 };
 
-const manifestVersionsFor = (manifest: DependencyManifest, packageName: string): string[] => {
-  const recordedVersions = manifest.dependencyVersions?.[packageName];
-  if (recordedVersions) return recordedVersions.slice();
-
-  const version = manifest.dependencies[packageName];
-  return version ? [version] : [];
-};
-
-const currentVersionsFor = (manifests: LoadedManifest[], packageName: string): string[] => {
-  const versions = manifests.flatMap(({ manifest }) => manifestVersionsFor(manifest, packageName));
-  return Array.from(new Set(versions));
-};
-
-const resolveDockerVersions = (
-  provider: DependencyProvider,
-  packageName: string,
-  currentVersions: string[],
-): Promise<Record<string, string>> =>
-  currentVersions.reduce<Promise<Record<string, string>>>(async (pending, currentVersion) => {
-    const resolvedVersions = await pending;
-    const latestVersion = await provider.getLatestVersion(packageName, currentVersion);
-    resolvedVersions[currentVersion] = latestVersion;
-    return resolvedVersions;
-  }, Promise.resolve({}));
-
 const resolveProviderVersion = async (
   provider: DependencyProvider,
   language: SupportedLanguage,
   manifests: LoadedManifest[],
   packageName: string,
 ): Promise<string | VersionResolution> => {
-  const currentVersions = currentVersionsFor(manifests, packageName);
-  const hasMultipleDockerVersions = language === LANGUAGES.DOCKER && currentVersions.length > 1;
-  if (!hasMultipleDockerVersions) {
-    return provider.getLatestVersion(packageName, currentVersions[0]);
+  const currentRefs = currentVersionRefsFor(manifests, packageName);
+  const currentVersions = Object.keys(currentRefs);
+  const supportsPerVersionResolution =
+    language === LANGUAGES.DOCKER || language === LANGUAGES.GITHUB_ACTIONS;
+  const hasMultipleVersions = supportsPerVersionResolution && currentVersions.length > 1;
+  if (!hasMultipleVersions) {
+    const currentRef = currentRefs[currentVersions[0]];
+    return provider.getLatestVersion(packageName, currentRef);
   }
 
-  const resolvedVersions = await resolveDockerVersions(provider, packageName, currentVersions);
+  const resolvedVersions = await resolveProviderVersions(provider, packageName, currentRefs);
   const version = resolvedVersions[currentVersions[0]];
   return { version, resolvedVersions };
 };
@@ -536,11 +515,60 @@ const resolutionCachePrefix = (
   packageManager: DependencyManager,
 ): string => {
   const base = `${language}:${packageManager}`;
-  if (language !== LANGUAGES.DOCKER) return base;
+  const usesCurrentRefs = language === LANGUAGES.DOCKER || language === LANGUAGES.GITHUB_ACTIONS;
+  if (!usesCurrentRefs) return base;
 
   const names = collectAllDepNamesFromManifests(manifests).sort();
-  const entries = names.map((name) => `${name}@${currentVersionsFor(manifests, name).join(",")}`);
+  const entries = names.map((name) => {
+    const refs = JSON.stringify(currentVersionRefsFor(manifests, name));
+    return `${name}@${refs}`;
+  });
   return `${base}:${entries.join("|")}`;
+};
+
+const currentVersionRefsFor = (
+  manifests: LoadedManifest[],
+  packageName: string,
+): Record<string, string> => {
+  const entries = manifests.flatMap(({ manifest }) =>
+    manifestVersionRefsFor(manifest, packageName),
+  );
+  const refs = new Map<string, string>();
+  entries.forEach(([version, ref]) => {
+    const previous = refs.get(version);
+    const hasConflict = previous && previous !== ref;
+    if (hasConflict) throw new Error(`Conflicting tracking refs for ${packageName}@${version}`);
+    refs.set(version, ref);
+  });
+  return Object.fromEntries(refs);
+};
+
+const manifestVersionRefsFor = (
+  manifest: DependencyManifest,
+  packageName: string,
+): Array<[string, string]> => {
+  const versions = manifestVersionsFor(manifest, packageName);
+  return versions.map((version): [string, string] => {
+    const ref = manifest.dependencyRefs?.[packageName]?.[version] || version;
+    return [version, ref];
+  });
+};
+
+const resolveProviderVersions = async (
+  provider: DependencyProvider,
+  packageName: string,
+  currentRefs: Record<string, string>,
+): Promise<Record<string, string>> => {
+  const versions = await Object.entries(currentRefs).reduce<Promise<Map<string, string>>>(
+    async (pending, [currentVersion, ref]) => {
+      const resolved = await pending;
+      const latestVersion = await provider.getLatestVersion(packageName, ref);
+      resolved.set(currentVersion, latestVersion);
+      return resolved;
+    },
+    Promise.resolve(new Map()),
+  );
+  return Object.fromEntries(versions);
 };
 
 const createVersionResolver = (
@@ -715,9 +743,9 @@ export const resolveFromRegistry = async (
 const handleVersionMapError = (
   err: unknown,
   dep: string | Record<string, string>,
-  debug: boolean,
-  isTesting: boolean,
+  options: ConstructVersionMapOptions,
 ): Record<string, string> => {
+  const { debug, isTesting, language } = options;
   if (debug) {
     logger.debug((err as Error).message || (err as string).toString());
   }
@@ -734,6 +762,7 @@ const handleVersionMapError = (
   } else if (!isValidationError) {
     const errorContext = {
       packageName,
+      language,
       error: err as Error,
       isNetworkError,
       isValidationError: false,
@@ -799,7 +828,7 @@ const resolveVersionMapEntry = async (
 };
 
 const createVersionMapResolver = (options: ConstructVersionMapOptions) => {
-  const { exec: execFn = exec, yarnConfig = false, debug = false, isTesting = false } = options;
+  const { exec: execFn = exec, yarnConfig = false } = options;
   const resolveVersion =
     options.resolveVersion || ((name: string) => resolveFromRegistry(name, yarnConfig, execFn));
   const cachePrefix =
@@ -814,7 +843,7 @@ const createVersionMapResolver = (options: ConstructVersionMapOptions) => {
     try {
       return await resolveVersionMapEntry(dep, resolverOptions, onResolved);
     } catch (err) {
-      return handleVersionMapError(err, dep, debug, isTesting);
+      return handleVersionMapError(err, dep, resolverOptions);
     }
   };
 };
@@ -1543,6 +1572,7 @@ const resolvePreciseModeDeps = async (
 
   const additionalMap = await constructVersionMap({
     codependencies: unresolvedDeps,
+    language: options.language,
     debug: options.debug,
     yarnConfig: options.yarnConfig,
     isTesting: options.isTesting,
@@ -1578,11 +1608,46 @@ const withResolvedDependencyVersions = (
   const hasResolvedVersions = Object.keys(resolvedDependencyVersions).length > 0;
   if (!hasResolvedVersions) return manifests;
 
-  return manifests.map((loadedManifest) =>
-    Object.assign({}, loadedManifest, {
-      manifest: Object.assign({}, loadedManifest.manifest, { resolvedDependencyVersions }),
-    }),
-  );
+  return manifests.map((loadedManifest) => {
+    const versions = resolvedVersionsForManifest(
+      loadedManifest.manifest,
+      resolvedDependencyVersions,
+    );
+    return Object.assign({}, loadedManifest, {
+      manifest: Object.assign({}, loadedManifest.manifest, {
+        resolvedDependencyVersions: versions,
+      }),
+    });
+  });
+};
+
+const resolvedVersionsForManifest = (
+  manifest: DependencyManifest,
+  resolutions: ResolvedDependencyVersions,
+): ResolvedDependencyVersions => {
+  const entries = Object.entries(resolutions).map(([name, versions]) => {
+    const resolvedVersions = manifestResolutionsFor(manifest, name, versions);
+    return [name, resolvedVersions];
+  });
+  return Object.fromEntries(entries);
+};
+
+const manifestResolutionsFor = (
+  manifest: DependencyManifest,
+  packageName: string,
+  resolutions: Readonly<Record<string, string>>,
+): Record<string, string> => {
+  const currentVersions = new Set(manifestVersionsFor(manifest, packageName));
+  const entries = Object.entries(resolutions).filter(([version]) => currentVersions.has(version));
+  return Object.fromEntries(entries);
+};
+
+const manifestVersionsFor = (manifest: DependencyManifest, packageName: string): string[] => {
+  const recordedVersions = manifest.dependencyVersions?.[packageName];
+  if (recordedVersions) return recordedVersions.slice();
+
+  const version = manifest.dependencies[packageName];
+  return version ? [version] : [];
 };
 
 const unchangedVersionResolutions = (versions: Record<string, string>): Record<string, string> => {
@@ -1664,6 +1729,7 @@ const fileVersionOptions = ({
   options,
   versionResolver,
 }: FileCheckContext): PreciseModeOptions => ({
+  language: versionResolver.provider.language,
   debug: options.debug,
   yarnConfig: options.yarnConfig,
   isTesting: options.isTesting,

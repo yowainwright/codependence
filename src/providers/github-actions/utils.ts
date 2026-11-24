@@ -6,12 +6,15 @@ import type {
   GitHubRelease,
   GitHubTag,
   ParsedVersionTag,
+  ResolvedDependencyVersions,
 } from "../types";
 import {
   GITHUB_ACTIONS_PATTERNS,
   SAFE_VERSION_LABEL,
   STABLE_VERSION_TAG,
   VERSION_COMMENT,
+  VERSION_REF,
+  TRACKING_REF_COMMENT,
 } from "./constants";
 
 export type { GitHubActionsProviderOptions } from "../types";
@@ -109,8 +112,9 @@ export const readTagNames = async (response: Response): Promise<string[]> => {
 };
 
 export const readCommitSha = async (response: Response): Promise<string | null> => {
-  const commit = (await response.json()) as GitHubCommit;
-  if (typeof commit.sha === "string") return commit.sha;
+  const { sha } = (await response.json()) as GitHubCommit;
+  const hasValidSha = typeof sha === "string" && isShaPinnedRef(sha);
+  if (hasValidSha) return sha;
 
   return null;
 };
@@ -121,6 +125,11 @@ const updateVersionComment = (suffix: string, label?: string): string => {
 
   const hasComment = suffix.trim().length > 0;
   if (!hasComment) return ` # ${label}`;
+  if (isNamedRef(label)) {
+    const currentRef = suffix.match(TRACKING_REF_COMMENT)?.[1];
+    if (currentRef === label) return suffix;
+    return ` # ${label}${suffix}`;
+  }
   if (!VERSION_COMMENT.test(suffix)) return suffix;
 
   return ` # ${label}`;
@@ -134,13 +143,6 @@ const isExternalAction = (name: string): boolean => {
   return true;
 };
 
-export const isShaPinnedRef = (version: string): boolean =>
-  (version.length === 40 || version.length === 64) &&
-  version
-    .toLowerCase()
-    .split("")
-    .every((char) => "0123456789abcdef".includes(char));
-
 const readUsesLine = (line: string): GitHubActionRef | null => {
   const match = line.match(GITHUB_ACTIONS_PATTERNS.USES_LINE);
   if (!match) return null;
@@ -148,7 +150,9 @@ const readUsesLine = (line: string): GitHubActionRef | null => {
   const name = match[3];
   if (!isExternalAction(name)) return null;
 
-  const actionRef = { name, version: match[4] };
+  const version = match[4];
+  const ref = trackingRefForLine(version, match[6]);
+  const actionRef = { name, version, ref };
   return actionRef;
 };
 
@@ -165,6 +169,7 @@ export const updateGitHubActionsUsesLine = (
   line: string,
   dependencies: Record<string, string>,
   versionLabels: Record<string, string> = {},
+  resolvedDependencyVersions?: ResolvedDependencyVersions,
 ): string => {
   const match = line.match(GITHUB_ACTIONS_PATTERNS.USES_LINE);
   if (!match) return line;
@@ -172,7 +177,8 @@ export const updateGitHubActionsUsesLine = (
   const name = match[3];
   if (!isExternalAction(name)) return line;
 
-  const version = dependencies[name];
+  const currentVersion = match[4];
+  const version = resolvedDependencyVersions?.[name]?.[currentVersion] || dependencies[name];
   if (!version) return line;
 
   const isCurrentSha = isShaPinnedRef(match[4]);
@@ -180,7 +186,11 @@ export const updateGitHubActionsUsesLine = (
   const shouldPreserveCurrentSha = isCurrentSha && !isTargetSha;
   if (shouldPreserveCurrentSha) return line;
 
-  const suffix = updateVersionComment(match[6], versionLabels[name]);
+  const resolvedLabel = resolvedVersionLabels.get(versionLabelKey(name, version));
+  const usesDefaultVersion = version === dependencies[name];
+  const defaultLabel = usesDefaultVersion ? versionLabels[name] : undefined;
+  const label = trackingRefForLine(currentVersion, match[6]) || resolvedLabel || defaultLabel;
+  const suffix = updateVersionComment(match[6], label);
   const updatedLine = `${match[1]}${match[2]}${name}@${version}${match[5]}${suffix}`;
   return updatedLine;
 };
@@ -193,6 +203,48 @@ export const parseManifest = (filePath: string, content: string): DependencyMani
   const entries = externalRefs.map(({ name, version }) => [name, version]);
   const dependencies = Object.fromEntries(entries);
   const dependencyVersions = collectDependencyVersions(externalRefs);
+  const dependencyRefs = collectDependencyRefs(externalRefs);
 
-  return { filePath, dependencies, dependencyVersions };
+  return { filePath, dependencies, dependencyVersions, dependencyRefs };
 };
+
+const collectDependencyRefs = (actionRefs: GitHubActionRef[]): ResolvedDependencyVersions => {
+  const refs = new Map<string, Map<string, string>>();
+  actionRefs.forEach(({ name, version, ref }) => {
+    const references = refs.get(name) || new Map<string, string>();
+    const reference = ref || version;
+    const existing = references.get(version);
+    const hasConflict = existing && existing !== reference;
+    if (hasConflict) throw new Error(`Conflicting tracking refs for ${name}@${version}`);
+    references.set(version, reference);
+    refs.set(name, references);
+  });
+  const entries = Array.from(refs, ([name, references]) => {
+    const versions = Object.fromEntries(references);
+    return [name, versions];
+  });
+  return Object.fromEntries(entries);
+};
+
+const trackingRefForLine = (version: string, suffix: string): string | undefined => {
+  if (isNamedRef(version)) return version;
+  if (!isShaPinnedRef(version)) return undefined;
+  const label = suffix.match(TRACKING_REF_COMMENT)?.[1];
+  const hasNamedLabel = label && isNamedRef(label);
+  if (hasNamedLabel) return label;
+  return undefined;
+};
+
+export const isNamedRef = (version: string): boolean => {
+  const hasSafeLabel = SAFE_VERSION_LABEL.test(version);
+  const isVersionRef = VERSION_REF.test(version);
+  const isTrackingRef = hasSafeLabel && !isVersionRef && !isShaPinnedRef(version);
+  return isTrackingRef;
+};
+
+export const isShaPinnedRef = (version: string): boolean =>
+  (version.length === 40 || version.length === 64) &&
+  version
+    .toLowerCase()
+    .split("")
+    .every((char) => "0123456789abcdef".includes(char));

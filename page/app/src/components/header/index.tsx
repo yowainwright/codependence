@@ -34,18 +34,6 @@ function SidebarMenu({ onOpenSidebar }: SiteHeaderProps) {
   );
 }
 
-function DocsLink() {
-  return (
-    <Link
-      to="/docs/$slug"
-      params={{ slug: "introduction" }}
-      className="rounded-md px-2 py-2 text-sm font-medium transition hover:bg-muted hover:text-primary"
-    >
-      Docs
-    </Link>
-  );
-}
-
 function GitHubLink() {
   return (
     <Button
@@ -68,7 +56,6 @@ export function SiteHeader({ onOpenSidebar }: SiteHeaderProps) {
           <Brand />
         </div>
         <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
-          <DocsLink />
           <Search />
           <GitHubLink />
           <ThemeToggle />
