@@ -289,6 +289,53 @@ jobs:
     assert.strictEqual(readFileSync(workflowPath, "utf8"), expected);
   });
 
+  test("an explicit SHA removes stale tracking labels and preserves trailing notes", async () => {
+    const action = "owner/pinned";
+    const current = `  - uses: ${action}@${sha1Ref}`;
+    const pinned = `  - uses: ${action}@${latestSha}`;
+    const before = ["steps:", `${current} # main`, `${current} # main # audit`, ""].join("\n");
+    writeFileSync(workflowPath, before);
+
+    await checkFiles({ ...policy, mode: "verbose", codependencies: [{ [action]: latestSha }] });
+
+    const expected = ["steps:", pinned, `${pinned} ## audit`, ""].join("\n");
+    assert.strictEqual(readFileSync(workflowPath, "utf8"), expected);
+    const manifest = new GitHubActionsProvider().readManifest(workflowPath);
+    assert.strictEqual(manifest.dependencyRefs?.[action]?.[latestSha], latestSha);
+  });
+
+  test("a release label replaces the old tracking ref and keeps the workflow note", () => {
+    const line = `- uses: owner/release@${sha1Ref} # main # audited`;
+    const dependencies = { "owner/release": latestSha };
+    const labels = { "owner/release": "v2" };
+    const updated = updateGitHubActionsUsesLine(line, dependencies, labels);
+    assert.strictEqual(updated, `- uses: owner/release@${latestSha} # v2 # audited`);
+  });
+
+  test("a per-ref resolution omits a release label belonging to a different SHA", () => {
+    const line = `- uses: owner/mixed@${sha1Ref}`;
+    const resolved = { "owner/mixed": { [sha1Ref]: latestSha } };
+    const updated = updateGitHubActionsUsesLine(
+      line,
+      { "owner/mixed": sha256Ref },
+      { "owner/mixed": "v3" },
+      resolved,
+    );
+    assert.strictEqual(updated, `- uses: owner/mixed@${latestSha}`);
+  });
+
+  test("a numeric-starting branch resolves directly to its commit", async () => {
+    const fetch = mock.fn((url: string) => {
+      assert.strictEqual(url, "https://github.example/repos/owner/action/commits/2026-maintenance");
+      return Promise.resolve(jsonResponse({ sha: latestSha }));
+    });
+    const provider = new GitHubActionsProvider({ fetch, apiUrl: "https://github.example" });
+    const sha = await provider.getLatestVersion("owner/action", "2026-maintenance");
+
+    assert.strictEqual(sha, latestSha);
+    assert.strictEqual(fetch.mock.callCount(), 1);
+  });
+
   test("should refresh a branch pin through the manifest policy", async () => {
     const fetch = (url: string): Promise<Response> => {
       assert.ok(url.endsWith("/commits/main"));
@@ -331,6 +378,21 @@ jobs:
 
     assert.throws(() => provider.readManifest(workflowPath), /Conflicting tracking refs/);
     assert.strictEqual(readFileSync(workflowPath, "utf8"), content);
+  });
+
+  test("conflicting tracking refs across workflows leave both files intact", async () => {
+    const otherPath = join(tmpDir, "release.yml");
+    const current = `- uses: owner/action@${sha1Ref}`;
+    const main = `${current} # main\n`;
+    const release = `${current} # release\n`;
+    writeFileSync(workflowPath, main);
+    writeFileSync(otherPath, release);
+
+    await assert.rejects(checkFiles({ ...policy, files: ["ci.yml", "release.yml"] }), {
+      message: `Conflicting tracking refs for owner/action@${sha1Ref}`,
+    });
+    assert.strictEqual(readFileSync(workflowPath, "utf8"), main);
+    assert.strictEqual(readFileSync(otherPath, "utf8"), release);
   });
 
   test("should reject invalid commit responses before pinning a named ref", async () => {
@@ -438,5 +500,22 @@ jobs:
     assert.strictEqual(readFileSync(workflowPath, "utf8"), main);
     const expected = `steps:\n  - uses: owner/action@${developSha} # develop\n`;
     assert.strictEqual(readFileSync(developPath, "utf8"), expected);
+  });
+
+  test("updating a configured action leaves workflows without that action alone", async () => {
+    const otherPath = join(tmpDir, "other.yml");
+    const other = "- uses: owner/other@v2\n";
+    writeFileSync(workflowPath, "- uses: owner/action@main\n");
+    writeFileSync(otherPath, other);
+    const lookup = mock.method(GitHubActionsProvider.prototype, "getLatestVersion", () => latestSha);
+    const write = mock.method(GitHubActionsProvider.prototype, "writeManifest");
+
+    await checkFiles({
+      ...policy, files: ["ci.yml", "other.yml"], mode: "verbose", codependencies: ["owner/action"],
+    });
+
+    assert.deepStrictEqual(lookup.mock.calls.map((call) => call.arguments), [["owner/action", "main"]]);
+    assert.deepStrictEqual(write.mock.calls.map((call) => call.arguments[0]), [workflowPath]);
+    assert.strictEqual(readFileSync(otherPath, "utf8"), other);
   });
 });

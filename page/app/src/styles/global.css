@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "./codeblock.css";
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is([data-theme="codependence-dark"] *));
@@ -33,71 +34,26 @@
   --color-surface-raised: var(--surface-raised);
 }
 
-[data-theme="codependence-light"] {
-  background-color: #ffffff;
-  background-image:
-    radial-gradient(ellipse 40% 25% at 20% 30%, rgba(153, 246, 228, 0.3) 0%, transparent 70%),
-    radial-gradient(ellipse 30% 20% at 80% 20%, rgba(254, 240, 138, 0.3) 0%, transparent 70%),
-    radial-gradient(ellipse 35% 25% at 70% 80%, rgba(187, 247, 208, 0.3) 0%, transparent 70%),
-    radial-gradient(ellipse 25% 20% at 10% 90%, rgba(186, 230, 253, 0.3) 0%, transparent 70%);
-  background-attachment: fixed;
+html[data-theme] {
   min-height: 100vh;
+  background-color: var(--background);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--primary) 3%, transparent), transparent 24rem);
 }
 
-[data-theme="codependence-dark"] {
-  background-color: #000000;
-  background-image:
-    radial-gradient(ellipse 40% 25% at 20% 30%, rgba(19, 78, 74, 0.4) 0%, transparent 70%),
-    radial-gradient(ellipse 30% 20% at 80% 20%, rgba(113, 63, 18, 0.4) 0%, transparent 70%),
-    radial-gradient(ellipse 35% 25% at 70% 80%, rgba(20, 83, 45, 0.4) 0%, transparent 70%),
-    radial-gradient(ellipse 25% 20% at 10% 90%, rgba(12, 74, 110, 0.4) 0%, transparent 70%);
-  background-attachment: fixed;
-  min-height: 100vh;
+.release-badge-text {
+  color: transparent;
+  background-image: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff, #5f27cd, #ff6b6b);
+  background-size: 200% auto;
+  background-clip: text;
+  animation: rainbow 3s linear infinite;
 }
 
-[data-theme="codependence-light"] .text-transparent {
-  background: linear-gradient(
-    135deg,
-    #0ea5e9 0%,
-    #22c55e 25%,
-    #eab308 50%,
-    #8b5cf6 75%,
-    #0ea5e9 100%
-  ) !important;
-  -webkit-background-clip: text !important;
-  background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  color: transparent !important;
-  background-size: 200% 200%;
-  animation: shimmer 3s ease-in-out infinite;
-}
-
-[data-theme="codependence-dark"] .text-transparent {
-  background: linear-gradient(
-    135deg,
-    #7dd3fc 0%,
-    #86efac 25%,
-    #fde047 50%,
-    #c4b5fd 75%,
-    #7dd3fc 100%
-  ) !important;
-  -webkit-background-clip: text !important;
-  background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  color: transparent !important;
-  background-size: 200% 200%;
-  animation: shimmer 3s ease-in-out infinite;
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: 0% 50%;
+@keyframes rainbow {
+  from {
+    background-position: 0% center;
   }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
+  to {
+    background-position: 200% center;
   }
 }
 
@@ -122,54 +78,36 @@
     0 0 40px rgba(var(--brand-accent-rgb) / 0.05);
 }
 
-.prose pre,
-.prose pre code {
-  font-size: 0.9375rem;
-  line-height: 1.25rem;
+.docs-prose {
+  color: var(--foreground);
+  --tw-prose-headings: var(--foreground);
+  --tw-prose-bold: var(--foreground);
+  --tw-prose-code: var(--foreground);
+  --tw-prose-links: var(--primary);
+  --tw-prose-hr: var(--border);
 }
 
-[data-theme="codependence-light"] .shiki,
-[data-theme="codependence-light"] .shiki span {
-  color: var(--shiki-light) !important;
-  background-color: var(--shiki-light-bg) !important;
+.docs-prose :where(p, ul, ol) {
+  margin-block: 0.65em;
 }
 
-[data-theme="codependence-light"] .shiki span {
-  background-color: transparent !important;
+.docs-prose :where(li) {
+  margin-block: 0.2em;
 }
 
-[data-theme="codependence-dark"] .shiki,
-[data-theme="codependence-dark"] .shiki span {
-  color: var(--shiki-dark) !important;
-  background-color: var(--shiki-dark-bg) !important;
+.docs-prose :where(h1, h2, h3, h4) {
+  color: var(--foreground);
+  text-wrap: pretty;
 }
 
-[data-theme="codependence-dark"] .shiki span {
-  background-color: transparent !important;
+.docs-prose h1 {
+  margin-block: 0 0.3em;
 }
 
-[data-theme="codependence-dark"] .prose pre,
-[data-theme="codependence-dark"] .prose pre.shiki {
-  background-color: #0a0a0a !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.docs-prose :where(h2, h3, h4) {
+  margin-block: 1.3em 0.4em;
 }
 
-[data-theme="codependence-dark"] .prose :not(pre) > code {
-  background-color: #171717;
-  color: #e0f2fe;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
-}
-
-[data-theme="codependence-light"] .prose pre {
-  background-color: #f1f5f9 !important;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="codependence-light"] .prose :not(pre) > code {
-  background-color: #f1f5f9;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
+.docs-prose hr {
+  margin-block: 1.25rem;
 }

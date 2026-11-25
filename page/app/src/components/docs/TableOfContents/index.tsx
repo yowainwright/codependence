@@ -68,9 +68,10 @@ export function TableOfContents(props: TableOfContentsProps) {
           <li key={heading.id}>
             <a
               href={`#${heading.id}`}
+              title={heading.textContent}
               aria-current={activeId === heading.id ? "location" : undefined}
               data-level={heading.tagName}
-              className="-ml-px block border-l-2 border-transparent py-2 pl-3 pr-2 text-base break-words text-foreground/70 transition-colors hover:text-primary data-[level=H3]:pl-6 data-[level=H4]:pl-9 aria-[current=location]:border-primary aria-[current=location]:bg-primary/5 aria-[current=location]:font-semibold aria-[current=location]:text-primary"
+              className="-ml-px block truncate border-l-2 border-transparent py-2 pl-3 pr-2 text-base text-foreground/70 data-[level=H3]:pl-6 data-[level=H4]:pl-9 aria-[current=location]:border-primary aria-[current=location]:bg-primary/5 aria-[current=location]:font-semibold aria-[current=location]:text-primary"
             >
               {heading.textContent}
             </a>

@@ -47,18 +47,22 @@ export function DocsPage() {
   const { doc, Content, loading } = useDocContent(slug);
   const articleRef = useRef<HTMLElement>(null);
 
+  useEffect(() => {
+    if (doc) document.title = `${doc.title} | Codependence`;
+  }, [doc]);
+
   if (!doc) return <Navigate to="/docs/$slug" params={{ slug: "introduction" }} />;
 
   return (
     <div className="grid w-full min-w-0 max-w-[1240px] grid-cols-1 gap-x-10 px-4 sm:px-6 md:px-10 xl:grid-cols-[minmax(0,1fr)_15rem]">
-      <main className="mx-auto w-full min-w-0 max-w-[720px] py-4 sm:py-6 md:py-10">
+      <main className="mx-auto w-full min-w-0 max-w-[720px] py-4 md:py-6">
         <Breadcrumbs title={doc.title} />
-        <article ref={articleRef} className="prose prose-base mb-10 max-w-none break-words md:text-lg md:leading-8 dark:prose-invert prose-headings:scroll-mt-24 prose-a:text-primary prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:p-4 prose-pre:shadow-inner">
+        <article ref={articleRef} className="docs-prose prose prose-base max-w-none break-words md:text-lg md:leading-7 dark:prose-invert prose-headings:scroll-mt-24 prose-a:text-primary">
           <header>
             <h1>{doc.title}</h1>
             <p>{doc.description}</p>
           </header>
-          <Separator className="my-5" />
+          <Separator className="my-4" />
           <MDXContent loading={loading} Content={Content} />
         </article>
         <Separator className="my-6" />
@@ -73,7 +77,7 @@ export function DocsPage() {
 
 function Breadcrumbs({ title }: BreadcrumbsProps) {
   return (
-    <nav aria-label="Breadcrumb" className="mb-4 py-2 text-base">
+    <nav aria-label="Breadcrumb" className="mb-3 text-base">
       <ol className="flex items-center gap-2">
         <li>
           <Link to="/" className="hover:text-primary">

@@ -14,7 +14,7 @@ export function DocsLayout({ children }: DocsLayoutProps) {
       <SiteHeader onOpenSidebar={() => setSidebarOpen(true)} />
       <div className="flex flex-1 items-stretch">
         <aside className="hidden w-64 shrink-0 border-r border-foreground/10 lg:block">
-          <div className="sticky top-20 max-h-[calc(100dvh-6rem)] overflow-y-auto py-4">
+          <div className="sticky top-16 max-h-[calc(100dvh-4rem)] overflow-y-auto pt-3 pb-4">
             <SideBar />
           </div>
         </aside>

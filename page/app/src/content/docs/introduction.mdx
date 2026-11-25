@@ -3,27 +3,45 @@ title: Introduction
 description: Enforce dependency version policy locally, in CI, and across workspaces.
 ---
 
-<section className="grid grid-flow-col-dense justify-start gap-x-2 mb-8">
+<section className="not-prose mb-4 flex flex-wrap items-center gap-2">
 
 <a href="https://badge.fury.io/js/codependence">
   <img alt="npm version" src="https://badge.fury.io/js/codependence.svg" />
 </a>
 
 <a href="https://codecov.io/gh/yowainwright/codependence">
-  <img src="https://codecov.io/gh/yowainwright/codependence/branch/main/graph/badge.svg" />
+  <img alt="Code coverage" src="https://codecov.io/gh/yowainwright/codependence/branch/main/graph/badge.svg" />
 </a>
 
 <a href="https://github.com/yowainwright/codependence">
-  <img src="https://badgen.net/badge/icon/github?icon=github&label&color=black" />
+  <img alt="GitHub repository" src="https://badgen.net/badge/icon/github?icon=github&label&color=black" />
 </a>
 
 </section>
 
 <section>
 
-## Introduction
+## Check a dependency policy
 
-Codependence enforces dependency version policy from one root `.codependencerc`. It checks, reports, and can update every configured dependency manager so important versions stay current, pinned, or consistent across your project.
+Put a `.codependencerc` at the root of your project. This policy tells Codependence to keep React on the `^19.0.0` range in the app’s `package.json`.
+
+```json {6} title=".codependencerc"
+{
+  "config": {
+    "app": {
+      "path": "package.json",
+      "manager": "pnpm",
+      "codependencies": [{ "react": "^19.0.0" }]
+    }
+  }
+}
+```
+
+Run `codependence` to check the manifest. To preview the edits the policy would make, run:
+
+```sh
+codependence --update --dryRun
+```
 
 ## Synopsis
 
