@@ -1,47 +1,139 @@
 ---
 title: Introduction
-description: Enforce dependency version policy locally, in CI, and across workspaces.
+description: Codependence updates your project's dependencies. Apply updates locally or use the GitHub Action to open a pull request on a schedule.
 ---
 
-<section className="grid grid-flow-col-dense justify-start gap-x-2 mb-8">
+<header className="[&_p:has(img)]:flex [&_p:has(img)]:flex-wrap [&_p:has(img)]:items-center [&_p:has(img)]:gap-2 [&_p_img]:my-0">
 
-<a href="https://badge.fury.io/js/codependence">
-  <img alt="npm version" src="https://badge.fury.io/js/codependence.svg" />
-</a>
+<h1>
+  <a href="https://github.com/codependence" style={{ fontWeight:'bold' }}>Codependence</a>
+</h1>
 
-<a href="https://codecov.io/gh/yowainwright/codependence">
-  <img src="https://codecov.io/gh/yowainwright/codependence/branch/main/graph/badge.svg" />
-</a>
+[![npm version](https://img.shields.io/npm/v/codependence.svg)](https://www.npmjs.com/package/codependence)
+[![npm downloads](https://img.shields.io/npm/dm/codependence.svg)](https://www.npmjs.com/package/codependence)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/yowainwright/codependence/badge)](https://scorecard.dev/viewer/?uri=github.com/yowainwright/codependence)
+[![codecov](https://codecov.io/gh/yowainwright/codependence/branch/main/graph/badge.svg)](https://codecov.io/gh/yowainwright/codependence)
 
-<a href="https://github.com/yowainwright/codependence">
-  <img src="https://badgen.net/badge/icon/github?icon=github&label&color=black" />
-</a>
+**One configuration for every dependency manager.**
 
-</section>
+**Codependence** checks and updates dependency versions using [one-to-many](https://en.wikipedia.org/wiki/One-to-many_%28data_model%29) project policies with support for Node, Python, Go, Rust, Docker, GitHub Actions, and Helm.
+
+This means you control how you update and why you update dependencies. Versus other tools, Codependence caters to a project's context vs a dependency's context.
+
+---
+
+</header>
 
 <section>
 
-## Introduction
+## Main Use Case
 
-Codependence enforces dependency version policy from one root `.codependencerc`. It checks, reports, and can update every configured dependency manager so important versions stay current, pinned, or consistent across your project.
+**Pin lodash and update the rest**
 
-## Synopsis
+Suppose your app needs lodash `4.17.21`. Declare that exact version in `package.json`. Put this config beside it to keep lodash there while updating the other packages and Docker base images to their latest eligible versions.
 
-Each manager target gets its own files and policy. Codependence loads the config once, verifies every target, and can fail CI or update mismatched manifests.
+<CodeDemo label="Configure both updates" steps={[
+  { line: 7, label: "Hold back lodash", note: "In precise mode this list names the exceptions. Lodash keeps its declared version." },
+  { line: 12, label: "Update base images", note: "There are no exceptions for this Dockerfile. Codependence looks up the latest compatible image tags." },
+]}>
 
-See [Policy Surface](/docs/policy-surface/) for what Codependence supports today and where the same policy model can expand next.
+```json title=".codependencerc"
+{
+  "config": {
+    "app": {
+      "path": "package.json",
+      "manager": "pnpm",
+      "mode": "precise",
+      "codependencies": ["lodash"]
+    },
+    "image": {
+      "path": "Dockerfile",
+      "manager": "docker",
+      "mode": "precise"
+    }
+  }
+}
+```
 
-## Why use Codependence?
+</CodeDemo>
 
-- Define the versions that must stay current or pinned
-- Manage multiple dependency managers from one `.codependencerc`
-- Fail local checks or CI when dependency versions drift
-- Update only listed packages, or update everything except listed packages
-- Apply package-specific policy across monorepos
-- Run from npm scripts, GitHub Actions, or custom Node tooling
+## Preview the change
 
-## Why not use Codependence?
+From the project root, preview both updates.
 
-Skip it if hosted dependency PRs from Dependabot or Renovate already cover your workflow and you do not need local or CI policy enforcement.
+```sh
+pnpm dlx codependence --update --dryRun
+```
+
+For example, if React resolves to `19.1.0` and Alpine to `3.20`, the diff includes both updates. Lodash stays at `4.17.21`.
+
+<CodeDemo label="Review the two changes" steps={[
+  { line: 4, label: "Pinned package", note: "Lodash appears as context in the diff. Its version stays at 4.17.21." },
+  { line: 6, label: "React update", note: "React is outside the exception list, so its version updates." },
+  { line: 11, label: "Alpine tag", note: "The same run updates the Docker base image." },
+]}>
+
+```diff title="Proposed changes"
+--- a/package.json
++++ b/package.json
+@@ -4,2 +4,2 @@
+     "lodash": "4.17.21",
+-    "react": "19.0.0"
++    "react": "19.1.0"
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -1 +1 @@
+-FROM alpine:3.19
++FROM alpine:3.20
+```
+
+</CodeDemo>
+
+## Open one pull request
+
+Save this workflow and [configure the repository token](/docs/github-action/#token-screen). It runs on Mondays at 09:00 UTC. You can also start it manually from GitHub Actions.
+
+<CodeDemo label="Schedule one update pull request" steps={[
+  { line: 16, label: "Both targets", note: "This job runs pnpm and Docker together using the same .codependencerc." },
+  { line: 20, label: "One pull request", note: "When either target changes, the action opens or refreshes one PR for the pair." },
+]}>
+
+```yaml title=".github/workflows/update-dependencies.yml"
+name: Update dependencies
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: yowainwright/codependence@add92453b85ffafb511988545fc153ba25b04792 # v1.1.1
+        with:
+          targets: |
+            pnpm
+            docker
+          version: pnpm=11.21.0
+          pull-request: true
+          token: ${{ secrets.CODEPENDENCE_TOKEN }}
+          post-update-command: pnpm install
+```
+
+</CodeDemo>
+
+## Apply it locally
+
+```sh
+pnpm dlx codependence --update
+pnpm install
+```
+
+The first command edits `package.json` and `Dockerfile`. The second installs the packages and refreshes `pnpm-lock.yaml`.
+
+[See how to check two manifests or save a JSON report.](/docs/recipes/)
 
 </section>

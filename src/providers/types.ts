@@ -17,6 +17,7 @@ export interface DependencyManifest {
   version?: string;
   dependencies: Record<string, string>;
   dependencyVersions?: Record<string, readonly string[]>;
+  dependencyRefs?: ResolvedDependencyVersions;
   resolvedDependencyVersions?: ResolvedDependencyVersions;
   devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
@@ -157,6 +158,7 @@ export interface GoUpdateResult {
 export interface GitHubActionRef {
   readonly name: string;
   readonly version: string;
+  readonly ref?: string;
 }
 
 export interface GitHubRelease {

@@ -1,8 +1,10 @@
-import { beforeEach, describe, test, mock } from "node:test";
+import { afterEach, beforeEach, describe, test, mock } from "node:test";
 import assert from "node:assert/strict";
 import { assertRejects, assertTextIncludes } from "../../../helpers/assertions";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
+import { checkFiles, requestDeduplicator, versionCache } from "../../../../src/manifest";
+import type { CheckFiles } from "../../../../src/types";
 import {
   GitHubActionsProvider,
   updateGitHubActionsUsesLine,
@@ -14,6 +16,12 @@ const jsonResponse = (value: unknown, status = 200): Response =>
     headers: { "Content-Type": "application/json" },
   });
 
+afterEach(() => {
+  mock.restoreAll();
+  requestDeduplicator.clear();
+  versionCache.clear();
+});
+
 // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("GitHubActionsProvider", () => {
   const tmpDir = join(import.meta.dirname, ".tmp-github-actions-test");
@@ -22,6 +30,14 @@ describe("GitHubActionsProvider", () => {
   const sha1Ref = `${shaSegment}${shaSegment}01234567`;
   const sha256Ref = shaSegment.repeat(4);
   const latestSha = "a".repeat(40);
+  const policy: CheckFiles = {
+    rootDir: tmpDir,
+    files: ["ci.yml"],
+    language: "github-actions",
+    mode: "precise",
+    update: true,
+    silent: true,
+  };
 
   beforeEach(() => {
     rmSync(tmpDir, { recursive: true, force: true });
@@ -253,5 +269,253 @@ jobs:
 
     assert.strictEqual(unlabeled, "      - uses: actions/checkout@v5 # v5.0.0");
     assert.strictEqual(invalidComment, "      - uses: actions/checkout@v5 # pinned");
+  });
+
+  test("should pin a named ref and preserve its tracking label", async () => {
+    const fetch = (url: string): Promise<Response> => {
+      assert.ok(url.endsWith("/commits/release%2Fnext"));
+      return Promise.resolve(jsonResponse({ sha: latestSha }));
+    };
+    const provider = new GitHubActionsProvider({ fetch });
+    const version = await provider.getLatestVersion("owner/action", "release/next");
+    writeFileSync(workflowPath, "steps:\n  - uses: owner/action@release/next # keep this note\n");
+
+    provider.writeManifest(workflowPath, {
+      filePath: workflowPath,
+      dependencies: { "owner/action": version },
+    });
+
+    const expected = `steps:\n  - uses: owner/action@${latestSha} # release/next # keep this note\n`;
+    assert.strictEqual(readFileSync(workflowPath, "utf8"), expected);
+  });
+
+  test("an explicit SHA removes stale tracking labels and preserves trailing notes", async () => {
+    const action = "owner/pinned";
+    const current = `  - uses: ${action}@${sha1Ref}`;
+    const pinned = `  - uses: ${action}@${latestSha}`;
+    const before = ["steps:", `${current} # main`, `${current} # main # audit`, ""].join("\n");
+    writeFileSync(workflowPath, before);
+
+    await checkFiles({ ...policy, mode: "verbose", codependencies: [{ [action]: latestSha }] });
+
+    const expected = ["steps:", pinned, `${pinned} ## audit`, ""].join("\n");
+    assert.strictEqual(readFileSync(workflowPath, "utf8"), expected);
+    const manifest = new GitHubActionsProvider().readManifest(workflowPath);
+    assert.strictEqual(manifest.dependencyRefs?.[action]?.[latestSha], latestSha);
+  });
+
+  test("a release label replaces the old tracking ref and keeps the workflow note", () => {
+    const line = `- uses: owner/release@${sha1Ref} # main # audited`;
+    const dependencies = { "owner/release": latestSha };
+    const labels = { "owner/release": "v2" };
+    const updated = updateGitHubActionsUsesLine(line, dependencies, labels);
+    assert.strictEqual(updated, `- uses: owner/release@${latestSha} # v2 # audited`);
+  });
+
+  test("a per-ref resolution omits a release label belonging to a different SHA", () => {
+    const line = `- uses: owner/mixed@${sha1Ref}`;
+    const resolved = { "owner/mixed": { [sha1Ref]: latestSha } };
+    const updated = updateGitHubActionsUsesLine(
+      line,
+      { "owner/mixed": sha256Ref },
+      { "owner/mixed": "v3" },
+      resolved,
+    );
+    assert.strictEqual(updated, `- uses: owner/mixed@${latestSha}`);
+  });
+
+  test("a numeric-starting branch resolves directly to its commit", async () => {
+    const fetch = mock.fn((url: string) => {
+      assert.strictEqual(url, "https://github.example/repos/owner/action/commits/2026-maintenance");
+      return Promise.resolve(jsonResponse({ sha: latestSha }));
+    });
+    const provider = new GitHubActionsProvider({ fetch, apiUrl: "https://github.example" });
+    const sha = await provider.getLatestVersion("owner/action", "2026-maintenance");
+
+    assert.strictEqual(sha, latestSha);
+    assert.strictEqual(fetch.mock.callCount(), 1);
+  });
+
+  test("should refresh a branch pin through the manifest policy", async () => {
+    const fetch = (url: string): Promise<Response> => {
+      assert.ok(url.endsWith("/commits/main"));
+      return Promise.resolve(jsonResponse({ sha: latestSha }));
+    };
+    const provider = new GitHubActionsProvider({ fetch });
+    const resolve = provider.getLatestVersion.bind(provider);
+    mock.method(GitHubActionsProvider.prototype, "getLatestVersion", resolve);
+    writeFileSync(workflowPath, `steps:\n  - uses: owner/action@${sha1Ref} # main\n`);
+
+    await checkFiles(policy);
+
+    const expected = `steps:\n  - uses: owner/action@${latestSha} # main\n`;
+    assert.strictEqual(readFileSync(workflowPath, "utf8"), expected);
+  });
+
+  test("should preserve independent branches when one action is repeated", async () => {
+    const developSha = "b".repeat(40);
+    const fetch = (url: string): Promise<Response> => {
+      if (url.endsWith("/commits/main")) return Promise.resolve(jsonResponse({ sha: latestSha }));
+      assert.ok(url.endsWith("/commits/develop"));
+      return Promise.resolve(jsonResponse({ sha: developSha }));
+    };
+    const provider = new GitHubActionsProvider({ fetch });
+    const resolve = provider.getLatestVersion.bind(provider);
+    mock.method(GitHubActionsProvider.prototype, "getLatestVersion", resolve);
+    const content = `steps:\n  - uses: owner/action@${sha1Ref} # main\n  - uses: owner/action@develop\n`;
+    writeFileSync(workflowPath, content);
+
+    await checkFiles(policy);
+
+    const expected = `steps:\n  - uses: owner/action@${latestSha} # main\n  - uses: owner/action@${developSha} # develop\n`;
+    assert.strictEqual(readFileSync(workflowPath, "utf8"), expected);
+  });
+
+  test("should reject conflicting tracking refs for the same pinned SHA", () => {
+    const content = `steps:\n  - uses: owner/action@${sha1Ref} # main\n  - uses: owner/action@${sha1Ref} # develop\n`;
+    writeFileSync(workflowPath, content);
+    const provider = new GitHubActionsProvider();
+
+    assert.throws(() => provider.readManifest(workflowPath), /Conflicting tracking refs/);
+    assert.strictEqual(readFileSync(workflowPath, "utf8"), content);
+  });
+
+  test("conflicting tracking refs across workflows leave both files intact", async () => {
+    const otherPath = join(tmpDir, "release.yml");
+    const current = `- uses: owner/action@${sha1Ref}`;
+    const main = `${current} # main\n`;
+    const release = `${current} # release\n`;
+    writeFileSync(workflowPath, main);
+    writeFileSync(otherPath, release);
+
+    await assert.rejects(checkFiles({ ...policy, files: ["ci.yml", "release.yml"] }), {
+      message: `Conflicting tracking refs for owner/action@${sha1Ref}`,
+    });
+    assert.strictEqual(readFileSync(workflowPath, "utf8"), main);
+    assert.strictEqual(readFileSync(otherPath, "utf8"), release);
+  });
+
+  test("should reject invalid commit responses before pinning a named ref", async () => {
+    const fetch = (): Promise<Response> => Promise.resolve(jsonResponse({ sha: "not-a-sha" }));
+    const provider = new GitHubActionsProvider({ fetch });
+
+    await assertRejects(provider.getLatestVersion("owner/action", "main"), "SHA");
+  });
+
+  test("should not guess a branch when a bare SHA has no stable release", async () => {
+    const fetch = (url: string): Promise<Response> => {
+      if (url.endsWith("/releases/latest")) return Promise.resolve(jsonResponse({}, 404));
+      assert.ok(url.endsWith("/tags?per_page=100"));
+      return Promise.resolve(jsonResponse([]));
+    };
+    const provider = new GitHubActionsProvider({ fetch });
+
+    await assertRejects(
+      provider.getLatestVersion("owner/action", sha1Ref),
+      "No stable GitHub Action tag",
+    );
+  });
+
+  test("should recheck a tracking ref when its label changes on the same SHA", async () => {
+    const developSha = "b".repeat(40);
+    const fetch = (url: string): Promise<Response> => {
+      if (url.endsWith("/commits/main")) return Promise.resolve(jsonResponse({ sha: latestSha }));
+      assert.ok(url.endsWith("/commits/develop"));
+      return Promise.resolve(jsonResponse({ sha: developSha }));
+    };
+    const provider = new GitHubActionsProvider({ fetch });
+    const resolve = provider.getLatestVersion.bind(provider);
+    mock.method(GitHubActionsProvider.prototype, "getLatestVersion", resolve);
+    writeFileSync(workflowPath, `steps:\n  - uses: owner/action@${sha1Ref} # main\n`);
+    await checkFiles({ ...policy, dryRun: true, format: "json" });
+    writeFileSync(workflowPath, `steps:\n  - uses: owner/action@${sha1Ref} # develop\n`);
+
+    await checkFiles(policy);
+
+    const expected = `steps:\n  - uses: owner/action@${developSha} # develop\n`;
+    assert.strictEqual(readFileSync(workflowPath, "utf8"), expected);
+  });
+
+  test("should retain every branch resolution from preview through update", async () => {
+    const developSha = "b".repeat(40);
+    const fetch = (url: string): Promise<Response> => {
+      if (url.endsWith("/commits/main")) return Promise.resolve(jsonResponse({ sha: latestSha }));
+      assert.ok(url.endsWith("/commits/develop"));
+      return Promise.resolve(jsonResponse({ sha: developSha }));
+    };
+    const provider = new GitHubActionsProvider({ fetch });
+    const resolve = provider.getLatestVersion.bind(provider);
+    mock.method(GitHubActionsProvider.prototype, "getLatestVersion", resolve);
+    const content = `steps:\n  - uses: owner/action@${sha1Ref} # main\n  - uses: owner/action@develop\n`;
+    writeFileSync(workflowPath, content);
+    const preview = await checkFiles({ ...policy, dryRun: true, format: "json" });
+
+    const result = await checkFiles({ ...policy, format: "json" });
+
+    assert.deepStrictEqual(result, preview);
+    const expected = `steps:\n  - uses: owner/action@${latestSha} # main\n  - uses: owner/action@${developSha} # develop\n`;
+    assert.strictEqual(readFileSync(workflowPath, "utf8"), expected);
+  });
+
+  test("should keep release labels separate from branch tracking labels", async () => {
+    const releaseSha = "b".repeat(40);
+    const fetch = (url: string): Promise<Response> => {
+      if (url.endsWith("/commits/main")) return Promise.resolve(jsonResponse({ sha: latestSha }));
+      if (url.endsWith("/releases/latest"))
+        return Promise.resolve(jsonResponse({ tag_name: "v2.0.0" }));
+      assert.ok(url.endsWith("/commits/v2.0.0"));
+      return Promise.resolve(jsonResponse({ sha: releaseSha }));
+    };
+    const provider = new GitHubActionsProvider({ fetch });
+    const resolve = provider.getLatestVersion.bind(provider);
+    mock.method(GitHubActionsProvider.prototype, "getLatestVersion", resolve);
+    writeFileSync(workflowPath, "steps:\n  - uses: owner/action@v1\n  - uses: owner/action@main\n");
+
+    await checkFiles(policy);
+
+    const expected = `steps:\n  - uses: owner/action@${releaseSha} # v2.0.0\n  - uses: owner/action@${latestSha} # main\n`;
+    assert.strictEqual(readFileSync(workflowPath, "utf8"), expected);
+  });
+
+  test("should update only workflows containing a changed branch", async () => {
+    const developPath = join(tmpDir, "develop.yml");
+    const developSha = "b".repeat(40);
+    const fetch = (url: string): Promise<Response> => {
+      if (url.endsWith("/commits/main")) return Promise.resolve(jsonResponse({ sha: latestSha }));
+      assert.ok(url.endsWith("/commits/develop"));
+      return Promise.resolve(jsonResponse({ sha: developSha }));
+    };
+    const provider = new GitHubActionsProvider({ fetch });
+    const resolve = provider.getLatestVersion.bind(provider);
+    mock.method(GitHubActionsProvider.prototype, "getLatestVersion", resolve);
+    const main = `steps:\n  - uses: owner/action@${latestSha} # main\n`;
+    writeFileSync(workflowPath, main);
+    writeFileSync(developPath, `steps:\n  - uses: owner/action@${sha1Ref} # develop\n`);
+    const write = mock.method(GitHubActionsProvider.prototype, "writeManifest");
+
+    await checkFiles({ ...policy, files: ["ci.yml", "develop.yml"] });
+
+    const writtenPaths = write.mock.calls.map((call) => call.arguments[0]);
+    assert.deepStrictEqual(writtenPaths, [developPath]);
+    assert.strictEqual(readFileSync(workflowPath, "utf8"), main);
+    const expected = `steps:\n  - uses: owner/action@${developSha} # develop\n`;
+    assert.strictEqual(readFileSync(developPath, "utf8"), expected);
+  });
+
+  test("updating a configured action leaves workflows without that action alone", async () => {
+    const otherPath = join(tmpDir, "other.yml");
+    const other = "- uses: owner/other@v2\n";
+    writeFileSync(workflowPath, "- uses: owner/action@main\n");
+    writeFileSync(otherPath, other);
+    const lookup = mock.method(GitHubActionsProvider.prototype, "getLatestVersion", () => latestSha);
+    const write = mock.method(GitHubActionsProvider.prototype, "writeManifest");
+
+    await checkFiles({
+      ...policy, files: ["ci.yml", "other.yml"], mode: "verbose", codependencies: ["owner/action"],
+    });
+
+    assert.deepStrictEqual(lookup.mock.calls.map((call) => call.arguments), [["owner/action", "main"]]);
+    assert.deepStrictEqual(write.mock.calls.map((call) => call.arguments[0]), [workflowPath]);
+    assert.strictEqual(readFileSync(otherPath, "utf8"), other);
   });
 });

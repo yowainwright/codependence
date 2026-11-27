@@ -1,94 +1,20 @@
-import type { DocMeta, SearchResult } from "@/types";
+import type { SearchResult } from "@/types";
 import { resolveDocsUrl } from "@/utils/urlResolver";
 
-const INTRODUCTION_DESCRIPTION =
-  "Enforce dependency version policy locally, in CI, and across workspaces.";
-const POLICY_SURFACE_DESCRIPTION =
-  "What Codependence checks today and where version policy can expand next.";
-const WHY_USE_DESCRIPTION = "Codependence enforces dependency version policy where your code runs.";
-const WHY_NOT_USE_DESCRIPTION =
-  "Reasons why Codependence might not be the right choice for your project.";
-
-export const DOCS: DocMeta[] = [
-  {
-    slug: "introduction",
-    title: "Introduction",
-    description: INTRODUCTION_DESCRIPTION,
-  },
-  {
-    slug: "main-usecase",
-    title: "Main Use Case",
-    description: "Keep important versions intentional",
-  },
-  {
-    slug: "cli",
-    title: "CLI",
-    description: "Command Line Interface for Codependence",
-  },
-  {
-    slug: "github-action",
-    title: "GitHub Action",
-    description: "Create small dependency update pull requests by manager.",
-  },
-  {
-    slug: "node",
-    title: "Codependence in Node",
-    description: "How to use Codependence as a Node.js utility.",
-  },
-  {
-    slug: "options",
-    title: "Codependence Options",
-    description: "Configuration options for Codependence.",
-  },
-  {
-    slug: "usage",
-    title: "Usage",
-    description: "How to use Codependence",
-  },
-  {
-    slug: "policy-surface",
-    title: "Policy Surface",
-    description: POLICY_SURFACE_DESCRIPTION,
-  },
-  {
-    slug: "recipes",
-    title: "Recipes",
-    description: "Common patterns and usage examples for Codependence.",
-  },
-  {
-    slug: "synopsis",
-    title: "Synopsis",
-    description: "A summary of Codependence",
-  },
-  {
-    slug: "why-use-codependence",
-    title: "Why use Codependence?",
-    description: WHY_USE_DESCRIPTION,
-  },
-  {
-    slug: "why-not-use-codependence",
-    title: "Why not use Codependence?",
-    description: WHY_NOT_USE_DESCRIPTION,
-  },
-  {
-    slug: "badges",
-    title: "Badges",
-    description: "A collection of badges related to the project.",
-  },
-];
+export { DOCS } from "./docs";
 
 export const SEARCH_DATA: SearchResult[] = [
   {
     title: "Introduction",
-    description: "Get started with Codependence",
+    description: "Check and update dependency versions",
     content:
-      "Codependence enforces dependency version policy across local development, workspaces, and CI.",
+      "Pin lodash and preview updates to the other packages and Docker images. Review the changes in one pull request.",
     slug: "introduction",
   },
   {
-    title: "CLI Usage",
-    description: "Learn how to use the Codependence CLI",
-    content: "The Codependence CLI checks, reports, and applies dependency version policy.",
+    title: "CLI",
+    description: "Commands, flags, and .codependencerc configuration",
+    content: "Select files and manager targets, set version rules, preview updates, or save a report.",
     slug: "cli",
   },
   {
@@ -99,39 +25,27 @@ export const SEARCH_DATA: SearchResult[] = [
     slug: "github-action",
   },
   {
-    title: "Options",
-    description: "Configuration options for Codependence",
-    content: "Customize Codependence behavior with various configuration options.",
-    slug: "options",
-  },
-  {
-    title: "Node.js API",
-    description: "Using Codependence programmatically",
-    content: "Integrate Codependence into custom Node.js policy tooling.",
+    title: "Node",
+    description: "Check, inspect, and update manifests from a Node script",
+    content: "Use checkFiles to handle mismatches, inspect version diffs, and apply updates.",
     slug: "node",
   },
   {
     title: "Recipes",
     description: "Common use cases and examples",
-    content: "Practical examples and common patterns for using Codependence.",
+    content: "Check pnpm and Go manifests, match packages by name, or save a JSON report.",
     slug: "recipes",
   },
   {
-    title: "Policy Surface",
-    description: "Current and planned version policy surfaces",
-    content: "Understand what Codependence checks today and where version policy can expand next.",
-    slug: "policy-surface",
-  },
-  {
-    title: "Main Use Case",
-    description: "Primary use cases for Codependence",
-    content: "Use Codependence to keep important dependency versions intentional.",
-    slug: "main-usecase",
+    title: "Supported languages",
+    description: "Supported files and dependency managers",
+    content: "Find supported files and try Python requirements.txt, Go go.mod, and Rust Cargo.toml update examples.",
+    slug: "supported-languages",
   },
   {
     title: "Why Use Codependence",
     description: "Benefits of using Codependence",
-    content: "Learn why Codependence is useful for version policy enforcement.",
+    content: "Choose which packages to update in each workspace and review changes in a pull request.",
     slug: "why-use-codependence",
   },
   {
@@ -149,13 +63,13 @@ export const SEARCH_DATA: SearchResult[] = [
   {
     title: "Synopsis",
     description: "Quick overview of Codependence",
-    content: "A brief summary of Codependence dependency version policy.",
+    content: "Preview and apply dependency updates from the CLI or schedule them with GitHub Actions.",
     slug: "synopsis",
   },
   {
-    title: "Usage",
-    description: "Detailed usage instructions",
-    content: "Comprehensive guide to using Codependence in project policy checks.",
+    title: "Examples",
+    description: "Check an npm dependency and update a Docker base image",
+    content: "Run the lodash and Alpine examples from the first check through the final update.",
     slug: "usage",
   },
 ];
@@ -168,10 +82,6 @@ export const SIDEBAR = [
         title: "Introduction",
         href: resolveDocsUrl("introduction"),
       },
-      {
-        title: "Main Use Case",
-        href: resolveDocsUrl("main-usecase"),
-      },
     ],
   },
 
@@ -183,30 +93,20 @@ export const SIDEBAR = [
         href: resolveDocsUrl("cli"),
       },
       {
-        title: "GitHub Action",
-        href: resolveDocsUrl("github-action"),
-      },
-      {
-        title: "Node.js",
+        title: "Node.js API",
         href: resolveDocsUrl("node"),
       },
       {
-        title: "Options",
-        href: resolveDocsUrl("options"),
+        title: "GitHub Action",
+        href: resolveDocsUrl("github-action"),
       },
       {
         title: "Usage Examples",
         href: resolveDocsUrl("usage"),
       },
-    ],
-  },
-
-  {
-    title: "Advanced",
-    items: [
       {
-        title: "Policy Surface",
-        href: resolveDocsUrl("policy-surface"),
+        title: "Supported languages",
+        href: resolveDocsUrl("supported-languages"),
       },
       {
         title: "Recipes",

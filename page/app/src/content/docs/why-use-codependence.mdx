@@ -1,21 +1,21 @@
 ---
 title: Why use Codependence?
-description: Codependence enforces dependency version policy where your code runs.
+description: Choose which dependencies to update and review the changes locally or in a pull request.
 ---
 
 <section>
 
 ## Why use Codependence?
 
-Use Codependence when dependency versions need a policy, not just occasional update PRs.
+For example, you can schedule Go updates for Fridays and review Docker base image updates in a separate pull request.
 
 - Define which packages must stay current or pinned
-- Manage every dependency manager from one `.codependencerc`
-- Fail CI when a manifest drifts from policy
+- Configure multiple dependency managers in one `.codependencerc`
+- Fail a CI check when a package needs an update
 - Update only listed packages, or update everything except listed packages
-- Scope manager policies across monorepos
+- Choose different packages to update in each workspace
 - Run locally, in npm scripts, in GitHub Actions, or through the Node API
-- Pair with Dependabot or Renovate instead of replacing them
+- [Open or refresh an update pull request with GitHub Actions.](/docs/github-action/)
 
 ---
 

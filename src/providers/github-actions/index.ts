@@ -14,7 +14,6 @@ import {
   defaultFetch,
   actionRepository,
   rememberVersionLabel,
-  versionLabelsFor,
   latestStableTag,
   apiHeaders,
   assertApiResponse,
@@ -22,6 +21,7 @@ import {
   readTagNames,
   readCommitSha,
   isShaPinnedRef,
+  isNamedRef,
   updateGitHubActionsUsesLine,
   parseManifest,
   capabilities,
@@ -34,6 +34,7 @@ export class GitHubActionsProvider implements DependencyProvider {
   private readonly apiUrl: string;
   private readonly fetch: GitHubFetch;
   private readonly headers: Record<string, string>;
+  private readonly branchTargets = new Map<string, string>();
 
   constructor(options: GitHubActionsProviderOptions = {}) {
     const environmentToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
@@ -44,7 +45,12 @@ export class GitHubActionsProvider implements DependencyProvider {
     this.headers = apiHeaders(token);
   }
 
-  async getLatestVersion(packageName: string): Promise<string> {
+  async getLatestVersion(packageName: string, currentVersion?: string): Promise<string> {
+    const hasNamedRef = currentVersion && isNamedRef(currentVersion);
+    if (hasNamedRef) {
+      return this.resolveVersionSpec(packageName, currentVersion);
+    }
+
     const repository = actionRepository(packageName);
     const version = await this.getLatestTag(repository);
     return this.resolveVersionSpec(packageName, version);
@@ -55,7 +61,9 @@ export class GitHubActionsProvider implements DependencyProvider {
 
     const repository = actionRepository(packageName);
     const sha = await this.getCommitSha(repository, version);
-    rememberVersionLabel(packageName, sha, version);
+    const isVersionLabel = !isNamedRef(version);
+    if (isVersionLabel) rememberVersionLabel(packageName, sha, version);
+    else this.branchTargets.set(`${packageName}@${version}`, sha);
     return sha;
   }
 
@@ -112,9 +120,17 @@ export class GitHubActionsProvider implements DependencyProvider {
   writeManifest(filePath: string, manifest: DependencyManifest): void {
     const content = readFileSync(filePath, "utf8");
     const lines = content.split("\n");
-    const versionLabels = versionLabelsFor(manifest.dependencies);
+    const branchLabel = (name: string, target: string, ref: string) => {
+      const matches = this.branchTargets.get(`${name}@${ref}`) === target;
+      return matches ? ref : undefined;
+    };
     const updatedLines = lines.map((line) =>
-      updateGitHubActionsUsesLine(line, manifest.dependencies, versionLabels),
+      updateGitHubActionsUsesLine(
+        line,
+        manifest.dependencies,
+        branchLabel,
+        manifest.resolvedDependencyVersions,
+      ),
     );
     const updated = updatedLines.join("\n");
     writeFileSync(filePath, updated);

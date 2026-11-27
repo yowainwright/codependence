@@ -1,3 +1,4 @@
+import { LANGUAGES } from "../../providers/constants";
 import { COMMON_PACKAGES } from "./constants";
 import type { ErrorContext } from "./types";
 
@@ -192,6 +193,9 @@ export const formatEnhancedError = (context: ErrorContext): string => {
   } = context;
 
   const errorStr = typeof err === "string" ? err : err.message;
+  const isNonNodeProvider = context.language && context.language !== LANGUAGES.NODEJS;
+  if (isNonNodeProvider) return formatProviderError(packageName, errorStr);
+
   const detectedPrivate = isPrivate ?? isPrivatePackage(err);
   const detectedRegistryMismatch = isRegistryMismatch ?? hasRegistryInError(err);
   const detectedTimeout = !isNetworkError && (timeout ?? isTimeout(err));
@@ -203,4 +207,9 @@ export const formatEnhancedError = (context: ErrorContext): string => {
   if (isNetworkError) return formatNetworkError(packageName);
 
   return formatGenericError(packageName, errorStr);
+};
+
+const formatProviderError = (packageName: string, errorStr: string): string => {
+  const lines = [`[x] Failed to fetch version for "${packageName}"`, "", `Error: ${errorStr}`];
+  return lines.join("\n");
 };

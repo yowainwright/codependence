@@ -1,9 +1,8 @@
-import { useLocation, Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { SIDEBAR } from "@/content/constants";
-import type { SideBarItemProps } from "@/types";
+import type { SidebarItem } from "@/types";
 
 type SideBarSectionProps = {
-  pathname: string;
   section: (typeof SIDEBAR)[number];
   onNavigate?: () => void;
 };
@@ -12,32 +11,29 @@ type SideBarProps = {
   onNavigate?: () => void;
 };
 
-function SideBarItem({ href, title, isActive, onNavigate }: SideBarItemProps & SideBarProps) {
-  const baseClass = "block py-1.5 pl-[20px] -ml-[10px] -mr-[16px] transition text-sm";
-  const activeClass = "text-primary border-l-2 border-primary";
-  const inactiveClass =
-    "border-l-2 border-transparent hover:border-foreground/30 hover:text-primary";
+function SideBarItem({ href, title, onNavigate }: SidebarItem & SideBarProps) {
   const slug = href.split("/").pop() ?? "";
-  const activeItemClass = `${baseClass} ${activeClass}`;
-  const inactiveItemClass = `${baseClass} ${inactiveClass}`;
-  const itemClass = isActive ? activeItemClass : inactiveItemClass;
 
   return (
     <li>
-      <Link to="/docs/$slug" params={{ slug }} className={itemClass} onClick={onNavigate}>
+      <Link
+        to="/docs/$slug"
+        params={{ slug }}
+        onClick={onNavigate}
+        className="-ml-px flex min-h-11 items-center rounded-r-md border-l-2 border-transparent px-3 py-1.5 text-base transition-colors hover:bg-primary/5 hover:text-primary aria-[current=page]:border-primary aria-[current=page]:bg-primary/5 aria-[current=page]:text-primary lg:min-h-0"
+      >
         {title}
       </Link>
     </li>
   );
 }
 
-function SideBarSection({ pathname, section, onNavigate }: SideBarSectionProps) {
+function SideBarSection({ section, onNavigate }: SideBarSectionProps) {
   const items = section.items.map((item) => (
     <SideBarItem
       key={item.href}
       href={item.href}
       title={item.title}
-      isActive={pathname === item.href}
       onNavigate={onNavigate}
     />
   ));
@@ -53,19 +49,17 @@ function SideBarSection({ pathname, section, onNavigate }: SideBarSectionProps) 
 }
 
 export function SideBar({ onNavigate }: SideBarProps) {
-  const { pathname } = useLocation();
   const sections = SIDEBAR.map((section) => (
     <SideBarSection
       key={section.title}
-      pathname={pathname}
       section={section}
       onNavigate={onNavigate}
     />
   ));
 
   return (
-    <nav aria-label="Documentation navigation" className="w-full bg-background font-sans">
-      <ul className="w-full px-4 py-0">{sections}</ul>
+    <nav aria-label="Documentation navigation" className="flex w-full flex-col items-center px-4 font-sans">
+      <ul className="w-full">{sections}</ul>
     </nav>
   );
 }

@@ -1,117 +1,120 @@
 ---
-title: Usage
-description: How to use Codependence
+title: Examples
+description: Reproduce a failing npm dependency check and update a Docker base image.
 ---
 
-<section>
+## Catch a mismatched package version
 
-## Getting Started
+Start in an empty directory with these two files. The app declares lodash `4.17.20`, but the project requires `4.17.21`.
 
-Use Codependence as a standalone CLI, in npm scripts, in CI, or as a Node utility.
-
-## Installation
-
-```bash
-npm install codependence --save-dev
-pnpm add codependence --save-dev
-bun add codependence --dev
-yarn add codependence --dev
-```
-
-## Agent Skills
-
-Install the legibility skill directly:
-
-```bash
-npx eslint-plugin-legibility-install-skill
-npx eslint-plugin-legibility-install-skill --target codex
-npx eslint-plugin-legibility-install-skill --target claude
-```
-
-This repo also has wrapper scripts:
-
-```bash
-nub run skills:install
-nub run skills:install:codex
-nub run skills:install:claude
-```
-
-Install into ignored project-local folders:
-
-```bash
-nub run skills:install:local
-nub run skills:install:codex:local
-nub run skills:install:claude:local
-```
-
-## Quick Setup
-
-Create the recommended root `.codependencerc` with manager targets from the [configuration guide](/docs/options/), then run every configured manager:
-
-```bash
-codependence
-codependence --update
-```
-
-For a one-off check without a config:
-
-```bash
-codependence --codependencies 'fs-extra' 'lodash'
-```
-
-Legacy projects can embed policy in the root `package.json`:
-
-```js
+```json title="package.json"
 {
-  "codependence": {
-    "codependencies": ["fs-extra", "lodash"]
-  },
-  "scripts": {
-    "update-codependencies": "codependence --update",
-    "prepare": "bun run update-codependencies"
+  "name": "web-app",
+  "private": true,
+  "dependencies": { "lodash": "4.17.20" }
+}
+```
+
+<CodeDemo label="Check the web app" steps={[
+  { line: 4, label: "Manifest", note: "This path selects the package.json beside the config file." },
+  { line: 6, label: "Required version", note: "The check compares the declared lodash version with 4.17.21. Other packages are outside this rule." },
+]}>
+
+```json title=".codependencerc"
+{
+  "config": {
+    "web": {
+      "path": "package.json",
+      "manager": "npm",
+      "codependencies": [{ "lodash": "4.17.21" }]
+    }
   }
 }
 ```
 
-Pin selected packages while updating the rest:
+</CodeDemo>
 
-```bash
-codependence --permissive --codependencies 'react' 'lodash' --update
+Run the check from that directory. The output lists lodash with current version `4.17.20` and available version `4.17.21`. The exit status is `1`.
+
+```sh
+npx codependence
 ```
 
-## Initialize Codependence
+Apply the update, then run the same check again.
 
-Quickly set up Codependence in your project with the interactive init command:
-
-```bash
-# Create the recommended root .codependencerc interactively
-codependence init
-
-# Create .codependencerc with all dependencies pinned (legacy mode)
-codependence init rc
-
-# Create .codependencerc with listed dependencies pinned
-codependence init rc react lodash
-
-# Legacy: add configuration to package.json with all dependencies pinned
-codependence init package
-
-# Generate split dependency update workflows
-codependence init actions
+```sh
+npx codependence --update
+npx codependence
 ```
 
-Configuration init:
+The second check exits with status `0`. Codependence updates lodash and fills in the empty dependency sections.
 
-- Interactive setup can create permissive mode configs (update all, pin specific ones)
-- Non-interactive setup can pin all dependencies or a listed dependency array
-- Scans `package.json` for dependencies
-- Choose strategy: 🚀 Permissive (recommended) or 🔒 Pin all
-- Recommends `.codependencerc`; embedded `package.json` configuration remains available for legacy projects
-- Handles missing files and invalid JSON
+<CodeDemo label="Inspect the package.json update" steps={[
+  { line: 5, label: "Lodash version", note: "The manifest now declares the exact version required by the policy." },
+]}>
 
-`codependence init actions` generates separate Node, Python, Go, Rust, Docker,
-and GitHub Actions workflows from configured manager targets.
+```diff title="package.json"
+   "name": "web-app",
+   "private": true,
+-  "dependencies": { "lodash": "4.17.20" }
++  "dependencies": {
++    "lodash": "4.17.21"
++  },
++  "devDependencies": {},
++  "peerDependencies": {},
++  "optionalDependencies": {}
+```
 
----
+</CodeDemo>
 
-</section>
+## Update a Docker base image
+
+In a second directory, create a Dockerfile that takes its Alpine version from a build argument.
+
+```text title="Dockerfile"
+ARG ALPINE_VERSION=3.19
+FROM alpine:${ALPINE_VERSION}
+RUN cat /etc/alpine-release
+```
+
+Save this policy alongside it. The `docker` manager checks the base image declaration. You can run the example without building an image.
+
+```json title=".codependencerc"
+{
+  "config": {
+    "container": {
+      "path": "Dockerfile",
+      "manager": "docker",
+      "codependencies": [{ "alpine": "3.20" }]
+    }
+  }
+}
+```
+
+Preview the change. The CLI reports `3.19` and `3.20` and leaves the Dockerfile untouched.
+
+```sh
+npx codependence --target docker --update --dryRun
+```
+
+Apply it and check the result.
+
+```sh
+npx codependence --target docker --update
+npx codependence --target docker
+```
+
+<CodeDemo label="Inspect the updated Dockerfile" steps={[
+  { line: 2, label: "Updated tag", note: "The FROM instruction reads this build argument. The next build uses Alpine 3.20." },
+]}>
+
+```diff title="Dockerfile"
+-ARG ALPINE_VERSION=3.19
++ARG ALPINE_VERSION=3.20
+ FROM alpine:${ALPINE_VERSION}
+ RUN cat /etc/alpine-release
+```
+
+</CodeDemo>
+
+[See all CLI and configuration options.](/docs/cli/)

@@ -6,18 +6,34 @@ import path from "path";
 import { compile } from "@mdx-js/mdx";
 import rehypeSlug from "rehype-slug";
 import rehypeShikiFromHighlighter from "@shikijs/rehype/core";
-import { createHighlighter, type Highlighter } from "shiki";
+import {
+  transformerMetaHighlight, transformerMetaWordHighlight, transformerNotationDiff,
+  transformerNotationErrorLevel, transformerNotationFocus, transformerNotationHighlight,
+  transformerNotationWordHighlight,
+} from "@shikijs/transformers";
+import { createHighlighter, type Highlighter, type ShikiTransformer } from "shiki";
 import remarkGfm from "remark-gfm";
+import light from "./src/styles/shiki-light.json" with { type: "json" };
+import dark from "./src/styles/shiki-dark.json" with { type: "json" };
+import { docsPages } from "./docs-pages.ts";
 import { FRONTMATTER_REGEX } from "./src/lib/mdx/constants.ts";
 
 const stripFrontmatter = (source: string) => source.replace(FRONTMATTER_REGEX, "");
+
+const fenceTitle: ShikiTransformer = {
+  name: "code-block-title",
+  pre(node) {
+    const title = this.options.meta?.__raw?.match(/\btitle="([^"]+)"/)?.[1];
+    if (title) node.properties["data-title"] = title;
+  },
+};
 
 let _highlighterPromise: Promise<Highlighter> | null = null;
 
 function getHighlighter(): Promise<Highlighter> {
   if (!_highlighterPromise) {
     _highlighterPromise = createHighlighter({
-      themes: ["github-light", "github-dark"],
+      themes: [{ ...light, type: "light" }, { ...dark, type: "dark" }],
       langs: ["javascript", "typescript", "json", "bash", "sh", "yaml", "markdown", "text", "diff"],
     });
   }
@@ -38,8 +54,16 @@ const codependenceMdx = (): Plugin => ({
           rehypeShikiFromHighlighter,
           hl,
           {
-            themes: { light: "github-light", dark: "github-dark" },
+            themes: { light: light.name, dark: dark.name },
             defaultColor: false,
+            defaultLanguage: "text",
+            fallbackLanguage: "text",
+            addLanguageClass: true,
+            transformers: [
+              transformerNotationDiff(), transformerNotationHighlight(), transformerNotationFocus(),
+              transformerNotationErrorLevel(), transformerNotationWordHighlight(),
+              transformerMetaHighlight(), transformerMetaWordHighlight(), fenceTitle,
+            ],
           },
         ],
       ],
@@ -50,11 +74,10 @@ const codependenceMdx = (): Plugin => ({
 
 export default defineConfig({
   base: "/codependence",
-  plugins: [codependenceMdx(), react(), tailwindcss()],
+  plugins: [codependenceMdx(), react(), tailwindcss(), docsPages()],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "./src"),
-      "@codependence/onboarding": path.resolve(import.meta.dirname, "../../src/cli/init/index.ts"),
     },
     dedupe: ["react", "react-dom"],
   },

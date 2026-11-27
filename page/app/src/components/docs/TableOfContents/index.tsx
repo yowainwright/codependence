@@ -1,70 +1,83 @@
-import React, { useEffect, useState } from "react";
-import type { HeadingLinkProps, TableOfContentsProps } from "./types";
-import { OBSERVER_OPTIONS } from "./constants";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { TableOfContentsProps } from "./types";
+import { HEADING_SELECTOR } from "./constants";
 
-function HeadingLink({ heading, activeId }: HeadingLinkProps) {
-  const isActive = activeId === heading.slug;
-  const baseClass = "block py-1 text-sm transition font-sans";
-  const activeClass = "text-primary font-medium";
-  const inactiveClass = "text-foreground/70 hover:text-primary";
-
-  return (
-    <li>
-      <a
-        href={`#${heading.slug}`}
-        className={`${baseClass} ${isActive ? activeClass : inactiveClass}`}
-      >
-        {heading.text}
-      </a>
-      {heading.subheadings && heading.subheadings.length > 0 && (
-        <ul className="ml-4">
-          {heading.subheadings.map((subheading) => (
-            <HeadingLink
-              key={subheading.slug}
-              heading={subheading}
-              activeId={activeId}
-            />
-          ))}
-        </ul>
-      )}
-    </li>
-  );
+function currentHeading(headings: HTMLElement[], offset: number) {
+  const remaining = document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
+  const atBottom = window.scrollY > 0 && remaining <= 1;
+  if (atBottom) return headings.at(-1);
+  return headings.findLast((heading) => heading.getBoundingClientRect().top <= offset + 1) ?? headings[0];
 }
 
-export function TableOfContents({ headings }: TableOfContentsProps) {
-  const [activeId, setActiveId] = useState<string>("");
+function revealActiveLink(nav: HTMLElement) {
+  const link = nav.querySelector('[aria-current="location"]');
+  if (!link) return;
+  const bounds = nav.getBoundingClientRect();
+  const { top, bottom } = link.getBoundingClientRect();
+  const delta = Math.min(0, top - bounds.top) + Math.max(0, bottom - bounds.bottom);
+  if (delta) nav.scrollBy({ top: delta, behavior: "instant" });
+}
+
+function useArticleHeadings({ articleRef }: TableOfContentsProps) {
+  const [headings, setHeadings] = useState<HTMLElement[]>([]);
+  const [activeId, setActiveId] = useState("");
 
   useEffect(() => {
-    if (headings.length === 0) return;
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          setActiveId(entry.target.id);
-        }
-      });
-    }, OBSERVER_OPTIONS);
-
-    const headingElements = document.querySelectorAll("h2[id], h3[id], h4[id]");
-    headingElements.forEach((element) => observer.observe(element));
-
+    const article = articleRef.current;
+    if (!article) return;
+    const targets = Array.from(article.querySelectorAll<HTMLElement>(HEADING_SELECTOR));
+    setHeadings(targets);
+    if (!targets.length) return;
+    const offset = parseFloat(getComputedStyle(targets[0]).scrollMarginTop);
+    const update = () => setActiveId(currentHeading(targets, offset)?.id ?? "");
+    const observer = new ResizeObserver(update);
+    observer.observe(article);
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    update();
     return () => {
-      headingElements.forEach((element) => observer.unobserve(element));
+      observer.disconnect();
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
     };
-  }, [headings]);
+  }, [articleRef]);
+
+  return { headings, activeId };
+}
+
+export function TableOfContents(props: TableOfContentsProps) {
+  const { headings, activeId } = useArticleHeadings(props);
+  const navRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    revealActiveLink(nav);
+    const observer = new ResizeObserver(() => revealActiveLink(nav));
+    observer.observe(nav);
+    return observer.disconnect.bind(observer);
+  }, [activeId]);
+
+  if (headings.length === 0) return null;
 
   return (
-    <div className="hidden xl:sticky xl:block xl:top-28">
-      <h2 className="mb-4 text-lg font-bold font-sans">On this page</h2>
-      <ul className="space-y-1">
+    <nav ref={navRef} aria-label="On this page" className="sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto">
+      <h2 className="mb-4 text-sm font-semibold">On this page</h2>
+      <ul className="space-y-1 border-l border-foreground/15">
         {headings.map((heading) => (
-          <HeadingLink
-            key={heading.slug}
-            heading={heading}
-            activeId={activeId}
-          />
+          <li key={heading.id}>
+            <a
+              href={`#${heading.id}`}
+              title={heading.textContent}
+              aria-current={activeId === heading.id ? "location" : undefined}
+              data-level={heading.tagName}
+              className="-ml-px block truncate border-l-2 border-transparent py-2 pl-3 pr-2 text-base text-foreground/70 data-[level=H3]:pl-6 data-[level=H4]:pl-9 aria-[current=location]:border-primary aria-[current=location]:bg-primary/5 aria-[current=location]:font-semibold aria-[current=location]:text-primary"
+            >
+              {heading.textContent}
+            </a>
+          </li>
         ))}
       </ul>
-    </div>
+    </nav>
   );
 }

@@ -196,6 +196,7 @@ export type VersionResolution = {
 
 export type ConstructVersionMapOptions = {
   codependencies: CodeDependencies;
+  language?: SupportedLanguage;
   exec?: ExecFunction;
   debug?: boolean;
   yarnConfig?: boolean;

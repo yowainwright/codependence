@@ -1,7 +1,5 @@
 import { lazy, Suspense } from "react";
-import { createRootRoute, createRoute, Outlet } from "@tanstack/react-router";
-import { HomeLayout } from "./layouts/HomeLayout";
-import { HomePage } from "./pages/HomePage";
+import { createRootRoute, createRoute, Outlet, redirect } from "@tanstack/react-router";
 
 const DocsLayout = lazy(() =>
   import("./layouts/DocsLayout").then((m) => ({ default: m.DocsLayout })),
@@ -15,16 +13,22 @@ const rootRoute = createRootRoute({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: () => (
-    <HomeLayout>
-      <HomePage />
-    </HomeLayout>
-  ),
+  beforeLoad: () => {
+    throw redirect({ to: "/docs/$slug", params: { slug: "introduction" }, replace: true });
+  },
 });
 
 const docsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/docs/$slug",
+  beforeLoad: ({ params, location }) => {
+    if (params.slug === "policy-surface") {
+      throw redirect({ to: "/docs/$slug", params: { slug: "supported-languages" }, search: location.search, hash: location.hash, replace: true });
+    }
+    if (params.slug === "options") {
+      throw redirect({ to: "/docs/$slug", params: { slug: "cli" }, hash: "configuration-options", replace: true });
+    }
+  },
   component: () => (
     <Suspense
       fallback={

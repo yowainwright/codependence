@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /codependence/
+
+Sitemap: https://jeffry.in/codependence/sitemap.xml

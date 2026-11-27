@@ -1,128 +1,958 @@
 ---
 title: CLI
-description: Command Line Interface for Codependence
+description: Run a dependency check, choose which files to update, and configure the CLI.
 ---
 
-<section>
+## Run a check
 
-## Overview
+Install Codependence in the project and run it from the directory that contains your policy.
 
-CLI-first policy tool for checking, reporting, and updating dependency versions.
-
-Install as a root devDependency and define every manager policy in one root `.codependencerc`.
-
-For monorepos, scope manager targets with `files` or `rootDir`. Running `codependence` loads the config once and executes every target.
-
-## Command Line Usage
-
-```bash
-Usage: codependence [command] [options]
-
-Commands:
-  init [type] [items...]            Initialize Codependence
-                                    Types: rc, package, default, actions
-
-Options:
-  -f, --files [files...]           File glob pattern
-  --target [managers...]           Run only selected manager targets
-  --version [manager=version...]   Exact tool versions for init actions
-  --post-update-command [name=cmd...] Override generated lockfile commands
-  --schedule [area=cron...]        Override generated workflow schedules
-  --token-secret <name>            GitHub PAT secret name for generated workflows
-  --force                           Replace generated workflow files
-  --lockfile [policy]              Require lockfiles, or pass false for manifest-only updates
-  -u, --update                      Update dependencies based on check
-  -r, --rootDir <rootDir>          Root directory to start search
-  -i, --ignore [ignore...]         Ignore glob pattern
-  --debug                           Enable debugging
-  --silent                          Enable mainly silent logging
-  -v, --verbose                     Enable verbose logging (shows debug info)
-  -q, --quiet                       Suppress all output except errors
-  -cds, --codependencies [deps...] Dependencies to check
-  -c, --config <config>            Path to a config file
-  -s, --searchPath <searchPath>    Path to do a config file search
-  -y, --yarnConfig                  Enable yarn config support
-  --permissive                      Update all deps except those in codependencies
-  --level <level>                   Update level: patch, minor, or major (default: major)
-  -m, --mode <mode>                verbose: only listed packages; precise: all except listed
-  -l, --language <lang>            Target language (nodejs, go, python, rust, circleci, docker, github-actions, helm, kubernetes, kustomize, terraform)
-  -h, --help                        Show this help message
-  --dryRun                          Show what would change without modifying files
-  --interactive                     Choose which packages to update interactively
-  --watch                           Watch for changes and re-check continuously
-  --noCache                         Disable version caching for fresh results
-  --format <type>                   Output format: json, markdown, or table (default: table)
-  --outputFile <path>               Write output to file instead of stdout
+```sh
+npm install --save-dev codependence
+npx codependence init config
+npx codependence
 ```
 
-## Commands
+> [!NOTE]
+> A check exits with status `1` when a dependency needs an update. Run `--update --dryRun` to see the proposed edits.
 
-### init
-
-Initialize codependence configuration interactively. This command helps you set up Codependence in your project.
-
-```bash
-codependence init
-codependence init rc
-codependence init rc react lodash
-codependence init package
-codependence init actions
+```sh
+npx codependence --update --dryRun
+npx codependence --update
 ```
 
-`codependence init actions` reads manager targets from `.codependencerc` and
-creates separate Node, Python, Go, Rust, Docker, and infrastructure workflows.
-Existing files require `--force`; missing exact tool versions use
-`--version manager=version`.
+## Configuration options
 
-## Options Reference
+Put a `.codependencerc` at the repository root. In this example, the CLI checks the lodash declaration in the web app’s manifest against `4.17.21`.
 
-### File and Directory Options
+```json title=".codependencerc"
+{
+  "config": {
+    "web": {
+      "path": "packages/web/package.json",
+      "manager": "npm",
+      "codependencies": [{ "lodash": "4.17.21" }]
+    }
+  }
+}
+```
 
-- `-f, --files [files...]` - Specify file glob patterns to check
-- `-r, --rootDir <rootDir>` - Set the root directory to start search
-- `-i, --ignore [ignore...]` - Specify glob patterns to ignore
-- `-s, --searchPath <searchPath>` - Path to search for config files
+| Field | What it controls |
+| --- | --- |
+| `path`, `manager` | The manifest path relative to the config file and the tool that owns it. Give each manifest a separate entry under `config`. |
+| `codependencies` | A name such as `"lodash"` looks up a version. An object such as `{ "lodash": "4.17.21" }` sets the required declaration. Node policies also accept ranges and trailing wildcards such as `"@team/*"`. |
+| `mode` | `verbose` checks the listed packages. `precise` holds them back and checks the rest. Existing configs can use `permissive: true` for precise mode. |
+| `level` | Allow `patch`, `minor`, or `major` updates. The default is `major`. |
+| `lockfile` | Set `true` to require a standard lockfile, or supply a relative path or list of paths. Each target can override the root setting. |
+| `rootDir`, `ignore` | Set the search directory and exclude files that match the listed globs. |
 
-### Update Options
+For glob-based selection, use a `targets` array with a `manager` and `files` on each target. Choose one root form per config file. Existing projects can also keep a policy under `codependence` in `package.json`.
 
-- `-u, --update` - Automatically update dependencies based on check results
-- `--permissive` - Update all dependencies to latest except those specified in codependencies
-- `--dryRun` - Preview what would change without modifying files
-- `--interactive` - Choose which packages to update interactively
-- `--level <level>` - Update level: `patch`, `minor`, or `major` (default: `major`)
-- `-m, --mode <mode>` - `verbose`: only listed packages; `precise`: all except listed
+### Supported managers
 
-### Configuration Options
+Use `npm`, `pnpm`, `yarn`, or `bun` for Node manifests. Experimental managers include `pip`, `pipenv`, `poetry`, `uv`, `conda`, `go`, `rust`, `docker`, `github-actions`, `circleci`, `helm`, `kubernetes`, `kustomize`, and `terraform`. For CircleCI, Helm, Kubernetes, Kustomize, and Terraform, give each dependency an explicit version in `verbose` mode.
 
-- `-c, --config <config>` - Path to an alternate config file; `.codependencerc` is auto-discovered
-- `-cds, --codependencies [deps...]` - Specify dependencies to check inline
-- `-y, --yarnConfig` - Enable yarn configuration support
+## Commands and arguments
 
-### Output Options
+### `codependence`
 
-- `--debug` - Enable debugging output
-- `--silent` - Enable mainly silent logging
-- `-v, --verbose` - Enable verbose logging (shows debug info)
-- `-q, --quiet` - Suppress all output except errors
-- `--format <type>` - Output format: `json`, `markdown`, or `table` (default: `table`)
-- `--outputFile <path>` - Write output to a file instead of stdout
+```sh
+npx codependence
+```
 
-### Performance Options
+<CodeDemo label="codependence diff" steps={[
+  { line: 2, label: "Lodash version", note: "The policy requires 4.17.21. Running the check leaves this edit for you to apply." },
+]}>
 
-- `--noCache` - Disable version caching for fresh results
-- `--watch` - Watch for changes and re-check continuously
+```diff title="package.json (required change)"
+-  "lodash": "4.17.20"
++  "lodash": "4.17.21"
+```
 
-### Language Options
+</CodeDemo>
 
-- `-l, --language <lang>` - Target language: `nodejs`, `go`, `python`, `rust`, `circleci`, `docker`, `github-actions`, `helm`, `kubernetes`, `kustomize`, or `terraform`
+With no command, check each configured target. A mismatch makes the check exit with status `1`.
 
-Node.js package manifests are stable. All non-Node providers are experimental while manifest coverage and update semantics settle.
+### `init [directory]`
 
-Docker requires explicit object pins in verbose mode. GitHub Actions supports explicit pins, latest release resolution, and precise mode. Helm checks `Chart.yaml` dependency entries with explicit object pins in verbose mode.
+```sh
+npx codependence init packages/web
+```
 
-### Testing Options
+<CodeDemo label="init diff" steps={[
+  { line: 2, label: "Changed line", note: "Choosing lodash during local setup adds it to the project policy." },
+]}>
 
-- `-t, --isTestingCLI` - Enable CLI only testing
-- `--isTesting` - Enable running function tests without overwriting
+```diff title="package.json (generated policy excerpt)"
++        "codependencies": [
++          "lodash"
++        ]
+```
 
-</section>
+</CodeDemo>
+
+Run guided setup in the current directory or the project directory you pass. Place positional arguments before flags.
+
+### `init config [directory]`
+
+```sh
+npx codependence init config packages/web
+```
+
+<CodeDemo label="init config diff" steps={[
+  { line: 2, label: "Changed line", note: "Choosing lodash during local setup adds it to the project policy." },
+]}>
+
+```diff title="package.json (generated policy excerpt)"
++        "codependencies": [
++          "lodash"
++        ]
+```
+
+</CodeDemo>
+
+Create or update configuration in the selected directory. This form skips installation and workflow generation.
+
+### `init actions [managers...]`
+
+```sh
+npx codependence init actions npm go
+```
+
+<CodeDemo label="init actions diff" steps={[
+  { line: 2, label: "Changed line", note: "The Go target gets its own update workflow." },
+]}>
+
+```diff title="Generated workflow files"
++.github/workflows/codependence-node.yml
++.github/workflows/codependence-go.yml
+```
+
+</CodeDemo>
+
+Generate GitHub Actions workflows for configured managers. Pass manager names to limit the generated workflows.
+
+### `init rc [packages...]`
+
+```sh
+npx codependence init rc react lodash
+```
+
+<CodeDemo label="init rc diff" steps={[
+  { line: 4, label: "Changed line", note: "Both package names become entries in the new policy." },
+]}>
+
+```diff title=".codependencerc"
++{
++  "codependencies": [
++    "react",
++    "lodash"
++  ]
++}
+```
+
+</CodeDemo>
+
+Legacy setup. Write the named dependencies to a flat `.codependencerc`. Omit the names to include dependencies discovered in `package.json`.
+
+### `init package [packages...]`
+
+```sh
+npx codependence init package react lodash
+```
+
+<CodeDemo label="init package diff" steps={[
+  { line: 4, label: "Changed line", note: "The policy lives inside package.json." },
+]}>
+
+```diff title="package.json (policy excerpt)"
++  "codependence": {
++    "codependencies": [
++      "react",
++      "lodash"
++    ]
++  }
+```
+
+</CodeDemo>
+
+Legacy setup. Embed the dependency list under `codependence` in `package.json`.
+
+### `init default [packages...]`
+
+```sh
+npx codependence init default lodash
+```
+
+<CodeDemo label="init default diff" steps={[
+  { line: 3, label: "Changed line", note: "This list tells Codependence which dependencies to check." },
+]}>
+
+```diff title=".codependencerc"
++{
++  "codependencies": [
++    "lodash"
++  ]
++}
+```
+
+</CodeDemo>
+
+Legacy spelling for writing a flat `.codependencerc` in the current directory.
+
+## Select files and policy
+
+### `--config <path>`
+
+```sh
+npx codependence --config ./config/.codependencerc
+```
+
+<CodeDemo label="--config diff" steps={[
+  { line: 2, label: "Lodash version", note: "The config file passed on the command line supplies this pin." },
+]}>
+
+```diff title="package.json (required by config/.codependencerc)"
+-  "lodash": "4.17.20"
++  "lodash": "4.17.21"
+```
+
+</CodeDemo>
+
+Read policy from a specific configuration file. Alias `-c`.
+
+### `--searchPath <directory>`
+
+```sh
+npx codependence --searchPath ./packages/web
+```
+
+<CodeDemo label="--searchPath diff" steps={[
+  { line: 2, label: "Changed line", note: "Discovery starts in the web workspace." },
+]}>
+
+```diff title="Config search starts here"
+-./
++./packages/web/
+```
+
+</CodeDemo>
+
+Start config discovery in the supplied directory. Alias `-s`.
+
+### `--target <managers...>`
+
+```sh
+npx codependence --target npm go
+```
+
+<CodeDemo label="--target diff" steps={[
+  { line: 3, label: "Changed line", note: "Leaving Docker out of the target list skips its check." },
+]}>
+
+```diff title="Selected managers"
+ npm
+ go
+-docker
+```
+
+</CodeDemo>
+
+Run only the named managers from the repository policy.
+
+### `--rootDir <directory>`
+
+```sh
+npx codependence --rootDir ./packages/web --files package.json
+```
+
+<CodeDemo label="--rootDir diff" steps={[
+  { line: 2, label: "Changed line", note: "File patterns now resolve from the web project." },
+]}>
+
+```diff title="Search root"
+-./
++./packages/web/
+```
+
+</CodeDemo>
+
+Resolve manifest globs from this directory. Alias `-r`.
+
+### `--files <patterns...>`
+
+```sh
+npx codependence --files 'packages/*/package.json'
+```
+
+<CodeDemo label="--files diff" steps={[
+  { line: 1, label: "Changed line", note: "The glob selects the two workspace manifests and skips the root manifest." },
+]}>
+
+```diff title="Selected manifests"
+-package.json
+ packages/web/package.json
+ packages/api/package.json
+```
+
+</CodeDemo>
+
+Check files matching these globs. Quote wildcards to pass them through the shell. Alias `-f`.
+
+### `--ignore <patterns...>`
+
+```sh
+npx codependence --files '**/package.json' --ignore '**/fixtures/**' '**/node_modules/**'
+```
+
+<CodeDemo label="--ignore diff" steps={[
+  { line: 2, label: "Changed line", note: "The ignore pattern drops this fixture from the check." },
+]}>
+
+```diff title="Selected manifests"
+ packages/web/package.json
+-tests/fixtures/package.json
+```
+
+</CodeDemo>
+
+Exclude matching paths from the file search. Alias `-i`.
+
+### `--language <language>`
+
+```sh
+npx codependence --language docker --files Dockerfile --codependencies alpine
+```
+
+<CodeDemo label="--language diff" steps={[
+  { line: 2, label: "Changed line", note: "This command checks Alpine in the Dockerfile." },
+]}>
+
+```diff title="Selected manifest"
+-package.json
++Dockerfile
+```
+
+</CodeDemo>
+
+Select a provider for a one-off run. Accepted values are `nodejs`, `python`, `go`, `rust`, `docker`, `github-actions`, `circleci`, `helm`, `kubernetes`, `kustomize`, and `terraform`. Alias `-l`.
+
+### `--codependencies <rules...>`
+
+```sh
+npx codependence --codependencies lodash react
+```
+
+<CodeDemo label="--codependencies diff" steps={[
+  { line: 3, label: "Changed line", note: "Only lodash and react are listed for this check." },
+]}>
+
+```diff title="Packages to check"
+ lodash
+ react
+-eslint
+```
+
+</CodeDemo>
+
+Pass one or more dependency names. Store an exact version or range in `.codependencerc`. Aliases `-cds` and `--cds`.
+
+### `--yarnConfig`
+
+```sh
+npx codependence --yarnConfig --codependencies lodash
+```
+
+<CodeDemo label="--yarnConfig diff" steps={[
+  { line: 2, label: "Changed line", note: "Uses Yarn for the lodash version lookup." },
+]}>
+
+```diff title="CLI invocation"
+-npx codependence --codependencies lodash
++npx codependence --yarnConfig --codependencies lodash
+```
+
+</CodeDemo>
+
+Use Yarn for Node dependency lookups. Alias `-y`.
+
+### `--lockfile [policy]`
+
+```sh
+npx codependence --lockfile pnpm-lock.yaml
+```
+
+<CodeDemo label="--lockfile diff" steps={[
+  { line: 1, label: "Changed line", note: "A missing pnpm lockfile stops the check before any edit." },
+]}>
+
+```diff title="Required lockfiles"
++pnpm-lock.yaml
+```
+
+</CodeDemo>
+
+Require a standard lockfile with `true`, supply a repository-relative lockfile path, or allow manifest-only changes with `false`.
+
+## Check and update
+
+### `--mode <mode>`
+
+```sh
+npx codependence --mode precise --codependencies react
+```
+
+<CodeDemo label="--mode diff" steps={[
+  { line: 2, label: "Changed line", note: "In this two-package example, precise mode holds back the listed react dependency and checks lodash." },
+]}>
+
+```diff title="Packages to check (verbose to precise)"
+-react
++lodash
+```
+
+</CodeDemo>
+
+`verbose` checks the listed packages. `precise` holds those packages back while checking the rest. Alias `-m`.
+
+### `--permissive`
+
+```sh
+npx codependence --permissive --codependencies react
+```
+
+<CodeDemo label="--permissive diff" steps={[
+  { line: 2, label: "Changed line", note: "In this two-package example, precise mode holds back the listed react dependency and checks lodash." },
+]}>
+
+```diff title="Packages to check (verbose to precise)"
+-react
++lodash
+```
+
+</CodeDemo>
+
+Hold the listed packages back and check the rest. This is the compatibility flag for precise mode.
+
+### `--level <level>`
+
+```sh
+npx codependence --level patch --update --dryRun
+```
+
+<CodeDemo label="--level diff" steps={[
+  { line: 2, label: "Lodash version", note: "The last version number changes. This update qualifies for the patch policy." },
+]}>
+
+```diff title="package.json (eligible patch)"
+-  "lodash": "4.17.20"
++  "lodash": "4.17.21"
+```
+
+</CodeDemo>
+
+Limit eligible updates to `patch`, `minor`, or `major`. The default is `major`.
+
+### `--update`
+
+```sh
+npx codependence --update
+```
+
+```json title=".codependencerc"
+{
+  "config": {
+    "app": {
+      "path": "package.json",
+      "manager": "npm",
+      "codependencies": [{ "lodash": "4.17.21" }]
+    }
+  }
+}
+```
+
+<CodeDemo label="--update diff" steps={[
+  { line: 2, label: "Lodash version", note: "Writes the pinned patch version to package.json." },
+]}>
+
+```diff title="package.json"
+-  "lodash": "4.17.20"
++  "lodash": "4.17.21"
+```
+
+</CodeDemo>
+
+Write eligible changes to the selected manifests. Alias `-u`.
+
+### `--dryRun`
+
+```sh
+npx codependence --update --dryRun
+```
+
+```json title=".codependencerc"
+{
+  "config": {
+    "app": {
+      "path": "package.json",
+      "manager": "npm",
+      "codependencies": [{ "lodash": "4.17.21" }]
+    }
+  }
+}
+```
+
+<CodeDemo label="--dryRun diff" steps={[
+  { line: 2, label: "Lodash version", note: "Proposed edit only. The file still declares 4.17.20." },
+]}>
+
+```diff title="package.json (preview)"
+-  "lodash": "4.17.20"
++  "lodash": "4.17.21"
+```
+
+</CodeDemo>
+
+Preview the edit. A pending update gives exit status `1`. Alias `--dry-run`.
+
+### `--interactive`
+
+```sh
+npx codependence --update --interactive
+```
+
+<CodeDemo label="--interactive diff" steps={[
+  { line: 2, label: "Lodash version", note: "Selecting lodash applies this edit." },
+]}>
+
+```diff title="package.json (after selecting lodash)"
+-  "lodash": "4.17.20"
++  "lodash": "4.17.21"
+```
+
+</CodeDemo>
+
+Choose which eligible updates to apply in the terminal.
+
+### `--watch`
+
+```sh
+npx codependence --watch
+```
+
+<CodeDemo label="--watch diff" steps={[
+  { line: 2, label: "Lodash version", note: "Saving this edit puts lodash below its pin. The next check reports it." },
+]}>
+
+```diff title="package.json (edit while watching)"
+-  "lodash": "4.17.21"
++  "lodash": "4.17.20"
+```
+
+</CodeDemo>
+
+Check immediately, then repeat every 30 seconds until interrupted.
+
+### `--noCache`
+
+```sh
+npx codependence --noCache --codependencies lodash
+```
+
+<CodeDemo label="--noCache diff" steps={[
+  { line: 2, label: "Changed line", note: "Requests fresh version metadata for lodash." },
+]}>
+
+```diff title="CLI invocation"
+-npx codependence --codependencies lodash
++npx codependence --noCache --codependencies lodash
+```
+
+</CodeDemo>
+
+Fetch version metadata again for packages that need a lookup. Alias `--no-cache`.
+
+## Output and diagnostics
+
+### `--format <format>`
+
+```sh
+npx codependence --format json
+```
+
+<CodeDemo label="--format diff" steps={[
+  { line: 4, label: "Changed line", note: "The CLI reports a mismatch with exit status 1." },
+]}>
+
+```diff title="JSON report (passing vs. outdated)"
+-  "status": "up-to-date",
+-  "exitCode": 0,
++  "status": "outdated",
++  "exitCode": 1,
+```
+
+</CodeDemo>
+
+Select `json`, `markdown`, or `table` output.
+
+### `--outputFile <path>`
+
+```sh
+npx codependence --format markdown --outputFile dependencies.md
+```
+
+<CodeDemo label="--outputFile diff" steps={[
+  { line: 1, label: "Changed line", note: "The Markdown report is written to this file, including when the check finds an outdated dependency." },
+]}>
+
+```diff title="dependencies.md (excerpt)"
++# Dependency Status
+```
+
+</CodeDemo>
+
+Save a formatted report to a file. Alias `--output-file`.
+
+### `--verbose`
+
+```sh
+npx codependence --verbose
+```
+
+<CodeDemo label="--verbose diff" steps={[
+  { line: 2, label: "Changed line", note: "Requests timing and cache statistics for this run." },
+]}>
+
+```diff title="CLI invocation"
+-npx codependence
++npx codependence --verbose
+```
+
+</CodeDemo>
+
+Include additional details such as runtime and cache statistics. Alias `-v`.
+
+### `--debug`
+
+```sh
+npx codependence --debug
+```
+
+<CodeDemo label="--debug diff" steps={[
+  { line: 2, label: "Changed line", note: "Enables diagnostics while resolving and checking dependencies." },
+]}>
+
+```diff title="CLI invocation"
+-npx codependence
++npx codependence --debug
+```
+
+</CodeDemo>
+
+Enable diagnostic logging for troubleshooting a check.
+
+### `--quiet`
+
+```sh
+npx codependence --quiet
+```
+
+<CodeDemo label="--quiet diff" steps={[
+  { line: 2, label: "Changed line", note: "Suppresses routine output. A mismatch still exits with status 1." },
+]}>
+
+```diff title="CLI invocation"
+-npx codependence
++npx codependence --quiet
+```
+
+</CodeDemo>
+
+Suppress normal output and show errors. Alias `-q`.
+
+### `--silent`
+
+```sh
+npx codependence --silent
+```
+
+<CodeDemo label="--silent diff" steps={[
+  { line: 2, label: "Changed line", note: "Runs the same check with routine messages suppressed." },
+]}>
+
+```diff title="CLI invocation"
+-npx codependence
++npx codependence --silent
+```
+
+</CodeDemo>
+
+Suppress routine status messages.
+
+### `--help`
+
+```sh
+npx codependence --help
+```
+
+<CodeDemo label="--help diff" steps={[
+  { line: 1, label: "Changed line", note: "The help screen starts with the command syntax." },
+]}>
+
+```diff title="Terminal output (excerpt)"
++Usage: codependence [command] [options]
+```
+
+</CodeDemo>
+
+Print command syntax, flags, and examples. Alias `-h`.
+
+### `--version [manager=version...]`
+
+```sh
+npx codependence --version
+npx codependence init actions go --version go=1.24.5
+```
+
+<CodeDemo label="--version diff" steps={[
+  { line: 1, label: "Changed line", note: "The version assignment pins Go for the generated workflow." },
+]}>
+
+```diff title="Generated Go workflow (action input)"
++          version: 1.24.5
+```
+
+</CodeDemo>
+
+Used alone, print the Codependence version. During setup, pass exact tool versions for generated workflows.
+
+### `--legend`
+
+```sh
+npx codependence --legend
+```
+
+<CodeDemo label="--legend diff" steps={[
+  { line: 1, label: "Changed line", note: "The legend explains the risk indicators used in the dependency report." },
+]}>
+
+```diff title="Terminal output (excerpt)"
++Dependency Risk Legend
+```
+
+</CodeDemo>
+
+Print the key for dependency risk indicators.
+
+### `--styleguide`
+
+```sh
+npx codependence --styleguide
+```
+
+<CodeDemo label="--styleguide diff" steps={[
+  { line: 1, label: "Changed line", note: "Choose this entry to preview the dependency table." },
+]}>
+
+```diff title="Component browser (menu excerpt)"
++Dependency tables
+```
+
+</CodeDemo>
+
+Browse the CLI’s terminal components and sample output. Alias `-sg`.
+
+## Setup and workflow options
+
+### `--enforcement <local|github|both>`
+
+```sh
+npx codependence init --enforcement local
+```
+
+<CodeDemo label="--enforcement diff" steps={[
+  { line: 2, label: "Changed line", note: "Choosing lodash during local setup adds it to the project policy." },
+]}>
+
+```diff title="package.json (generated policy excerpt)"
++        "codependencies": [
++          "lodash"
++        ]
+```
+
+</CodeDemo>
+
+Choose where guided setup will enforce the policy.
+
+### `--repository <owner/name>`
+
+```sh
+npx codependence init --enforcement github --repository example/web
+```
+
+<CodeDemo label="--repository diff" steps={[
+  { line: 1, label: "Changed line", note: "Setup uses this repository when it prints token instructions." },
+]}>
+
+```diff title="CLI invocation (repository argument)"
++--repository example/web
+```
+
+</CodeDemo>
+
+Use this GitHub repository when setting up GitHub enforcement and token instructions.
+
+### `--non-interactive`
+
+```sh
+npx codependence init config --non-interactive --mode verbose --codependencies lodash
+```
+
+<CodeDemo label="--non-interactive diff" steps={[
+  { line: 2, label: "Changed line", note: "The command supplies lodash, so setup can write the policy without prompting." },
+]}>
+
+```diff title="package.json (generated policy excerpt)"
++        "codependencies": [
++          "lodash"
++        ]
+```
+
+</CodeDemo>
+
+Supply setup choices as flags. This example writes a config that checks lodash without prompting.
+
+### `--skip-install`
+
+```sh
+npx codependence init --enforcement local --skip-install
+```
+
+<CodeDemo label="--skip-install diff" steps={[
+  { line: 2, label: "Changed line", note: "Setup writes the local policy and skips installing the CLI." },
+]}>
+
+```diff title="package.json (generated policy excerpt)"
++        "codependencies": [
++          "lodash"
++        ]
+```
+
+</CodeDemo>
+
+Skip installing the local CLI during guided setup.
+
+### `--post-update-command <name=command...>`
+
+```sh
+npx codependence init actions go --post-update-command 'go=go mod tidy'
+```
+
+<CodeDemo label="--post-update-command diff" steps={[
+  { line: 1, label: "Changed line", note: "The generated workflow runs go mod tidy after applying updates." },
+]}>
+
+```diff title="Generated Go workflow (action input)"
++          post-update-command: 'go mod tidy'
+```
+
+</CodeDemo>
+
+Set the command that refreshes a manager’s lockfile in a generated workflow.
+
+### `--schedule <area=cron...>`
+
+```sh
+npx codependence init actions go --schedule 'go=30 7 * * 5'
+```
+
+<CodeDemo label="--schedule diff" steps={[
+  { line: 2, label: "Changed line", note: "The workflow now runs on Fridays at 07:30 UTC." },
+]}>
+
+```diff title="Generated Go workflow"
+-    - cron: "0 9 * * 1"
++    - cron: "30 7 * * 5"
+```
+
+</CodeDemo>
+
+Set a UTC cron schedule for `node`, `python`, `go`, `rust`, `docker`, or `infrastructure`. This schedules Go updates for Fridays at 07:30 UTC.
+
+### `--token-secret <name>`
+
+```sh
+npx codependence init actions --token-secret DEPENDENCY_PR_TOKEN
+```
+
+<CodeDemo label="--token-secret diff" steps={[
+  { line: 2, label: "Changed line", note: "The workflow reads the token from this repository secret." },
+]}>
+
+```diff title="Generated workflow (action input)"
+-          token: ${{ secrets.CODEPENDENCE_TOKEN }}
++          token: ${{ secrets.DEPENDENCY_PR_TOKEN }}
+```
+
+</CodeDemo>
+
+Reference a repository secret by name in generated workflows.
+
+### `--force`
+
+```sh
+npx codependence init actions go --force
+```
+
+<CodeDemo label="--force diff" steps={[
+  { line: 2, label: "Changed line", note: "Regeneration replaces a locally edited schedule with the generator default." },
+]}>
+
+```diff title="Regenerated Go workflow (example)"
+-    - cron: "30 7 * * 5"
++    - cron: "0 9 * * 1"
+```
+
+</CodeDemo>
+
+> [!WARNING]
+> `--force` replaces existing generated workflow files. Review any local edits before regenerating them.
+
+## Test options
+
+### `--isTestingCLI`
+
+```sh
+npx codependence --files package.json --isTestingCLI
+```
+
+<CodeDemo label="--isTestingCLI diff" steps={[
+  { line: 1, label: "Changed line", note: "Prints the parsed file selection and exits before running a check." },
+]}>
+
+```diff title="Parsed options (excerpt)"
++  files: [ 'package.json' ]
+```
+
+</CodeDemo>
+
+Print the merged CLI options and return before running the check. Alias `-t`.
+
+### `--isTesting`
+
+```sh
+npx codependence --update --isTesting --codependencies lodash
+```
+
+<CodeDemo label="--isTesting diff" steps={[
+  { line: 2, label: "Changed line", note: "Runs the writer in test mode. The fixture stays on its original version." },
+]}>
+
+```diff title="CLI invocation"
+-npx codependence --update
++npx codependence --update --isTesting
+```
+
+</CodeDemo>
+
+Use the test execution path, which suppresses manifest writes and changes version lookup behavior. For a normal preview, use `--dryRun`.

@@ -1,19 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link, Navigate } from "@tanstack/react-router";
-import { getDocBySlug, getDocComponent, getDocContent, type DocComponent } from "@/content";
-import { extractHeadings } from "@/lib/mdx/extractHeadings";
+import { getDocBySlug, getDocComponent, type DocComponent } from "@/content";
 import { TableOfContents } from "@/components/docs/TableOfContents";
+import { CodeDemoProvider } from "@/components/docs/CodeDemo";
 import { mdxComponents } from "@/components/docs/MDXComponents";
 import { Pagination } from "@/components/docs/Pagination";
-import type { Heading } from "@/components/docs/TableOfContents/types";
 import type { BreadcrumbsProps, MdxContentProps } from "@/types";
 import { Separator } from "@/components/ui/separator";
+import { ChevronRightIcon } from "@/components/common/Icons";
 
 function useDocContent(slug: string) {
   const doc = getDocBySlug(slug);
 
   const [Content, setContent] = useState<DocComponent | null>(null);
-  const [headings, setHeadings] = useState<Heading[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,21 +24,11 @@ function useDocContent(slug: string) {
         return;
       }
 
-      const [rawContent, MDXContent] = await Promise.all([
-        getDocContent(slug),
-        getDocComponent(slug),
-      ]);
+      const MDXContent = await getDocComponent(slug);
 
       if (cancelled) return;
 
-      const isMissing = !rawContent || !MDXContent;
-      if (isMissing) {
-        setLoading(false);
-        return;
-      }
-
-      setHeadings(extractHeadings(rawContent));
-      setContent(() => MDXContent);
+      setContent(() => MDXContent ?? null);
       setLoading(false);
     }
 
@@ -51,47 +40,57 @@ function useDocContent(slug: string) {
     };
   }, [slug, doc]);
 
-  return { doc, Content, headings, loading };
+  return { doc, Content, loading };
 }
 
 export function DocsPage() {
   const { slug } = useParams({ from: "/docs/$slug" });
-  const { doc, Content, headings, loading } = useDocContent(slug);
+  const { doc, Content, loading } = useDocContent(slug);
+  const articleRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (doc) document.title = `${doc.title} | Codependence`;
+  }, [doc]);
 
   if (!doc) return <Navigate to="/docs/$slug" params={{ slug: "introduction" }} />;
 
   return (
-    <div className="flex p-5 md:p-10 md:pt-10 xl:gap-20 font-sans">
-      <article className="flex flex-col max-w-[620px]">
+    <div className="grid w-full min-w-0 max-w-[1240px] grid-cols-1 gap-x-10 px-4 sm:px-6 md:px-10 xl:grid-cols-[minmax(0,1fr)_15rem]">
+      <main className="mx-auto w-full min-w-0 max-w-[720px] py-4 md:py-6">
         <Breadcrumbs title={doc.title} />
-        <section className="prose dark:prose-invert md:prose-md mb-10 max-w-none">
-          <div>
-            <h1>{doc.title}</h1>
-            <p>{doc.description}</p>
-          </div>
-          <Separator className="my-5" />
+        <article ref={articleRef} className="docs-prose prose prose-base max-w-none break-words md:text-lg md:leading-7 dark:prose-invert prose-headings:scroll-mt-24 prose-a:text-primary">
+          {slug !== "introduction" && (
+            <>
+              <header>
+                <h1>{doc.title}</h1>
+                <p>{doc.description}</p>
+              </header>
+              <Separator className="my-4" />
+            </>
+          )}
           <MDXContent loading={loading} Content={Content} />
-        </section>
+        </article>
         <Separator className="my-6" />
         <Pagination slug={slug} />
-      </article>
-      <div>
-        <TableOfContents headings={headings} />
-      </div>
+      </main>
+      <aside className="hidden min-w-0 pb-10 pt-12 xl:block">
+        {!loading && Content && <TableOfContents articleRef={articleRef} />}
+      </aside>
     </div>
   );
 }
 
 function Breadcrumbs({ title }: BreadcrumbsProps) {
   return (
-    <nav aria-label="Breadcrumb" className="pt-0 pb-4 text-sm">
+    <nav aria-label="Breadcrumb" className="mb-3 text-base">
       <ol className="flex items-center gap-2">
         <li>
           <Link to="/" className="hover:text-primary">
             Home
           </Link>
         </li>
-        <li aria-current="page" className="text-primary">
+        <li aria-current="page" className="flex items-center gap-2">
+          <ChevronRightIcon className="size-3 text-foreground/50" />
           {title}
         </li>
       </ol>
@@ -114,5 +113,9 @@ function MDXContent({ loading, Content }: MdxContentProps) {
 
   if (!Content) return null;
 
-  return <Content components={mdxComponents as unknown as Record<string, React.ComponentType>} />;
+  return (
+    <CodeDemoProvider>
+      <Content components={mdxComponents as unknown as Record<string, React.ComponentType>} />
+    </CodeDemoProvider>
+  );
 }

@@ -5,39 +5,33 @@ import { Button } from "@/components/ui/button";
 
 export function Footer() {
   return (
-    <footer className="w-full px-4 sm:px-6 md:px-10 xl:px-28 py-6 sm:py-7 border-t border-surface-raised flex flex-col gap-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:items-center font-sans">
-      <div className="flex items-center justify-center sm:justify-start gap-2 order-3 sm:order-1">
-        <p className="text-sm sm:text-base text-center sm:text-left">
-          Copyright &copy; {new Date().getFullYear()} - All rights reserved
-        </p>
-      </div>
+    <footer className="grid h-16 w-full shrink-0 grid-cols-[1fr_auto_auto] items-center gap-2 border-t border-surface-raised px-4 font-sans sm:grid-cols-[1fr_auto_1fr] sm:px-6 md:px-10 xl:px-28">
+      <p className="text-sm sm:text-base">
+        Copyright &copy; {new Date().getFullYear()} - All rights reserved
+      </p>
 
-      <div className="flex items-center justify-center gap-2 order-1 sm:order-2">
-        <img
-          src={resolveUrl("logos/codependence.svg")}
-          alt="Codependence Logo"
-          className="h-12 w-12"
-        />
-      </div>
+      <img
+        src={resolveUrl("logos/codependence.svg")}
+        alt="Codependence Logo"
+        className="size-12"
+      />
 
-      <nav className="flex justify-center sm:justify-end order-2 sm:order-3">
-        <div className="grid grid-flow-col gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-12"
-            render={
-              <a
-                href={GITHUB_URL}
-                aria-label="GitHub"
-                target="_blank"
-                rel="noopener noreferrer"
-              />
-            }
-          >
-            <FaGithub size={20} />
-          </Button>
-        </div>
+      <nav className="justify-self-end">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-12"
+          render={
+            <a
+              href={GITHUB_URL}
+              aria-label="GitHub"
+              target="_blank"
+              rel="noopener noreferrer"
+            />
+          }
+        >
+          <FaGithub size={20} />
+        </Button>
       </nav>
     </footer>
   );

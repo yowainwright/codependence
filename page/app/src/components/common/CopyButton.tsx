@@ -1,45 +1,39 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, Check } from "lucide-react";
 import type { CopyButtonProps } from "@/types";
 import { Button } from "@/components/ui/button";
 
 export const CopyButton = ({ text }: CopyButtonProps) => {
-  const [isClicked, setIsClicked] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  const getTextToCopy = (button: HTMLButtonElement): string => {
-    if (text) return text;
-    return button.closest("div")?.querySelector("code")?.textContent ?? "";
-  };
+  useEffect(() => {
+    if (!copied) return;
+    const timeout = window.setTimeout(() => setCopied(false), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [copied]);
 
   const handleCopy = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const target = e.currentTarget;
-    const code = getTextToCopy(target);
-    if (!code) return;
+    const code = text ?? e.currentTarget.closest("figure")?.querySelector("pre code")?.textContent;
+    const canCopy = code && navigator.clipboard;
+    if (!canCopy) return;
 
     navigator.clipboard
       .writeText(code)
-      .then(() => {
-        setIsClicked(true);
-        target.disabled = true;
-        setTimeout(() => {
-          setIsClicked(false);
-          target.disabled = false;
-        }, 800);
-      })
+      .then(() => setCopied(true))
       .catch(() => {});
   };
 
-  const Icon = isClicked ? Check : Copy;
+  const Icon = copied ? Check : Copy;
 
   return (
     <Button
       variant="ghost"
-      size="icon"
-      className="size-12 rounded-s-none"
+      size="icon-sm"
+      className="mt-1 mr-1 text-muted-foreground transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100 motion-reduce:transition-none"
       onClick={handleCopy}
-      aria-label="Copy"
+      aria-label={copied ? "Copied" : "Copy code"}
     >
-      <Icon className="h-5 w-5 pointer-events-none" />
+      <Icon />
     </Button>
   );
 };

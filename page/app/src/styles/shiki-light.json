@@ -1,0 +1,56 @@
+{
+  "name": "pastoralist-light",
+  "type": "light",
+  "colors": {
+    "editor.background": "#f8fafc",
+    "editor.foreground": "#1e293b"
+  },
+  "tokenColors": [
+    { "scope": "markup.inserted.diff", "settings": { "foreground": "#17613b" } },
+    { "scope": "markup.deleted.diff", "settings": { "foreground": "#a32d35" } },
+    {
+      "scope": ["comment", "punctuation.definition.comment"],
+      "settings": { "foreground": "#64748b", "fontStyle": "italic" }
+    },
+    {
+      "scope": ["string", "string.quoted"],
+      "settings": { "foreground": "#16a34a" }
+    },
+    {
+      "scope": ["constant.numeric", "constant.language"],
+      "settings": { "foreground": "#d97706" }
+    },
+    {
+      "scope": ["keyword", "storage.type", "storage.modifier"],
+      "settings": { "foreground": "#8b5cf6" }
+    },
+    {
+      "scope": ["entity.name.function", "support.function"],
+      "settings": { "foreground": "#2563eb" }
+    },
+    {
+      "scope": ["entity.name.type", "entity.name.class", "support.type", "support.class"],
+      "settings": { "foreground": "#ec4899" }
+    },
+    {
+      "scope": ["variable", "variable.other"],
+      "settings": { "foreground": "#1e293b" }
+    },
+    {
+      "scope": ["variable.parameter"],
+      "settings": { "foreground": "#c2410c" }
+    },
+    {
+      "scope": ["punctuation", "meta.brace"],
+      "settings": { "foreground": "#475569" }
+    },
+    {
+      "scope": ["entity.name.tag"],
+      "settings": { "foreground": "#ec4899" }
+    },
+    {
+      "scope": ["entity.other.attribute-name"],
+      "settings": { "foreground": "#8b5cf6" }
+    }
+  ]
+}

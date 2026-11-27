@@ -132,6 +132,19 @@ describe("getSuggestionForPackage", () => {
 
 // eslint-disable-next-line max-lines-per-function -- Suite registration is declarative; test callbacks remain checked.
 describe("formatEnhancedError", () => {
+  test("reports the GitHub Actions lookup failure with the action name and provider error", () => {
+    const result = formatEnhancedError({
+      language: "github-actions",
+      packageName: "owner/action",
+      error: new Error("GitHub API request failed for owner/action: 404 Not Found"),
+    });
+    assert.strictEqual(result, [
+      '[x] Failed to fetch version for "owner/action"',
+      "",
+      "Error: GitHub API request failed for owner/action: 404 Not Found",
+    ].join("\n"));
+  });
+
   test("should format validation error", () => {
     const context: ErrorContext = {
       packageName: "invalid@package",

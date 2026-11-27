@@ -33,37 +33,37 @@ export function Pagination({ slug }: PaginationProps) {
   const { prevItem, nextItem } = getPagination(slug);
 
   return (
-    <div className="flex gap-7">
+    <nav aria-label="Adjacent documentation pages" className="flex gap-3 sm:gap-7">
       {prevItem && (
         <Button
-          variant="ghost"
+          variant="outline"
           render={
             <Link
               to="/docs/$slug"
               params={{ slug: getSlugFromHref(prevItem.href) }}
             />
           }
-          className="mr-auto h-12 rounded-full border-none px-4 text-xs font-medium hover:bg-muted md:text-sm"
+          className="mr-auto h-auto min-h-10 min-w-0 shrink rounded-full bg-surface px-4 py-2 text-xs whitespace-normal shadow-sm md:text-sm"
         >
-          <ChevronLeftIcon className="w-5 h-5" />
+          <ChevronLeftIcon className="size-6" />
           {prevItem.title}
         </Button>
       )}
       {nextItem && (
         <Button
-          variant="ghost"
+          variant="outline"
           render={
             <Link
               to="/docs/$slug"
               params={{ slug: getSlugFromHref(nextItem.href) }}
             />
           }
-          className="ml-auto h-12 rounded-full border-none px-4 text-xs font-medium hover:bg-muted md:text-sm"
+          className="ml-auto h-auto min-h-10 min-w-0 shrink rounded-full bg-surface px-4 py-2 text-xs whitespace-normal shadow-sm md:text-sm"
         >
           {nextItem.title}
-          <ChevronRightIcon className="w-5 h-5" />
+          <ChevronRightIcon className="size-6" />
         </Button>
       )}
-    </div>
+    </nav>
   );
 }
