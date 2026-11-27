@@ -1,26 +1,21 @@
 # Codependence
 
-> Codependence is a CLI-first dependency version policy tool. It checks, reports, and updates dependency versions across Node, Python, Go, Rust, Docker, GitHub Actions, and Helm from one root `.codependencerc`, locally, in CI, or as a GitHub Action.
+> Codependence updates dependencies across Node, Python, Go, Rust, Docker, GitHub Actions, and Helm. Use the CLI to preview and apply changes locally, or configure the GitHub Action to open scheduled update pull requests.
 
 Install as a root devDependency (`npm install codependence --save-dev`) and run `codependence` to check targets or `codependence --update` to apply policy. `codependence init actions` generates split scheduled workflows per manager area, each maintaining a stable pull-request branch such as `update-dependencies/docker`.
 
 ## Getting Started
 
-- [Introduction](https://jeffry.in/codependence/docs/introduction): Enforce dependency version policy locally, in CI, and across workspaces
-- [Main Use Case](https://jeffry.in/codependence/docs/main-usecase): Keep important versions intentional with per-manager targets
+- [Introduction](https://jeffry.in/codependence/docs/introduction): Pin lodash and update the other packages and Docker images in one pull request
 
 ## Usage
 
 - [CLI](https://jeffry.in/codependence/docs/cli): Commands, flags, and `.codependencerc` configuration
+- [Node.js API](https://jeffry.in/codependence/docs/node): Check manifests, inspect version diffs, and handle failures with checkFiles
 - [GitHub Action](https://jeffry.in/codependence/docs/github-action): Create small dependency update pull requests by manager
-- [Node.js](https://jeffry.in/codependence/docs/node): Use Codependence as a Node.js module for custom policy checks
-- [Options](https://jeffry.in/codependence/docs/options): Configuration options for targets, managers, and execution
-- [Usage Examples](https://jeffry.in/codependence/docs/usage): Standalone CLI, npm scripts, CI, and Node utility patterns
-
-## Advanced
-
-- [Policy Surface](https://jeffry.in/codependence/docs/policy-surface): What Codependence checks today and where policy can expand next
-- [Recipes](https://jeffry.in/codependence/docs/recipes): Common patterns and usage examples
+- [Usage Examples](https://jeffry.in/codependence/docs/usage): Reproduce a failing npm check and a Docker base image update
+- [Supported languages](https://jeffry.in/codependence/docs/supported-languages/): Supported files and working examples for Python, Go, and Rust
+- [Recipes](https://jeffry.in/codependence/docs/recipes): Check pnpm and Go manifests or save a JSON report
 
 ## Optional
 

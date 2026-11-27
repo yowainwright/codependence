@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, Link, Navigate } from "@tanstack/react-router";
 import { getDocBySlug, getDocComponent, type DocComponent } from "@/content";
 import { TableOfContents } from "@/components/docs/TableOfContents";
+import { CodeDemoProvider } from "@/components/docs/CodeDemo";
 import { mdxComponents } from "@/components/docs/MDXComponents";
 import { Pagination } from "@/components/docs/Pagination";
 import type { BreadcrumbsProps, MdxContentProps } from "@/types";
@@ -58,11 +59,15 @@ export function DocsPage() {
       <main className="mx-auto w-full min-w-0 max-w-[720px] py-4 md:py-6">
         <Breadcrumbs title={doc.title} />
         <article ref={articleRef} className="docs-prose prose prose-base max-w-none break-words md:text-lg md:leading-7 dark:prose-invert prose-headings:scroll-mt-24 prose-a:text-primary">
-          <header>
-            <h1>{doc.title}</h1>
-            <p>{doc.description}</p>
-          </header>
-          <Separator className="my-4" />
+          {slug !== "introduction" && (
+            <>
+              <header>
+                <h1>{doc.title}</h1>
+                <p>{doc.description}</p>
+              </header>
+              <Separator className="my-4" />
+            </>
+          )}
           <MDXContent loading={loading} Content={Content} />
         </article>
         <Separator className="my-6" />
@@ -108,5 +113,9 @@ function MDXContent({ loading, Content }: MdxContentProps) {
 
   if (!Content) return null;
 
-  return <Content components={mdxComponents as unknown as Record<string, React.ComponentType>} />;
+  return (
+    <CodeDemoProvider>
+      <Content components={mdxComponents as unknown as Record<string, React.ComponentType>} />
+    </CodeDemoProvider>
+  );
 }

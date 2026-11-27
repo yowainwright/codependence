@@ -5,17 +5,44 @@ description: Common patterns and usage examples for Codependence.
 
 <section>
 
-## Repository policy
+## Check a web app and a Go service
 
-Keep every manager target in the root `.codependencerc`. Running `codependence`
-checks all targets; `codependence --update` applies all target policies. See
-[Configuration Options](/docs/options/) for the target shape and supported
-managers.
+Give each manifest a name in the root `.codependencerc`. Here the web app uses pnpm and the API uses Go.
+
+<CodeDemo label="Check two manifests" steps={[
+  { line: 4, label: "Web app", note: "The web entry checks the package.json inside packages/web." },
+  { line: 9, label: "Go service", note: "The api entry reads go.mod in services/api. Both paths start at the directory containing this config." },
+]}>
+
+```json title=".codependencerc"
+{
+  "config": {
+    "web": {
+      "path": "packages/web/package.json",
+      "manager": "pnpm",
+      "mode": "precise"
+    },
+    "api": {
+      "path": "services/api/go.mod",
+      "manager": "go",
+      "mode": "precise"
+    }
+  }
+}
+```
+
+</CodeDemo>
+
+Run `codependence` to check both manifests. To preview just the Go updates, run:
+
+```sh
+codependence --target go --update --dryRun
+```
 
 ## One-off CLI check
 
 ```sh
-codependence --codependencies 'lodash' '{ \"fs-extra\": \"10.0.1\" }'
+codependence --codependencies lodash fs-extra
 ```
 
 ## Wildcard patterns (latest for all matches)
@@ -59,11 +86,34 @@ codependence --update --dryRun
 codependence --format json
 ```
 
-## Save output to a file
+## Save a report from a failing check
+
+Suppose the app declares lodash `4.17.20` and its policy requires `4.17.21`. Save the check result before updating.
 
 ```sh
-codependence --format json --outputFile deps.json
+codependence --format json --outputFile dependency-report.json
 ```
+
+The command exits with status `1`. This excerpt from `dependency-report.json` shows what failed.
+
+<CodeDemo label="Read the check result" steps={[
+  { line: 3, label: "Exit status", note: "A check with an outdated dependency exits with status 1, so CI can fail the job." },
+  { line: 6, label: "Outdated packages", note: "One dependency in this example needs an update: lodash." },
+]}>
+
+```json title="dependency-report.json (excerpt)"
+{
+  "status": "outdated",
+  "exitCode": 1,
+  "summary": {
+    "totalPackages": 1,
+    "outdated": 1,
+    "upToDate": 0
+  }
+}
+```
+
+</CodeDemo>
 
 ## Bypass cache for fresh results
 

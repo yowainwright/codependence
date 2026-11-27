@@ -1,0 +1,128 @@
+---
+title: Supported languages
+description: Find your dependency manager and try an update with Python, Go, or Rust.
+---
+
+## Supported languages and files
+
+Use the value in the **Manager** column for `manager` in `.codependencerc`. Node.js support is stable. The other providers are experimental.
+
+| Project | Manager | What Codependence updates |
+| --- | --- | --- |
+| Node.js | `npm`, `pnpm`, `yarn`, `bun` | Dependency declarations in `package.json` |
+| Python | `pip`, `pipenv`, `poetry`, `uv`, `conda` | Versions in `requirements.txt`, `Pipfile`, `pyproject.toml`, or `environment.yml` |
+| Go | `go` | Required module versions in `go.mod` |
+| Rust (Cargo) | `rust` | Crate versions in `Cargo.toml` |
+| Docker | `docker` | Base image references in a `Dockerfile` |
+| GitHub Actions | `github-actions` | Action references in workflow YAML, including commit SHAs |
+| CircleCI | `circleci` | Orb versions in `.circleci/config.yml` or `.circleci/config.yaml` |
+| Helm | `helm` | Dependency versions in `Chart.yaml` |
+| Kubernetes | `kubernetes` | Container image references in manifest YAML |
+| Kustomize | `kustomize` | Image versions in `kustomization.yaml` or `kustomization.yml` |
+| Terraform | `terraform` | Provider and module versions in `.tf` files |
+
+CircleCI, Helm, Kubernetes, Kustomize, and Terraform require explicit version pins in `verbose` mode. For a project with multiple managers, [see the pnpm and Go recipe](/docs/recipes/#check-a-web-app-and-a-go-service).
+
+The examples below assume Codependence is installed. Run each command from the directory containing `.codependencerc`. The first command previews the edit. The second applies it.
+
+## Python
+
+To update Requests in an existing `requirements.txt`, save this config beside it. For pip, `lockfile: false` allows a manifest-only update.
+
+```json title=".codependencerc"
+{
+  "config": {
+    "api": {
+      "path": "requirements.txt",
+      "manager": "pip",
+      "lockfile": false,
+      "codependencies": [{ "requests": "2.32.3" }]
+    }
+  }
+}
+```
+
+```sh
+codependence --target pip --update --dryRun
+codependence --target pip --update
+```
+
+<CodeDemo label="Requests update" steps={[
+  { line: 2, label: "Requests version", note: "The update writes the requested version to requirements.txt and keeps the == pin." },
+]}>
+
+```diff title="requirements.txt"
+-requests==2.28.0
++requests==2.32.3
+```
+
+</CodeDemo>
+
+## Go
+
+In a Go module that imports `github.com/lib/pq`, use that full module path as the dependency name.
+
+```json title=".codependencerc"
+{
+  "config": {
+    "service": {
+      "path": "go.mod",
+      "manager": "go",
+      "codependencies": [{ "github.com/lib/pq": "v1.10.9" }]
+    }
+  }
+}
+```
+
+```sh
+codependence --target go --update --dryRun
+codependence --target go --update
+```
+
+<CodeDemo label="Go module update" steps={[
+  { line: 2, label: "Module version", note: "The module now requires v1.10.9 of github.com/lib/pq." },
+]}>
+
+```diff title="go.mod"
+-require github.com/lib/pq v1.10.0
++require github.com/lib/pq v1.10.9
+```
+
+</CodeDemo>
+
+By default the Go updater runs `go mod tidy` after editing `go.mod`. Review `go.sum` along with the version change.
+
+## Rust
+
+For Cargo, use `"manager": "rust"`. This example updates the serde crate in `Cargo.toml`.
+
+```json title=".codependencerc"
+{
+  "config": {
+    "crate": {
+      "path": "Cargo.toml",
+      "manager": "rust",
+      "codependencies": [{ "serde": "1.0.210" }]
+    }
+  }
+}
+```
+
+```sh
+codependence --target rust --update --dryRun
+codependence --target rust --update
+```
+
+<CodeDemo label="Cargo dependency update" steps={[
+  { line: 3, label: "Crate version", note: "Cargo.toml now requires serde 1.0.210 or a compatible release." },
+]}>
+
+```diff title="Cargo.toml"
+ [dependencies]
+-serde = "1.0.190"
++serde = "1.0.210"
+```
+
+</CodeDemo>
+
+If you commit `Cargo.lock`, run `cargo update -p serde` and review the lockfile with the manifest.

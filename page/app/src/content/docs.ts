@@ -1,10 +1,10 @@
 import type { DocMeta } from "@/types";
 
 const INTRODUCTION_DESCRIPTION =
-  "Enforce dependency version policy locally, in CI, and across workspaces.";
-const POLICY_SURFACE_DESCRIPTION =
-  "What Codependence checks today and where version policy can expand next.";
-const WHY_USE_DESCRIPTION = "Codependence enforces dependency version policy where your code runs.";
+  "Codependence updates your project's dependencies. Apply updates locally or use the GitHub Action to open a pull request on a schedule.";
+const SUPPORTED_LANGUAGES_DESCRIPTION =
+  "Find your dependency manager and try an update with Python, Go, or Rust.";
+const WHY_USE_DESCRIPTION = "Choose which dependencies to update and review the changes locally or in a pull request.";
 const WHY_NOT_USE_DESCRIPTION =
   "Reasons why Codependence might not be the right choice for your project.";
 
@@ -15,14 +15,14 @@ export const DOCS: DocMeta[] = [
     description: INTRODUCTION_DESCRIPTION,
   },
   {
-    slug: "main-usecase",
-    title: "Main Use Case",
-    description: "Keep important versions intentional",
-  },
-  {
     slug: "cli",
     title: "CLI",
-    description: "Command Line Interface for Codependence",
+    description: "Run a dependency check, choose which files to update, and configure the CLI.",
+  },
+  {
+    slug: "node",
+    title: "Node",
+    description: "Check a manifest from Node, inspect proposed edits, and apply a dependency policy.",
   },
   {
     slug: "github-action",
@@ -30,24 +30,14 @@ export const DOCS: DocMeta[] = [
     description: "Create small dependency update pull requests by manager.",
   },
   {
-    slug: "node",
-    title: "Codependence in Node",
-    description: "How to use Codependence as a Node.js utility.",
-  },
-  {
-    slug: "options",
-    title: "Codependence Options",
-    description: "Configuration options for Codependence.",
-  },
-  {
     slug: "usage",
-    title: "Usage",
-    description: "How to use Codependence",
+    title: "Examples",
+    description: "Reproduce a failing npm dependency check and update a Docker base image.",
   },
   {
-    slug: "policy-surface",
-    title: "Policy Surface",
-    description: POLICY_SURFACE_DESCRIPTION,
+    slug: "supported-languages",
+    title: "Supported languages",
+    description: SUPPORTED_LANGUAGES_DESCRIPTION,
   },
   {
     slug: "recipes",

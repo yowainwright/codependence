@@ -13,7 +13,6 @@ import {
 } from "@shikijs/transformers";
 import { createHighlighter, type Highlighter, type ShikiTransformer } from "shiki";
 import remarkGfm from "remark-gfm";
-import manifest from "../../package.json" with { type: "json" };
 import light from "./src/styles/shiki-light.json" with { type: "json" };
 import dark from "./src/styles/shiki-dark.json" with { type: "json" };
 import { docsPages } from "./docs-pages.ts";
@@ -75,9 +74,6 @@ const codependenceMdx = (): Plugin => ({
 
 export default defineConfig({
   base: "/codependence",
-  define: {
-    "import.meta.env.CODEPENDENCE_VERSION": JSON.stringify(manifest.version),
-  },
   plugins: [codependenceMdx(), react(), tailwindcss(), docsPages()],
   resolve: {
     alias: {

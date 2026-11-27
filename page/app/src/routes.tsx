@@ -21,6 +21,14 @@ const indexRoute = createRoute({
 const docsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/docs/$slug",
+  beforeLoad: ({ params, location }) => {
+    if (params.slug === "policy-surface") {
+      throw redirect({ to: "/docs/$slug", params: { slug: "supported-languages" }, search: location.search, hash: location.hash, replace: true });
+    }
+    if (params.slug === "options") {
+      throw redirect({ to: "/docs/$slug", params: { slug: "cli" }, hash: "configuration-options", replace: true });
+    }
+  },
   component: () => (
     <Suspense
       fallback={

@@ -2,7 +2,7 @@
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Monaco, "Cascadia Mono", "Roboto Mono", Consolas, "Courier New", monospace;
 }
 
-.docs-prose :not(pre) > code {
+.docs-prose :not(pre, h2, h3, h4) > code {
   background-color: #f1f5f9;
   color: #1e293b;
   padding: 0.125rem 0.25rem;
@@ -12,13 +12,20 @@
   font-weight: 500;
 }
 
-[data-theme="codependence-dark"] .docs-prose :not(pre) > code {
+[data-theme="codependence-dark"] .docs-prose :not(pre, h2, h3, h4) > code {
   background-color: #334155;
   color: #e2e8f0;
   border-color: rgb(255 255 255 / 12%);
 }
 
 .docs-prose code::before, .docs-prose code::after { content: none; }
+
+.docs-prose :is(h2, h3, h4) > code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
 
 .shiki-header {
   position: relative;
@@ -106,7 +113,7 @@
 .shiki-wrapper:not(.show-line-numbers) .diff.add::before { content: "+"; color: #10b981; }
 .shiki-wrapper:not(.show-line-numbers) .diff.remove::before { content: "-"; color: #ef4444; }
 
-.shiki .line.highlighted {
+.shiki .line:is(.highlighted, [data-demo-active]) {
   --line-bg: var(--highlight);
   box-shadow: inset 3px 0 var(--accent-line), inset 0 0 0 1px rgb(37 99 235 / 16%);
 }
@@ -124,9 +131,47 @@
   filter: blur(0.5px);
 }
 
+.demo-code .shiki-wrapper .overflow-x-auto { padding-inline: 0; }
+
+@property --demo-border-angle {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 0deg;
+}
+
+.demo-tooltip, .demo-tooltip-arrow {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--popover), var(--popover)) padding-box,
+    conic-gradient(from var(--demo-border-angle), var(--primary), var(--accent), var(--secondary), var(--primary)) border-box;
+}
+
+.demo-tooltip-arrow {
+  left: -0.5rem;
+  width: 0.875rem;
+  height: 0.875rem;
+  rotate: 45deg;
+  border-width: 0 0 2px 2px;
+  border-bottom-left-radius: 2px;
+}
+
 @media (prefers-reduced-motion: no-preference) {
+  .demo-tooltip { animation: demo-border-turn 6s linear infinite; }
   .shiki .line.highlighted { animation: shiki-line-highlight 1.4s ease-out both; }
+  .demo-tooltip[data-enter] {
+    transform-origin: var(--transform-origin);
+    animation: callout-pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), demo-border-turn 6s linear infinite;
+  }
   .shiki code:has(.focused) .line > span { transition: opacity 0.2s, filter 0.2s; }
+}
+@keyframes demo-border-turn {
+  to { --demo-border-angle: 1turn; }
+}
+@keyframes callout-pop-in {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  80% { transform: scale(0.95); }
+  100% { transform: scale(1); }
 }
 @keyframes shiki-line-highlight {
   0% {

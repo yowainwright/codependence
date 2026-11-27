@@ -32,12 +32,20 @@ Schedule keys are `node`, `python`, `go`, `rust`, `docker`, and
 Manager targets come from the root `.codependencerc`. Versioned targets require
 an exact tool version.
 
-```yaml
-- uses: yowainwright/codependence@v1
+<CodeDemo label="Explore the Bun workflow step" steps={[
+  { line: 1, label: "Load the action", note: "The commit SHA pins this step to the v1.1.1 release." },
+  { line: 3, label: "Target Bun", note: "This run selects the Bun targets from the repository policy. Other managers can run on their own schedules." },
+  { line: 4, label: "Pin the runtime", note: "The runner uses Bun 1.3.14 for this job. The action version is set separately on the uses line." },
+]}>
+
+```yaml title="Bun workflow step"
+- uses: yowainwright/codependence@add92453b85ffafb511988545fc153ba25b04792 # v1.1.1
   with:
     targets: bun
     version: 1.3.14
 ```
+
+</CodeDemo>
 
 Use separate scheduled workflows for `bun`, `go`, `uv`, `docker`,
 `github-actions`, and `helm`. Each manager set has a stable branch, so reruns
@@ -57,10 +65,10 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: yowainwright/codependence@v1
+      - uses: yowainwright/codependence@add92453b85ffafb511988545fc153ba25b04792 # v1.1.1
         with:
           targets: go
           version: 1.24.5

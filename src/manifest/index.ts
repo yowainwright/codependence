@@ -1202,6 +1202,16 @@ const applyManifestUpdates = async (
   }
 
   const updatedManifest = constructJson(loadedManifest.manifest, depsToUpdate, isDebugging);
+  const updatedNames = new Set(depsToUpdate.depList.map(({ name }) => name));
+  const recorded = Object.entries<readonly string[]>(loadedManifest.manifest.dependencyVersions ?? {});
+  const held = recorded.filter(([name]) => !updatedNames.has(name));
+  if (held.length) {
+    const unchanged = held.map(([name, versions]) => [name, unchangedVersionResolutions(versions)]);
+    updatedManifest.resolvedDependencyVersions = {
+      ...updatedManifest.resolvedDependencyVersions,
+      ...Object.fromEntries(unchanged),
+    };
+  }
   await loadedManifest.provider.writeManifest(loadedManifest.path, updatedManifest);
 };
 
@@ -1650,8 +1660,8 @@ const manifestVersionsFor = (manifest: DependencyManifest, packageName: string):
   return version ? [version] : [];
 };
 
-const unchangedVersionResolutions = (versions: Record<string, string>): Record<string, string> => {
-  const entries = Object.keys(versions).map((version) => [version, version]);
+const unchangedVersionResolutions = (versions: readonly string[]): Record<string, string> => {
+  const entries = versions.map((version) => [version, version]);
   return Object.fromEntries(entries);
 };
 
@@ -1662,7 +1672,7 @@ const selectedVersionResolutions = (
   const entries = Object.entries(resolutions).map(([name, versions]) => {
     const isSelected = versionMap[name] !== undefined;
     if (isSelected) return [name, versions];
-    const unchangedVersions = unchangedVersionResolutions(versions);
+    const unchangedVersions = unchangedVersionResolutions(Object.keys(versions));
     return [name, unchangedVersions];
   });
   return Object.fromEntries(entries);

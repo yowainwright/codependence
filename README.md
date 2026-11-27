@@ -5,17 +5,17 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/yowainwright/codependence/badge)](https://scorecard.dev/viewer/?uri=github.com/yowainwright/codependence)
 [![codecov](https://codecov.io/gh/yowainwright/codependence/branch/main/graph/badge.svg)](https://codecov.io/gh/yowainwright/codependence)
 
-#### One configuration for every dependency manager.
+**One configuration for every dependency manager.**
 
 **Codependence** checks and updates dependency versions using [one-to-many](https://en.wikipedia.org/wiki/One-to-many_%28data_model%29) project policies with support for Node, Python, Go, Rust, Docker, GitHub Actions, and Helm.
 
-This means you control how you update and why you update. Versus other tools, Codependence caters to a project's context vs a dependency's context.
+This means you control how you update and why you update dependenceis. Versus other tools, Codependence caters to a project's context vs a dependency's context. 
 
 ---
 
 ## Main use case
 
-### Pin what matters and update the rest
+**Pin what matters and update the rest**
 
 Suppose a project must stay on React `^19.0.0`, but its other dependencies should keep moving. Add that policy to `.codependencerc`:
 

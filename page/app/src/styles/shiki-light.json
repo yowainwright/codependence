@@ -6,6 +6,8 @@
     "editor.foreground": "#1e293b"
   },
   "tokenColors": [
+    { "scope": "markup.inserted.diff", "settings": { "foreground": "#17613b" } },
+    { "scope": "markup.deleted.diff", "settings": { "foreground": "#a32d35" } },
     {
       "scope": ["comment", "punctuation.definition.comment"],
       "settings": { "foreground": "#64748b", "fontStyle": "italic" }

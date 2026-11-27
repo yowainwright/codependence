@@ -7,13 +7,9 @@ description: "A summary of Codependence"
 
 ## Synopsis
 
-Dependency-policy CLI that loads one `.codependencerc` and checks each configured manager against its manifests, images, or workflow references.
+Run `codependence` to see which dependencies need an update. It reads the list of files and packages to check from `.codependencerc`.
 
-For each target, Codependence checks whether versions are current or match the configured policy. It returns pass/fail or updates supported files.
-
-Ensures important dependency versions are intentional: current where they should move, pinned where they should not, and consistent across a repo or monorepo.
-
-**Codependencies:** Project dependencies that must stay current or set to a specific version. When `latest` cannot be specified in `package.json`, Codependence ensures the actual latest semver version is set.
+Use `codependence --update --dryRun` to preview the edits, then `codependence --update` to write them. To review updates in pull requests, [set up the GitHub Action](/docs/github-action/).
 
 ---
 

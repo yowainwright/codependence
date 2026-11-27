@@ -1,115 +1,888 @@
 ---
-title: Codependence in Node
-description: How to use Codependence as a Node.js utility.
+title: Node
+description: Check a manifest from Node, inspect proposed edits, and apply a dependency policy.
 ---
 
-<section>
+## Check a manifest from a script
 
-## Overview
+Suppose your project requires lodash `4.17.21` but its manifest still declares `4.17.20`. Start with this file in an empty directory.
 
-Although Codependence is built primarily as a CLI utility, it can also be used as a Node.js module for custom policy checks and internal tooling.
-
-```ts
-import { checkFiles } from "codependence";
-
-const checkPolicy = async () => {
-  try {
-    await checkFiles({
-      codependencies: ["fs-extra", "lodash"],
-    });
-    console.log("Dependency policy passed");
-  } catch (error) {
-    console.error("Dependency policy failed", error);
-  }
-};
-
-checkPolicy();
-```
-
-To pin selected packages while updating everything else, enable permissive mode:
-
-```ts
-import { codependence } from "codependence";
-
-await codependence({
-  codependencies: ["fs-extra", "lodash"],
-  permissive: true,
-  update: true,
-});
-```
-
-## API Reference
-
-### Basic Usage
-
-The `codependence` function accepts an options object with the same parameters as the CLI:
-
-```ts
-interface CodependenceOptions {
-  codependencies?: Array<string | Record<string, string>>;
-  files?: string[];
-  update?: boolean;
-  rootDir?: string;
-  ignore?: string[];
-  debug?: boolean;
-  silent?: boolean;
-  verbose?: boolean;
-  quiet?: boolean;
-  yarnConfig?: boolean;
-  permissive?: boolean;
+```json title="package.json"
+{
+  "name": "policy-example",
+  "private": true,
+  "dependencies": { "lodash": "4.17.20" }
 }
 ```
 
-## Examples
+Run `npm install --save-dev codependence`. Save the following script beside `package.json` and run `node check.mjs` from that directory. The CLI reads repository configuration. When calling the Node API, pass the files and policy directly.
 
-### Check Specific Dependencies
+```javascript title="check.mjs"
+import { checkFiles } from "codependence";
 
-```ts
+try {
+  await checkFiles({
+    files: ["package.json"],
+    codependencies: [{ lodash: "4.17.21" }],
+  });
+} catch (error) {
+  process.stderr.write(String(error) + "\n");
+  process.exitCode = 1;
+}
+```
+
+The version mismatch rejects the promise. The script exits with status `1` and leaves `package.json` untouched. Once the declaration matches, the check resolves.
+
+## Inspect the proposed edits
+
+For a report, pass `format: "json"`. In Node this collects JavaScript objects. Your script chooses how to display them and what exit status to return.
+
+```javascript title="report.mjs"
+import { checkFiles } from "codependence";
+
+const diffs = await checkFiles({
+  files: ["package.json"],
+  codependencies: [{ lodash: "4.17.21" }],
+  format: "json",
+});
+
+for (const diff of diffs ?? []) {
+  if (diff.willUpdate) {
+    process.stdout.write(`${diff.package}: ${diff.current} -> ${diff.latest}\n`);
+  }
+}
+```
+
+Run `node report.mjs` before applying the update. It prints:
+
+```text
+lodash: 4.17.20 -> 4.17.21
+```
+
+Each `VersionDiff` includes the package name, its current declaration, the target version (`latest`), whether the package is listed in the policy (`isPinned`), and whether it qualifies for an edit (`willUpdate`). The return type is `Promise<VersionDiff[] | void>`. A formatted call can still reject, for example when a required lockfile is missing.
+
+## Apply the edit
+
+```javascript title="update.mjs"
 import { checkFiles } from "codependence";
 
 await checkFiles({
-  codependencies: [{ react: "^18.0.0" }, { typescript: "^5.0.0" }],
-  update: false,
-});
-```
-
-### Update Dependencies in Monorepo
-
-```ts
-import { codependence } from "codependence";
-
-await codependence({
-  files: ["packages/*/package.json"],
-  codependencies: ["eslint", "prettier"],
-  permissive: true,
+  files: ["package.json"],
+  codependencies: [{ lodash: "4.17.21" }],
   update: true,
-  rootDir: process.cwd(),
 });
 ```
 
-### Repository configuration
+Run `node update.mjs`, then `node check.mjs` again. The declaration now reads `"lodash": "4.17.21"` and the check passes. Run `npm install` to refresh the lockfile and installed packages.
 
-The CLI and GitHub Action automatically load the root `.codependencerc`. The
-Node API accepts policy options directly for custom tooling.
+## Exports
 
-## Return Values
+### `checkFiles(options)`
 
-The function resolves when the policy passes or updates complete. When `format`, `dryRun`, or update output is enabled, it can return version-diff data for reporting.
+Run `node example.mjs`.
 
-## Error Handling
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
 
-Wrap calls in try-catch blocks to handle errors:
-
-```ts
-import { codependence } from "codependence";
-
-try {
-  await codependence({
-    codependencies: ["lodash"],
-  });
-} catch (error) {
-  console.error("Codependence check failed:", error);
-}
+const diffs = await checkFiles({
+  files: ["package.json"],
+  codependencies: [{ lodash: "4.17.21" }],
+  format: "json",
+});
 ```
 
-</section>
+<CodeDemo label="checkFiles(options) diff" steps={[
+  { line: 2, label: "Lodash version", note: "The policy requires 4.17.21. Running the check leaves this edit for you to apply." },
+]}>
+
+```diff title="package.json (required change)"
+-  "lodash": "4.17.20"
++  "lodash": "4.17.21"
+```
+
+</CodeDemo>
+
+Check the manifests selected by a `CheckFiles` object. A plain check rejects when a version needs updating. Request `format` to collect diff records and handle the result yourself.
+
+### `codependence(options)`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { codependence } from "codependence";
+
+await codependence({ codependencies: [{ lodash: "4.17.21" }] });
+```
+
+<CodeDemo label="codependence(options) diff" steps={[
+  { line: 2, label: "Lodash version", note: "The policy requires 4.17.21. Running the check leaves this edit for you to apply." },
+]}>
+
+```diff title="package.json (required change)"
+-  "lodash": "4.17.20"
++  "lodash": "4.17.21"
+```
+
+</CodeDemo>
+
+The named `codependence` export is an alias for `checkFiles`.
+
+### Default import
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import check from "codependence";
+
+await check({ codependencies: [{ lodash: "4.17.21" }] });
+```
+
+<CodeDemo label="Default import diff" steps={[
+  { line: 2, label: "Changed line", note: "Both imports expose the same check function." },
+]}>
+
+```diff title="example.mjs"
+-import { checkFiles as check } from "codependence";
++import check from "codependence";
+```
+
+</CodeDemo>
+
+The default export calls the same function as `checkFiles`.
+
+### `script(options)`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { script } from "codependence";
+
+await script({ codependencies: [{ lodash: "4.17.21" }] });
+```
+
+<CodeDemo label="script(options) diff" steps={[
+  { line: 4, label: "Changed line", note: "This call resolves even when lodash fails the check." },
+]}>
+
+```diff title="example.mjs"
+-import { checkFiles } from "codependence";
++import { script } from "codependence";
+-await checkFiles(options);
++await script(options);
+```
+
+</CodeDemo>
+
+Run a check and absorb its failures.
+
+> [!IMPORTANT]
+> `script` resolves to `undefined` even when a check fails. Use `checkFiles` when CI needs to report the error.
+
+### `schema`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { schema } from "codependence";
+
+const managers = schema.definitions.manager.enum;
+```
+
+<CodeDemo label="schema diff" steps={[
+  { line: 1, label: "Changed line", note: "The exported schema includes pnpm in this list." },
+]}>
+
+```diff title="example.mjs"
++const managers = schema.definitions.manager.enum;
+```
+
+</CodeDemo>
+
+Read the JSON Schema for repository configuration. The same schema is published at `codependence/schema.json`.
+
+## Select manifests
+
+### `files`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  files: ["packages/*/package.json"],
+});
+```
+
+<CodeDemo label="files diff" steps={[
+  { line: 1, label: "Changed line", note: "The glob selects the two workspace manifests and skips the root manifest." },
+]}>
+
+```diff title="Selected manifests"
+-package.json
+ packages/web/package.json
+ packages/api/package.json
+```
+
+</CodeDemo>
+
+`string[]`. Select manifests by path or glob relative to `rootDir`. Default patterns depend on the language.
+
+### `rootDir`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  rootDir: "packages/web",
+});
+```
+
+<CodeDemo label="rootDir diff" steps={[
+  { line: 2, label: "Changed line", note: "File patterns now resolve from the web project." },
+]}>
+
+```diff title="Search root"
+-./
++./packages/web/
+```
+
+</CodeDemo>
+
+`string`. Set the root for file discovery. The default is the current working directory.
+
+### `ignore`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  files: ["**/package.json"],
+  ignore: ["**/node_modules/**", "**/fixtures/**"],
+});
+```
+
+<CodeDemo label="ignore diff" steps={[
+  { line: 2, label: "Changed line", note: "The ignore pattern drops this fixture from the check." },
+]}>
+
+```diff title="Selected manifests"
+ packages/web/package.json
+-tests/fixtures/package.json
+```
+
+</CodeDemo>
+
+`string[]`. Exclude paths from discovery. Include the `node_modules` glob when supplying your own exclusion list.
+
+### `language`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  language: "docker",
+  files: ["Dockerfile"],
+  codependencies: [{ alpine: "3.20" }],
+});
+```
+
+<CodeDemo label="language diff" steps={[
+  { line: 2, label: "Changed line", note: "The Docker policy requires this base image tag. The check reports the mismatch." },
+]}>
+
+```diff title="Dockerfile (required change)"
+-FROM alpine:3.19
++FROM alpine:3.20
+```
+
+</CodeDemo>
+
+`SupportedLanguage`. Select the manifest provider explicitly. This example checks the tag on an Alpine base image in a Dockerfile.
+
+### `packageManager`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  packageManager: "pnpm",
+});
+```
+
+<CodeDemo label="packageManager diff" steps={[
+  { line: 1, label: "Changed line", note: "Selects pnpm for this manifest." },
+]}>
+
+```diff title="example.mjs (checkFiles options)"
++  packageManager: "pnpm",
+```
+
+</CodeDemo>
+
+`DependencyManager`. Specify the manager for a manifest, for example pnpm for a Node project or uv for a Python project.
+
+### `yarnConfig`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  yarnConfig: true,
+  codependencies: ["lodash"],
+});
+```
+
+<CodeDemo label="yarnConfig diff" steps={[
+  { line: 1, label: "Changed line", note: "Looks up lodash using Yarn." },
+]}>
+
+```diff title="example.mjs (checkFiles options)"
++  yarnConfig: true,
+```
+
+</CodeDemo>
+
+`boolean`, default `false`. Select Yarn for Node package lookups.
+
+### `lockfile`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  lockfile: ["pnpm-lock.yaml"],
+});
+```
+
+<CodeDemo label="lockfile diff" steps={[
+  { line: 1, label: "Changed line", note: "The check rejects if this file is missing." },
+]}>
+
+```diff title="example.mjs (checkFiles options)"
++  lockfile: ["pnpm-lock.yaml"],
+```
+
+</CodeDemo>
+
+`boolean | string | string[]`. Require a standard lockfile with `true` or specify the paths that must exist. A missing required file rejects the call before edits.
+
+## Choose eligible updates
+
+### `codependencies`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+});
+```
+
+<CodeDemo label="codependencies diff" steps={[
+  { line: 2, label: "Lodash version", note: "The policy requires 4.17.21. Running the check leaves this edit for you to apply." },
+]}>
+
+```diff title="package.json (required change)"
+-  "lodash": "4.17.20"
++  "lodash": "4.17.21"
+```
+
+</CodeDemo>
+
+`Array<string | Record<string, string>>`. A name requests a lookup. An object sets the required version declaration.
+
+### `mode`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  mode: "precise",
+  codependencies: ["react"],
+});
+```
+
+<CodeDemo label="mode diff" steps={[
+  { line: 2, label: "Changed line", note: "In this two-package example, precise mode holds back the listed react dependency and checks lodash." },
+]}>
+
+```diff title="Packages to check (verbose to precise)"
+-react
++lodash
+```
+
+</CodeDemo>
+
+`"verbose" | "precise"`. Verbose mode checks the listed dependencies. Precise mode checks the others and holds the listed packages back.
+
+### `permissive`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  permissive: true,
+  codependencies: ["react"],
+});
+```
+
+<CodeDemo label="permissive diff" steps={[
+  { line: 2, label: "Changed line", note: "In this two-package example, precise mode holds back the listed react dependency and checks lodash." },
+]}>
+
+```diff title="Packages to check (verbose to precise)"
+-react
++lodash
+```
+
+</CodeDemo>
+
+`boolean`. Set `true` for the compatibility form of precise mode.
+
+### `level`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  level: "patch",
+});
+```
+
+<CodeDemo label="level diff" steps={[
+  { line: 2, label: "Lodash version", note: "The last version number changes. This update qualifies for the patch policy." },
+]}>
+
+```diff title="package.json (eligible patch)"
+-  "lodash": "4.17.20"
++  "lodash": "4.17.21"
+```
+
+</CodeDemo>
+
+`"patch" | "minor" | "major"`, default `"major"`. Restrict eligible semver updates. For example, `4.17.20` to `4.17.21` qualifies as a patch.
+
+### `update`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  update: true,
+});
+```
+
+<CodeDemo label="update diff" steps={[
+  { line: 2, label: "Lodash version", note: "Writes the pinned patch version to package.json." },
+]}>
+
+```diff title="package.json"
+-  "lodash": "4.17.20"
++  "lodash": "4.17.21"
+```
+
+</CodeDemo>
+
+`boolean`, default `false`. Write eligible changes to the manifests.
+
+### `dryRun`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  update: true,
+  dryRun: true,
+  format: "json",
+});
+```
+
+<CodeDemo label="dryRun diff" steps={[
+  { line: 2, label: "Lodash version", note: "Proposed edit only. The file still declares 4.17.20." },
+]}>
+
+```diff title="package.json (preview)"
+-  "lodash": "4.17.20"
++  "lodash": "4.17.21"
+```
+
+</CodeDemo>
+
+`boolean`, default `false`. Preview an update and leave the manifest untouched.
+
+### `interactive`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  update: true,
+  interactive: true,
+});
+```
+
+<CodeDemo label="interactive diff" steps={[
+  { line: 2, label: "Lodash version", note: "Selecting lodash applies this edit." },
+]}>
+
+```diff title="package.json (after selecting lodash)"
+-  "lodash": "4.17.20"
++  "lodash": "4.17.21"
+```
+
+</CodeDemo>
+
+`boolean`, default `false`. Prompt in the terminal to select which eligible changes to write.
+
+### `noCache`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  noCache: true,
+  codependencies: ["lodash"],
+});
+```
+
+<CodeDemo label="noCache diff" steps={[
+  { line: 1, label: "Changed line", note: "Requests fresh metadata for lodash." },
+]}>
+
+```diff title="example.mjs (checkFiles options)"
++  noCache: true,
+```
+
+</CodeDemo>
+
+`boolean`, default `false`. Request fresh metadata when resolving a package name.
+
+## Results and logging
+
+### `format`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+const diffs = await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  format: "json",
+});
+process.stdout.write(JSON.stringify(diffs, null, 2) + "\n");
+```
+
+<CodeDemo label="format diff" steps={[
+  { line: 1, label: "Changed line", note: "Returns diff records with the current and required versions." },
+]}>
+
+```diff title="example.mjs (checkFiles options)"
++  format: "json",
+```
+
+</CodeDemo>
+
+`"json" | "markdown" | "table"`. Collect diff records and defer mismatch failures. In Node, the result is an array of objects you can format yourself.
+
+### `deferFailure`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  deferFailure: true,
+  quiet: true,
+  format: "json",
+});
+```
+
+<CodeDemo label="deferFailure diff" steps={[
+  { line: 1, label: "Changed line", note: "Lets the caller handle a mismatch after inspecting the result." },
+]}>
+
+```diff title="example.mjs (checkFiles options)"
++  deferFailure: true,
+```
+
+</CodeDemo>
+
+`boolean`, default `false`. Allow an outdated check to resolve so the caller can decide whether to fail. Pair with `format` when you need diff records even with quiet logging.
+
+### `verbose`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  verbose: true,
+});
+```
+
+<CodeDemo label="verbose diff" steps={[
+  { line: 1, label: "Changed line", note: "Requests detailed output for the same check." },
+]}>
+
+```diff title="example.mjs (checkFiles options)"
++  verbose: true,
+```
+
+</CodeDemo>
+
+`boolean`, default `false`. Request detailed check output.
+
+### `debug`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  debug: true,
+});
+```
+
+<CodeDemo label="debug diff" steps={[
+  { line: 1, label: "Changed line", note: "Turns on diagnostics for the dependency comparison." },
+]}>
+
+```diff title="example.mjs (checkFiles options)"
++  debug: true,
+```
+
+</CodeDemo>
+
+`boolean`, default `false`. Enable diagnostic details during version resolution and manifest checks.
+
+### `silent`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  silent: true,
+});
+```
+
+<CodeDemo label="silent diff" steps={[
+  { line: 1, label: "Changed line", note: "Suppresses routine messages. The mismatch still rejects." },
+]}>
+
+```diff title="example.mjs (checkFiles options)"
++  silent: true,
+```
+
+</CodeDemo>
+
+`boolean`, default `false`. Suppress routine messages and the normal preview table.
+
+### `quiet`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  quiet: true,
+});
+```
+
+<CodeDemo label="quiet diff" steps={[
+  { line: 1, label: "Changed line", note: "Suppresses the preview table. The caller still receives the rejection." },
+]}>
+
+```diff title="example.mjs (checkFiles options)"
++  quiet: true,
+```
+
+</CodeDemo>
+
+`boolean`, default `false`. Suppress ordinary check output. The caller can still handle a rejection.
+
+## Callbacks and integration options
+
+### `onProgress`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: ["lodash", "react"],
+  onProgress(current, total, packageName) {
+    process.stderr.write(`${current}/${total} ${packageName}\n`);
+  },
+});
+```
+
+<CodeDemo label="onProgress diff" steps={[
+  { line: 2, label: "Changed line", note: "The callback writes a progress line for each package." },
+]}>
+
+```diff title="stderr (example)"
++1/2 lodash
++2/2 react
+```
+
+</CodeDemo>
+
+`(current, total, packageName) => void`. Follow version resolution, for example to update a terminal progress display.
+
+### `onBeforeOutput`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  onBeforeOutput() { process.stderr.clearLine?.(0); },
+});
+```
+
+<CodeDemo label="onBeforeOutput diff" steps={[
+  { line: 1, label: "Changed line", note: "This clears the terminal progress line before the table prints." },
+]}>
+
+```diff title="example.mjs (checkFiles options)"
++  onBeforeOutput() { process.stderr.clearLine?.(0); },
+```
+
+</CodeDemo>
+
+`() => void`. Called before check output such as the dependency table. A terminal integration can clear its progress line here.
+
+### `isCLI`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  isCLI: true,
+  format: "json",
+});
+```
+
+<CodeDemo label="isCLI diff" steps={[
+  { line: 1, label: "Changed line", note: "An outdated result sets the process exit code to 1." },
+]}>
+
+```diff title="example.mjs (checkFiles options)"
++  isCLI: true,
+```
+
+</CodeDemo>
+
+`boolean`, default `false`. Used by CLI integrations. A deferred mismatch on a check can set `process.exitCode` to `1`.
+
+### `onDeferredFailure`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  isCLI: true,
+  format: "json",
+  onDeferredFailure() { process.stderr.write("Dependency update required\n"); },
+});
+```
+
+<CodeDemo label="onDeferredFailure diff" steps={[
+  { line: 1, label: "Changed line", note: "The callback prints this message when CLI mode defers a mismatch." },
+]}>
+
+```diff title="stderr"
++Dependency update required
+```
+
+</CodeDemo>
+
+`() => void`. Called for an outdated CLI-mode check when failure is deferred. An integration can use it to record the failure before the process exits.
+
+### `isTesting`
+
+Run `node example.mjs`.
+
+```javascript title="example.mjs"
+import { checkFiles } from "codependence";
+
+await checkFiles({
+  codependencies: [{ lodash: "4.17.21" }],
+  isTesting: true,
+  update: true,
+});
+```
+
+<CodeDemo label="isTesting diff" steps={[
+  { line: 2, label: "Changed line", note: "The fixture keeps its original lodash declaration." },
+]}>
+
+```diff title="example.mjs (checkFiles options)"
+   update: true,
++  isTesting: true,
+```
+
+</CodeDemo>
+
+`boolean`, default `false`. Use the library’s test path to suppress file writes and interactive prompts. Version resolution can also differ in this mode.
+
+TypeScript callers can import `CheckFiles` and `VersionDiff` as types. CommonJS callers can use `const { checkFiles } = require("codependence")`.

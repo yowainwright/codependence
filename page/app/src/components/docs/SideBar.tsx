@@ -1,6 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { Badge } from "@/components/ui/badge";
-import { GITHUB_URL } from "@/constants";
 import { SIDEBAR } from "@/content/constants";
 import type { SidebarItem } from "@/types";
 
@@ -12,11 +10,6 @@ type SideBarSectionProps = {
 type SideBarProps = {
   onNavigate?: () => void;
 };
-
-const releaseTag = `v${import.meta.env.CODEPENDENCE_VERSION}`;
-const [major, minor] = releaseTag.split(".");
-const releaseSeries = `${major}.${minor}.*`;
-const releaseUrl = `${GITHUB_URL}/releases/tag/${releaseTag}`;
 
 function SideBarItem({ href, title, onNavigate }: SidebarItem & SideBarProps) {
   const slug = href.split("/").pop() ?? "";
@@ -66,15 +59,6 @@ export function SideBar({ onNavigate }: SideBarProps) {
 
   return (
     <nav aria-label="Documentation navigation" className="flex w-full flex-col items-center px-4 font-sans">
-      <Badge
-        variant="outline"
-        render={<a href={releaseUrl} />}
-        className="mb-1 h-auto max-w-full rounded-(--radius) border-dashed border-foreground/40 px-2 py-2 text-center leading-normal text-balance whitespace-normal"
-      >
-        <span className="release-badge-text font-semibold">
-          {releaseSeries}, prompt before making major updates
-        </span>
-      </Badge>
       <ul className="w-full">{sections}</ul>
     </nav>
   );
