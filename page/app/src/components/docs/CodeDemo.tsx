@@ -111,7 +111,7 @@ function LineTooltip({ anchor, boundary, step }: {
     <Tooltip.Root open>
       <Tooltip.Portal>
         <Tooltip.Positioner anchor={anchor} side="right" align="center" sideOffset={12}
-          collisionBoundary={boundary} collisionAvoidance={calloutCollisions} collisionPadding={8}
+          collisionAvoidance={calloutCollisions} collisionPadding={8}
           className="pointer-events-none z-40 hidden w-[min(16rem,var(--available-width))] pointer-fine:md:block data-[anchor-hidden]:invisible">
           <Tooltip.Popup ref={onPopup} role="tooltip" className="demo-tooltip relative rounded-md px-3 py-2 text-sm leading-5 text-popover-foreground shadow-md">
             {step.note}
