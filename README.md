@@ -11,6 +11,8 @@
 
 This means you control how you update and why you update dependenceis. Versus other tools, Codependence caters to a project's context vs a dependency's context. 
 
+Install the CLI with [npm or Homebrew](#install).
+
 ---
 
 ## Main use case
@@ -74,7 +76,7 @@ npm install codependence
 For direct CLI use:
 
 ```sh
-npm install --global codependence
+npm install --global --ignore-scripts codependence
 ```
 
 or via brew

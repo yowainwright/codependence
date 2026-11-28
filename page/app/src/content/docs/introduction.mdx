@@ -26,6 +26,20 @@ This means you control how you update and why you update dependencies. Versus ot
 
 <section>
 
+## Install the CLI
+
+Install with npm if you have Node.js 24 or newer.
+
+```sh
+npm install --global --ignore-scripts codependence
+```
+
+On macOS or Linux, you can also install from the project's Homebrew tap.
+
+```sh
+brew install yowainwright/tap/codependence
+```
+
 ## Main Use Case
 
 **Pin lodash and update the rest**
@@ -62,7 +76,7 @@ Suppose your app needs lodash `4.17.21`. Declare that exact version in `package.
 From the project root, preview both updates.
 
 ```sh
-pnpm dlx codependence --update --dryRun
+codependence --update --dryRun
 ```
 
 For example, if React resolves to `19.1.0` and Alpine to `3.20`, the diff includes both updates. Lodash stays at `4.17.21`.
@@ -128,7 +142,7 @@ jobs:
 ## Apply it locally
 
 ```sh
-pnpm dlx codependence --update
+codependence --update
 pnpm install
 ```
 
